@@ -373,8 +373,7 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between mb-3">
-         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-           <MapPin size={14} className="text-brand-500" />
+         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
            {t('location', 'Location')}
          </h3>
          {!isDesktop && (
@@ -388,22 +387,22 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
         <div className="w-full h-64 md:h-80 rounded-2xl overflow-hidden border border-gray-200 dark:border-neutral-800 relative z-0 bg-gray-100 dark:bg-gray-800">
           <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-          {/* Top Actions: Navigate & Open Map */}
-          <div className="absolute top-2.5 left-2.5 bg-white/95 dark:bg-black/95 px-3 py-1.5 text-[11px] rounded-lg shadow-md z-[1000] backdrop-blur-md border border-gray-200 dark:border-neutral-800 flex items-center gap-2.5">
+          {/* Top Actions: Navigate & Open Map styled matching map control design language */}
+          <div className="absolute top-2.5 left-2.5 z-[1000] flex items-center bg-white dark:bg-[#1f1f1f] border border-gray-300 dark:border-neutral-700 rounded-md shadow-md overflow-hidden">
             <button
               type="button"
               onClick={onNavigate}
-              className="text-blue-500 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer select-none border-r border-gray-300 dark:border-neutral-700"
             >
-              <Navigation size={12} /> {t('navigate', 'Navigate')}
+              <Navigation size={13} className="text-gray-700 dark:text-gray-300" />
+              <span>{t('navigate', 'Navigate')}</span>
             </button>
-            <span className="text-gray-300 dark:text-neutral-700">•</span>
             <button
               type="button"
               onClick={onOpenMap}
-              className="text-brand-500 font-bold hover:underline cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer select-none"
             >
-              {t('open_map', 'Open Map')}
+              <span>{t('open_map', 'Open Map')}</span>
             </button>
           </div>
         </div>
