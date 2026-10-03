@@ -390,11 +390,11 @@ const MobileBottomNav = () => {
           {/* Home */}
           <Link 
             to="/" 
-            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
           >
-            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
               <Home size={24} className={`transition-colors ${isActive('/') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('home')}</span>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isActive('/') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('home')}</span>
             </motion.div>
             {isActive('/') && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
@@ -404,25 +404,23 @@ const MobileBottomNav = () => {
           {/* Products */}
           <Link 
             to="/products" 
-            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
           >
-            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
               <ShoppingBag size={24} className={`transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && !location.search.includes('saved=true') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('products_nav')}</span>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('products_nav')}</span>
             </motion.div>
             {isActive('/products') && !location.search.includes('saved=true') && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
             )}
           </Link>
 
-
-
           {/* Cart */}
           <Link 
             to="/cart" 
-            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
           >
-            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
               <div className="relative">
                 <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/cart') ? 2.5 : 2} />
                 {cartCount > 0 && (
@@ -431,7 +429,7 @@ const MobileBottomNav = () => {
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('cart')}</span>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isActive('/cart') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('cart')}</span>
             </motion.div>
             {isActive('/cart') && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
@@ -442,9 +440,9 @@ const MobileBottomNav = () => {
           {isAuthenticated && (
             <Link 
               to="/messages" 
-              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+              className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
             >
-              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
                 <div className="relative">
                   <MessageSquare size={24} className={`transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/messages') ? 2.5 : 2} />
                   {messageUnreadCount > 0 && (
@@ -453,7 +451,7 @@ const MobileBottomNav = () => {
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('chats', 'Chats')}</span>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('chats', 'Chats')}</span>
               </motion.div>
               {isActive('/messages') && (
                 <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
@@ -464,9 +462,9 @@ const MobileBottomNav = () => {
           {isAuthenticated && (
             <Link 
               to="/products?saved=true" 
-              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+              className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
             >
-              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
                 <div className="relative">
                   <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
                   {savedCount > 0 && (
@@ -475,7 +473,10 @@ const MobileBottomNav = () => {
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>
+                  <span className="hidden min-[430px]:inline">{t('saved', 'Saved Items')}</span>
+                  <span className="inline min-[430px]:hidden">{t('saved_short', 'Saved')}</span>
+                </span>
               </motion.div>
               {isActive('/products') && location.search.includes('saved=true') && (
                 <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
@@ -483,16 +484,14 @@ const MobileBottomNav = () => {
             </Link>
           )}
 
-
-
           {/* Hamburger Menu (Toggles Slide-up Menu) */}
           <button 
             onClick={() => setIsMenuOpen(true)} 
-            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            className="relative flex flex-col items-center justify-center flex-1 min-w-0 max-w-[4.5rem] h-full gap-1 tap-highlight-transparent group px-0.5"
           >
-            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10 w-full">
               <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('menu')}</span>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors whitespace-nowrap truncate max-w-full text-center ${isMenuOpen ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('menu')}</span>
             </motion.div>
             {isMenuOpen && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
