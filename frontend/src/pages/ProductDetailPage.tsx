@@ -1084,7 +1084,7 @@ const ProductDetailPage: React.FC = () => {
   return (
     <div 
       ref={scrollContainerRef}
-      className="fixed inset-0 z-[100] bg-neutral-950 dark:bg-black text-white overflow-y-auto overflow-x-hidden w-full max-w-full select-auto"
+      className="fixed inset-0 z-[100] bg-white dark:bg-black text-gray-900 dark:text-white overflow-y-auto overflow-x-hidden w-full max-w-full select-auto"
     >
       <SEO 
         title={`${product.name} - TSh ${priceFormatted} | SokoniMax Tanzania`} 
@@ -1116,109 +1116,106 @@ const ProductDetailPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] xl:grid-cols-[62%_38%] lg:grid-rows-[auto_100vh] w-full min-h-screen">
         {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
-        <div className="block lg:hidden col-span-1 relative w-full max-w-full bg-neutral-950 shrink-0 overflow-hidden isolate">
-        <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-between pointer-events-none">
-          {/* Left: Close, Logo */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <button
-              onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
-              className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
-              aria-label="Close product view"
-            >
-              <ChevronLeft size={20} strokeWidth={2.5} />
-            </button>
-            <button 
-              onClick={() => navigate('/')} 
-              className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md p-2" 
-              title="Go to Homepage"
-            >
-              <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
-            </button>
-          </div>
+        <div className="block lg:hidden col-span-1 relative w-full max-w-full bg-white dark:bg-black shrink-0 overflow-hidden">
+          {/* Top Action Bar: dedicated headroom above the image matching the theme body color */}
+          <div className="relative z-40 w-full pt-[max(12px,env(safe-area-inset-top))] pb-2.5 px-3.5 bg-white dark:bg-black select-none">
+            <div className="flex items-center justify-between">
+              {/* Left: Close, Logo */}
+              <div className="flex items-center gap-2">
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
+                  className="w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                  aria-label="Close product view"
+                >
+                  <ChevronLeft size={20} strokeWidth={2.5} />
+                </button>
+                <button 
+                  onClick={() => navigate('/')} 
+                  className="w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md p-2" 
+                  title="Go to Homepage"
+                >
+                  <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-sm" />
+                </button>
+              </div>
 
-          {/* Right: Search, Save / Wishlist, Share */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <button
-              onClick={openSearch}
-              className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
-              title="Search"
-              aria-label="Search"
-            >
-              <Search size={17} />
-            </button>
+              {/* Right: Search, Save / Wishlist, Share */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={openSearch}
+                  className="w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                  title="Search"
+                  aria-label="Search"
+                >
+                  <Search size={17} />
+                </button>
 
-            {/* Save / Wishlist */}
-            <button
-              onClick={handleLike}
-              className={`relative w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md ${liked ? 'text-red-500' : 'text-white'}`}
-              title={liked ? 'Saved' : 'Save'}
-              aria-label="Save listing"
-            >
-              <Heart size={17} className={liked ? 'fill-current text-red-500' : ''} />
-              {likeCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-black">
-                  {likeCount}
-                </span>
-              )}
-            </button>
+                {/* Save / Wishlist */}
+                <button
+                  onClick={handleLike}
+                  className={`relative w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md ${liked ? 'text-red-500' : 'text-white'}`}
+                  title={liked ? 'Saved' : 'Save'}
+                  aria-label="Save listing"
+                >
+                  <Heart size={17} className={liked ? 'fill-current text-red-500' : ''} />
+                  {likeCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-black">
+                      {likeCount}
+                    </span>
+                  )}
+                </button>
 
-            {/* Share */}
-            <button
-              onClick={handleShare}
-              className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
-              title="Share"
-              aria-label="Share listing"
-            >
-              <Share2 size={17} />
-            </button>
-          </div>
-        </div>
-
-        {images.length <= 1 ? (
-          <div 
-            className="w-full aspect-square relative cursor-pointer overflow-hidden isolate select-none" 
-            style={{ clipPath: 'inset(0)' }}
-            onClick={() => setLightboxOpen(true)}
-          >
-            {currentImageSrc && (
-              <>
-                <img 
-                  src={currentImageSrc} 
-                  alt="" 
-                  aria-hidden="true" 
-                  className="absolute inset-0 w-full h-full object-cover filter blur-2xl opacity-75 scale-105 select-none pointer-events-none" 
-                />
-                <div className="absolute inset-0 bg-black/30 pointer-events-none" />
-              </>
-            )}
-            <div className="relative z-10 w-full h-full flex items-center justify-center">
-              {currentImageSrc ? (
-                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl" containMode="contain" loading="eager" />
-              ) : (
-                <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
-              )}
+                {/* Share */}
+                <button
+                  onClick={handleShare}
+                  className="w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                  title="Share"
+                  aria-label="Share listing"
+                >
+                  <Share2 size={17} />
+                </button>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px] overflow-hidden isolate" style={{ aspectRatio: '1.08/1', clipPath: 'inset(0)' }}>
-            <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(selectedImage); setLightboxOpen(true); }}>
-              <img src={currentImageSrc || images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover transition-opacity duration-200" loading="eager" />
-            </div>
-            <div className="flex flex-col gap-[2px]">
-              {images.slice(1, 3).map((img, idx) => (
-                <div key={idx} className="relative flex-1 cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(idx + 1); setLightboxOpen(true); }}>
-                  <img src={img.image || ''} alt={`${product.name} ${idx + 2}`} className="w-full h-full object-cover" loading="lazy" />
-                  {idx === 1 && images.length > 3 && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">+{images.length - 3}</span>
-                    </div>
+
+          {/* Product Image Stage: seamless theme matching */}
+          <div className="relative z-10 w-full bg-white dark:bg-black">
+            {images.length <= 1 ? (
+              <div 
+                className="w-full aspect-square relative cursor-pointer overflow-hidden bg-white dark:bg-black select-none" 
+                onClick={() => setLightboxOpen(true)}
+              >
+                <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
+                  {currentImageSrc ? (
+                    <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-md" containMode="contain" loading="eager" />
+                  ) : (
+                    <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
                   )}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div 
+                className="w-full grid grid-cols-[2.2fr_1fr] gap-1 sm:gap-1.5 overflow-hidden bg-white dark:bg-black" 
+                style={{ aspectRatio: '1.08/1' }}
+              >
+                <div className="relative cursor-pointer overflow-hidden bg-white dark:bg-black" onClick={() => { setSelectedImage(selectedImage); setLightboxOpen(true); }}>
+                  <img src={currentImageSrc || images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover transition-opacity duration-200" loading="eager" />
+                </div>
+                <div className="flex flex-col gap-1 sm:gap-1.5">
+                  {images.slice(1, 3).map((img, idx) => (
+                    <div key={idx} className="relative flex-1 cursor-pointer overflow-hidden bg-white dark:bg-black" onClick={() => { setSelectedImage(idx + 1); setLightboxOpen(true); }}>
+                      <img src={img.image || ''} alt={`${product.name} ${idx + 2}`} className="w-full h-full object-cover" loading="lazy" />
+                      {idx === 1 && images.length > 3 && (
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
+                          <span className="text-white text-lg font-bold">+{images.length - 3}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
       {/* ═══ DESKTOP IMAGE STAGE (lg+ only, sticky until end of location) ═══ */}
       <div className="hidden lg:block lg:col-start-1 lg:row-start-1 relative w-full bg-neutral-950">
@@ -1421,7 +1418,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* ═══ RIGHT SIDE: Product Info & Buy Sidebar (up to Map Location) ═══ */}
-      <div className="w-full max-w-full lg:col-start-2 lg:row-start-1 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:pb-0 flex flex-col gap-6 shrink-0">
+      <div className="w-full max-w-full lg:col-start-2 lg:row-start-1 bg-white dark:bg-black text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:pb-0 flex flex-col gap-6 shrink-0">
           
           {/* Header Area */}
           <div className="flex flex-col gap-2">
@@ -1875,7 +1872,7 @@ const ProductDetailPage: React.FC = () => {
                         value={customMessage}
                         onChange={(e) => setCustomMessage(e.target.value)}
                         placeholder={t('quick_message_placeholder', 'Hi, is this still available?')}
-                        className="min-w-0 flex-1 bg-white dark:bg-[#18191a] border border-gray-200 dark:border-neutral-700 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
+                        className="min-w-0 flex-1 bg-white dark:bg-black border border-gray-200 dark:border-neutral-700 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
                       />
                       <button
                         type="submit"
@@ -1938,7 +1935,7 @@ const ProductDetailPage: React.FC = () => {
                 )}
                 <Link
                   to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
-                  className="text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 bg-white dark:bg-[#18191a] border border-gray-200 dark:border-neutral-700 hover:border-brand-500 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                  className="text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 bg-white dark:bg-black border border-gray-200 dark:border-neutral-700 hover:border-brand-500 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
                 >
                   {isOwnProduct 
                     ? (product.inspections?.length > 0 ? t('reinspect', 'Re-inspect') : t('request_inspection', 'Request Inspection'))
@@ -1982,7 +1979,7 @@ const ProductDetailPage: React.FC = () => {
                         <Link
                           key={`insp-${insp.id}-${idx}`}
                           to={`/verify/${insp.inspection_id}`}
-                          className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700 transition-all text-xs"
+                          className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-black border border-gray-100 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700 transition-all text-xs"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -2012,7 +2009,7 @@ const ProductDetailPage: React.FC = () => {
                       return (
                         <div
                           key={`event-${event.id}-${idx}`}
-                          className="w-full p-2.5 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 text-xs"
+                          className="w-full p-2.5 rounded-lg bg-white dark:bg-black border border-gray-100 dark:border-neutral-800 text-xs"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -2056,7 +2053,7 @@ const ProductDetailPage: React.FC = () => {
         <div 
           ref={similarProductsColRef}
           onWheel={handleRow2Wheel}
-          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
+          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
         >
           {/* Section 1: You Might Also Like */}
           <YouMightAlsoLikeSection 
@@ -2081,7 +2078,7 @@ const ProductDetailPage: React.FC = () => {
         <div 
           ref={reviewsColRef}
           onWheel={handleRow2Wheel}
-          className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
+          className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
         >
           <ProductTabs 
             productId={product.id} 
