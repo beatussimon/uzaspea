@@ -387,20 +387,20 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
         <div className="w-full h-64 md:h-80 rounded-2xl overflow-hidden border border-gray-200 dark:border-neutral-800 relative z-0 bg-gray-100 dark:bg-gray-800">
           <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-          {/* Top Actions: Navigate & Open Map styled matching map control design language */}
-          <div className="absolute top-2.5 left-2.5 z-[1000] flex items-center bg-white dark:bg-[#1f1f1f] border border-gray-300 dark:border-neutral-700 rounded-md shadow-md overflow-hidden">
+          {/* Top Actions: Navigate & Open Map styled matching map control design language exactly */}
+          <div className="absolute top-2.5 left-2.5 z-[1000] flex items-center bg-white border-2 border-black/20 rounded-[4px] overflow-hidden select-none">
             <button
               type="button"
               onClick={onNavigate}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer select-none border-r border-gray-300 dark:border-neutral-700"
+              className="h-[30px] flex items-center gap-1.5 px-3 text-xs font-bold text-black hover:bg-[#f4f4f4] active:bg-[#e8e8e8] transition-colors cursor-pointer select-none border-r border-[#ccc] whitespace-nowrap"
             >
-              <Navigation size={13} className="text-gray-700 dark:text-gray-300" />
+              <Navigation size={13} className="text-black shrink-0" />
               <span>{t('navigate', 'Navigate')}</span>
             </button>
             <button
               type="button"
               onClick={onOpenMap}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer select-none"
+              className="h-[30px] flex items-center gap-1.5 px-3 text-xs font-bold text-black hover:bg-[#f4f4f4] active:bg-[#e8e8e8] transition-colors cursor-pointer select-none whitespace-nowrap"
             >
               <span>{t('open_map', 'Open Map')}</span>
             </button>
