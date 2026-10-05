@@ -127,15 +127,17 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'electronics': ['Color', 'Storage Capacity'],
   'electronics-mobile-phones': ['Color', 'Storage Capacity', 'RAM'],
-  'electronics-computers-laptops': ['Processor', 'RAM', 'Storage Capacity'],
-  'electronics-tvs-audio': ['Screen Size', 'Color'],
-  'mens-fashion': ['Size', 'Color'],
-  'mens-fashion-clothing': ['Size', 'Color', 'Material'],
-  'mens-fashion-shoes': ['Shoe Size', 'Color'],
-  'mens-fashion-watches': ['Strap Color', 'Dial Color'],
-  'womens-fashion': ['Size', 'Color', 'Material'],
+  'electronics-computers-laptops': ['Color', 'RAM', 'Storage Capacity'],
+  'electronics-tvs-audio': ['Color', 'Screen Size'],
+  'mens-fashion': ['Color', 'Size'],
+  'mens-fashion-clothing': ['Color', 'Size', 'Material'],
+  'mens-fashion-shoes': ['Color', 'Shoe Size'],
+  'mens-fashion-watches': ['Dial Color', 'Strap Color'],
+  'womens-fashion': ['Color', 'Size', 'Material'],
   'vehicles-cars': ['Color', 'Trim Level'],
-  'vehicles-vehicle-parts-accessories': ['Compatibility', 'Color'],
+  'vehicles-vehicle-parts-accessories': ['Placement', 'Compatibility'],
+  'food-groceries': ['Weight / Pack Size'],
+  'home-furniture': ['Finish / Color', 'Dimensions'],
 };
 
 // ============ Dashboard Products ============
