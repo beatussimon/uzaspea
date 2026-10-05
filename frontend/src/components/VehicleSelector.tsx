@@ -8,13 +8,15 @@ interface VehicleSelectorProps {
   category?: string;
   subcategory?: string;
   mode?: 'filter' | 'manage';
+  roundedClassName?: string;
 }
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
   onVehicleSelect, 
   category, 
   subcategory, 
-  mode = 'filter' 
+  mode = 'filter',
+  roundedClassName = 'rounded-xl'
 }) => {
   const [makes, setMakes] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
@@ -105,7 +107,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   };
 
-  const selectClass = "w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow appearance-none disabled:opacity-50";
+  const selectClass = `w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 ${roundedClassName} bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow appearance-none disabled:opacity-50`;
 
   return (
     <div className="space-y-4 mb-2">

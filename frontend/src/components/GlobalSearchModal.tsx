@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Clock, ArrowRight, Loader2, Tag, Filter, ShoppingCart } from 'lucide-react';
+import { Search, X, Clock, ArrowRight, Loader2, Tag, ShoppingCart, SlidersHorizontal } from 'lucide-react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
 import { useCart } from '../context/CartContext';
@@ -479,25 +479,36 @@ const GlobalSearchModal: React.FC = () => {
   return (
     <AnimatePresence>
       {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 pointer-events-none">
+        <div className="fixed inset-0 z-[100] flex flex-col pointer-events-none overscroll-none">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             onClick={closeSearch}
-            className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md pointer-events-auto"
+            className="absolute inset-0 bg-black/40 pointer-events-auto"
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -10 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="relative w-full max-w-5xl h-[85vh] max-h-[85dvh] bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-[24px] shadow-2xl border border-neutral-200/80 dark:border-neutral-800/80 flex flex-col overflow-hidden pointer-events-auto min-h-0"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative w-full h-full h-[100dvh] max-h-[100dvh] bg-white dark:bg-[#0a0a0a] flex flex-col overflow-hidden pointer-events-auto min-h-0 z-10"
           >
-            {/* Top Search Area: Centered with a brand-colored bottom line and no box */}
-            <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-3 pb-2 flex items-center justify-center">
+            {/* Top Search Area: Single-row layout, centered brand-colored bottom line, X on the left, filter toggle on right */}
+            <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-[max(12px,env(safe-area-inset-top))] pb-3 flex items-center justify-center">
+              {/* Close button on the far left */}
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 p-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors z-20 flex items-center justify-center cursor-pointer select-none focus:outline-none"
+                title="Close search"
+                aria-label="Close search"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
               <form 
                 onSubmit={handleSubmit} 
                 className="w-full max-w-2xl mx-auto relative flex items-center justify-center border-b-2 border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
@@ -510,7 +521,7 @@ const GlobalSearchModal: React.FC = () => {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, part numbers, brands...')}
-                  className="w-full h-14 sm:h-16 px-10 text-center bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
+                  className="w-full h-12 sm:h-16 px-10 text-center bg-transparent text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
                   style={{ outline: 'none', boxShadow: 'none' }}
                 />
 
@@ -532,7 +543,7 @@ const GlobalSearchModal: React.FC = () => {
                     className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 focus-visible:ring-0"
                     title="Filters"
                   >
-                    <Filter className="w-4 h-4" />
+                    <SlidersHorizontal className="w-4 h-4" />
                     {activeFilterCount > 0 && <span className="w-2 h-2 bg-brand-500 rounded-full"></span>}
                   </button>
                 </div>
@@ -551,7 +562,7 @@ const GlobalSearchModal: React.FC = () => {
 
             {/* Seller Scope Banner */}
             {sellerScope && (
-              <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-brand-500/5 dark:bg-brand-500/10 shrink-0">
+              <div className="w-full max-w-5xl mx-auto flex items-center gap-2 px-4 sm:px-6 py-2 bg-brand-500/5 dark:bg-brand-500/10 shrink-0">
                 {sellerScope.avatar ? (
                   <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-brand-500/20" />
                 ) : (
@@ -572,12 +583,12 @@ const GlobalSearchModal: React.FC = () => {
             )}
 
             {/* Content Area (Filters on Left, Results on Right) */}
-            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+            <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
               {/* Desktop Sidebar Filters */}
               <div className="hidden md:flex flex-col w-[280px] shrink-0 border-r border-neutral-200/50 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-neutral-900/20 h-full min-h-0">
                 <div className="p-4 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300 font-bold uppercase tracking-wider text-xs">
-                    <Filter className="w-4 h-4" />
+                    <SlidersHorizontal className="w-4 h-4" />
                     Filters
                   </div>
                   {activeFilterCount > 0 && (
@@ -912,7 +923,7 @@ const GlobalSearchModal: React.FC = () => {
                             <button
                               key={i}
                               onClick={() => { setQuery(term); handleSubmit(undefined, { query: term }); }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 transition-colors text-left group"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 transition-colors text-left group"
                             >
                               <Clock className="w-4 h-4 text-neutral-400 group-hover:text-brand-500" />
                               <span className="flex-1 font-medium">{term}</span>

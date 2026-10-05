@@ -1198,7 +1198,7 @@ const ProductDetailPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Right: Search, Save / Wishlist, Share */}
+              {/* Right: Search, Messages, Save / Wishlist, Share */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={openSearch}
@@ -1208,6 +1208,37 @@ const ProductDetailPage: React.FC = () => {
                 >
                   <Search size={17} />
                 </button>
+
+                {/* Messages with IG Story Ring Loading */}
+                <div className="relative flex items-center justify-center">
+                  {isSendingMessage && (
+                    <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 animate-spin p-[2px] pointer-events-none shadow-lg shadow-rose-500/30 transition-all duration-300" />
+                  )}
+                  {messageSent && !isSendingMessage && (
+                    <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none transition-all duration-300" />
+                  )}
+                  <button
+                    onClick={() => {
+                      if (existingConversation && window.innerWidth >= 768) {
+                        openDesktopChat(existingConversation.id);
+                      } else if (window.innerWidth >= 768) {
+                        toggleDesktopChat();
+                      } else {
+                        navigate(existingConversation ? `/messages/${existingConversation.id}` : '/messages');
+                      }
+                    }}
+                    className="relative w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md z-10"
+                    title="Messages"
+                    aria-label="View messages"
+                  >
+                    <MessageSquare size={17} />
+                    {messageUnreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-black animate-pulse">
+                        {messageUnreadCount > 99 ? '99' : messageUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
 
                 {/* Save / Wishlist */}
                 <button
