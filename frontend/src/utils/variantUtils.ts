@@ -42,8 +42,8 @@ export function normalizeSizeLabel(raw: string): string {
 export function isSpecValue(val: string): boolean {
   if (!val) return false;
   const v = val.trim().toLowerCase();
-  // 1. Clothing sizes: S, M, L, XL, 42, 44, etc.
-  if (/^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,3}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i.test(v)) return true;
+  // 1. Clothing sizes: S, M, L, XL, 42, 44, etc. and pure numbers (e.g. 64, 128, 256, 512, 1024)
+  if (/^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,4}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i.test(v)) return true;
   // 2. Storage & RAM: 64gb, 128gb, 256gb, 512gb, 1tb, 8gb, 8gb ram, 16gb
   if (/^\d{1,4}\s*(gb|tb|mb)(\s*ram)?$/i.test(v) || /^\d{1,4}\s*ram$/i.test(v)) return true;
   // 3. Weights & Volumes: 500g, 1kg, 2.5kg, 5kg, 25kg, 1l, 5l, 500ml, 12pk, 24pk
@@ -66,7 +66,7 @@ export function getSecondaryDimensionLabel(
   const cat = (categorySlug || '').toLowerCase();
   const val = (sampleValue || '').trim().toLowerCase();
 
-  if (/^\d{1,4}\s*(gb|tb|mb|ram)$/i.test(val) || cat.includes('electronic') || cat.includes('phone') || cat.includes('computer')) {
+  if (/^\d{1,4}\s*(gb|tb|mb|ram)$/i.test(val) || (/^\d{2,4}$/.test(val) && (cat.includes('electronic') || cat.includes('phone') || cat.includes('computer'))) || cat.includes('electronic') || cat.includes('phone') || cat.includes('computer')) {
     return translate('storage', 'Storage');
   }
   if (/^\d+(\.\d+)?\s*(kg|g|gm|l|ml|oz|lb|pcs|pk|pack)$/i.test(val) || cat.includes('food') || cat.includes('grocer')) {
@@ -122,11 +122,12 @@ export function resolveBaseVariantName(
 
 /**
  * Resolves secondary specification for the base product from structured specs or model fields.
+ * Excludes delivery package shipping tier (`product.size` which is 'small'/'medium'/'large').
  */
 export function resolveBaseVariantSpec(product: any): string | null {
   if (!product) return null;
   const specs = product.structured_specs || product.specifications || {};
-  const rawSpec = product.size || specs.Size || specs.size || specs['Shoe Size'] || specs['Storage Capacity'] || specs.Storage || specs.storage || specs['Weight / Pack Size'] || specs.Weight || specs.weight || specs.Placement || specs.placement;
+  const rawSpec = specs.Size || specs.size || specs['Clothing Size'] || specs['Shoe Size'] || specs['Storage Capacity'] || specs.Storage || specs.storage || specs.storage_internal || specs['Weight / Pack Size'] || specs.Weight || specs.weight || specs.Placement || specs.placement;
   return rawSpec ? normalizeSizeLabel(String(rawSpec)) : null;
 }
 
