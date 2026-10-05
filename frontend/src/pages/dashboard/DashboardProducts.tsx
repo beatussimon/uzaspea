@@ -2884,6 +2884,54 @@ const DashboardProducts: React.FC = () => {
                     {newVariants.map((v, i) => (
                       <div key={i} className="p-2.5 bg-white dark:bg-[#161616] rounded-lg border border-neutral-200 dark:border-neutral-800">
                         <div className="flex flex-wrap gap-2 items-end">
+                          {/* Variant Photo Picker */}
+                          <div className="shrink-0 flex flex-col items-center">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Photo</label>
+                            <div className="relative group">
+                              <label className="w-8 h-8 rounded border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors" title="Upload variant photo">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const nv = [...newVariants];
+                                      nv[i].imageFile = file;
+                                      nv[i].previewUrl = URL.createObjectURL(file);
+                                      setNewVariants(nv);
+                                    }
+                                  }}
+                                />
+                                {v.previewUrl || v.existingImageUrl ? (
+                                  <img
+                                    src={v.previewUrl || v.existingImageUrl}
+                                    alt={`Variant ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Camera size={13} className="text-neutral-400 group-hover:text-brand-500 transition-colors" />
+                                )}
+                              </label>
+                              {(v.previewUrl || v.existingImageUrl) && (
+                                <button
+                                  type="button"
+                                  title="Remove photo"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const nv = [...newVariants];
+                                    delete nv[i].imageFile;
+                                    delete nv[i].previewUrl;
+                                    delete nv[i].existingImageUrl;
+                                    setNewVariants(nv);
+                                  }}
+                                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
                           {variationColumns.map((col, colIdx) => (
                             <div key={colIdx} className="w-24 shrink-0">
                               <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5 truncate">{col}</label>

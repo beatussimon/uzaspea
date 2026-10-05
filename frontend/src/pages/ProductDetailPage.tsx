@@ -731,8 +731,8 @@ const ProductDetailPage: React.FC = () => {
         }
 
         setVariants(list);
-        if (prodData.stock <= 0 && list.length > 0) {
-          const firstAvailable = list.find((v: any) => v.stock > 0);
+        if (list.length > 0) {
+          const firstAvailable = list.find((v: any) => v.stock > 0) || list[0];
           if (firstAvailable) {
             setSelectedVariant(firstAvailable);
           }
@@ -860,8 +860,13 @@ const ProductDetailPage: React.FC = () => {
       sampleVariant?: ProductVariant;
     }> = [];
 
-    // Include base product if not already in variants
-    if (baseVariantInfo) {
+    // Include base product ONLY if it has an explicit attribute name (NOT the generic fallback "Standard")
+    const isGenericStandard = baseVariantInfo && (
+      baseVariantInfo.name.toLowerCase() === 'standard' ||
+      baseVariantInfo.name.toLowerCase() === t('standard_variant', 'Standard').toLowerCase()
+    );
+
+    if (baseVariantInfo && !isGenericStandard) {
       list.push({
         name: baseVariantInfo.name,
         image: baseVariantInfo.image,
@@ -871,7 +876,7 @@ const ProductDetailPage: React.FC = () => {
     }
 
     // Add unique primary options from variants
-    const seen = new Set<string>(baseVariantInfo ? [baseVariantInfo.name.toLowerCase()] : []);
+    const seen = new Set<string>(list.map(item => item.name.toLowerCase()));
     parsedVariantList.forEach(pv => {
       if (!pv.primary) return;
       const key = pv.primary.toLowerCase();
@@ -891,7 +896,7 @@ const ProductDetailPage: React.FC = () => {
     });
 
     return list;
-  }, [isPureSpecVariantList, baseVariantInfo, parsedVariantList]);
+  }, [isPureSpecVariantList, baseVariantInfo, parsedVariantList, t]);
 
   // Current active primary choice (e.g. "Black" or "Blue")
   const activePrimaryName = useMemo(() => {
@@ -899,8 +904,8 @@ const ProductDetailPage: React.FC = () => {
       const found = parsedVariantList.find(pv => pv.variant.id === selectedVariant.id);
       if (found && found.primary) return found.primary;
     }
-    return baseVariantInfo ? baseVariantInfo.name : (primaryOptions[0]?.name || '');
-  }, [selectedVariant, parsedVariantList, baseVariantInfo, primaryOptions]);
+    return primaryOptions[0]?.name || (baseVariantInfo ? baseVariantInfo.name : '');
+  }, [selectedVariant, parsedVariantList, primaryOptions, baseVariantInfo]);
 
   // Available Secondary Spec Options across the product
   const secondaryOptions = useMemo(() => {
@@ -918,9 +923,14 @@ const ProductDetailPage: React.FC = () => {
       const found = parsedVariantList.find(pv => pv.variant.id === selectedVariant.id);
       if (found?.secondary) return found.secondary;
     }
+    // Match secondary value under active primary
+    const match = parsedVariantList.find(
+      pv => pv.primary.toLowerCase() === activePrimaryName.toLowerCase() && pv.secondary
+    );
+    if (match?.secondary) return match.secondary;
     if (baseVariantInfo?.secondary) return baseVariantInfo.secondary;
     return secondaryOptions[0] || '';
-  }, [selectedVariant, parsedVariantList, baseVariantInfo, secondaryOptions]);
+  }, [selectedVariant, parsedVariantList, activePrimaryName, baseVariantInfo, secondaryOptions]);
 
   // Label for secondary dimension (e.g. "Size", "Storage", "Weight", "Placement")
   const secondaryDimensionLabel = useMemo(() => {
@@ -978,11 +988,21 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
 
-    const match = parsedVariantList.find(
+    // 1. Try to find match under currently active primary
+    const matchUnderCurrent = parsedVariantList.find(
       pv => pv.primary.toLowerCase() === key && pv.secondary === specValue
     );
-    if (match) {
-      handleSelectVariant(match.variant);
+    if (matchUnderCurrent) {
+      handleSelectVariant(matchUnderCurrent.variant);
+      return;
+    }
+
+    // 2. If not found under current primary, auto-switch to a primary that DOES have this spec
+    const matchAny = parsedVariantList.filter(pv => pv.secondary === specValue);
+    const inStockMatch = matchAny.find(pv => pv.variant.stock > 0) || matchAny[0];
+    if (inStockMatch) {
+      handleSelectVariant(inStockMatch.variant);
+      return;
     }
   }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, baseVariantInfo, handleSelectVariant]);
 
@@ -1787,7 +1807,14 @@ const ProductDetailPage: React.FC = () => {
                         baseVariantInfo,
                         isPureSpecVariantList
                       );
-                      const isOut = optStock <= 0;
+
+                      // Total available stock across all variants for this specification
+                      const matchAny = parsedVariantList.filter(pv => pv.secondary === specVal);
+                      const totalSpecStock = matchAny.reduce((sum, m) => sum + (m.variant.stock || 0), 0) +
+                        (baseVariantInfo?.secondary === specVal ? (baseVariantInfo.stock || 0) : 0);
+
+                      // A spec option is ONLY crossed out if completely out of stock across the product
+                      const isCompletelyOutOfStock = isPureSpecVariantList ? optStock <= 0 : totalSpecStock <= 0;
                       const isSelected = activeSecondaryValue === specVal;
 
                       return (
@@ -1795,11 +1822,11 @@ const ProductDetailPage: React.FC = () => {
                           key={specVal}
                           type="button"
                           onClick={() => handleSelectSecondaryOption(specVal)}
-                          title={`${specVal}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                          title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
                           className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
                             isSelected
                               ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
-                              : isOut
+                              : isCompletelyOutOfStock
                                 ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
                                 : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
                           }`}

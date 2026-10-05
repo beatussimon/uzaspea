@@ -153,10 +153,11 @@ describe('variantUtils', () => {
       expect(resolveBaseVariantName(product)).toBe('Standard');
     });
 
-    it('resolves base secondary spec from product.size or structured_specs', () => {
-      expect(resolveBaseVariantSpec({ size: 'Large' })).toBe('L');
+    it('resolves base secondary spec from structured_specs', () => {
+      expect(resolveBaseVariantSpec({ structured_specs: { 'Clothing Size': 'Large' } })).toBe('L');
       expect(resolveBaseVariantSpec({ structured_specs: { Size: 'Medium' } })).toBe('M');
       expect(resolveBaseVariantSpec({ structured_specs: { Storage: '128GB' } })).toBe('128GB');
+      expect(resolveBaseVariantSpec({ structured_specs: { storage_internal: '256GB' } })).toBe('256GB');
       expect(resolveBaseVariantSpec({ structured_specs: { 'Weight / Pack Size': '5kg' } })).toBe('5kg');
       expect(resolveBaseVariantSpec({})).toBe(null);
     });
