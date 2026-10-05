@@ -1547,68 +1547,55 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Metadata Rows: Preserving layout with original typography */}
-            <div className="flex flex-col gap-1.5 pt-0.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
-              {/* Row 1: Left = Subcategory, Brand & Condition; Right = Location */}
-              <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                {/* Left side: Subcategory, Brand & Condition */}
-                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                  <Link 
-                    to={product.category_parent_slug && product.category_parent_slug !== product.category_slug
-                      ? `/products?category=${product.category_parent_slug}&subcategory=${product.category_slug || product.category_name}`
-                      : `/products?category=${product.category_slug || product.category_name}`} 
-                    className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            {/* Metadata Line: Single horizontal space without subcategory */}
+            <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 font-medium flex-wrap pt-0.5">
+              {/* Left: Brand & Condition */}
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                {(product.brand_details || product.brand_name) && (
+                  <Link
+                    to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
+                    className="font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
                   >
-                    {product.category_name}
+                    {product.brand_details?.name || product.brand_name}
                   </Link>
+                )}
 
-                  {/* Integrated Brand */}
-                  {(product.brand_details || product.brand_name) && (
-                    <>
-                      <span>•</span>
-                      <Link
-                        to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
-                        className="font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
-                      >
-                        {product.brand_details?.name || product.brand_name}
-                      </Link>
-                    </>
-                  )}
-
-                  {product.condition && (
-                    <>
-                      <span>•</span>
-                      <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
-                        (product.condition || '').toLowerCase() === 'new' 
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                      }`}>
-                        {(product.condition || '').toLowerCase() === 'new'
-                          ? t('new', 'MPYA')
-                          : (product.condition || '').toLowerCase() === 'used'
-                            ? t('used', 'IMETUMIKA')
-                            : (product.condition || '').toLowerCase() === 'refurbished'
-                              ? t('refurbished', 'Iliyokarabatiwa')
-                              : product.condition}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Right side: Location */}
-                {product.location_name && (
-                  <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
-                    <MapPin size={12} className="text-gray-400" />
-                    <span>{product.location_name}</span>
-                  </div>
+                {product.condition && (
+                  <>
+                    {(product.brand_details || product.brand_name) && <span>•</span>}
+                    <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
+                      (product.condition || '').toLowerCase() === 'new' 
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                    }`}>
+                      {(product.condition || '').toLowerCase() === 'new'
+                        ? t('new', 'MPYA')
+                        : (product.condition || '').toLowerCase() === 'used'
+                          ? t('used', 'IMETUMIKA')
+                          : (product.condition || '').toLowerCase() === 'refurbished'
+                            ? t('refurbished', 'Iliyokarabatiwa')
+                            : product.condition}
+                    </span>
+                  </>
                 )}
               </div>
 
-              {/* Row 2: Relative timestamp on the left */}
-              {product.created_at && (
-                <div className="flex items-center gap-1">
-                  <Clock size={12} className="text-gray-400" />
-                  <span>{timeAgo(product.created_at)}</span>
+              {/* Right: Location & Time */}
+              {(product.location_name || product.created_at) && (
+                <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
+                  {product.location_name && (
+                    <span className="flex items-center gap-1">
+                      <MapPin size={12} className="text-gray-400" />
+                      <span>{product.location_name}</span>
+                    </span>
+                  )}
+                  {product.location_name && product.created_at && <span>•</span>}
+                  {product.created_at && (
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} className="text-gray-400" />
+                      <span>{timeAgo(product.created_at)}</span>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
