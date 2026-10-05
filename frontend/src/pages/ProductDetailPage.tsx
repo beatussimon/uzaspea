@@ -1547,56 +1547,50 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Metadata Line: Single horizontal space without subcategory */}
-            <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 font-medium flex-wrap pt-0.5">
-              {/* Left: Brand & Condition */}
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                {(product.brand_details || product.brand_name) && (
-                  <Link
-                    to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
-                    className="font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
-                  >
-                    {product.brand_details?.name || product.brand_name}
-                  </Link>
-                )}
+            {/* Metadata Line: Single horizontal space justified equally across items */}
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 text-xs text-gray-500 dark:text-gray-400 font-medium w-full pt-0.5 flex-nowrap overflow-hidden">
+              {/* Brand */}
+              {(product.brand_details || product.brand_name) && (
+                <Link
+                  to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
+                  className="font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 transition-colors shrink-0 max-w-[85px] xs:max-w-[110px] sm:max-w-none truncate"
+                  title={product.brand_details?.name || product.brand_name}
+                >
+                  {product.brand_details?.name || product.brand_name}
+                </Link>
+              )}
 
-                {product.condition && (
-                  <>
-                    {(product.brand_details || product.brand_name) && <span>•</span>}
-                    <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
-                      (product.condition || '').toLowerCase() === 'new' 
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                    }`}>
-                      {(product.condition || '').toLowerCase() === 'new'
-                        ? t('new', 'MPYA')
-                        : (product.condition || '').toLowerCase() === 'used'
-                          ? t('used', 'IMETUMIKA')
-                          : (product.condition || '').toLowerCase() === 'refurbished'
-                            ? t('refurbished', 'Iliyokarabatiwa')
-                            : product.condition}
-                    </span>
-                  </>
-                )}
-              </div>
+              {/* Condition */}
+              {product.condition && (
+                <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                  (product.condition || '').toLowerCase() === 'new' 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}>
+                  {(product.condition || '').toLowerCase() === 'new'
+                    ? t('new', 'MPYA')
+                    : (product.condition || '').toLowerCase() === 'used'
+                      ? t('used', 'IMETUMIKA')
+                      : (product.condition || '').toLowerCase() === 'refurbished'
+                        ? t('refurbished', 'Iliyokarabatiwa')
+                        : product.condition}
+                </span>
+              )}
 
-              {/* Right: Location & Time */}
-              {(product.location_name || product.created_at) && (
-                <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
-                  {product.location_name && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={12} className="text-gray-400" />
-                      <span>{product.location_name}</span>
-                    </span>
-                  )}
-                  {product.location_name && product.created_at && <span>•</span>}
-                  {product.created_at && (
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} className="text-gray-400" />
-                      <span>{timeAgo(product.created_at)}</span>
-                    </span>
-                  )}
-                </div>
+              {/* Location */}
+              {product.location_name && (
+                <span className="flex items-center gap-1 shrink min-w-0" title={product.location_name}>
+                  <MapPin size={12} className="text-gray-400 shrink-0" />
+                  <span className="truncate max-w-[95px] xs:max-w-[125px] sm:max-w-none">{product.location_name}</span>
+                </span>
+              )}
+
+              {/* Timestamp */}
+              {product.created_at && (
+                <span className="flex items-center gap-1 shrink-0 whitespace-nowrap">
+                  <Clock size={12} className="text-gray-400 shrink-0" />
+                  <span>{timeAgo(product.created_at)}</span>
+                </span>
               )}
             </div>
           </div>
