@@ -31,6 +31,16 @@ import { launchNavigation, launchOpenMap } from '../utils/mapNavigation';
 import { MapAppModal } from '../components/MapAppModal';
 import NetworkErrorState from '../components/common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
+import {
+  isSpecValue,
+  getSecondaryDimensionLabel,
+  getPrimaryDimensionLabel,
+  resolveBaseVariantName,
+  resolveBaseVariantSpec,
+  parseVariants,
+  computeVariantStock,
+  BaseVariantInfo,
+} from '../utils/variantUtils';
 
 interface ProductData {
   id: number;
@@ -803,105 +813,178 @@ const ProductDetailPage: React.FC = () => {
     }
   }, [images, variants]);
 
-  const normalizeSizeLabel = useCallback((raw: string): string => {
-    const lower = raw.trim().toLowerCase();
-    if (lower === 'small' || lower === 's') return 'S';
-    if (lower === 'medium' || lower === 'm') return 'M';
-    if (lower === 'large' || lower === 'l') return 'L';
-    if (lower === 'extra large' || lower === 'xl') return 'XL';
-    if (lower === 'xxl' || lower === '2xl') return 'XXL';
-    if (lower === '3xl' || lower === 'xxxl') return '3XL';
-    return raw.trim();
-  }, []);
+  // Parse all variants into structured { variant, primary, secondary }
+  const parsedVariantList = useMemo(() => {
+    return parseVariants(variants);
+  }, [variants]);
 
-  const parseVariantSize = useCallback((name: string): string | null => {
-    if (!name) return null;
-    const parts = name.split('/').map(p => p.trim());
-    if (parts.length >= 2) {
-      return normalizeSizeLabel(parts[parts.length - 1]);
+  // Are all variants purely 1-dimensional specs (e.g. only sizes, only storage, only weights)?
+  const isPureSpecVariantList = useMemo(() => {
+    if (variants.length === 0) return false;
+    return parsedVariantList.every(pv => !pv.primary || isSpecValue(pv.primary));
+  }, [variants, parsedVariantList]);
+
+  // Base product representation
+  const baseVariantInfo = useMemo((): BaseVariantInfo | null => {
+    if (!product) return null;
+    const baseSpec = resolveBaseVariantSpec(product);
+    const baseName = resolveBaseVariantName(product, t);
+
+    // Check if variants already explicitly include this base product
+    const isAlreadyInVariants = variants.some(v => {
+      const n = (v.name || '').trim().toLowerCase();
+      if (baseSpec) {
+        const fullName = `${baseName.toLowerCase()} / ${baseSpec.toLowerCase()}`;
+        return n === fullName || n === baseSpec.toLowerCase();
+      }
+      return n === baseName.toLowerCase();
+    });
+    if (isAlreadyInVariants) return null;
+
+    return {
+      name: baseName,
+      secondary: baseSpec,
+      stock: product.stock,
+      image: product.images?.[0]?.image || (product as any).image,
+    };
+  }, [product, variants, t]);
+
+  // Distinct Primary Visual Options (Tier 1)
+  const primaryOptions = useMemo(() => {
+    if (isPureSpecVariantList) return [];
+    const list: Array<{
+      name: string;
+      image?: string | null;
+      isOutOfStock: boolean;
+      isBaseProduct: boolean;
+      sampleVariant?: ProductVariant;
+    }> = [];
+
+    // Include base product if not already in variants
+    if (baseVariantInfo) {
+      list.push({
+        name: baseVariantInfo.name,
+        image: baseVariantInfo.image,
+        isOutOfStock: baseVariantInfo.stock <= 0,
+        isBaseProduct: true,
+      });
     }
-    const sizeRegex = /^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,3}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i;
-    if (sizeRegex.test(name.trim())) {
-      return normalizeSizeLabel(name.trim());
-    }
-    return null;
-  }, [normalizeSizeLabel]);
 
-  const getCleanVariantName = useCallback((name: string): string => {
-    if (!name) return '';
-    if (name.includes('/')) {
-      const parts = name.split('/').map(p => p.trim());
-      return parts[0] || name;
-    }
-    return name;
-  }, []);
-
-  // Available size options across product and variants
-  const sizeOptions = useMemo(() => {
-    if (!product) return [];
-    const map = new Map<string, { size: string; stock: number }>();
-
-    // 1. From base product
-    if (product.size && product.size.trim()) {
-      const norm = normalizeSizeLabel(product.size);
-      map.set(norm, { size: norm, stock: product.stock });
-    }
-
-    // 2. From variants
-    variants.forEach(v => {
-      const s = parseVariantSize(v.name);
-      if (s) {
-        if (!map.has(s) || (v.stock > 0 && (map.get(s)?.stock || 0) <= 0)) {
-          map.set(s, { size: s, stock: v.stock });
-        }
+    // Add unique primary options from variants
+    const seen = new Set<string>(baseVariantInfo ? [baseVariantInfo.name.toLowerCase()] : []);
+    parsedVariantList.forEach(pv => {
+      if (!pv.primary) return;
+      const key = pv.primary.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        const allMatching = parsedVariantList.filter(p => p.primary.toLowerCase() === key);
+        const totalStock = allMatching.reduce((acc, curr) => acc + (curr.variant.stock || 0), 0);
+        const firstWithImage = allMatching.find(p => p.variant.image);
+        list.push({
+          name: pv.primary,
+          image: firstWithImage?.variant.image,
+          isOutOfStock: totalStock <= 0,
+          isBaseProduct: false,
+          sampleVariant: pv.variant,
+        });
       }
     });
 
-    return Array.from(map.values());
-  }, [product, variants, normalizeSizeLabel, parseVariantSize]);
+    return list;
+  }, [isPureSpecVariantList, baseVariantInfo, parsedVariantList]);
 
-  // Current selected size
-  const currentSelectedSize = useMemo(() => {
+  // Current active primary choice (e.g. "Black" or "Blue")
+  const activePrimaryName = useMemo(() => {
     if (selectedVariant) {
-      const s = parseVariantSize(selectedVariant.name);
-      if (s) return s;
+      const found = parsedVariantList.find(pv => pv.variant.id === selectedVariant.id);
+      if (found && found.primary) return found.primary;
     }
-    if (product?.size && product.size.trim()) {
-      return normalizeSizeLabel(product.size);
+    return baseVariantInfo ? baseVariantInfo.name : (primaryOptions[0]?.name || '');
+  }, [selectedVariant, parsedVariantList, baseVariantInfo, primaryOptions]);
+
+  // Available Secondary Spec Options across the product
+  const secondaryOptions = useMemo(() => {
+    const distinctSpecs = new Set<string>();
+    if (baseVariantInfo?.secondary) distinctSpecs.add(baseVariantInfo.secondary);
+    parsedVariantList.forEach(pv => {
+      if (pv.secondary) distinctSpecs.add(pv.secondary);
+    });
+    return Array.from(distinctSpecs);
+  }, [baseVariantInfo, parsedVariantList]);
+
+  // Current active secondary spec choice (e.g. "M" or "256GB")
+  const activeSecondaryValue = useMemo(() => {
+    if (selectedVariant) {
+      const found = parsedVariantList.find(pv => pv.variant.id === selectedVariant.id);
+      if (found?.secondary) return found.secondary;
     }
-    return sizeOptions[0]?.size || '';
-  }, [selectedVariant, product?.size, sizeOptions, normalizeSizeLabel, parseVariantSize]);
+    if (baseVariantInfo?.secondary) return baseVariantInfo.secondary;
+    return secondaryOptions[0] || '';
+  }, [selectedVariant, parsedVariantList, baseVariantInfo, secondaryOptions]);
 
-  const handleSizeSelect = useCallback((newSize: string) => {
-    if (!product) return;
-    const baseSize = product.size ? normalizeSizeLabel(product.size) : null;
+  // Label for secondary dimension (e.g. "Size", "Storage", "Weight", "Placement")
+  const secondaryDimensionLabel = useMemo(() => {
+    const sample = secondaryOptions[0] || '';
+    return getSecondaryDimensionLabel(sample, product?.category_slug, t);
+  }, [secondaryOptions, product?.category_slug, t]);
 
-    // Prioritize variant with matching color & newSize if current variant has color
-    if (selectedVariant && selectedVariant.name.includes('/')) {
-      const currentColor = selectedVariant.name.split('/')[0].trim().toLowerCase();
-      const sameColorVariant = variants.find(v => {
-        if (!v.name.includes('/')) return false;
-        const col = v.name.split('/')[0].trim().toLowerCase();
-        const sz = parseVariantSize(v.name);
-        return col === currentColor && sz === newSize;
-      });
-      if (sameColorVariant) {
-        handleSelectVariant(sameColorVariant);
-        return;
-      }
-    }
+  // Label for primary dimension (e.g. "Color / Style", "Color / Finish", "Dial / Strap")
+  const primaryDimensionLabel = useMemo(() => {
+    return getPrimaryDimensionLabel(product?.category_slug, product?.category_name, t);
+  }, [product?.category_slug, product?.category_name, t]);
 
-    // Otherwise find any variant matching this size
-    const matchingVariant = variants.find(v => parseVariantSize(v.name) === newSize);
-    if (matchingVariant) {
-      handleSelectVariant(matchingVariant);
+  // Handlers for switching primary and secondary selections
+  const handleSelectPrimaryOption = useCallback((optName: string, isBase: boolean) => {
+    if (isBase) {
+      handleSelectVariant(null);
       return;
     }
 
-    if (baseSize === newSize) {
-      handleSelectVariant(null);
+    const key = optName.toLowerCase();
+    // Preserve active secondary spec if available under this primary
+    const matchingSameSpec = parsedVariantList.find(
+      pv => pv.primary.toLowerCase() === key && pv.secondary === activeSecondaryValue
+    );
+    if (matchingSameSpec) {
+      handleSelectVariant(matchingSameSpec.variant);
+      return;
     }
-  }, [product, selectedVariant, variants, handleSelectVariant, normalizeSizeLabel, parseVariantSize]);
+
+    // Otherwise select the first available variant under this primary
+    const firstMatch = parsedVariantList.find(pv => pv.primary.toLowerCase() === key);
+    if (firstMatch) {
+      handleSelectVariant(firstMatch.variant);
+    }
+  }, [handleSelectVariant, parsedVariantList, activeSecondaryValue]);
+
+  const handleSelectSecondaryOption = useCallback((specValue: string) => {
+    if (isPureSpecVariantList) {
+      if (baseVariantInfo && baseVariantInfo.secondary === specValue) {
+        handleSelectVariant(null);
+        return;
+      }
+      const found = parsedVariantList.find(pv => pv.secondary === specValue);
+      if (found) {
+        handleSelectVariant(found.variant);
+      }
+      return;
+    }
+
+    const key = activePrimaryName.toLowerCase();
+    const isCurrentBase = baseVariantInfo && baseVariantInfo.name.toLowerCase() === key;
+
+    if (isCurrentBase && baseVariantInfo.secondary === specValue) {
+      handleSelectVariant(null);
+      return;
+    }
+
+    const match = parsedVariantList.find(
+      pv => pv.primary.toLowerCase() === key && pv.secondary === specValue
+    );
+    if (match) {
+      handleSelectVariant(match.variant);
+    }
+  }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, baseVariantInfo, handleSelectVariant]);
 
   const handleLike = async () => {
     if (!product) return;
@@ -1073,12 +1156,6 @@ const ProductDetailPage: React.FC = () => {
     : product.price;
   const priceFormatted = parseInt(activePrice).toLocaleString();
   const brandName = product.brand_name || product.brand_details?.name || 'SokoniMax';
-
-  const isPureSizeVariantList = useMemo(() => {
-    if (variants.length === 0) return false;
-    const sizeRegex = /^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,3}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i;
-    return variants.every(v => sizeRegex.test(v.name.trim()));
-  }, [variants]);
 
   const productSchema: Record<string, any> = {
     "@context": "https://schema.org/",
@@ -1595,215 +1672,143 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Variants */}
+          {/* Variants Section */}
           {variants.length > 0 && (
             <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between gap-2 sm:gap-4 w-full pb-0.5 flex-wrap sm:flex-nowrap">
-                {/* Left: Variation Title */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
-                    {t('select_variation', 'Select Variation')}:
-                  </span>
-                </div>
-
-                {/* Right: Size Selector shown in selectable boxes */}
-                {!isPureSizeVariantList && sizeOptions.length > 0 && (
-                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
-                      {t('size', 'Size')}:
+              {/* TIER 1: Visual Style / Primary Options (Colors, Styles, Finish) */}
+              {!isPureSpecVariantList && primaryOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                      {primaryDimensionLabel}:
                     </span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {sizeOptions.map(opt => {
-                        const matchingVar = variants.find(v => parseVariantSize(v.name) === opt.size);
-                        const optStock = (selectedVariant && parseVariantSize(selectedVariant.name) === opt.size)
-                          ? selectedVariant.stock
-                          : (matchingVar ? matchingVar.stock : opt.stock);
-                        const isOut = optStock <= 0;
-                        const isSelected = currentSelectedSize === opt.size;
-
-                        return (
-                          <button
-                            key={opt.size}
-                            type="button"
-                            onClick={() => handleSizeSelect(opt.size)}
-                            title={`${opt.size}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                            className={`h-6 sm:h-6.5 min-w-[24px] sm:min-w-[26px] px-1.5 flex items-center justify-center text-[10.5px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
-                              isSelected
-                                ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
-                                : isOut
-                                  ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
-                                  : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
-                            }`}
-                          >
-                            {opt.size}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-                
-              {/* Variant Selector */}
-              {isPureSizeVariantList ? (
-                /* Simple Size Boxes */
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                  {variants.map(v => {
-                    const isSelected = selectedVariant?.id === v.id;
-                    const isOut = v.stock <= 0;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => handleSelectVariant(v)}
-                        title={`${v.name}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                        className={`h-7 sm:h-8 min-w-[32px] sm:min-w-[36px] px-2.5 flex items-center justify-center text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
-                          isSelected
-                            ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
-                            : isOut
-                              ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
-                              : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white'
-                        }`}
-                      >
-                        {v.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* Visual Cards Shelf: Exactly matching media_1791024952903.png */
-                <div className="flex gap-2 sm:gap-3 w-full py-0.5">
-                  {/* Standard Base Variant Card */}
-                  <button
-                    type="button"
-                    onClick={() => handleSelectVariant(null)}
-                    title={`${t('standard_variant', 'Standard')}${product.stock <= 0 ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                    className={`group/vcard relative flex-1 min-w-0 flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
-                      product.stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
-                    }`}
-                  >
-                    {/* Super Contained Image: No cropping, No rounded corners, subtle gray shade & drop shadow for selected */}
-                    <div
-                      className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
-                        !selectedVariant
-                          ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
-                          : product.stock <= 0
-                            ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
-                            : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
-                      }`}
-                    >
-                      {product.images?.[0]?.image || (product as any).image ? (
-                        <SafeImage
-                          src={product.images?.[0]?.image || (product as any).image}
-                          alt={t('standard_variant', 'Standard')}
-                          category={product.category_name}
-                          containMode="contain"
-                          className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
-                            product.stock <= 0 ? 'grayscale opacity-50' : 'opacity-100'
-                          }`}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                          <ShoppingBag size={20} />
-                        </div>
-                      )}
-
-                      {/* Explicit Out of Stock Text on Image (No rectangle/box, pure text) */}
-                      {product.stock <= 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
-                          <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
-                            {t('out_of_stock', 'Out of stock')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Variant Name Below */}
-                    <div className="w-full text-center mt-1.5 px-0.5">
-                      <span
-                        className={`text-[10.5px] sm:text-xs truncate block ${
-                          !selectedVariant
-                            ? 'text-gray-900 dark:text-white font-extrabold'
-                            : product.stock <= 0
-                              ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
-                              : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
-                        }`}
-                      >
-                        {t('standard_variant', 'Standard')}
+                    {activePrimaryName && (
+                      <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                        {activePrimaryName}
                       </span>
-                    </div>
-                  </button>
+                    )}
+                  </div>
 
-                  {/* Specific Variants */}
-                  {variants.map((v, idx) => {
-                    const isSelected = selectedVariant?.id === v.id;
-                    const isOutOfStock = v.stock <= 0;
-                    const fallbackImage = product.images?.[0]?.image || (product as any).image;
-                    const variantImg = v.image || (product.images && product.images[idx + 1]?.image) || fallbackImage;
+                  {/* Visual Cards Shelf */}
+                  <div className="flex gap-2 sm:gap-3 w-full py-0.5 overflow-x-auto no-scrollbar">
+                    {primaryOptions.map((opt) => {
+                      const isSelected = activePrimaryName.toLowerCase() === opt.name.toLowerCase();
+                      const isOutOfStock = opt.isOutOfStock;
+                      const cardImg = opt.image || product.images?.[0]?.image || (product as any).image;
 
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => handleSelectVariant(v)}
-                        title={`${v.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                        className={`group/vcard relative flex-1 min-w-0 flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
-                          isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
-                        }`}
-                      >
-                        {/* Super Contained Image: No cropping, No rounded corners, subtle gray shade & drop shadow for selected */}
-                        <div
-                          className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
-                              : isOutOfStock
-                                ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
-                                : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+                      return (
+                        <button
+                          key={opt.name}
+                          type="button"
+                          onClick={() => handleSelectPrimaryOption(opt.name, opt.isBaseProduct)}
+                          title={`${opt.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                          className={`group/vcard relative flex-1 min-w-[72px] max-w-[120px] flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
+                            isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
                           }`}
                         >
-                          {variantImg ? (
-                            <SafeImage
-                              src={variantImg}
-                              alt={v.name}
-                              category={product.category_name}
-                              containMode="contain"
-                              className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
-                                isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
-                              }`}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                              <ShoppingBag size={20} />
-                            </div>
-                          )}
-
-                          {/* Explicit Out of Stock Text on Image (No rectangle/box, pure text) */}
-                          {isOutOfStock && (
-                            <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
-                              <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
-                                {t('out_of_stock', 'Out of stock')}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Variant Name Below */}
-                        <div className="w-full text-center mt-1.5 px-0.5">
-                          <span
-                            className={`text-[10.5px] sm:text-xs truncate block ${
+                          {/* Image Box */}
+                          <div
+                            className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
                               isSelected
-                                ? 'text-gray-900 dark:text-white font-extrabold'
+                                ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
                                 : isOutOfStock
-                                  ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
-                                  : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                                  ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
+                                  : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
                             }`}
                           >
-                            {getCleanVariantName(v.name)}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                            {cardImg ? (
+                              <SafeImage
+                                src={cardImg}
+                                alt={opt.name}
+                                category={product.category_name}
+                                containMode="contain"
+                                className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
+                                  isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
+                                }`}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                                <ShoppingBag size={20} />
+                              </div>
+                            )}
+
+                            {/* Explicit Out of Stock Text on Image */}
+                            {isOutOfStock && (
+                              <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                                <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
+                                  {t('out_of_stock', 'Out of stock')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Variant Name Below */}
+                          <div className="w-full text-center mt-1.5 px-0.5">
+                            <span
+                              className={`text-[10.5px] sm:text-xs truncate block ${
+                                isSelected
+                                  ? 'text-gray-900 dark:text-white font-extrabold'
+                                  : isOutOfStock
+                                    ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
+                                    : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                              }`}
+                            >
+                              {opt.name}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TIER 2: Secondary Specification Boxes (Size, Storage, Weight, Placement) */}
+              {secondaryOptions.length > 0 && (
+                <div className="space-y-1.5 pt-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                      {secondaryDimensionLabel}:
+                    </span>
+                    {activeSecondaryValue && (
+                      <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                        {activeSecondaryValue}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Specification Boxes */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {secondaryOptions.map((specVal) => {
+                      const optStock = computeVariantStock(
+                        parsedVariantList,
+                        activePrimaryName,
+                        specVal,
+                        baseVariantInfo,
+                        isPureSpecVariantList
+                      );
+                      const isOut = optStock <= 0;
+                      const isSelected = activeSecondaryValue === specVal;
+
+                      return (
+                        <button
+                          key={specVal}
+                          type="button"
+                          onClick={() => handleSelectSecondaryOption(specVal)}
+                          title={`${specVal}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                          className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
+                            isSelected
+                              ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                              : isOut
+                                ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
+                                : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
+                          }`}
+                        >
+                          {specVal}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
