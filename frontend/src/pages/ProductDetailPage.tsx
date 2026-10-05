@@ -1598,98 +1598,77 @@ const ProductDetailPage: React.FC = () => {
           {/* Variants */}
           {variants.length > 0 && (
             <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between gap-2 sm:gap-4 w-full pb-0.5 whitespace-nowrap">
-                {/* Left: Selected Variation Title */}
-                <div className="flex items-center gap-1.5 min-w-0 shrink">
+              <div className="flex items-center justify-between gap-2 sm:gap-4 w-full pb-0.5 flex-wrap sm:flex-nowrap">
+                {/* Left: Variation Title */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
                     {t('select_variation', 'Select Variation')}:
                   </span>
-                  <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                    {selectedVariant ? getCleanVariantName(selectedVariant.name) : t('standard_variant', 'Standard')}
-                  </span>
                 </div>
 
-                {/* Right: Size Selector (if available) & Stock / Out of Stock (Furthest Right) */}
-                <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 ml-auto">
-                  {/* Super Simple Size Option: Borderless, minimal space, zero huge rectangles */}
-                  {!isPureSizeVariantList && sizeOptions.length > 0 && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
-                        {t('size', 'Size')}:
-                      </span>
-                      <div className="relative inline-flex items-center cursor-pointer group/size py-0.5">
-                        <select
-                          value={currentSelectedSize}
-                          onChange={(e) => handleSizeSelect(e.target.value)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          aria-label={t('size', 'Size')}
-                        >
-                          {sizeOptions.map(opt => {
-                            const matchingVar = variants.find(v => parseVariantSize(v.name) === opt.size);
-                            const optStock = (selectedVariant && parseVariantSize(selectedVariant.name) === opt.size)
-                              ? selectedVariant.stock
-                              : (matchingVar ? matchingVar.stock : opt.stock);
-                            const isOut = optStock <= 0;
+                {/* Right: Size Selector shown in selectable boxes */}
+                {!isPureSizeVariantList && sizeOptions.length > 0 && (
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
+                      {t('size', 'Size')}:
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {sizeOptions.map(opt => {
+                        const matchingVar = variants.find(v => parseVariantSize(v.name) === opt.size);
+                        const optStock = (selectedVariant && parseVariantSize(selectedVariant.name) === opt.size)
+                          ? selectedVariant.stock
+                          : (matchingVar ? matchingVar.stock : opt.stock);
+                        const isOut = optStock <= 0;
+                        const isSelected = currentSelectedSize === opt.size;
 
-                            return (
-                              <option
-                                key={opt.size}
-                                value={opt.size}
-                                className="bg-white dark:bg-black text-gray-900 dark:text-white"
-                              >
-                                {opt.size} {isOut ? `(${t('out_of_stock', 'Out of stock')})` : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <span className="text-xs font-extrabold text-gray-900 dark:text-white group-hover/size:text-black dark:group-hover/size:white transition-colors">
-                          {currentSelectedSize}
-                        </span>
-                        <ChevronDown className="w-3.5 h-3.5 ml-1 text-gray-400 group-hover/size:text-gray-700 dark:group-hover/size:text-gray-200 pointer-events-none transition-colors" />
-                      </div>
+                        return (
+                          <button
+                            key={opt.size}
+                            type="button"
+                            onClick={() => handleSizeSelect(opt.size)}
+                            title={`${opt.size}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                            className={`h-6 sm:h-6.5 min-w-[24px] sm:min-w-[26px] px-1.5 flex items-center justify-center text-[10.5px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
+                              isSelected
+                                ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                                : isOut
+                                  ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
+                                  : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
+                            }`}
+                          >
+                            {opt.size}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-
-                  {/* Furthest Right: Explicit Stock / Out of Stock status */}
-                  <div className="shrink-0 text-right">
-                    {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold whitespace-nowrap">
-                        {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock', 'in stock')}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-black text-red-600 dark:text-red-500 uppercase tracking-wider whitespace-nowrap">
-                        {t('out_of_stock', 'Out of stock')}
-                      </span>
-                    )}
                   </div>
-                </div>
+                )}
               </div>
                 
               {/* Variant Selector */}
               {isPureSizeVariantList ? (
-                /* Simple Size Dropdown */
-                <div className="space-y-1.5 pt-1">
-                  <div className="relative w-full sm:max-w-xs">
-                    <select
-                      value={selectedVariant?.id || ''}
-                      onChange={(e) => {
-                        const id = Number(e.target.value);
-                        const found = variants.find(v => v.id === id);
-                        handleSelectVariant(found || null);
-                      }}
-                      className="w-full h-10 px-3.5 pr-10 bg-white dark:bg-[#000000] border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-gray-900 dark:text-white rounded-none focus:outline-none focus:border-black dark:focus:border-white transition-colors cursor-pointer appearance-none"
-                    >
-                      <option value="" className="bg-white dark:bg-black text-gray-900 dark:text-white">
-                        {t('standard_variant', 'Standard')} {product.stock > 0 ? `(${product.stock} ${t('in_stock', 'in stock')})` : `(${t('out_of_stock', 'Out of stock')})`}
-                      </option>
-                      {variants.map(v => (
-                        <option key={v.id} value={v.id} disabled={v.stock <= 0} className="bg-white dark:bg-black text-gray-900 dark:text-white">
-                          {v.name} {v.stock > 0 ? `(${v.stock} ${t('in_stock', 'in stock')})` : `(${t('out_of_stock', 'Out of stock')})`}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
+                /* Simple Size Boxes */
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  {variants.map(v => {
+                    const isSelected = selectedVariant?.id === v.id;
+                    const isOut = v.stock <= 0;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => handleSelectVariant(v)}
+                        title={`${v.name}${isOut ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                        className={`h-7 sm:h-8 min-w-[32px] sm:min-w-[36px] px-2.5 flex items-center justify-center text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
+                          isSelected
+                            ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                            : isOut
+                              ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
+                              : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white'
+                        }`}
+                      >
+                        {v.name}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 /* Visual Cards Shelf: Exactly matching media_1791024952903.png */
