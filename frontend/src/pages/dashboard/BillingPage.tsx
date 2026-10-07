@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Calendar, ChevronDown, Check } from 'lucide-react';
@@ -13,8 +13,7 @@ import { BillingSkeleton } from '../../components/Skeleton';
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { showConfirm } = useDialog();
+const { showConfirm } = useDialog();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
   const [driverPayments, setDriverPayments] = useState<any[]>([]);
@@ -322,17 +321,9 @@ const BillingPage: React.FC = () => {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-              title="Back"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <span>{t('billing_commission', 'Billing & Commission')}</span>
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('billing_commission', 'Billing & Commission')}
+            </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {t('billing_desc', 'Manage your subscriptions, monthly invoices, commission ledger, and logistics payouts.')}
           </p>

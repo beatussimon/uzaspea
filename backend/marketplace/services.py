@@ -91,10 +91,19 @@ class OrderStateMachine:
             locked_order.save(update_fields=['status'])
             order.status = new_state  # Reflect on the instance passed
 
+            # Sync referral conversion status with order progression
+            if new_state in ('PAID', 'DELIVERED', 'COMPLETED'):
+                from .models import ReferralConversion
+                ReferralConversion.objects.filter(order=locked_order, status='PENDING').update(status='APPROVED')
+
             # FIX: M-02 — restore stock on cancellation or expiration (only if stock was already decremented)
             if new_state in ('CANCELLED', 'EXPIRED') and old_state not in ('CANCELLED', 'EXPIRED'):
                 from django.db.models import F as _F
-                from .models import Product as _Product, ProductVariant as _ProductVariant
+                from .models import Product as _Product, ProductVariant as _ProductVariant, ReferralConversion, PromoCode
+                ReferralConversion.objects.filter(order=locked_order).exclude(status='CANCELLED').update(status='CANCELLED')
+                if locked_order.promo_code_id:
+                    PromoCode.objects.filter(pk=locked_order.promo_code_id, use_count__gt=0).update(use_count=_F('use_count') - 1)
+
                 items = locked_order.orderitem_set.select_for_update().all()
                 for item in items:
                     if item.variant_id:

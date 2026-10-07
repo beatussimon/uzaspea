@@ -59,8 +59,8 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
         onClick={() => (mobile ? setOpen(true) : galleryRef.current?.click())}
         className={
           compact
-            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-500 dark:border-brand-500   text-brand-500 dark:text-brand-500 text-xs font-semibold   transition-colors'
-            : 'flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-brand-500 dark:border-brand-500   text-brand-500 dark:text-brand-500 font-semibold text-sm   transition-colors w-full justify-center'
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-semibold transition-colors'
+            : 'flex items-center gap-2 px-4 py-2.5 rounded-xl text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 font-semibold text-sm transition-colors w-full justify-center'
         }
       >
         <svg className={compact ? 'w-3.5 h-3.5' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -244,7 +244,13 @@ const DashboardProducts: React.FC = () => {
   const [variationColumns, setVariationColumns] = useState<string[]>(['Option 1']);
   const [showCustomColumnInput, setShowCustomColumnInput] = useState(false);
   const [customColumnName, setCustomColumnName] = useState('');
+  const [pickingPhotoVariantIndex, setPickingPhotoVariantIndex] = useState<number | null>(null);
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
+  const [showMatrixGenerator, setShowMatrixGenerator] = useState(false);
+  const [matrixValues, setMatrixValues] = useState<Record<string, string>>({});
+  const [matrixDefaultStock, setMatrixDefaultStock] = useState('4');
+  const [matrixDefaultPriceAdj] = useState('0');
+  const [bulkStockVal, setBulkStockVal] = useState('');
   const location = useLocation();
   const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
   const [hasCustomUnit, setHasCustomUnit] = useState(false);
@@ -858,16 +864,8 @@ const DashboardProducts: React.FC = () => {
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-                title="Back"
-              >
-                <ChevronLeft size={22} />
-              </button>
-              <span>{t('my_products', 'My Products')}</span>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('my_products', 'My Products')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
               {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
@@ -1183,8 +1181,10 @@ const DashboardProducts: React.FC = () => {
             fd.append('description', form.description.trim() || (asDraft ? 'Draft description' : ''));
             fd.append('price', form.price !== '' ? form.price : (asDraft ? '0.00' : '0'));
             if (form.buying_price) fd.append('buying_price', form.buying_price);
-            if (form.sale_price) fd.append('sale_price', form.sale_price);
-            fd.append('stock', form.stock !== '' ? form.stock : (asDraft ? '0' : '0'));
+            const variantTotalStock = newVariants.length > 0
+              ? newVariants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0)
+              : null;
+            fd.append('stock', variantTotalStock !== null ? String(variantTotalStock) : (form.stock !== '' ? form.stock : (asDraft ? '0' : '0')));
             if (form.category) fd.append('category', form.category);
             
             // Append Vehicle Fitment data
@@ -1292,7 +1292,11 @@ const DashboardProducts: React.FC = () => {
                 vData.append('price_adjustment', nv.price_adj_sign === '-' ? `-${nv.price_adjustment || '0'}` : (nv.price_adjustment || '0'));
                 vData.append('stock', nv.stock || '0');
                 vData.append('is_available', 'true');
-                if (nv.imageFile) vData.append('image', nv.imageFile);
+                if (nv.imageFile) {
+                  vData.append('image', nv.imageFile);
+                } else if (nv.existingImageUrl) {
+                  vData.append('copy_from_image', nv.existingImageUrl);
+                }
                 try {
                   if (nv.id) await api.put(`/api/variants/${nv.id}/`, vData, { headers: { 'Content-Type': 'multipart/form-data' } });
                   else await api.post('/api/variants/', vData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -1389,7 +1393,7 @@ const DashboardProducts: React.FC = () => {
             )}
 
             {/* ─── CLEAN SUBTLE STEPPER HEADER ─── */}
-            <div className="border-b border-neutral-200 dark:border-neutral-800 px-6 py-4">
+            <div className="px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
@@ -1750,14 +1754,14 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
-                  <div className="pt-5 border-t border-neutral-200 dark:border-neutral-800 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-[#121212]">
+                  <div className="pt-2 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
                             A+ Content (From the Manufacturer)
                           </span>
-                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                          <span className="text-[11px] font-semibold text-amber-500 dark:text-amber-400">
                             Enhanced Story
                           </span>
                         </div>
@@ -2035,7 +2039,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 2 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex items-center justify-between pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -2674,18 +2678,24 @@ const DashboardProducts: React.FC = () => {
                   {/* Stock Quantity & MOQ */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                        Stock Quantity <span className="text-brand-500">*</span>
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                        <span>Stock Quantity <span className="text-brand-500">*</span></span>
+                        {newVariants.length > 0 && (
+                          <span className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 lowercase">
+                            (auto-calculated from variants)
+                          </span>
+                        )}
                       </label>
                       <input 
                         name="stock" 
-                        value={form.stock} 
+                        value={newVariants.length > 0 ? newVariants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0) : form.stock} 
                         onChange={handleChange} 
                         placeholder="0" 
                         type="number" 
                         min="0"
                         required
-                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                        readOnly={newVariants.length > 0}
+                        className={`w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 ${newVariants.length > 0 ? 'bg-neutral-50 dark:bg-neutral-900 cursor-not-allowed opacity-90' : ''}`} 
                       />
                     </div>
 
@@ -2867,6 +2877,15 @@ const DashboardProducts: React.FC = () => {
                         >
                           + Add Variant
                         </button>
+                        {variationColumns.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowMatrixGenerator(!showMatrixGenerator)}
+                            className="text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer"
+                          >
+                            ⚡ Quick Matrix
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2881,28 +2900,134 @@ const DashboardProducts: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Quick Matrix Generator Panel */}
+                    {showMatrixGenerator && variationColumns.length > 0 && (
+                      <div className="p-3 bg-neutral-100 dark:bg-[#1a1a1a] rounded-lg border border-neutral-300 dark:border-neutral-700 space-y-2.5 animate-fade-in text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-neutral-800 dark:text-neutral-200">
+                            ⚡ Quick Matrix Generator
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowMatrixGenerator(false)}
+                            className="text-neutral-400 hover:text-red-500 text-xs font-bold cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-neutral-500">
+                          Type values separated by commas (e.g. <code>Red, Blue, Black, White</code> for Color, <code>128GB, 256GB, 512GB</code> for Storage). All combinations will be automatically generated into the table.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {variationColumns.map(col => (
+                            <div key={col}>
+                              <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">{col} Values</label>
+                              <input
+                                placeholder="e.g. Red, Blue, Black"
+                                value={matrixValues[col] || ''}
+                                onChange={e => setMatrixValues({ ...matrixValues, [col]: e.target.value })}
+                                className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-200 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-neutral-500">Default Stock per variant:</span>
+                            <input
+                              type="number"
+                              value={matrixDefaultStock}
+                              onChange={e => setMatrixDefaultStock(e.target.value)}
+                              className="w-14 px-1.5 py-0.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111]"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const colsWithValues = variationColumns.map(col => {
+                                const raw = matrixValues[col] || '';
+                                const vals = raw.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+                                return { col, vals };
+                              }).filter(c => c.vals.length > 0);
+
+                              if (colsWithValues.length === 0) {
+                                toast.error('Enter at least one value for your attributes');
+                                return;
+                              }
+
+                              let combinations: Record<string, string>[] = [{}];
+                              for (const { col, vals } of colsWithValues) {
+                                const next: Record<string, string>[] = [];
+                                for (const combo of combinations) {
+                                  for (const val of vals) {
+                                    next.push({ ...combo, [col]: val });
+                                  }
+                                }
+                                combinations = next;
+                              }
+
+                              const generated = combinations.map(combo => ({
+                                fields: combo,
+                                price_adj_sign: '+' as const,
+                                price_adjustment: matrixDefaultPriceAdj || '0',
+                                stock: matrixDefaultStock || '0',
+                              }));
+
+                              setNewVariants(generated);
+                              toast.success(`Generated ${generated.length} variant combinations!`);
+                              setShowMatrixGenerator(false);
+                            }}
+                            className="px-3 py-1 bg-brand-500 hover:bg-brand-400 text-black font-bold text-xs rounded transition cursor-pointer"
+                          >
+                            Generate All Combinations
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bulk Actions Toolbar */}
+                    {newVariants.length > 2 && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold text-neutral-500">Bulk Stock:</span>
+                          <input
+                            type="number"
+                            placeholder="e.g. 4"
+                            value={bulkStockVal}
+                            onChange={e => setBulkStockVal(e.target.value)}
+                            className="w-16 px-1.5 py-0.5 text-xs rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#161616]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!bulkStockVal) return;
+                              setNewVariants(prev => prev.map(v => ({ ...v, stock: bulkStockVal })));
+                              toast.success(`Set stock to ${bulkStockVal} across all variants`);
+                            }}
+                            className="px-2 py-0.5 text-[11px] font-bold bg-neutral-200 dark:bg-neutral-800 hover:bg-brand-500 hover:text-black rounded transition cursor-pointer"
+                          >
+                            Apply to All
+                          </button>
+                        </div>
+                        <span className="text-[11px] text-neutral-400 font-medium">
+                          {newVariants.length} variants total
+                        </span>
+                      </div>
+                    )}
+
                     {newVariants.map((v, i) => (
                       <div key={i} className="p-2.5 bg-white dark:bg-[#161616] rounded-lg border border-neutral-200 dark:border-neutral-800">
                         <div className="flex flex-wrap gap-2 items-end">
                           {/* Variant Photo Picker */}
-                          <div className="shrink-0 flex flex-col items-center">
+                          <div className="shrink-0 flex flex-col items-center relative">
                             <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Photo</label>
                             <div className="relative group">
-                              <label className="w-8 h-8 rounded border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors" title="Upload variant photo">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const nv = [...newVariants];
-                                      nv[i].imageFile = file;
-                                      nv[i].previewUrl = URL.createObjectURL(file);
-                                      setNewVariants(nv);
-                                    }
-                                  }}
-                                />
+                              <button
+                                type="button"
+                                onClick={() => setPickingPhotoVariantIndex(pickingPhotoVariantIndex === i ? null : i)}
+                                className="w-8 h-8 rounded border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors"
+                                title="Click to choose or upload variant photo"
+                              >
                                 {v.previewUrl || v.existingImageUrl ? (
                                   <img
                                     src={v.previewUrl || v.existingImageUrl}
@@ -2912,7 +3037,7 @@ const DashboardProducts: React.FC = () => {
                                 ) : (
                                   <Camera size={13} className="text-neutral-400 group-hover:text-brand-500 transition-colors" />
                                 )}
-                              </label>
+                              </button>
                               {(v.previewUrl || v.existingImageUrl) && (
                                 <button
                                   type="button"
@@ -2931,6 +3056,132 @@ const DashboardProducts: React.FC = () => {
                                 </button>
                               )}
                             </div>
+
+                            {/* Dropdown / Popover to select from product photos or upload new */}
+                            {pickingPhotoVariantIndex === i && (
+                              <div className="absolute top-full left-0 mt-1 z-30 p-2.5 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800 w-52 text-left animate-fade-in">
+                                <div className="flex items-center justify-between mb-2 pb-1 border-b border-neutral-100 dark:border-neutral-800">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">Variant Photo</span>
+                                  <button type="button" onClick={() => setPickingPhotoVariantIndex(null)} className="text-neutral-400 hover:text-red-500 text-xs font-bold">✕</button>
+                                </div>
+
+                                {/* Photos from Product (Step 1 uploads or existing product images) */}
+                                {((imagePreviews && imagePreviews.length > 0) || (existingImages && existingImages.length > 0)) && (
+                                  <div className="mb-2">
+                                    <span className="text-[10px] text-neutral-500 dark:text-neutral-400 block mb-1">From Product Photos:</span>
+                                    <div className="grid grid-cols-4 gap-1.5 max-h-24 overflow-y-auto">
+                                      {imagePreviews.map((img, imgIdx) => (
+                                        <button
+                                          key={`prev-${imgIdx}`}
+                                          type="button"
+                                          onClick={() => {
+                                            const nv = [...newVariants];
+                                            nv[i].imageFile = img.file;
+                                            nv[i].previewUrl = img.url;
+                                            delete nv[i].existingImageUrl;
+                                            setNewVariants(nv);
+                                            setPickingPhotoVariantIndex(null);
+                                          }}
+                                          className="w-10 h-10 rounded border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:border-brand-500 p-0.5 cursor-pointer"
+                                        >
+                                          <img src={img.url} alt="" className="w-full h-full object-cover rounded-xs" />
+                                        </button>
+                                      ))}
+                                      {existingImages.map((img, imgIdx) => (
+                                        <button
+                                          key={`exist-${img.id || imgIdx}`}
+                                          type="button"
+                                          onClick={() => {
+                                            const nv = [...newVariants];
+                                            nv[i].existingImageUrl = img.image;
+                                            nv[i].previewUrl = img.image;
+                                            delete nv[i].imageFile;
+                                            setNewVariants(nv);
+                                            setPickingPhotoVariantIndex(null);
+                                          }}
+                                          className="w-10 h-10 rounded border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:border-brand-500 p-0.5 cursor-pointer"
+                                        >
+                                          <img src={img.image} alt="" className="w-full h-full object-cover rounded-xs" />
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Upload from Device Button */}
+                                <label className="flex items-center justify-center gap-1.5 w-full py-1.5 text-[11px] font-bold text-neutral-700 dark:text-neutral-200 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded cursor-pointer transition">
+                                  <Camera size={12} /> Upload from device
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const nv = [...newVariants];
+                                        nv[i].imageFile = file;
+                                        nv[i].previewUrl = URL.createObjectURL(file);
+                                        setNewVariants(nv);
+                                      }
+                                      setPickingPhotoVariantIndex(null);
+                                    }}
+                                  />
+                                </label>
+
+                                {/* Apply to all matching primary variants */}
+                                {(() => {
+                                  const primaryCol = variationColumns.find(c => /color|finish|style/i.test(c)) || variationColumns[0];
+                                  const primaryVal = primaryCol ? v.fields?.[primaryCol] : null;
+                                  const matchingCount = primaryCol && primaryVal ? newVariants.filter(other => other.fields?.[primaryCol]?.toLowerCase() === primaryVal.toLowerCase()).length : 0;
+                                  if (!primaryVal || matchingCount <= 1) return null;
+                                  return (
+                                    <div className="mt-2 pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
+                                      <span className="text-[9.5px] text-neutral-400 block mb-1">Apply chosen photo to all "{primaryVal}" ({matchingCount}):</span>
+                                      <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                                        {imagePreviews.map((img, imgIdx) => (
+                                          <button
+                                            key={`batch-prev-${imgIdx}`}
+                                            type="button"
+                                            onClick={() => {
+                                              setNewVariants(prev => prev.map(variant => {
+                                                if (variant.fields?.[primaryCol]?.toLowerCase() === primaryVal.toLowerCase()) {
+                                                  return { ...variant, imageFile: img.file, previewUrl: img.url, existingImageUrl: undefined };
+                                                }
+                                                return variant;
+                                              }));
+                                              toast.success(`Applied photo to all ${matchingCount} "${primaryVal}" variants!`);
+                                              setPickingPhotoVariantIndex(null);
+                                            }}
+                                            className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-brand-500 hover:text-black font-semibold transition cursor-pointer"
+                                          >
+                                            Photo #{imgIdx + 1} → All {primaryVal}
+                                          </button>
+                                        ))}
+                                        {existingImages.map((img, imgIdx) => (
+                                          <button
+                                            key={`batch-exist-${img.id || imgIdx}`}
+                                            type="button"
+                                            onClick={() => {
+                                              setNewVariants(prev => prev.map(variant => {
+                                                if (variant.fields?.[primaryCol]?.toLowerCase() === primaryVal.toLowerCase()) {
+                                                  return { ...variant, existingImageUrl: img.image, previewUrl: img.image, imageFile: undefined };
+                                                }
+                                                return variant;
+                                              }));
+                                              toast.success(`Applied photo to all ${matchingCount} "${primaryVal}" variants!`);
+                                              setPickingPhotoVariantIndex(null);
+                                            }}
+                                            className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-brand-500 hover:text-black font-semibold transition cursor-pointer"
+                                          >
+                                            Photo #{imgIdx + 1} → All {primaryVal}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
                           </div>
                           {variationColumns.map((col, colIdx) => (
                             <div key={colIdx} className="w-24 shrink-0">

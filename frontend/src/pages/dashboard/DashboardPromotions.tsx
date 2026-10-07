@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
@@ -25,9 +25,12 @@ import {
   Eye,
   ArrowUpRight,
   Info,
-  ChevronLeft
+  UserCheck,
+  Share2,
+  Edit2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../context/AuthContext';
 import { useDialog } from '../../components/ui/Dialogs';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -76,12 +79,12 @@ const BOOST_PLANS: BoostPlan[] = [
 
 export const DashboardPromotions: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { showConfirm } = useDialog();
+const location = useLocation();
+  const { user } = useAuth();
+  const { showConfirm, showPrompt } = useDialog();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'sponsored' | 'coupons'>('sponsored');
+  const [activeTab, setActiveTab] = useState<'sponsored' | 'coupons' | 'referrals'>('sponsored');
   const [campaignFilter, setCampaignFilter] = useState<'approved' | 'pending' | 'expired' | 'rejected' | 'all'>('approved');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -90,6 +93,9 @@ export const DashboardPromotions: React.FC = () => {
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [adminLipa, setAdminLipa] = useState<any[]>([]);
+  const [referralConversions, setReferralConversions] = useState<any[]>([]);
+  const [referralSummary, setReferralSummary] = useState<any>({ total_sales: 0, total_commission_owed: 0, total_commission_paid: 0, total_orders: 0 });
+  const [referralFilterStatus, setReferralFilterStatus] = useState<string>('all');
   
   // Loading States
   const [initialLoading, setInitialLoading] = useState(true);
@@ -111,13 +117,23 @@ export const DashboardPromotions: React.FC = () => {
 
   // Promo Code Form State
   const [showPromoForm, setShowPromoForm] = useState(false);
+  const [editingPromoId, setEditingPromoId] = useState<number | null>(null);
+  const promoFormRef = useRef<HTMLFormElement>(null);
   const [promoForm, setPromoForm] = useState({
     code: '',
+    affiliate_name: '',
     discount_type: 'percentage',
     value: '',
+    commission_type: 'percentage',
+    commission_rate: '',
     min_purchase_amount: '0',
     max_uses: '',
-    end_date: ''
+    max_uses_per_user: '1',
+    end_date: '',
+    applicable_scope: 'single_product' as 'single_product' | 'specific_products' | 'all_products',
+    product_id: '',
+    selected_product_ids: [] as number[],
+    attribution_window_days: '7'
   });
   const [submittingPromo, setSubmittingPromo] = useState(false);
 
@@ -131,11 +147,12 @@ export const DashboardPromotions: React.FC = () => {
   // Fetch all initial data
   const loadAllData = async () => {
     try {
-      const [sponsoredRes, promoRes, productsRes, lipaRes] = await Promise.allSettled([
+      const [sponsoredRes, promoRes, productsRes, lipaRes, referralRes] = await Promise.allSettled([
         api.get('/api/sponsored/'),
         api.get('/api/promo-codes/'),
         api.get('/api/products/?mine=true'),
-        api.get('/api/lipa-numbers/?seller=admin')
+        api.get('/api/lipa-numbers/?seller=admin'),
+        api.get('/api/promo-codes/referral-conversions/')
       ]);
 
       if (sponsoredRes.status === 'fulfilled') {
@@ -144,9 +161,18 @@ export const DashboardPromotions: React.FC = () => {
       if (promoRes.status === 'fulfilled') {
         setPromoCodes(promoRes.value.data.results || promoRes.value.data || []);
       }
+      if (referralRes.status === 'fulfilled') {
+        setReferralConversions(referralRes.value.data.results || referralRes.value.data || []);
+        if (referralRes.value.data.summary) {
+          setReferralSummary(referralRes.value.data.summary);
+        }
+      }
       if (productsRes.status === 'fulfilled') {
         const prods = productsRes.value.data.results || productsRes.value.data || [];
         setProducts(prods);
+        if (prods.length > 0) {
+          setPromoForm(prev => prev.product_id ? prev : { ...prev, product_id: String(prods[0].id) });
+        }
         if (form.product && !selectedProduct) {
           const match = prods.find((p: any) => String(p.id) === String(form.product));
           if (match) setSelectedProduct(match);
@@ -184,6 +210,8 @@ export const DashboardPromotions: React.FC = () => {
       setActiveTab('coupons');
     } else if (tabParam === 'sponsored') {
       setActiveTab('sponsored');
+    } else if (tabParam === 'referrals') {
+      setActiveTab('referrals');
     }
 
     if (newParam === 'true') {
@@ -229,6 +257,72 @@ export const DashboardPromotions: React.FC = () => {
       const res = await api.get('/api/promo-codes/');
       setPromoCodes(res.data.results || res.data || []);
     } catch {}
+  };
+
+  const refreshReferralConversions = async (statusFilter?: string) => {
+    try {
+      const activeFilter = statusFilter !== undefined ? statusFilter : referralFilterStatus;
+      const url = activeFilter && activeFilter !== 'all'
+        ? `/api/promo-codes/referral-conversions/?status=${activeFilter}`
+        : '/api/promo-codes/referral-conversions/';
+      const res = await api.get(url);
+      setReferralConversions(res.data.results || res.data || []);
+      if (res.data.summary) {
+        setReferralSummary(res.data.summary);
+      }
+    } catch {}
+  };
+
+  const handleFilterStatusChange = (newStatus: string) => {
+    setReferralFilterStatus(newStatus);
+    refreshReferralConversions(newStatus);
+  };
+
+  const affiliateCodes = useMemo(() => {
+    return promoCodes.filter((p: any) => Boolean(p.affiliate_name) || (parseFloat(p.commission_rate || '0') > 0));
+  }, [promoCodes]);
+
+  const handleCopyAffiliateLink = (promoOrCode: any) => {
+    const origin = window.location.origin;
+    const storeHandle = user?.username ? encodeURIComponent(user.username) : '';
+    const targetPromo = typeof promoOrCode === 'string'
+      ? promoCodes.find((p: any) => p.code === promoOrCode)
+      : promoOrCode;
+    const code = typeof promoOrCode === 'string' ? promoOrCode : (promoOrCode?.code || '');
+
+    let shareUrl = '';
+    if (targetPromo?.applicable_scope === 'single_product' && targetPromo?.product_slug) {
+      shareUrl = `${origin}/product/${targetPromo.product_slug}?ref=${encodeURIComponent(code)}`;
+    } else {
+      shareUrl = storeHandle 
+        ? `${origin}/browse?merchant=${storeHandle}&ref=${encodeURIComponent(code)}` 
+        : `${origin}/browse?ref=${encodeURIComponent(code)}`;
+    }
+
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedCode(code);
+    toast.success(t('affiliate_link_copied', `Affiliate link copied to clipboard!`));
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleMarkPaid = async (conversionId: number) => {
+    const payoutRef = await showPrompt(
+      t('mark_paid_prompt', 'Enter payment reference or transaction ID (e.g., M-Pesa / Tigo Pesa reference):'),
+      'e.g. MP2409... / TG8812...',
+      '',
+      t('mark_paid_title', 'Settle Influencer Cut')
+    );
+    if (payoutRef === null) return;
+
+    try {
+      await api.post(`/api/promo-codes/conversions/${conversionId}/mark-paid/`, {
+        payout_reference: payoutRef.trim()
+      });
+      toast.success(t('cut_marked_paid', 'Influencer cut marked as settled!'));
+      refreshReferralConversions();
+    } catch {
+      toast.error(t('failed_mark_paid', 'Failed to update payout status'));
+    }
   };
 
   // Determine current lifecycle status of a sponsored listing
@@ -371,6 +465,54 @@ export const DashboardPromotions: React.FC = () => {
     }
   };
 
+  const handleStartEditPromo = (promo: any) => {
+    setEditingPromoId(promo.id);
+    setPromoForm({
+      code: promo.code || '',
+      affiliate_name: promo.affiliate_name || '',
+      discount_type: promo.discount_type || 'percentage',
+      value: String(promo.value || ''),
+      commission_type: promo.commission_type || 'percentage',
+      commission_rate: promo.commission_rate ? String(promo.commission_rate) : '',
+      min_purchase_amount: promo.min_purchase_amount ? String(promo.min_purchase_amount) : '0',
+      max_uses: promo.max_uses ? String(promo.max_uses) : '',
+      max_uses_per_user: promo.max_uses_per_user ? String(promo.max_uses_per_user) : '1',
+      end_date: promo.end_date ? new Date(promo.end_date).toISOString().split('T')[0] : '',
+      applicable_scope: (promo.applicable_scope as any) || 'single_product',
+      product_id: promo.product ? String(promo.product) : promo.product_id ? String(promo.product_id) : (products.length > 0 ? String(products[0].id) : ''),
+      selected_product_ids: Array.isArray(promo.products) ? promo.products : [],
+      attribution_window_days: String(promo.attribution_window_days || '7')
+    });
+    setShowPromoForm(true);
+    setTimeout(() => {
+      promoFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
+  const handleOpenCreatePromo = () => {
+    setEditingPromoId(null);
+    setPromoForm({
+      code: '',
+      affiliate_name: '',
+      discount_type: 'percentage',
+      value: '',
+      commission_type: 'percentage',
+      commission_rate: '',
+      min_purchase_amount: '0',
+      max_uses: '',
+      max_uses_per_user: '1',
+      end_date: '',
+      applicable_scope: 'single_product',
+      product_id: products.length > 0 ? String(products[0].id) : '',
+      selected_product_ids: [],
+      attribution_window_days: '7'
+    });
+    setShowPromoForm(true);
+    setTimeout(() => {
+      promoFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   const handlePromoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPromoForm({ ...promoForm, [e.target.name]: e.target.value });
   };
@@ -382,8 +524,20 @@ export const DashboardPromotions: React.FC = () => {
       toast.error(t('enter_promo_code', 'Please enter a coupon code'));
       return;
     }
-    if (!promoForm.value || parseFloat(promoForm.value) <= 0) {
+    const hasCommission = promoForm.commission_rate && parseFloat(promoForm.commission_rate) > 0;
+    const discountVal = parseFloat(promoForm.value || '0');
+    if (!hasCommission && discountVal <= 0) {
       toast.error(t('enter_valid_discount', 'Please enter a valid discount amount'));
+      return;
+    }
+
+    if (promoForm.applicable_scope === 'single_product' && !promoForm.product_id) {
+      toast.error(t('select_product_required', 'Please select a product for this promotion'));
+      return;
+    }
+
+    if (promoForm.applicable_scope === 'specific_products' && promoForm.selected_product_ids.length === 0) {
+      toast.error(t('select_products_required', 'Please select at least one product'));
       return;
     }
 
@@ -392,34 +546,66 @@ export const DashboardPromotions: React.FC = () => {
       const data: any = {
         code: cleanCode,
         discount_type: promoForm.discount_type,
-        value: parseFloat(promoForm.value),
-        min_purchase_amount: parseFloat(promoForm.min_purchase_amount || '0')
+        value: discountVal,
+        min_purchase_amount: parseFloat(promoForm.min_purchase_amount || '0'),
+        applicable_scope: promoForm.applicable_scope,
+        attribution_window_days: parseInt(promoForm.attribution_window_days || '7', 10)
       };
+      if (promoForm.applicable_scope === 'single_product') {
+        data.product = parseInt(promoForm.product_id, 10);
+      } else if (promoForm.applicable_scope === 'specific_products') {
+        data.products = promoForm.selected_product_ids;
+      }
+      if (promoForm.affiliate_name.trim()) {
+        data.affiliate_name = promoForm.affiliate_name.trim();
+      }
+      if (promoForm.commission_rate) {
+        data.commission_type = promoForm.commission_type;
+        data.commission_rate = parseFloat(promoForm.commission_rate);
+      }
       if (promoForm.max_uses) {
         data.max_uses = parseInt(promoForm.max_uses, 10);
+      }
+      if (promoForm.max_uses_per_user) {
+        data.max_uses_per_user = parseInt(promoForm.max_uses_per_user, 10);
       }
       if (promoForm.end_date) {
         data.end_date = new Date(promoForm.end_date).toISOString();
       }
 
-      await api.post('/api/promo-codes/', data);
-      toast.success(t('promo_created_success', 'Promo code created successfully'));
+      if (editingPromoId) {
+        await api.patch(`/api/promo-codes/${editingPromoId}/`, data);
+        toast.success(promoForm.affiliate_name ? t('affiliate_updated_success', 'Affiliate referral code updated!') : t('promo_updated_success', 'Promo code updated successfully!'));
+      } else {
+        await api.post('/api/promo-codes/', data);
+        toast.success(promoForm.affiliate_name ? t('affiliate_created_success', 'Affiliate referral code created!') : t('promo_created_success', 'Promo code created successfully'));
+      }
       setShowPromoForm(false);
+      setEditingPromoId(null);
       setPromoForm({
         code: '',
+        affiliate_name: '',
         discount_type: 'percentage',
         value: '',
+        commission_type: 'percentage',
+        commission_rate: '',
         min_purchase_amount: '0',
         max_uses: '',
-        end_date: ''
+        max_uses_per_user: '1',
+        end_date: '',
+        applicable_scope: 'single_product',
+        product_id: products.length > 0 ? String(products[0].id) : '',
+        selected_product_ids: [],
+        attribution_window_days: '7'
       });
       refreshPromoCodes();
+      refreshReferralConversions();
     } catch (err: any) {
       let detail = t('failed_to_create_promo', 'Failed to create promo code');
       if (err.response?.data) {
         const d = err.response.data;
         if (typeof d === 'object') {
-          detail = Object.entries(d).map(([k, v]) => `${k}: ${v}`).join(' | ');
+          detail = Object.entries(d).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' | ');
         } else if (typeof d === 'string') {
           detail = d;
         }
@@ -488,22 +674,337 @@ export const DashboardPromotions: React.FC = () => {
     return Math.round(pct);
   };
 
+  const promoFormJsx = showPromoForm && (
+    <form ref={promoFormRef} onSubmit={handlePromoSubmit} className="card p-5 space-y-4 animate-scale-in text-xs border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
+      <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 flex justify-between items-center">
+        <div>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+            {editingPromoId
+              ? (activeTab === 'referrals' ? t('edit_affiliate_code', 'Edit Affiliate Referral Code') : t('edit_store_coupon', 'Edit Store Coupon Code'))
+              : (activeTab === 'referrals' ? t('create_affiliate_code', 'Create Affiliate Referral Code') : t('create_store_coupon', 'Create Store Coupon Code'))}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {editingPromoId
+              ? t('edit_promo_desc', 'Modify promoter settings, commission cut, qualifying products, and campaign rules.')
+              : (activeTab === 'referrals'
+                  ? t('affiliate_form_desc', 'Assign a code or link to an influencer and define their commission cut.')
+                  : t('coupon_form_desc', 'Generate percentage or fixed discounts for buyers to apply during checkout.'))}
+          </p>
+        </div>
+        <button 
+          type="button" 
+          onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }} 
+          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Row 1: Code and Influencer Name */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <Ticket size={12} /> {t('coupon_or_referral_code', 'Code')} <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="code"
+            required
+            value={promoForm.code}
+            onChange={handlePromoChange}
+            placeholder="e.g. SARAH10, FLASH20"
+            className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <UserCheck size={12} /> {t('influencer_partner_name', 'Influencer / Promoter Name')}
+          </label>
+          <input
+            type="text"
+            name="affiliate_name"
+            value={promoForm.affiliate_name}
+            onChange={handlePromoChange}
+            placeholder="e.g. @sarah_tz or Juma Kimaro (Optional)"
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+      </div>
+
+      {/* Row 2: Product Applicability Scope */}
+      <div className="space-y-2">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+          {t('product_scope', 'Product Applicability Scope')} <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            { id: 'single_product', label: t('scope_single', 'Single Product (Default)'), desc: t('scope_single_desc', 'Direct link to 1 product') },
+            { id: 'specific_products', label: t('scope_specific', 'Selected Products'), desc: t('scope_specific_desc', 'Selected collection') },
+            { id: 'all_products', label: t('scope_all', 'Storewide'), desc: t('scope_all_desc', 'All store inventory') }
+          ].map(scope => {
+            const isSelected = promoForm.applicable_scope === scope.id;
+            return (
+              <button
+                key={scope.id}
+                type="button"
+                onClick={() => setPromoForm(prev => ({ ...prev, applicable_scope: scope.id as any }))}
+                className={`p-2.5 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-surface-muted/60 dark:bg-neutral-900/60 ${
+                  isSelected
+                    ? 'border-2 border-brand-500 text-gray-900 dark:text-white'
+                    : 'border-2 border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="font-semibold text-xs">{scope.label}</span>
+                <span className="text-[10px] text-gray-400 mt-0.5">{scope.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Dynamic selector based on scope */}
+        {promoForm.applicable_scope === 'single_product' && (
+          <div className="pt-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('select_target_product', 'Target Product')} <span className="text-red-500">*</span>
+            </label>
+            {products.length === 0 ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400">{t('no_products_inventory', 'No products listed yet. Please add a product first.')}</p>
+            ) : (
+              <select
+                name="product_id"
+                value={promoForm.product_id}
+                onChange={handlePromoChange}
+                required
+                className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+              >
+                <option value="">-- {t('select_a_product', 'Select a product')} --</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — TSh {parseInt(p.price || 0).toLocaleString()}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+              {t('single_product_link_hint', 'Generates a direct link to this product page with attribution auto-captured at checkout.')}
+            </p>
+          </div>
+        )}
+
+        {promoForm.applicable_scope === 'specific_products' && (
+          <div className="pt-1 space-y-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('choose_qualifying_products', 'Select Qualifying Products')} ({promoForm.selected_product_ids.length} selected) <span className="text-red-500">*</span>
+            </label>
+            <div className="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-surface-muted/40 dark:bg-neutral-900/40 border border-surface-border dark:border-surface-dark-border">
+              {products.map(p => {
+                const isChecked = promoForm.selected_product_ids.includes(p.id);
+                return (
+                  <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 p-1 rounded transition">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        setPromoForm(prev => ({
+                          ...prev,
+                          selected_product_ids: isChecked
+                            ? prev.selected_product_ids.filter(id => id !== p.id)
+                            : [...prev.selected_product_ids, p.id]
+                        }));
+                      }}
+                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="truncate flex-1 text-gray-900 dark:text-white">{p.name}</span>
+                    <span className="text-gray-400 font-mono text-[11px]">TSh {parseInt(p.price || 0).toLocaleString()}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {promoForm.applicable_scope === 'all_products' && (
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 pt-1">
+            {t('all_products_hint', 'This promo applies to all items across your store. Links will direct buyers to your store catalog.')}
+          </p>
+        )}
+      </div>
+
+      {/* Row 3: Buyer Discount Settings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <Percent size={12} /> {t('buyer_discount_type', 'Buyer Discount Type')}
+          </label>
+          <select
+            name="discount_type"
+            value={promoForm.discount_type}
+            onChange={handlePromoChange}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          >
+            <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
+            <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {t('buyer_discount_value', 'Buyer Discount Amount')}
+          </label>
+          <input
+            type="number"
+            name="value"
+            min="0"
+            step="any"
+            value={promoForm.value}
+            onChange={handlePromoChange}
+            placeholder={promoForm.discount_type === 'percentage' ? 'e.g. 10 (or 0 for cut only)' : 'e.g. 5000'}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+      </div>
+
+      {/* Row 4: Promoter Commission Cut Settings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <Percent size={12} /> {t('influencer_cut_type', 'Influencer Commission Cut Type')}
+          </label>
+          <select
+            name="commission_type"
+            value={promoForm.commission_type}
+            onChange={handlePromoChange}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          >
+            <option value="percentage">{t('cut_percentage_label', 'Percentage of Sale (%)')}</option>
+            <option value="fixed">{t('cut_fixed_label', 'Fixed Bounty per Order (TZS)')}</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {t('influencer_cut_rate', 'Influencer Commission Cut Amount')}
+          </label>
+          <input
+            type="number"
+            name="commission_rate"
+            min="0"
+            step="any"
+            value={promoForm.commission_rate}
+            onChange={handlePromoChange}
+            placeholder={promoForm.commission_type === 'percentage' ? 'e.g. 10 (for 10% cut per sale)' : 'e.g. 3000 (for TSh 3,000 bounty)'}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+      </div>
+
+      {/* Row 5: Usage Limits */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {t('min_order_req', 'Minimum Order (TZS)')}
+          </label>
+          <input
+            type="number"
+            name="min_purchase_amount"
+            min="0"
+            step="any"
+            value={promoForm.min_purchase_amount}
+            onChange={handlePromoChange}
+            placeholder="e.g. 10000 (0 for no min)"
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {t('uses_per_customer', 'Uses per Customer')}
+          </label>
+          <input
+            type="number"
+            name="max_uses_per_user"
+            min="1"
+            value={promoForm.max_uses_per_user}
+            onChange={handlePromoChange}
+            placeholder="1 (default 1 use per customer)"
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {t('total_usage_limit', 'Total Campaign Uses')}
+          </label>
+          <input
+            type="number"
+            name="max_uses"
+            min="1"
+            value={promoForm.max_uses}
+            onChange={handlePromoChange}
+            placeholder="Leave blank for unlimited"
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+      </div>
+
+      {/* Row 6: Expiration & Attribution Window */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <Clock size={12} /> {t('attribution_window_label', 'Attribution Window (Days)')}
+          </label>
+          <input
+            type="number"
+            name="attribution_window_days"
+            min="1"
+            max="90"
+            value={promoForm.attribution_window_days}
+            onChange={handlePromoChange}
+            placeholder="7"
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            {t('attribution_window_help', 'How many days after clicking the referral remains active for customer (default: 7).')}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <Calendar size={12} /> {t('expiration_date_optional', 'Expiration Date (Optional)')}
+          </label>
+          <input
+            type="date"
+            name="end_date"
+            value={promoForm.end_date}
+            onChange={handlePromoChange}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }}>
+          {t('cancel', 'Cancel')}
+        </Button>
+        <Button 
+          type="submit" 
+          size="sm" 
+          disabled={submittingPromo} 
+          className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
+        >
+          {submittingPromo 
+            ? t('saving', 'Saving...') 
+            : editingPromoId
+            ? t('save_changes', 'Save Changes')
+            : (activeTab === 'referrals' ? t('create_affiliate_btn', 'Create Affiliate Code') : t('create_code_btn', 'Create Coupon'))}
+        </Button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-              title="Back"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <span>{t('promotions', 'Promotions')}</span>
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('promotions', 'Promotions')}
+            </h1>
 
           <div className="flex items-center gap-2 shrink-0">
             {activeTab === 'sponsored' ? (
@@ -518,11 +1019,13 @@ export const DashboardPromotions: React.FC = () => {
             ) : (
               <Button
                 size="sm"
-                onClick={() => setShowPromoForm(!showPromoForm)}
+                onClick={() => { if (showPromoForm) { setShowPromoForm(false); setEditingPromoId(null); } else { handleOpenCreatePromo(); } }}
                 className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
               >
                 {showPromoForm ? <X size={14} /> : <Plus size={14} />}
-                {showPromoForm ? t('close', 'Close') : t('new_coupon', 'New Coupon')}
+                {showPromoForm 
+                  ? t('close', 'Close') 
+                  : (activeTab === 'referrals' ? t('new_affiliate_code', 'New Referral Code') : t('new_coupon', 'New Coupon'))}
               </Button>
             )}
           </div>
@@ -536,33 +1039,58 @@ export const DashboardPromotions: React.FC = () => {
       {initialLoading ? (
         <KpiGridSkeleton count={4} cols={4} />
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard
-            label={t('active_placements', 'Active Placements')}
-            value={activeCampaignsCount}
-            sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
-            icon={Megaphone}
-          />
-          <KpiCard
-            label={t('active_coupons', 'Active Coupons')}
-            value={activeCouponsCount}
-            icon={Ticket}
-          />
-          <KpiCard
-            label={t('total_redemptions', 'Coupon Uses')}
-            value={totalRedemptions}
-            icon={TrendingUp}
-          />
-          <KpiCard
-            label={t('total_inventory', 'Store Products')}
-            value={products.length}
-            icon={Package}
-          />
-        </div>
+        activeTab === 'referrals' ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('referral_sales', 'Referral Sales')}
+              value={`TSh ${Math.round(referralSummary.total_sales || 0).toLocaleString()}`}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('commission_owed', 'Commission Owed')}
+              value={`TSh ${Math.round(referralSummary.total_commission_owed || 0).toLocaleString()}`}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('commission_paid', 'Commission Paid')}
+              value={`TSh ${Math.round(referralSummary.total_commission_paid || 0).toLocaleString()}`}
+              icon={CheckCircle2}
+            />
+            <KpiCard
+              label={t('referral_orders', 'Referral Orders')}
+              value={referralSummary.total_orders || referralConversions.length}
+              icon={Package}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('active_placements', 'Active Placements')}
+              value={activeCampaignsCount}
+              sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
+              icon={Megaphone}
+            />
+            <KpiCard
+              label={t('active_coupons', 'Active Coupons')}
+              value={activeCouponsCount}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('total_redemptions', 'Coupon Uses')}
+              value={totalRedemptions}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('total_inventory', 'Store Products')}
+              value={products.length}
+              icon={Package}
+            />
+          </div>
+        )
       )}
 
       {/* Main Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveTab('sponsored')}
@@ -595,6 +1123,23 @@ export const DashboardPromotions: React.FC = () => {
             activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
           }`}>
             {promoCodes.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('referrals')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'referrals'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+          }`}
+        >
+          <UserCheck size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('affiliates_referrals', 'Affiliates & Referrals')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+            activeTab === 'referrals' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+          }`}>
+            {referralConversions.length}
           </span>
         </button>
       </div>
@@ -1157,135 +1702,7 @@ export const DashboardPromotions: React.FC = () => {
       {/* Tab 2: Promo Codes */}
       {activeTab === 'coupons' && (
         <div className="space-y-6">
-          {showPromoForm && (
-            <form onSubmit={handlePromoSubmit} className="card p-5 space-y-4 animate-scale-in text-xs border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
-              <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 flex justify-between items-center">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                    {t('create_store_coupon', 'Create Store Coupon Code')}
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {t('coupon_form_desc', 'Generate percentage or fixed discounts for buyers to apply during checkout.')}
-                  </p>
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => setShowPromoForm(false)} 
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                    <Ticket size={12} /> {t('coupon_code', 'Coupon Code')} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="code"
-                    required
-                    value={promoForm.code}
-                    onChange={handlePromoChange}
-                    placeholder="e.g. KARIBU10, FLASH20"
-                    className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                    <Percent size={12} /> {t('discount_type', 'Discount Type')}
-                  </label>
-                  <select
-                    name="discount_type"
-                    value={promoForm.discount_type}
-                    onChange={handlePromoChange}
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  >
-                    <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
-                    <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('discount_value', 'Discount Value')} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="value"
-                    required
-                    min="0.01"
-                    step="any"
-                    value={promoForm.value}
-                    onChange={handlePromoChange}
-                    placeholder={promoForm.discount_type === 'percentage' ? 'e.g. 15 (for 15% off)' : 'e.g. 5000 (for TSh 5,000 off)'}
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('min_order_req', 'Minimum Order (TZS)')}
-                  </label>
-                  <input
-                    type="number"
-                    name="min_purchase_amount"
-                    min="0"
-                    step="any"
-                    value={promoForm.min_purchase_amount}
-                    onChange={handlePromoChange}
-                    placeholder="e.g. 10000 (0 for no minimum)"
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('max_usage_limit', 'Usage Limit')}
-                  </label>
-                  <input
-                    type="number"
-                    name="max_uses"
-                    min="1"
-                    value={promoForm.max_uses}
-                    onChange={handlePromoChange}
-                    placeholder="e.g. 50 (leave blank for unlimited)"
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                    <Calendar size={12} /> {t('expiration_date_optional', 'Expiration Date (Optional)')}
-                  </label>
-                  <input
-                    type="date"
-                    name="end_date"
-                    value={promoForm.end_date}
-                    onChange={handlePromoChange}
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowPromoForm(false)}>
-                  {t('cancel', 'Cancel')}
-                </Button>
-                <Button 
-                  type="submit" 
-                  size="sm" 
-                  disabled={submittingPromo} 
-                  className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
-                >
-                  {submittingPromo ? t('creating_code', 'Creating...') : t('create_code_btn', 'Create Coupon')}
-                </Button>
-              </div>
-            </form>
-          )}
+          {promoFormJsx}
 
           {initialLoading ? (
             <TableSkeleton rows={3} cols={5} />
@@ -1300,61 +1717,251 @@ export const DashboardPromotions: React.FC = () => {
               }}
             />
           ) : (
-            <div className="card overflow-hidden bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                  <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
+                    <th className="p-3 rounded-l-lg">{t('coupon_code', 'Coupon Code')}</th>
+                    <th className="p-3">{t('discount', 'Discount')}</th>
+                    <th className="p-3 text-right">{t('min_spend', 'Min Order')}</th>
+                    <th className="p-3 text-center">{t('redemptions', 'Redemptions')}</th>
+                    <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
+                    <th className="p-3 text-center">{t('status', 'Status')}</th>
+                    <th className="p-3 text-center rounded-r-lg">{t('action', 'Action')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoCodes.map((promo: any) => {
+                    const isExpired = promo.end_date && new Date(promo.end_date).getTime() < nowTimestamp;
+                    return (
+                      <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2 py-0.5 rounded">
+                              {promo.code}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(promo.code)}
+                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer p-1 rounded hover:bg-surface-muted dark:hover:bg-[#161616]"
+                              title={t('copy_code', 'Copy code')}
+                            >
+                              {copiedCode === promo.code ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyAffiliateLink(promo)}
+                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer p-1 rounded hover:bg-surface-muted dark:hover:bg-[#161616]"
+                              title={t('copy_affiliate_link', 'Copy shareable link')}
+                            >
+                              <Share2 size={13} />
+                            </button>
+                          </div>
+                          {promo.affiliate_name && (
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                              {t('partner', 'Partner')}: {promo.affiliate_name}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 font-semibold text-brand-600 dark:text-brand-400 font-mono">
+                          {promo.discount_type === 'percentage'
+                            ? `${parseFloat(promo.value)}% Off`
+                            : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`}
+                        </td>
+                        <td className="p-3 text-right text-gray-600 dark:text-gray-300">
+                          {parseFloat(promo.min_purchase_amount) > 0 ? `TSh ${parseFloat(promo.min_purchase_amount).toLocaleString()}` : t('none', 'None')}
+                        </td>
+                        <td className="p-3 text-center text-gray-500 dark:text-gray-400">
+                          <span className="font-mono">{promo.use_count}</span>
+                          <span className="text-[10px] text-gray-400"> / {promo.max_uses || '∞'}</span>
+                        </td>
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
+                          {promo.end_date ? (
+                            <span className={isExpired ? 'text-red-500 font-medium' : ''}>
+                              {new Date(promo.end_date).toLocaleDateString()}
+                              {isExpired && ` (${t('expired', 'Expired')})`}
+                            </span>
+                          ) : (
+                            t('never', 'Never')
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
+                            className="transition inline-flex cursor-pointer"
+                            title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
+                          >
+                            {promo.is_active ? (
+                              <ToggleRight size={26} className="text-brand-500" />
+                            ) : (
+                              <ToggleLeft size={26} className="text-gray-300 dark:text-gray-600" />
+                            )}
+                          </button>
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditPromo(promo)}
+                              className="p-1 text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 rounded transition cursor-pointer"
+                              title={t('edit_coupon', 'Edit Coupon')}
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePromo(promo.id)}
+                              className="p-1 text-gray-400 hover:text-red-500 rounded transition cursor-pointer"
+                              title={t('delete', 'Delete')}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Influencer Referrals & Conversions Ledger */}
+      {activeTab === 'referrals' && (
+        <div className="space-y-6">
+          {promoFormJsx}
+
+          {/* Section 1: Active Affiliate Links */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                  {t('active_affiliate_codes', 'Active Affiliate & Partner Codes')}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('active_affiliate_desc', 'Trackable codes and share links configured for influencers with custom commission cuts.')}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleOpenCreatePromo}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <Plus size={13} />
+                {t('add_influencer_code', 'Add Influencer Code')}
+              </Button>
+            </div>
+
+            {affiliateCodes.length === 0 ? (
+              <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] space-y-3">
+                <UserCheck size={32} className="mx-auto text-gray-400" />
+                <div className="max-w-md mx-auto">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                    {t('no_influencer_codes_yet', 'No Influencer Codes Configured Yet')}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t('create_first_influencer_desc', 'Create a promo code with an assigned promoter name and commission cut. Influencers can share links to earn a cut on every sale.')}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowPromoForm(true)}
+                  className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs"
+                >
+                  <Plus size={13} className="mr-1 inline" />
+                  {t('create_influencer_code', 'Create Influencer Code')}
+                </Button>
+              </div>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-[11px] uppercase tracking-wider text-gray-400 font-semibold border-b border-surface-border dark:border-surface-dark-border">
-                    <tr>
-                      <th className="p-3">{t('coupon_code', 'Coupon Code')}</th>
-                      <th className="p-3">{t('discount', 'Discount')}</th>
-                      <th className="p-3 text-right">{t('min_spend', 'Min Order')}</th>
-                      <th className="p-3 text-center">{t('redemptions', 'Redemptions')}</th>
-                      <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
+                  <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                    <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
+                      <th className="p-3 rounded-l-lg">{t('code_and_link', 'Code & Share Link')}</th>
+                      <th className="p-3">{t('scope_product', 'Scope / Target')}</th>
+                      <th className="p-3">{t('influencer_partner', 'Influencer / Partner')}</th>
+                      <th className="p-3">{t('influencer_cut', 'Promoter Cut')}</th>
+                      <th className="p-3">{t('buyer_discount', 'Buyer Discount')}</th>
+                      <th className="p-3 text-center">{t('window', 'Window')}</th>
+                      <th className="p-3 text-center">{t('redemptions', 'Sales')}</th>
                       <th className="p-3 text-center">{t('status', 'Status')}</th>
-                      <th className="p-3 text-center">{t('action', 'Action')}</th>
+                      <th className="p-3 text-center rounded-r-lg">{t('actions', 'Actions')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
-                    {promoCodes.map((promo: any) => {
-                      const isExpired = promo.end_date && new Date(promo.end_date).getTime() < nowTimestamp;
-                      return (
-                        <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
-                          <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2 py-0.5 rounded border border-surface-border dark:border-surface-dark-border">
-                                {promo.code}
-                              </span>
+                  <tbody>
+                    {affiliateCodes.map((promo: any) => (
+                      <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2 py-0.5 rounded">
+                              {promo.code}
+                            </span>
                               <button
                                 type="button"
-                                onClick={() => handleCopy(promo.code)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer p-1 rounded hover:bg-surface-muted dark:hover:bg-[#161616]"
-                                title={t('copy_code', 'Copy code')}
+                                onClick={() => handleCopyAffiliateLink(promo)}
+                                className="text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 text-[11px] font-medium cursor-pointer ml-1"
+                                title={t('copy_affiliate_link', 'Copy shareable affiliate link')}
                               >
-                                {copiedCode === promo.code ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                                <Share2 size={12} />
+                                <span>{copiedCode === promo.code ? t('copied', 'Copied!') : t('copy_link', 'Copy Link')}</span>
                               </button>
                             </div>
                           </td>
-                          <td className="p-3 font-semibold text-brand-600 dark:text-brand-400 font-mono">
-                            {promo.discount_type === 'percentage'
-                              ? `${parseFloat(promo.value)}% Off`
-                              : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`}
+                          <td className="p-3">
+                            {promo.applicable_scope === 'single_product' ? (
+                              <div className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200">
+                                <Package size={12} className="text-brand-500 shrink-0" />
+                                <span className="font-medium truncate max-w-[150px]" title={promo.product_name}>
+                                  {promo.product_name || t('single_product', 'Single Product')}
+                                </span>
+                                {promo.product_slug && (
+                                  <a
+                                    href={`/product/${promo.product_slug}?ref=${encodeURIComponent(promo.code)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-gray-400 hover:text-brand-500 inline-flex items-center"
+                                    title={t('view_product', 'View Product')}
+                                  >
+                                    <ArrowUpRight size={11} />
+                                  </a>
+                                )}
+                              </div>
+                            ) : promo.applicable_scope === 'specific_products' ? (
+                              <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                                <Package size={12} className="shrink-0" />
+                                <span>{promo.products?.length || 0} {t('selected_products', 'Products')}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-600 dark:text-gray-400">{t('storewide', 'Storewide')}</span>
+                            )}
                           </td>
-                          <td className="p-3 text-right text-gray-600 dark:text-gray-300">
-                            {parseFloat(promo.min_purchase_amount) > 0 ? `TSh ${parseFloat(promo.min_purchase_amount).toLocaleString()}` : t('none', 'None')}
+                          <td className="p-3 font-medium text-gray-900 dark:text-white">
+                            {promo.affiliate_name || t('unspecified', 'Unspecified')}
+                          </td>
+                          <td className="p-3 font-semibold text-brand-600 dark:text-brand-400 font-mono">
+                            {promo.commission_type === 'percentage'
+                              ? `${parseFloat(promo.commission_rate || '0')}% of Sale`
+                              : `TSh ${parseInt(promo.commission_rate || '0', 10).toLocaleString()} / Order`}
+                          </td>
+                          <td className="p-3 text-gray-600 dark:text-gray-300 font-mono">
+                            {parseFloat(promo.value) > 0 ? (
+                              promo.discount_type === 'percentage'
+                                ? `${parseFloat(promo.value)}% Off`
+                                : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`
+                            ) : (
+                              <span className="text-gray-400 font-sans">{t('no_buyer_discount', '0% (Cut only)')}</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                            {promo.attribution_window_days || 7}d
                           </td>
                           <td className="p-3 text-center text-gray-500 dark:text-gray-400">
                             <span className="font-mono">{promo.use_count}</span>
                             <span className="text-[10px] text-gray-400"> / {promo.max_uses || '∞'}</span>
-                          </td>
-                          <td className="p-3 text-gray-500 dark:text-gray-400">
-                            {promo.end_date ? (
-                              <span className={isExpired ? 'text-red-500 font-medium' : ''}>
-                                {new Date(promo.end_date).toLocaleDateString()}
-                                {isExpired && ` (${t('expired', 'Expired')})`}
-                              </span>
-                            ) : (
-                              t('never', 'Never')
-                            )}
                           </td>
                           <td className="p-3 text-center">
                             <button
@@ -1371,23 +1978,230 @@ export const DashboardPromotions: React.FC = () => {
                             </button>
                           </td>
                           <td className="p-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePromo(promo.id)}
-                              className="p-1 text-gray-400 hover:text-red-500 rounded transition cursor-pointer"
-                              title={t('delete', 'Delete')}
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditPromo(promo)}
+                                className="p-1 text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 rounded transition cursor-pointer"
+                                title={t('edit_code', 'Edit Code & Settings')}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(promo.code)}
+                                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition cursor-pointer"
+                                title={t('copy_code', 'Copy Code')}
+                              >
+                                {copiedCode === promo.code ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePromo(promo.id)}
+                                className="p-1 text-gray-400 hover:text-red-500 rounded transition cursor-pointer"
+                                title={t('delete', 'Delete')}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+            )}
+          </div>
+
+          {/* Section 2: Referral Conversions Ledger */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>{t('customer_referrals_ledger', 'Customer Referral Conversions Ledger')}</span>
+                  <span className="text-xs font-normal text-gray-400">
+                    ({referralConversions.length} {t('conversions', 'conversions')})
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('referrals_ledger_desc', 'Track incoming customers, matching influencer codes, and settle owed promoter cuts.')}
+                </p>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { key: 'all', label: t('all', 'All') },
+                  { key: 'PENDING', label: t('pending', 'Pending') },
+                  { key: 'APPROVED', label: t('approved', 'Approved') },
+                  { key: 'PAID_OUT', label: t('settled', 'Settled') },
+                  { key: 'CANCELLED', label: t('cancelled', 'Cancelled') }
+                ].map(filter => (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => handleFilterStatusChange(filter.key)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
+                      referralFilterStatus === filter.key
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+
+            {initialLoading ? (
+              <TableSkeleton rows={4} cols={7} />
+            ) : referralConversions.length === 0 ? (
+              <EmptyState
+                icon={UserCheck}
+                title={t('no_referrals_found', 'No Referral Orders Found')}
+                description={
+                  referralFilterStatus !== 'all'
+                    ? t('no_filtered_referrals', 'No referral conversions match the selected status filter.')
+                    : t('no_referrals_yet', 'When customers place orders using influencer codes or links, they will be listed here with calculated commission cuts.')
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                    <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
+                      <th className="p-3 rounded-l-lg">{t('customer', 'Customer')}</th>
+                      <th className="p-3">{t('influencer_code', 'Influencer / Code')}</th>
+                      <th className="p-3">{t('order_ref', 'Order # / Date')}</th>
+                      <th className="p-3 text-right">{t('subtotal', 'Order Subtotal')}</th>
+                      <th className="p-3 text-right">{t('discount', 'Discount Given')}</th>
+                      <th className="p-3 text-right">{t('promoter_cut', 'Promoter Cut')}</th>
+                      <th className="p-3 text-center">{t('order_status', 'Order Status')}</th>
+                      <th className="p-3 text-center">{t('cut_status', 'Cut Status')}</th>
+                      <th className="p-3 text-center rounded-r-lg">{t('action', 'Action')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                      {referralConversions.map((conv: any) => {
+                        const isPending = conv.status === 'PENDING';
+                        const isApproved = conv.status === 'APPROVED';
+                        const isPaid = conv.status === 'PAID_OUT';
+                        const isCancelled = conv.status === 'CANCELLED';
+
+                        return (
+                          <tr key={conv.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
+                            {/* Customer */}
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {conv.customer_name || conv.customer_username}
+                              </div>
+                              {conv.customer_phone && (
+                                <div className="text-[11px] text-gray-400 font-mono">
+                                  {conv.customer_phone}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Influencer / Code */}
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {conv.affiliate_name || t('unnamed_affiliate', 'Promoter')}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="font-mono text-[10px] bg-surface-muted dark:bg-[#161616] px-1.5 py-0.2 rounded text-gray-500 dark:text-gray-400">
+                                  {conv.promo_code_str}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Order # / Date */}
+                            <td className="p-3">
+                              <div className="font-mono font-medium text-gray-900 dark:text-white">
+                                #{conv.order_id}
+                              </div>
+                              <div className="text-[11px] text-gray-400">
+                                {new Date(conv.order_date || conv.created_at).toLocaleDateString()}
+                              </div>
+                            </td>
+
+                            {/* Subtotal */}
+                            <td className="p-3 text-right font-mono text-gray-700 dark:text-gray-300">
+                              TSh {Math.round(conv.order_subtotal || 0).toLocaleString()}
+                            </td>
+
+                            {/* Discount */}
+                            <td className="p-3 text-right font-mono text-gray-500 dark:text-gray-400">
+                              {parseFloat(conv.discount_given) > 0
+                                ? `TSh ${Math.round(conv.discount_given).toLocaleString()}`
+                                : '-'}
+                            </td>
+
+                            {/* Promoter Cut */}
+                            <td className="p-3 text-right font-mono font-semibold text-brand-600 dark:text-brand-400">
+                              TSh {Math.round(conv.commission_earned || 0).toLocaleString()}
+                            </td>
+
+                            {/* Order Status */}
+                            <td className="p-3 text-center">
+                              <span className="font-mono text-[10px] uppercase bg-surface-muted dark:bg-[#161616] px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">
+                                {conv.order_status || 'UNKNOWN'}
+                              </span>
+                            </td>
+
+                            {/* Cut Status */}
+                            <td className="p-3 text-center">
+                              {isPending && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                  {t('pending', 'Pending')}
+                                </span>
+                              )}
+                              {isApproved && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  {t('approved', 'Approved')}
+                                </span>
+                              )}
+                              {isPaid && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                  {t('settled', 'Settled')}
+                                </span>
+                              )}
+                              {isCancelled && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-500/10 text-neutral-500 border border-neutral-500/20">
+                                  {t('cancelled', 'Cancelled')}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Action */}
+                            <td className="p-3 text-center">
+                              {(isApproved || isPending) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMarkPaid(conv.id)}
+                                  className="text-xs h-7 px-2.5 inline-flex items-center gap-1"
+                                >
+                                  <CheckCircle2 size={12} className="text-emerald-500" />
+                                  <span>{t('settle_cut', 'Settle Cut')}</span>
+                                </Button>
+                              )}
+                              {isPaid && (
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
+                                  {conv.payout_reference ? `Ref: ${conv.payout_reference}` : t('settled', 'Settled')}
+                                </div>
+                              )}
+                              {isCancelled && (
+                                <span className="text-[11px] text-gray-400">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+            )}
+          </div>
         </div>
       )}
 

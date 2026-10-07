@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronLeft, History, Receipt, CalendarDays, User, Banknote } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, History, Receipt, CalendarDays, User, Banknote } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -151,8 +151,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 };
 
 const DashboardPOS: React.FC = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -369,17 +368,9 @@ const DashboardPOS: React.FC = () => {
       {/* Header & Tab Switcher */}
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-              title="Back"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <span>Point of Sale (POS)</span>
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Point of Sale (POS)
+            </h1>
 
           <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
             <button 

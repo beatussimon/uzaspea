@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, Trash, X } from 'lucide-react';
+import { Plus, Trash, X, Camera } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
@@ -20,9 +20,19 @@ export default function ProductVariantsModal({
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [productPhotos, setProductPhotos] = useState<string[]>([]);
+  const [selectedProductPhoto, setSelectedProductPhoto] = useState<string | null>(null);
+  const [editingPhotoVariantId, setEditingPhotoVariantId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchVariants();
+    api.get(`/api/products/${productId}/`)
+      .then(res => {
+        const imgs = (res.data.images || []).map((img: any) => img.image).filter(Boolean);
+        if (imgs.length === 0 && res.data.image) imgs.push(res.data.image);
+        setProductPhotos(imgs);
+      })
+      .catch(() => {});
   }, [productId]);
 
   const fetchVariants = () => {
@@ -50,7 +60,11 @@ export default function ProductVariantsModal({
     formData.append('price_adjustment', form.price_adjustment);
     formData.append('stock', form.stock);
     formData.append('is_available', String(form.is_available));
-    if (imageFile) formData.append('image', imageFile);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    } else if (selectedProductPhoto) {
+      formData.append('copy_from_image', selectedProductPhoto);
+    }
 
     try {
       await api.post('/api/variants/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -58,6 +72,7 @@ export default function ProductVariantsModal({
       setShowForm(false);
       setForm({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
       setImageFile(null);
+      setSelectedProductPhoto(null);
       fetchVariants();
       onUpdated?.();
     } catch {
@@ -102,11 +117,84 @@ export default function ProductVariantsModal({
                 variants.map(v => (
                   <div key={v.id} className="card p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      {v.image && (
-                        <div className="w-10 h-10 rounded-btn overflow-hidden shrink-0 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
-                          <SafeImage src={v.image} alt={v.name} category="product" className="w-full h-full object-cover" />
-                        </div>
-                      )}
+                      <div className="relative group/varimg shrink-0">
+                        {v.image ? (
+                          <div className="w-10 h-10 rounded-btn overflow-hidden bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                            <SafeImage src={v.image} alt={v.name} category="product" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-btn border border-dashed border-surface-border dark:border-surface-dark-border bg-surface-muted/30 flex items-center justify-center text-gray-400">
+                            <Camera size={14} />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditingPhotoVariantId(editingPhotoVariantId === v.id ? null : v.id)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-btn opacity-0 group-hover/varimg:opacity-100 transition-opacity cursor-pointer"
+                          title="Change variant photo"
+                        >
+                          <Camera size={14} />
+                        </button>
+                        {editingPhotoVariantId === v.id && (
+                          <div className="absolute left-0 top-full mt-1.5 z-30 p-2 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-surface-border dark:border-surface-dark-border w-48 text-left animate-fade-in">
+                            <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-surface-border dark:border-surface-dark-border">
+                              <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300">Choose Photo</span>
+                              <button type="button" onClick={() => setEditingPhotoVariantId(null)} className="text-gray-400 hover:text-red-500 text-xs font-bold">✕</button>
+                            </div>
+                            {productPhotos.length > 0 && (
+                              <div className="mb-2">
+                                <span className="text-[9px] text-gray-400 block mb-1">From Product:</span>
+                                <div className="grid grid-cols-4 gap-1 max-h-20 overflow-y-auto">
+                                  {productPhotos.map((pImg, pIdx) => (
+                                    <button
+                                      key={pIdx}
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await api.patch(`/api/variants/${v.id}/`, { copy_from_image: pImg });
+                                          toast.success('Variant photo updated');
+                                          fetchVariants();
+                                          onUpdated?.();
+                                        } catch {
+                                          toast.error('Failed to update photo');
+                                        }
+                                        setEditingPhotoVariantId(null);
+                                      }}
+                                      className="w-8 h-8 rounded border border-surface-border overflow-hidden hover:border-brand-500 p-0.5 cursor-pointer"
+                                    >
+                                      <img src={pImg} alt="" className="w-full h-full object-cover rounded-xs" />
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <label className="flex items-center justify-center gap-1.5 w-full py-1 text-[10px] font-bold bg-surface-muted dark:bg-[#202020] hover:bg-surface-border rounded cursor-pointer transition">
+                              <Camera size={11} /> Upload from device
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const fd = new FormData();
+                                    fd.append('image', file);
+                                    try {
+                                      await api.patch(`/api/variants/${v.id}/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                      toast.success('Variant photo updated');
+                                      fetchVariants();
+                                      onUpdated?.();
+                                    } catch {
+                                      toast.error('Failed to update photo');
+                                    }
+                                  }
+                                  setEditingPhotoVariantId(null);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
                       <div className="min-w-0">
                         <p className="font-bold text-gray-900 dark:text-white text-xs truncate">{v.name}</p>
                         <p className="text-2xs text-gray-500 mt-0.5">
@@ -166,7 +254,39 @@ export default function ProductVariantsModal({
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Image (Optional)</label>
-                    <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} className="input py-1 text-xs w-full file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-surface-muted" />
+                    {productPhotos.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 block mb-1">From Product Photos:</span>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {productPhotos.map((pImg, pIdx) => (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProductPhoto(selectedProductPhoto === pImg ? null : pImg);
+                                setImageFile(null);
+                              }}
+                              className={`w-9 h-9 rounded border overflow-hidden p-0.5 cursor-pointer transition ${
+                                selectedProductPhoto === pImg
+                                  ? 'border-brand-500 ring-2 ring-brand-500/20'
+                                  : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400'
+                              }`}
+                            >
+                              <img src={pImg} alt="" className="w-full h-full object-cover rounded-xs" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => {
+                        setImageFile(e.target.files?.[0] || null);
+                        if (e.target.files?.[0]) setSelectedProductPhoto(null);
+                      }}
+                      className="input py-1 text-xs w-full file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-surface-muted"
+                    />
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>

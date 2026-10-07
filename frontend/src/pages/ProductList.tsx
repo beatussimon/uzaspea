@@ -59,6 +59,8 @@ const ProductList = () => {
     });
   };
 
+  const isAffiliateMode = Boolean(searchParams.get('ref') || searchParams.get('aff'));
+
   const initialParams = (() => {
     const params: Record<string, string> = { page: '1', page_size: '12' };
     const cat = selectedSubcategory || selectedCategory;
@@ -73,7 +75,13 @@ const ProductList = () => {
     if (saved) params.saved = 'true';
     if (savedTime) params.saved_time = savedTime;
     if (sellerFilter) params.seller = sellerFilter;
-    if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
+    const refParam = searchParams.get('ref') || searchParams.get('aff');
+    if (refParam) params.ref = refParam;
+    const merchantParam = searchParams.get('merchant') || searchParams.get('seller');
+    if (merchantParam) params.seller = merchantParam;
+    if (isAffiliateMode) {
+      params.location_mode = 'nationwide';
+    } else if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
       params.lat = String(location.coords.lat);
       params.lng = String(location.coords.lng);
       params.radius = String(searchPrefs.radius);
@@ -97,7 +105,7 @@ const ProductList = () => {
   });
   const [categories, setCategories] = useState<any[]>([]);
   const [sponsoredAds, setSponsoredAds] = useState<any[]>(() => {
-    if (saved) return [];
+    if (saved || isAffiliateMode) return [];
     const cached = apiCache.get<any>(initialSponsoredCacheKey);
     return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
   });
@@ -170,7 +178,9 @@ const ProductList = () => {
       });
 
       // Inject persistent location preferences
-      if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
+      if (isAffiliateMode) {
+        params.location_mode = 'nationwide';
+      } else if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
         params.lat = String(location.coords.lat);
         params.lng = String(location.coords.lng);
         params.radius = String(searchPrefs.radius);
@@ -184,7 +194,7 @@ const ProductList = () => {
 
       return params;
     },
-    [searchParams, searchPrefs, location.coords, selectedCategory, selectedSubcategory]
+    [searchParams, searchPrefs, location.coords, selectedCategory, selectedSubcategory, isAffiliateMode]
   );
 
   const fetchProducts = useCallback(
@@ -214,15 +224,17 @@ const ProductList = () => {
           setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
           setHasMore(!!cached.data.next);
           
-          if (cachedSpons) {
+          if (cachedSpons && !isAffiliateMode) {
              const sData = cachedSpons.data.results || cachedSpons.data || [];
              setSponsoredAds(Array.isArray(sData) ? sData : []);
-          } else if (!saved) {
+          } else if (!saved && !isAffiliateMode) {
              api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal }).then(res => {
                apiCache.set(sponsCacheKey, res.data);
                const sData = res.data.results || res.data || [];
                setSponsoredAds(Array.isArray(sData) ? sData : []);
              }).catch(() => {});
+          } else {
+             setSponsoredAds([]);
           }
 
           setLoading(false);
@@ -263,7 +275,7 @@ const ProductList = () => {
       if (reset) {
         Promise.allSettled([
           api.get('/api/products/', { params: prms, signal: controller.signal }),
-          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal })
+          saved || isAffiliateMode ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal })
         ]).then(([prodOutcome, sponsOutcome]) => {
           if (controller.signal.aborted) return;
 
@@ -520,9 +532,19 @@ const ProductList = () => {
     });
   }
 
+  const refCode = searchParams.get('ref') || searchParams.get('aff') || '';
+  if (refCode) {
+    activePills.push({
+      id: 'ref',
+      label: 'Referral',
+      value: refCode.toUpperCase(),
+      onRemove: () => { updateFilters({ ref: '', aff: '' }); },
+    });
+  }
+
   const reservedKeys = new Set([
     'category', 'subcategory', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
-    'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
+    'seller', 'merchant', 'ref', 'aff', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
     'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
     'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
     'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand'
@@ -542,8 +564,8 @@ const ProductList = () => {
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
-    // If viewing saved items, don't show promos or placeholders at all
-    if (saved) {
+    // If viewing saved items or in affiliate referral mode, don't show promos or placeholders at all
+    if (saved || isAffiliateMode) {
       return regular.map(product => ({ type: 'regular', product }));
     }
 

@@ -19,6 +19,7 @@ import {
   saveAddress,
   deleteAddress
 } from '../services/addressService';
+import { getActiveReferral, clearActiveReferral, markReferralRedeemed, updateReferralMetadata } from '../hooks/useAffiliateTracker';
 
 const CITIES_COORDS: Record<string, { lat: number; lng: number; code: string }> = {
   'Dar es Salaam': { lat: -6.8161, lng: 39.2803, code: 'WH-DAR-ES-SALAAM-01' },
@@ -616,30 +617,144 @@ export const CheckoutPage: React.FC = () => {
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const manuallyRemovedRef = useRef<string | null>(null);
+  const applyingCodeRef = useRef<string | null>(null);
+  const appliedCodeRef = useRef<string | null>(null);
 
-  const handleApplyPromo = async () => {
-    if (!promoCode.trim()) return;
+  // Core helper to validate and apply a promo or referral code
+  const applyPromoCodeInternal = async (codeToApply: string, isManualApply: boolean = false) => {
+    const cleanCode = codeToApply.trim().toUpperCase();
+    if (!cleanCode || !merchant || checkoutTotal <= 0 || checkoutItems.length === 0) return;
+
+    // Concurrency & redundancy guard: skip if already applied or validation currently in-flight
+    if (appliedCodeRef.current === cleanCode) return;
+    if (applyingCodeRef.current === cleanCode) return;
+
+    applyingCodeRef.current = cleanCode;
     setValidatingPromo(true);
+
     try {
+      const itemsPayload = checkoutItems.map((i: any) => ({
+        product_id: i.productId || i.product?.id,
+        price: i.product?.price || i.price,
+        quantity: i.quantity || 1
+      }));
       const res = await api.post('/api/promo-codes/validate/', {
-        code: promoCode.trim().toUpperCase(),
+        code: cleanCode,
         merchant: merchant,
-        subtotal: checkoutTotal
+        subtotal: checkoutTotal,
+        items: itemsPayload,
+        phone_number: form.phone || ''
       });
+
+      const previousCode = appliedCodeRef.current;
+      appliedCodeRef.current = res.data.code.toUpperCase();
       setAppliedPromo(res.data);
-      toast.success(t('promo_applied', 'Promo code applied successfully!'));
+      setPromoCode(res.data.code);
+      manuallyRemovedRef.current = null;
+
+      updateReferralMetadata(
+        res.data.code,
+        res.data.attribution_window_days,
+        res.data.end_date,
+        res.data.applicable_scope,
+        res.data.product_id,
+        res.data.product_slug
+      );
+
+      // Notification rules (strictly deduplicated with toast ID):
+      if (previousCode && previousCode.toUpperCase() !== res.data.code.toUpperCase()) {
+        // Active replacement: Inform user of the change
+        toast.success(
+          t('promo_replaced', `Promo code ${res.data.code} applied! (Replaced previous code ${previousCode})`),
+          { id: 'promo-status-toast' }
+        );
+      } else if (isManualApply) {
+        // User deliberately clicked "Apply" button
+        toast.success(
+          t('promo_applied', `Promo code ${res.data.code} applied successfully!`),
+          { id: 'promo-status-toast' }
+        );
+      }
+      // Silent mode for background auto-apply on page navigation: no popup noise, badge already visible
     } catch (err: any) {
-      setAppliedPromo(null);
-      toast.error(err.response?.data?.error || err.response?.data?.detail || t('promo_invalid', 'Invalid promo code'));
+      const errorMsg = err.response?.data?.error || err.response?.data?.detail || t('promo_invalid', 'Invalid promo code');
+      if (isManualApply) {
+        if (appliedCodeRef.current) {
+          toast.error(`${errorMsg} (Kept current code ${appliedCodeRef.current})`, { id: 'promo-status-toast' });
+        } else {
+          setAppliedPromo(null);
+          appliedCodeRef.current = null;
+          toast.error(errorMsg, { id: 'promo-status-toast' });
+        }
+      } else {
+        clearActiveReferral();
+        if (!appliedCodeRef.current) {
+          setPromoCode('');
+        }
+      }
     } finally {
+      applyingCodeRef.current = null;
       setValidatingPromo(false);
     }
   };
 
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    manuallyRemovedRef.current = null;
+    await applyPromoCodeInternal(promoCode, true);
+  };
+
   const handleRemovePromo = () => {
+    const codeBeingRemoved = appliedCodeRef.current || appliedPromo?.code || promoCode;
+    manuallyRemovedRef.current = codeBeingRemoved ? codeBeingRemoved.toUpperCase() : '__MANUAL__';
+    appliedCodeRef.current = null;
+    clearActiveReferral();
     setAppliedPromo(null);
     setPromoCode('');
+    toast.success(t('promo_removed', 'Promo code removed'), { id: 'promo-status-toast' });
   };
+
+  // Auto-apply or replace referral code from URL query or Tracker storage (Silent on navigation)
+  useEffect(() => {
+    if (!merchant || checkoutTotal <= 0 || checkoutItems.length === 0) return;
+
+    const urlParams = new URLSearchParams(location.search);
+    const urlRef = (urlParams.get('ref') || urlParams.get('aff'))?.trim().toUpperCase();
+    const storageRef = getActiveReferral()?.trim().toUpperCase();
+
+    // URL parameter takes top priority, followed by tracked active referral in storage
+    const targetRef = urlRef || storageRef;
+
+    if (targetRef) {
+      // If user explicitly removed this code during this checkout session, do not auto-reapply unless URL explicitly forces it
+      if (manuallyRemovedRef.current === targetRef && !urlRef) {
+        return;
+      }
+
+      // If already applied with this exact code, nothing to do
+      if (appliedCodeRef.current === targetRef) {
+        return;
+      }
+
+      // Apply targetRef silently (no popup spam on page load or cart navigation)
+      applyPromoCodeInternal(targetRef, false);
+    }
+  }, [location.search, merchant, checkoutTotal, checkoutItems.length]);
+
+  // Listen to cross-component referral changes (e.g. user clicked another influencer link in another view)
+  useEffect(() => {
+    const handleReferralChange = () => {
+      const latestRef = getActiveReferral()?.trim().toUpperCase();
+      if (latestRef && appliedCodeRef.current !== latestRef) {
+        if (manuallyRemovedRef.current !== latestRef) {
+          applyPromoCodeInternal(latestRef, false);
+        }
+      }
+    };
+    window.addEventListener('referral_status_changed', handleReferralChange);
+    return () => window.removeEventListener('referral_status_changed', handleReferralChange);
+  }, [merchant, checkoutTotal, checkoutItems.length, form.phone]);
 
   const discountAmount = appliedPromo ? Number(appliedPromo.discount_amount) : 0;
   const finalTotal = Math.max(0, checkoutTotal - discountAmount);
@@ -967,6 +1082,11 @@ export const CheckoutPage: React.FC = () => {
         notes: 'Order placed, awaiting offline payment proof.' 
       });
 
+      // Purge active referral and mark as redeemed so this buyer cannot reuse the link/code
+      if (appliedPromo && appliedPromo.code) {
+        markReferralRedeemed(appliedPromo.code);
+      }
+
       setCheckoutSuccess(true);
       clearCartByMerchant(merchant);
       toast.success(t('order_placed_success', 'Order placed successfully!'));
@@ -1057,7 +1177,9 @@ export const CheckoutPage: React.FC = () => {
                     <span className="font-mono font-bold text-xs text-neutral-900 dark:text-white">
                       {appliedPromo.code}
                     </span>
-                    <span className="text-[10px] text-neutral-500 block">Applied</span>
+                    <span className="text-[10px] text-neutral-500 block">
+                      {appliedPromo.affiliate_name ? `Referred by ${appliedPromo.affiliate_name}` : t('applied', 'Applied')}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -1714,12 +1836,14 @@ export const CheckoutPage: React.FC = () => {
                     <span className="font-mono font-bold text-xs text-neutral-900 dark:text-white">
                       {appliedPromo.code}
                     </span>
-                    <span className="text-[10px] text-neutral-500 block">Applied</span>
+                    <span className="text-[10px] text-neutral-500 block">
+                      {appliedPromo.affiliate_name ? `Referred by ${appliedPromo.affiliate_name}` : t('applied', 'Applied')}
+                    </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleRemovePromo}
-                    className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition"
+                    className="text-xs text-neutral-500 hover:text-red-600 dark:hover:text-red-400 font-medium cursor-pointer transition-colors"
                   >
                     {t('remove', 'Remove')}
                   </button>
