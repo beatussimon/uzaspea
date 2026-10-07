@@ -281,7 +281,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         max_price = self.request.query_params.get('max_price', None)
         condition = self.request.query_params.get('condition', None)
         sort_by = self.request.query_params.get('sort_by', None)
-        seller_param = self.request.query_params.get('seller', None)
+        seller_param = self.request.query_params.get('seller', None) or self.request.query_params.get('merchant', None)
         lat = self.request.query_params.get('lat', None)
         lng = self.request.query_params.get('lng', None)
         radius = self.request.query_params.get('radius', None)
@@ -361,15 +361,32 @@ class ProductViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+        # Referral / Affiliate promo code product filtering
+        ref_code = self.request.query_params.get('ref') or self.request.query_params.get('aff')
+        if ref_code:
+            from .models import PromoCode
+            from django.utils import timezone
+            now = timezone.now()
+            promo_ref = PromoCode.objects.filter(code__iexact=ref_code.strip(), is_active=True).first()
+            if promo_ref:
+                is_expired = (promo_ref.end_date and now > promo_ref.end_date) or (promo_ref.max_uses is not None and promo_ref.use_count >= promo_ref.max_uses)
+                if not is_expired:
+                    if promo_ref.applicable_scope == 'single_product' and promo_ref.product_id:
+                        queryset = queryset.filter(id=promo_ref.product_id)
+                    elif promo_ref.applicable_scope == 'specific_products' and promo_ref.pk:
+                        queryset = queryset.filter(id__in=promo_ref.products.all())
+                    elif promo_ref.applicable_scope == 'all_products' and promo_ref.seller:
+                        queryset = queryset.filter(seller=promo_ref.seller)
+
         # Dynamic Spec Filtering
         reserved_params = {
             'category', 'subcategory', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
-            'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
+            'seller', 'merchant', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
             'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
             'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
             'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
-            'region', 'location_mode', 'exclude'
+            'region', 'location_mode', 'exclude', 'ref', 'aff'
         }
         for key, value in self.request.query_params.items():
             if key not in reserved_params and value and not key.startswith('_'):
@@ -610,6 +627,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Phase 3: Spatial Awareness - Location Filtering
         location_mode = self.request.query_params.get('location_mode', None)
         region_filter = self.request.query_params.get('region', None)
+
+        # Referral campaigns are public nationwide promotions; bypass local spatial restrictions
+        if ref_code:
+            location_mode = 'nationwide'
+            region_filter = None
+            lat = None
+            lng = None
 
         # Mode: Region/Area-based filtering
         if location_mode == 'region' and region_filter:
@@ -2483,8 +2507,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             orders_qs = orders_qs.filter(is_bulk_order=(is_bulk_param.lower() == 'true'))
                 
         orders = orders_qs.prefetch_related(
-            seller_items_prefetch, 'timeline_events', 'payments'
-        ).select_related('user').order_by('-order_date')
+            seller_items_prefetch, 'timeline_events', 'payments', 'referral_conversion'
+        ).select_related('user', 'promo_code').order_by('-order_date')
 
         status_filter = request.query_params.get('status', None)
         if status_filter and status_filter.upper() != 'ALL':
@@ -2554,6 +2578,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'delivery_info': order.delivery_info if isinstance(order.delivery_info, dict) else (json.loads(order.delivery_info) if isinstance(order.delivery_info, str) else {}),
                 'negotiation_data': order.negotiation_data if isinstance(order.negotiation_data, dict) else (json.loads(order.negotiation_data) if isinstance(order.negotiation_data, str) else {}),
                 'is_bulk_order': order.is_bulk_order,
+                'promo_code': order.promo_code.code if order.promo_code else None,
+                'discount_amount': float(order.discount_amount) if order.discount_amount else 0.0,
+                'referral': {
+                    'affiliate_name': order.referral_conversion.affiliate_name,
+                    'commission_earned': float(order.referral_conversion.commission_earned),
+                    'status': order.referral_conversion.status
+                } if hasattr(order, 'referral_conversion') and order.referral_conversion else None,
             }
 
         if page is not None:
@@ -4743,18 +4774,53 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from .models import PromoCode
         user = self.request.user
-        if user.is_staff or user.is_superuser:
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            if user.is_staff or user.is_superuser:
+                return PromoCode.objects.all()
+            return PromoCode.objects.filter(seller=user)
+
+        all_param = self.request.query_params.get('all', 'false').lower() == 'true'
+        seller_param = self.request.query_params.get('seller')
+        if seller_param:
+            return PromoCode.objects.filter(seller__username=seller_param).order_by('-created_at')
+        if (user.is_staff or user.is_superuser) and all_param:
             return PromoCode.objects.all().order_by('-created_at')
         return PromoCode.objects.filter(seller=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         from rest_framework import serializers
-        profile = self.request.user.profile
-        if profile.tier not in ['seller_pro', 'business']:
-            raise serializers.ValidationError("Only sellers with a premium subscription (Seller Pro or Business) can create promo codes.")
-        serializer.save(seller=self.request.user)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        user = self.request.user
+        if not (user.is_staff or user.is_superuser):
+            profile = user.profile
+            if profile.tier not in ['seller_pro', 'business']:
+                raise serializers.ValidationError("Only sellers with a premium subscription (Seller Pro or Business) can create promo codes.")
+        try:
+            serializer.save(seller=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(serializers.as_serializer_error(exc))
 
-    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='validate')
+    def perform_update(self, serializer):
+        from rest_framework import serializers
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        user = self.request.user
+        try:
+            # If user is staff/superuser and selects a product, align promo.seller with product.seller
+            validated_product = serializer.validated_data.get('product')
+            if (user.is_staff or user.is_superuser) and validated_product and validated_product.seller:
+                serializer.save(seller=validated_product.seller)
+            elif (user.is_staff or user.is_superuser) and serializer.validated_data.get('applicable_scope') == 'specific_products':
+                products = serializer.validated_data.get('products')
+                if products and products[0].seller:
+                    serializer.save(seller=products[0].seller)
+                else:
+                    serializer.save()
+            else:
+                serializer.save()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(serializers.as_serializer_error(exc))
+
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny], url_path='validate')
     def validate_code(self, request):
         from decimal import Decimal
         from .models import PromoCode
@@ -4762,36 +4828,244 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
         code = request.data.get('code')
         merchant_username = request.data.get('merchant')
         subtotal_str = request.data.get('subtotal')
+        items = request.data.get('items', [])
+        phone_number = request.data.get('phone_number')
 
         if not code:
             return Response({'valid': False, 'error': 'Code is required.'}, status=400)
-        if not merchant_username:
-            return Response({'valid': False, 'error': 'Merchant username is required.'}, status=400)
-        if not subtotal_str:
-            return Response({'valid': False, 'error': 'Subtotal is required.'}, status=400)
 
         try:
-            subtotal = Decimal(str(subtotal_str))
-        except Exception:
-            return Response({'valid': False, 'error': 'Invalid subtotal.'}, status=400)
-
-        try:
-            promo = PromoCode.objects.get(code__iexact=code)
+            promo = PromoCode.objects.get(code__iexact=code.strip())
         except PromoCode.DoesNotExist:
             return Response({'valid': False, 'error': 'Promo code does not exist.'}, status=400)
 
-        is_valid, err_msg = promo.is_valid_for_checkout(merchant_username, subtotal)
+        if not merchant_username:
+            merchant_username = promo.seller.username
+
+        if not subtotal_str:
+            if items and isinstance(items, list):
+                subtotal = sum(Decimal(str(it.get('price', 0))) * Decimal(str(it.get('quantity', 1))) for it in items)
+            else:
+                return Response({'valid': False, 'error': 'Subtotal is required.'}, status=400)
+        else:
+            try:
+                subtotal = Decimal(str(subtotal_str))
+            except Exception:
+                return Response({'valid': False, 'error': 'Invalid subtotal.'}, status=400)
+
+        # Calculate qualifying subtotal if items are provided
+        product_ids = []
+        qualifying_subtotal = Decimal('0.00')
+        if items and isinstance(items, list):
+            product_ids = [int(it.get('product_id')) for it in items if it.get('product_id')]
+            if promo.applicable_scope == 'single_product' and promo.product_id:
+                for it in items:
+                    if int(it.get('product_id')) == promo.product_id:
+                        qualifying_subtotal += Decimal(str(it.get('price', 0))) * Decimal(str(it.get('quantity', 1)))
+            elif promo.applicable_scope == 'specific_products' and promo.pk:
+                allowed_ids = set(promo.products.values_list('id', flat=True))
+                for it in items:
+                    if int(it.get('product_id')) in allowed_ids:
+                        qualifying_subtotal += Decimal(str(it.get('price', 0))) * Decimal(str(it.get('quantity', 1)))
+            else:
+                qualifying_subtotal = subtotal
+        else:
+            qualifying_subtotal = subtotal
+
+        is_valid, err_msg = promo.is_valid_for_checkout(
+            merchant_username, 
+            qualifying_subtotal,
+            product_ids=product_ids if items else None
+        )
         if not is_valid:
             return Response({'valid': False, 'error': err_msg}, status=400)
 
-        discount_amount = promo.calculate_discount(subtotal)
+        # Check per-user redemption limit (strictly 1 use / anti-reuse)
+        if promo.max_uses_per_user:
+            from .models import Order as OrderModel
+            from django.db.models import Q
+            buyer = request.user if request.user.is_authenticated else None
+            user_phone = phone_number
+            if not user_phone and buyer and hasattr(buyer, 'profile') and buyer.profile:
+                user_phone = buyer.profile.phone_number
+
+            phone_match = Q()
+            if user_phone:
+                phone_clean = str(user_phone).strip()
+                phone_match = Q(delivery_info__contact_phone=phone_clean) | Q(delivery_info__phone=phone_clean)
+
+            user_match = Q(user=buyer) if buyer else Q()
+            combined_query = Q(promo_code=promo) & (user_match | phone_match if (buyer or user_phone) else Q())
+
+            if buyer or user_phone:
+                prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                if prior_count >= promo.max_uses_per_user:
+                    return Response({
+                        'valid': False, 
+                        'error': f"You have already redeemed promo code '{promo.code}'. It can only be used once per customer."
+                    }, status=400)
+
+        # Prevent self-referral
+        if promo.affiliate_user and request.user.is_authenticated and promo.affiliate_user == request.user:
+            return Response({'valid': False, 'error': "You cannot use your own affiliate referral code."}, status=400)
+
+        discount_amount = promo.calculate_discount(qualifying_subtotal)
         return Response({
             'valid': True,
             'code': promo.code,
             'discount_type': promo.discount_type,
             'value': float(promo.value),
-            'discount_amount': float(discount_amount)
+            'discount_amount': float(discount_amount),
+            'qualifying_subtotal': float(qualifying_subtotal),
+            'applicable_scope': promo.applicable_scope,
+            'product_id': promo.product_id,
+            'product_slug': promo.product.slug if promo.product else None,
+            'product_name': promo.product.name if promo.product else None,
+            'attribution_window_days': promo.attribution_window_days,
+            'end_date': promo.end_date.isoformat() if promo.end_date else None,
+            'is_affiliate': bool(promo.affiliate_name or promo.affiliate_user),
+            'affiliate_name': promo.affiliate_name or (promo.affiliate_user.username if promo.affiliate_user else ''),
         })
+
+    @decorators.action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='check-ref')
+    def check_ref(self, request):
+        from .models import PromoCode, Order
+        from django.utils import timezone
+
+        code = request.query_params.get('code') or request.query_params.get('ref') or request.query_params.get('aff')
+        if not code:
+            return Response({'valid': False, 'is_expired': True, 'error': 'Code is required.'}, status=400)
+
+        promo = PromoCode.objects.filter(code__iexact=code.strip()).select_related('product', 'seller').first()
+        if not promo:
+            return Response({
+                'valid': False,
+                'is_expired': True,
+                'code': code.strip().upper(),
+                'reason': 'not_found',
+                'message': 'This referral link is invalid or does not exist.'
+            }, status=200)
+
+        now = timezone.now()
+        if not promo.is_active:
+            return Response({
+                'valid': False,
+                'is_expired': True,
+                'code': promo.code,
+                'reason': 'inactive',
+                'message': 'This referral link is no longer active.'
+            }, status=200)
+
+        if promo.end_date and now > promo.end_date:
+            return Response({
+                'valid': False,
+                'is_expired': True,
+                'code': promo.code,
+                'reason': 'expired',
+                'message': 'This referral link has expired.'
+            }, status=200)
+
+        if promo.max_uses is not None and promo.use_count >= promo.max_uses:
+            return Response({
+                'valid': False,
+                'is_expired': True,
+                'code': promo.code,
+                'reason': 'limit_reached',
+                'message': 'This referral promotion has ended.'
+            }, status=200)
+
+        if request.user.is_authenticated and promo.max_uses_per_user:
+            prior_count = Order.objects.filter(
+                promo_code=promo, user=request.user
+            ).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+            if prior_count >= promo.max_uses_per_user:
+                return Response({
+                    'valid': False,
+                    'is_expired': True,
+                    'code': promo.code,
+                    'reason': 'already_used',
+                    'message': 'You have already redeemed this referral code.'
+                }, status=200)
+
+        return Response({
+            'valid': True,
+            'is_expired': False,
+            'code': promo.code,
+            'seller_username': promo.seller.username if promo.seller else '',
+            'affiliate_name': promo.affiliate_name or (promo.affiliate_user.username if promo.affiliate_user else ''),
+            'discount_type': promo.discount_type,
+            'value': str(promo.value),
+            'applicable_scope': promo.applicable_scope,
+            'product_id': promo.product_id,
+            'product_name': promo.product.name if promo.product else None,
+            'product_slug': promo.product.slug if promo.product else None,
+            'attribution_window_days': promo.attribution_window_days,
+            'end_date': promo.end_date.isoformat() if promo.end_date else None
+        }, status=200)
+
+    @decorators.action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='referral-conversions')
+    def referral_conversions(self, request):
+        from .models import ReferralConversion
+        from .serializers import ReferralConversionSerializer
+        from django.db.models import Sum
+
+        user = request.user
+        conversions = ReferralConversion.objects.filter(seller=user).select_related('order', 'promo_code', 'customer').order_by('-created_at')
+
+        code_filter = request.query_params.get('code')
+        if code_filter:
+            conversions = conversions.filter(promo_code__code__iexact=code_filter.strip())
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            conversions = conversions.filter(status=status_filter.upper())
+
+        aggregates = conversions.aggregate(
+            total_sales=Sum('order_subtotal'),
+            total_discount=Sum('discount_given'),
+            total_cut=Sum('commission_earned')
+        )
+        owed_cut = conversions.filter(status__in=['PENDING', 'APPROVED']).aggregate(owed=Sum('commission_earned'))['owed'] or 0
+        paid_cut = conversions.filter(status='PAID_OUT').aggregate(paid=Sum('commission_earned'))['paid'] or 0
+
+        summary = {
+            'total_sales': float(aggregates['total_sales'] or 0),
+            'total_commission_owed': float(owed_cut),
+            'total_commission_paid': float(paid_cut),
+            'total_orders': conversions.count(),
+        }
+
+        page = self.paginate_queryset(conversions)
+        if page is not None:
+            serializer = ReferralConversionSerializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data['summary'] = summary
+            return response
+
+        serializer = ReferralConversionSerializer(conversions, many=True)
+        return Response({
+            'results': serializer.data,
+            'summary': summary
+        })
+
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='conversions/(?P<conversion_id>[^/.]+)/mark-paid')
+    def mark_conversion_paid(self, request, conversion_id=None):
+        from .models import ReferralConversion
+        from django.utils import timezone
+
+        try:
+            conversion = ReferralConversion.objects.get(id=conversion_id, seller=request.user)
+        except ReferralConversion.DoesNotExist:
+            return Response({'error': 'Referral conversion not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        payout_ref = request.data.get('payout_reference', '').strip()
+        conversion.status = 'PAID_OUT'
+        conversion.payout_date = timezone.now()
+        conversion.payout_reference = payout_ref
+        conversion.save(update_fields=['status', 'payout_date', 'payout_reference'])
+
+        from .serializers import ReferralConversionSerializer
+        return Response(ReferralConversionSerializer(conversion).data)
 
 
 class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):

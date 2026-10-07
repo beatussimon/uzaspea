@@ -18,6 +18,7 @@ import { ProductTabs } from '../components/ProductTabs';
 import SimilarProductsSection from '../components/SimilarProductsSection';
 import YouMightAlsoLikeSection from '../components/YouMightAlsoLikeSection';
 import SafeImage from '../components/SafeImage';
+import ReferralStatusBanner from '../components/common/ReferralStatusBanner';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
@@ -35,11 +36,8 @@ import {
   isSpecValue,
   getSecondaryDimensionLabel,
   getPrimaryDimensionLabel,
-  resolveBaseVariantName,
-  resolveBaseVariantSpec,
   parseVariants,
   computeVariantStock,
-  BaseVariantInfo,
 } from '../utils/variantUtils';
 
 interface ProductData {
@@ -666,12 +664,18 @@ const ProductDetailPage: React.FC = () => {
       const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
       if (!vUrl) return;
 
-      const existing = baseImages.find(img => 
-        img.image === vUrl || 
-        (img.image && vUrl && (img.image.endsWith(vUrl) || vUrl.endsWith(img.image)))
-      );
+      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase();
+
+      const existing = baseImages.find(img => {
+        if (!img.image) return false;
+        if (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image)) return true;
+        const imgFilename = img.image.split('/').pop()?.split('?')[0]?.toLowerCase();
+        if (vFilename && imgFilename && (vFilename === imgFilename || vFilename.startsWith(imgFilename.replace(/\.[^/.]+$/, '')))) return true;
+        return false;
+      });
+
       if (existing) {
-        existing.variantId = v.id;
+        if (!existing.variantId) existing.variantId = v.id;
       } else {
         baseImages.push({ id: `v-${v.id}`, image: vUrl, variantId: v.id });
       }
@@ -774,6 +778,10 @@ const ProductDetailPage: React.FC = () => {
       setLiked(preview.is_liked || false);
       if (preview.variants && Array.isArray(preview.variants) && preview.variants.length > 0) {
         setVariants(preview.variants);
+        const firstAvailable = preview.variants.find((v: any) => v.stock > 0) || preview.variants[0];
+        if (firstAvailable) {
+          setSelectedVariant(firstAvailable);
+        }
       } else {
         setVariants([]);
       }
@@ -798,20 +806,19 @@ const ProductDetailPage: React.FC = () => {
     }
     if (v.image) {
       const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
+      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase();
       const idx = images.findIndex((img: any) => 
         img.variantId === v.id || 
-        (img.image && vUrl && (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image)))
+        (img.image && vUrl && (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image))) ||
+        (vFilename && img.image && img.image.split('/').pop()?.split('?')[0]?.toLowerCase() === vFilename)
       );
       if (idx !== -1) {
         setSelectedImage(idx);
         return;
       }
     }
-    const vIdx = variants.findIndex(item => item.id === v.id);
-    if (vIdx !== -1 && images[vIdx + 1]) {
-      setSelectedImage(vIdx + 1);
-    }
-  }, [images, variants]);
+    setSelectedImage(0);
+  }, [images]);
 
   // Parse all variants into structured { variant, primary, secondary }
   const parsedVariantList = useMemo(() => {
@@ -824,30 +831,6 @@ const ProductDetailPage: React.FC = () => {
     return parsedVariantList.every(pv => !pv.primary || isSpecValue(pv.primary));
   }, [variants, parsedVariantList]);
 
-  // Base product representation
-  const baseVariantInfo = useMemo((): BaseVariantInfo | null => {
-    if (!product) return null;
-    const baseSpec = resolveBaseVariantSpec(product);
-    const baseName = resolveBaseVariantName(product, t);
-
-    // Check if variants already explicitly include this base product
-    const isAlreadyInVariants = variants.some(v => {
-      const n = (v.name || '').trim().toLowerCase();
-      if (baseSpec) {
-        const fullName = `${baseName.toLowerCase()} / ${baseSpec.toLowerCase()}`;
-        return n === fullName || n === baseSpec.toLowerCase();
-      }
-      return n === baseName.toLowerCase();
-    });
-    if (isAlreadyInVariants) return null;
-
-    return {
-      name: baseName,
-      secondary: baseSpec,
-      stock: product.stock,
-      image: product.images?.[0]?.image || (product as any).image,
-    };
-  }, [product, variants, t]);
 
   // Distinct Primary Visual Options (Tier 1)
   const primaryOptions = useMemo(() => {
@@ -856,27 +839,11 @@ const ProductDetailPage: React.FC = () => {
       name: string;
       image?: string | null;
       isOutOfStock: boolean;
-      isBaseProduct: boolean;
       sampleVariant?: ProductVariant;
     }> = [];
 
-    // Include base product ONLY if it has an explicit attribute name (NOT the generic fallback "Standard")
-    const isGenericStandard = baseVariantInfo && (
-      baseVariantInfo.name.toLowerCase() === 'standard' ||
-      baseVariantInfo.name.toLowerCase() === t('standard_variant', 'Standard').toLowerCase()
-    );
-
-    if (baseVariantInfo && !isGenericStandard) {
-      list.push({
-        name: baseVariantInfo.name,
-        image: baseVariantInfo.image,
-        isOutOfStock: baseVariantInfo.stock <= 0,
-        isBaseProduct: true,
-      });
-    }
-
     // Add unique primary options from variants
-    const seen = new Set<string>(list.map(item => item.name.toLowerCase()));
+    const seen = new Set<string>();
     parsedVariantList.forEach(pv => {
       if (!pv.primary) return;
       const key = pv.primary.toLowerCase();
@@ -889,14 +856,13 @@ const ProductDetailPage: React.FC = () => {
           name: pv.primary,
           image: firstWithImage?.variant.image,
           isOutOfStock: totalStock <= 0,
-          isBaseProduct: false,
           sampleVariant: pv.variant,
         });
       }
     });
 
     return list;
-  }, [isPureSpecVariantList, baseVariantInfo, parsedVariantList, t]);
+  }, [isPureSpecVariantList, parsedVariantList]);
 
   // Current active primary choice (e.g. "Black" or "Blue")
   const activePrimaryName = useMemo(() => {
@@ -904,18 +870,17 @@ const ProductDetailPage: React.FC = () => {
       const found = parsedVariantList.find(pv => pv.variant.id === selectedVariant.id);
       if (found && found.primary) return found.primary;
     }
-    return primaryOptions[0]?.name || (baseVariantInfo ? baseVariantInfo.name : '');
-  }, [selectedVariant, parsedVariantList, primaryOptions, baseVariantInfo]);
+    return primaryOptions[0]?.name || '';
+  }, [selectedVariant, parsedVariantList, primaryOptions]);
 
   // Available Secondary Spec Options across the product
   const secondaryOptions = useMemo(() => {
     const distinctSpecs = new Set<string>();
-    if (baseVariantInfo?.secondary) distinctSpecs.add(baseVariantInfo.secondary);
     parsedVariantList.forEach(pv => {
       if (pv.secondary) distinctSpecs.add(pv.secondary);
     });
     return Array.from(distinctSpecs);
-  }, [baseVariantInfo, parsedVariantList]);
+  }, [parsedVariantList]);
 
   // Current active secondary spec choice (e.g. "M" or "256GB")
   const activeSecondaryValue = useMemo(() => {
@@ -928,9 +893,8 @@ const ProductDetailPage: React.FC = () => {
       pv => pv.primary.toLowerCase() === activePrimaryName.toLowerCase() && pv.secondary
     );
     if (match?.secondary) return match.secondary;
-    if (baseVariantInfo?.secondary) return baseVariantInfo.secondary;
     return secondaryOptions[0] || '';
-  }, [selectedVariant, parsedVariantList, activePrimaryName, baseVariantInfo, secondaryOptions]);
+  }, [selectedVariant, parsedVariantList, activePrimaryName, secondaryOptions]);
 
   // Label for secondary dimension (e.g. "Size", "Storage", "Weight", "Placement")
   const secondaryDimensionLabel = useMemo(() => {
@@ -944,12 +908,7 @@ const ProductDetailPage: React.FC = () => {
   }, [product?.category_slug, product?.category_name, t]);
 
   // Handlers for switching primary and secondary selections
-  const handleSelectPrimaryOption = useCallback((optName: string, isBase: boolean) => {
-    if (isBase) {
-      handleSelectVariant(null);
-      return;
-    }
-
+  const handleSelectPrimaryOption = useCallback((optName: string) => {
     const key = optName.toLowerCase();
     // Preserve active secondary spec if available under this primary
     const matchingSameSpec = parsedVariantList.find(
@@ -969,10 +928,6 @@ const ProductDetailPage: React.FC = () => {
 
   const handleSelectSecondaryOption = useCallback((specValue: string) => {
     if (isPureSpecVariantList) {
-      if (baseVariantInfo && baseVariantInfo.secondary === specValue) {
-        handleSelectVariant(null);
-        return;
-      }
       const found = parsedVariantList.find(pv => pv.secondary === specValue);
       if (found) {
         handleSelectVariant(found.variant);
@@ -981,12 +936,6 @@ const ProductDetailPage: React.FC = () => {
     }
 
     const key = activePrimaryName.toLowerCase();
-    const isCurrentBase = baseVariantInfo && baseVariantInfo.name.toLowerCase() === key;
-
-    if (isCurrentBase && baseVariantInfo.secondary === specValue) {
-      handleSelectVariant(null);
-      return;
-    }
 
     // 1. Try to find match under currently active primary
     const matchUnderCurrent = parsedVariantList.find(
@@ -997,14 +946,21 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
 
-    // 2. If not found under current primary, auto-switch to a primary that DOES have this spec
+    // 2. Cross-variant auto-switch (with polite disappearing notification)
     const matchAny = parsedVariantList.filter(pv => pv.secondary === specValue);
     const inStockMatch = matchAny.find(pv => pv.variant.stock > 0) || matchAny[0];
     if (inStockMatch) {
       handleSelectVariant(inStockMatch.variant);
+      const prevName = activePrimaryName;
+      if (inStockMatch.primary && inStockMatch.primary.toLowerCase() !== key) {
+        toast(
+          t('variant_switched_spec', `${specValue} is not available in ${prevName}. Switched to ${inStockMatch.primary}.`),
+          { id: 'variant-auto-switch', duration: 2500, icon: 'ℹ️' }
+        );
+      }
       return;
     }
-  }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, baseVariantInfo, handleSelectVariant]);
+  }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, handleSelectVariant, t]);
 
   const handleLike = async () => {
     if (!product) return;
@@ -1157,9 +1113,7 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const currentImageSrc = (selectedVariant?.image)
-    ? (typeof selectedVariant.image === 'string' ? selectedVariant.image : (selectedVariant.image as any)?.image || '')
-    : (images[selectedImage]?.image || '');
+  const currentImageSrc = images[selectedImage]?.image || images[0]?.image || (typeof selectedVariant?.image === 'string' ? selectedVariant.image : (selectedVariant?.image as any)?.image) || '';
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
@@ -1270,6 +1224,9 @@ const ProductDetailPage: React.FC = () => {
           onClose={() => setLightboxOpen(false)}
         />
       )}
+
+      {/* Referral Status Notice Banner */}
+      <ReferralStatusBanner />
 
       <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] xl:grid-cols-[62%_38%] lg:grid-rows-[auto_100vh] w-full min-h-screen">
         {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
@@ -1720,7 +1677,7 @@ const ProductDetailPage: React.FC = () => {
                         <button
                           key={opt.name}
                           type="button"
-                          onClick={() => handleSelectPrimaryOption(opt.name, opt.isBaseProduct)}
+                          onClick={() => handleSelectPrimaryOption(opt.name)}
                           title={`${opt.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
                           className={`group/vcard relative flex-1 min-w-[72px] max-w-[120px] flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
                             isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
@@ -1804,14 +1761,13 @@ const ProductDetailPage: React.FC = () => {
                         parsedVariantList,
                         activePrimaryName,
                         specVal,
-                        baseVariantInfo,
+                        undefined,
                         isPureSpecVariantList
                       );
 
                       // Total available stock across all variants for this specification
                       const matchAny = parsedVariantList.filter(pv => pv.secondary === specVal);
-                      const totalSpecStock = matchAny.reduce((sum, m) => sum + (m.variant.stock || 0), 0) +
-                        (baseVariantInfo?.secondary === specVal ? (baseVariantInfo.stock || 0) : 0);
+                      const totalSpecStock = matchAny.reduce((sum, m) => sum + (m.variant.stock || 0), 0);
 
                       // A spec option is ONLY crossed out if completely out of stock across the product
                       const isCompletelyOutOfStock = isPureSpecVariantList ? optStock <= 0 : totalSpecStock <= 0;

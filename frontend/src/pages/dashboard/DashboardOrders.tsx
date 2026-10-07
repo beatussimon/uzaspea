@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronLeft, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -59,8 +59,7 @@ export const getStatusExplanation = (status: string, fulfillmentType?: string) =
 
 const DashboardOrders: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { showPrompt } = useDialog();
+const { showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -252,17 +251,9 @@ const DashboardOrders: React.FC = () => {
       {/* Header */}
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-              title="Back"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <span>{t('incoming_orders', 'Incoming Orders')}</span>
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('incoming_orders', 'Incoming Orders')}
+            </h1>
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">

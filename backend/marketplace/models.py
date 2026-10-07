@@ -401,18 +401,25 @@ class Product(models.Model):
         try:
             with transaction.atomic():
                 super().save(*args, **kwargs)
-        except IntegrityError:
+        except IntegrityError as exc:
+            err_str = str(exc).lower()
+            if 'slug' not in err_str and 'unique' not in err_str:
+                raise exc
             from django.utils.text import slugify
             base = slugify(self.name) or "product"
             n = 1
-            while True:
+            while n < 100:
                 self.slug = f'{base}-{n}'
                 try:
                     with transaction.atomic():
                         super().save(*args, **kwargs)
                     break
-                except IntegrityError:
+                except IntegrityError as e2:
+                    if 'slug' not in str(e2).lower() and 'unique' not in str(e2).lower():
+                        raise e2
                     n += 1
+            else:
+                raise exc
 
     def __str__(self):
         return self.name
@@ -501,6 +508,10 @@ class PromoCode(models.Model):
         ('percentage', 'Percentage'),
         ('fixed', 'Fixed Amount'),
     ]
+    COMMISSION_TYPE_CHOICES = [
+        ('percentage', 'Percentage'),
+        ('fixed', 'Fixed Amount'),
+    ]
     code = models.CharField(max_length=50, unique=True, db_index=True)
     seller = models.ForeignKey(
         User,
@@ -510,10 +521,65 @@ class PromoCode(models.Model):
         blank=True,
         help_text="If blank, this is a platform-wide promo code."
     )
+    affiliate_name = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Name or social handle of the influencer/promoter (e.g. 'Juma Vlogs')"
+    )
+    affiliate_user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='affiliate_promos',
+        help_text="Optional link to a registered user account on the platform"
+    )
     discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES, default='percentage')
     value = models.DecimalField(max_digits=10, decimal_places=2, help_text="Percentage (e.g. 15 for 15%) or fixed amount in TZS")
+    commission_type = models.CharField(max_length=20, choices=COMMISSION_TYPE_CHOICES, default='percentage')
+    commission_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Influencer commission cut dynamically configured by seller"
+    )
     min_purchase_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), help_text="Minimum order spend of seller's items to apply")
     max_uses = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum total times this code can be used")
+    max_uses_per_user = models.PositiveIntegerField(
+        default=1,
+        null=True,
+        blank=True,
+        help_text="Max times a single customer can use this code (null for unlimited)"
+    )
+    SCOPE_CHOICES = [
+        ('single_product', 'Specific Single Product'),
+        ('specific_products', 'Selected Products Collection'),
+        ('all_products', 'Entire Store / All Products'),
+    ]
+    applicable_scope = models.CharField(
+        max_length=30,
+        choices=SCOPE_CHOICES,
+        default='single_product',
+        help_text="Whether this code/link applies to a single product, selected products, or storewide"
+    )
+    product = models.ForeignKey(
+        'Product',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='single_product_promos',
+        help_text="Target product if applicable_scope == 'single_product'"
+    )
+    products = models.ManyToManyField(
+        'Product',
+        blank=True,
+        related_name='modular_promo_codes',
+        help_text="Target products if applicable_scope == 'specific_products'"
+    )
+    attribution_window_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Attribution duration in days. Referral expires after this or campaign end_date, whichever is sooner."
+    )
     use_count = models.PositiveIntegerField(default=0, help_text="Number of times this code has been used")
     start_date = models.DateTimeField(default=timezone.now)
     end_date = models.DateTimeField(null=True, blank=True)
@@ -522,14 +588,37 @@ class PromoCode(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        has_commission = self.commission_rate and self.commission_rate > Decimal('0')
         if self.discount_type == 'percentage':
-            if self.value <= Decimal('0') or self.value > Decimal('100'):
-                raise ValidationError("Percentage discount must be between 0.01 and 100.")
+            if has_commission:
+                if self.value < Decimal('0') or self.value > Decimal('100'):
+                    raise ValidationError("Percentage discount must be between 0 and 100.")
+            else:
+                if self.value <= Decimal('0') or self.value > Decimal('100'):
+                    raise ValidationError("Percentage discount must be between 0.01 and 100.")
         elif self.discount_type == 'fixed':
-            if self.value <= Decimal('0'):
-                raise ValidationError("Fixed discount value must be greater than 0.")
+            if has_commission:
+                if self.value < Decimal('0'):
+                    raise ValidationError("Fixed discount value must be greater than or equal to 0.")
+            else:
+                if self.value <= Decimal('0'):
+                    raise ValidationError("Fixed discount value must be greater than 0.")
+
+        if self.commission_type == 'percentage':
+            if self.commission_rate < Decimal('0') or self.commission_rate > Decimal('100'):
+                raise ValidationError("Percentage commission must be between 0 and 100.")
+        elif self.commission_type == 'fixed':
+            if self.commission_rate < Decimal('0'):
+                raise ValidationError("Fixed commission value must be greater than or equal to 0.")
         if self.end_date and self.start_date and self.end_date <= self.start_date:
             raise ValidationError("End date must be after start date.")
+        if self.applicable_scope == 'single_product' and self.product and self.seller:
+            if self.product.seller != self.seller:
+                raise ValidationError("The selected product must belong to your store.")
+        if self.applicable_scope == 'specific_products' and self.pk and self.seller:
+            for p in self.products.all():
+                if p.seller != self.seller:
+                    raise ValidationError(f"The selected product '{p.name}' must belong to your store.")
 
     def save(self, *args, **kwargs):
         if self.code:
@@ -540,7 +629,7 @@ class PromoCode(models.Model):
     def __str__(self):
         return f"{self.code} ({self.get_discount_type_display()}: {self.value})"
 
-    def is_valid_for_checkout(self, seller_username, subtotal):
+    def is_valid_for_checkout(self, seller_username, subtotal, product_ids=None):
         from django.utils import timezone
         now = timezone.now()
         if not self.is_active:
@@ -559,11 +648,41 @@ class PromoCode(models.Model):
             if subtotal <= Decimal('0'):
                 return False, "This promo code cannot be applied because there are no matching items in your cart."
         
+        # Check product scope if product_ids provided
+        if product_ids is not None:
+            prod_id_set = {int(p) for p in product_ids}
+            if self.applicable_scope == 'single_product' and self.product_id:
+                if self.product_id not in prod_id_set:
+                    prod_name = self.product.name if self.product else "the specified item"
+                    return False, f"This promo code only applies to '{prod_name}'."
+            elif self.applicable_scope == 'specific_products' and self.pk:
+                allowed_ids = set(self.products.values_list('id', flat=True))
+                if allowed_ids and not allowed_ids.intersection(prod_id_set):
+                    return False, "This promo code does not apply to any products in your cart."
+
         # Check minimum purchase amount
         if subtotal < self.min_purchase_amount:
             return False, f"Minimum purchase of TSh {int(self.min_purchase_amount):,} is required to use this promo code."
             
         return True, ""
+
+    def get_qualifying_subtotal(self, order_items):
+        """Calculate subtotal of items that qualify for this promo code."""
+        qualifying = Decimal('0.00')
+        if self.applicable_scope == 'single_product' and self.product_id:
+            for item in order_items:
+                if item.product_id == self.product_id:
+                    qualifying += Decimal(str(item.quantity)) * Decimal(str(item.price))
+        elif self.applicable_scope == 'specific_products' and self.pk:
+            allowed_ids = set(self.products.values_list('id', flat=True))
+            for item in order_items:
+                if item.product_id in allowed_ids:
+                    qualifying += Decimal(str(item.quantity)) * Decimal(str(item.price))
+        else:  # all_products
+            for item in order_items:
+                if not self.seller_id or item.product.seller_id == self.seller_id:
+                    qualifying += Decimal(str(item.quantity)) * Decimal(str(item.price))
+        return qualifying
 
     def calculate_discount(self, subtotal):
         if self.discount_type == 'percentage':
@@ -571,6 +690,51 @@ class PromoCode(models.Model):
         elif self.discount_type == 'fixed':
             return min(self.value, subtotal)
         return Decimal('0.00')
+
+    def calculate_commission(self, subtotal):
+        if self.commission_rate <= Decimal('0.00'):
+            return Decimal('0.00')
+        if self.commission_type == 'percentage':
+            return (subtotal * self.commission_rate) / Decimal('100.00')
+        elif self.commission_type == 'fixed':
+            return min(self.commission_rate, subtotal)
+        return Decimal('0.00')
+
+
+class ReferralConversion(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Payment/Delivery'),
+        ('APPROVED', 'Approved (Ready for Payout)'),
+        ('PAID_OUT', 'Paid Out to Influencer'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    order = models.OneToOneField('Order', on_delete=models.CASCADE, related_name='referral_conversion')
+    promo_code = models.ForeignKey(PromoCode, on_delete=models.PROTECT, related_name='conversions')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_sales')
+    affiliate_user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='affiliate_earnings')
+    affiliate_name = models.CharField(max_length=120, blank=True)
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referred_orders')
+    
+    order_subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    discount_given = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    commission_earned = models.DecimalField(max_digits=12, decimal_places=2, help_text="Influencer cut in TZS")
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    payout_date = models.DateTimeField(null=True, blank=True)
+    payout_reference = models.CharField(max_length=100, blank=True, help_text="M-Pesa or transaction reference")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['seller', 'status', '-created_at']),
+            models.Index(fields=['promo_code', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"Referral Order #{self.order_id} - Cut: {self.commission_earned} ({self.status})"
+
 
 
 def generate_delivery_code():
@@ -1225,6 +1389,18 @@ from django.core.cache import cache
 @receiver([post_save, post_delete], sender=UserProfile)
 def invalidate_user_profile_search_cache(sender, instance, **kwargs):
     cache.delete('searchable_user_profiles')
+
+@receiver([post_save, post_delete], sender=ProductVariant)
+def sync_product_variant_stock(sender, instance, **kwargs):
+    try:
+        product = instance.product
+        if product and product.variants.exists():
+            total_stock = product.variants.filter(is_available=True).aggregate(
+                total=models.Sum('stock')
+            )['total'] or 0
+            Product.objects.filter(pk=product.pk).update(stock=total_stock)
+    except Exception:
+        pass
 
 
 # ─── Site Settings (B-18) ────────────────────────────────────────

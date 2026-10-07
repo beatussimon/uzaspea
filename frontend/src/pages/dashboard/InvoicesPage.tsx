@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronLeft, Package, X } from 'lucide-react';
+import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, Package, X } from 'lucide-react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
@@ -16,8 +16,7 @@ type TabKey = 'all' | 'action_required' | 'sent' | 'done';
 
 const InvoicesPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState<any[]>([]);
+const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,17 +140,9 @@ const InvoicesPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-            title="Back"
-          >
-            <ChevronLeft size={22} />
-          </button>
-          <span>{t('invoices', 'Invoices & Bulk Orders')}</span>
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('invoices', 'Invoices & Bulk Orders')}
+            </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
           {t('invoices_desc', 'Manage customer requests for quotes, counter-offers, and invoice records.')}
         </p>

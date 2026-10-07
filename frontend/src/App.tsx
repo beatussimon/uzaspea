@@ -16,6 +16,8 @@ import GlobalSearchModal from './components/GlobalSearchModal';
 import { LocationProvider } from './context/LocationContext';
 import { FloatingPromptDock } from './components/layout/FloatingPromptDock';
 import NetworkStatusBanner from './components/common/NetworkStatusBanner';
+import { useAffiliateTracker } from './hooks/useAffiliateTracker';
+import ReferralStatusBanner from './components/common/ReferralStatusBanner';
 
 
 import LandingPage from './pages/LandingPage';
@@ -95,6 +97,7 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
 // Inner component that has access to location (must be inside BrowserRouter)
 function AppRoutes() {
   const location = useLocation();
+  useAffiliateTracker();
   // If navigated with { state: { backgroundLocation } }, render the overlay product detail
   // on top of the background page (keeps background page mounted at exact scroll position)
   const backgroundLocation = (location.state as any)?.backgroundLocation;
@@ -177,6 +180,8 @@ function AppLayout() {
           <CategoryBar />
         </div>
       )}
+
+      <ReferralStatusBanner className={isLandingPage ? 'mt-14 md:mt-20' : ''} />
 
       <main className={`flex-1 print:pt-0 ${isLandingPage ? 'h-full p-0 overflow-hidden' : isMessagesPage ? '' : 'pt-4 md:pt-6'}`}>
         <ErrorBoundary>

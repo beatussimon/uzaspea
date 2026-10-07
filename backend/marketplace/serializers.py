@@ -188,11 +188,42 @@ class ProductPriceTierSerializer(serializers.ModelSerializer):
 
 class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
     final_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    copy_from_image = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = ProductVariant
         fields = ['id', 'product', 'name', 'sku', 'price_adjustment', 'stock',
-                  'is_available', 'image', 'final_price']
+                  'is_available', 'image', 'final_price', 'copy_from_image']
+
+    def create(self, validated_data):
+        copy_url = validated_data.pop('copy_from_image', None)
+        instance = super().create(validated_data)
+        if copy_url and not instance.image:
+            self._apply_copy_image(instance, copy_url)
+        return instance
+
+    def update(self, instance, validated_data):
+        copy_url = validated_data.pop('copy_from_image', None)
+        instance = super().update(instance, validated_data)
+        if copy_url and not validated_data.get('image'):
+            self._apply_copy_image(instance, copy_url)
+        return instance
+
+    def _apply_copy_image(self, instance, copy_url):
+        import os
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+        rel_path = copy_url
+        if '/media/' in rel_path:
+            rel_path = rel_path.split('/media/', 1)[1]
+        rel_path = rel_path.lstrip('/')
+        if default_storage.exists(rel_path):
+            try:
+                with default_storage.open(rel_path, 'rb') as f:
+                    filename = os.path.basename(rel_path)
+                    instance.image.save(filename, ContentFile(f.read()), save=True)
+            except Exception:
+                pass
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -951,16 +982,31 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class PromoCodeSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
+    affiliate_username = serializers.CharField(source='affiliate_user.username', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_image = serializers.SerializerMethodField()
     
     class Meta:
         from .models import PromoCode
         model = PromoCode
         fields = [
-            'id', 'code', 'seller', 'seller_username', 'discount_type', 'value',
-            'min_purchase_amount', 'max_uses', 'use_count', 'start_date',
+            'id', 'code', 'seller', 'seller_username', 'affiliate_name',
+            'affiliate_user', 'affiliate_username', 'applicable_scope',
+            'product', 'product_name', 'product_slug', 'product_image',
+            'products', 'attribution_window_days', 'discount_type', 'value',
+            'commission_type', 'commission_rate', 'min_purchase_amount',
+            'max_uses', 'max_uses_per_user', 'use_count', 'start_date',
             'end_date', 'is_active', 'created_at'
         ]
         read_only_fields = ['seller', 'use_count', 'created_at']
+
+    def get_product_image(self, obj):
+        if obj.product and obj.product.images.exists():
+            first_img = obj.product.images.first()
+            if first_img and first_img.image:
+                return first_img.image.url
+        return None
 
     def validate_code(self, value):
         value = value.strip().upper()
@@ -970,6 +1016,41 @@ class PromoCodeSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         from django.utils import timezone
+        request = self.context.get('request')
+        user = request.user if request else None
+
+        scope = attrs.get('applicable_scope')
+        if self.instance and not scope:
+            scope = self.instance.applicable_scope
+
+        product = attrs.get('product')
+        if scope == 'single_product':
+            target_prod = product if product is not None else (self.instance.product if self.instance else None)
+            if not target_prod:
+                raise serializers.ValidationError({"product": "A specific product is required when scope is set to 'single_product'."})
+            if user and not user.is_staff and not user.is_superuser:
+                if target_prod.seller != user:
+                    raise serializers.ValidationError({"product": "The selected product must belong to your store."})
+            elif self.instance and self.instance.seller and not (user and (user.is_staff or user.is_superuser)):
+                if target_prod.seller != self.instance.seller:
+                    raise serializers.ValidationError({"product": "The selected product must belong to the promo code seller's store."})
+        elif scope == 'specific_products':
+            products = attrs.get('products')
+            if products is None and self.instance:
+                products = list(self.instance.products.all())
+            if not products:
+                raise serializers.ValidationError({"products": "At least one product must be selected when scope is 'specific_products'."})
+            if user and not user.is_staff and not user.is_superuser:
+                for p in products:
+                    if p.seller != user:
+                        raise serializers.ValidationError({"products": f"The selected product '{p.name}' must belong to your store."})
+            elif self.instance and self.instance.seller and not (user and (user.is_staff or user.is_superuser)):
+                for p in products:
+                    if p.seller != self.instance.seller:
+                        raise serializers.ValidationError({"products": f"The selected product '{p.name}' must belong to the promo code seller's store."})
+        elif scope == 'all_products':
+            attrs['product'] = None
+
         discount_type = attrs.get('discount_type')
         value = attrs.get('value')
         
@@ -977,12 +1058,37 @@ class PromoCodeSerializer(serializers.ModelSerializer):
             discount_type = discount_type or self.instance.discount_type
             value = value if value is not None else self.instance.value
             
+        commission_type = attrs.get('commission_type')
+        commission_rate = attrs.get('commission_rate')
+        if self.instance:
+            commission_type = commission_type or self.instance.commission_type
+            commission_rate = commission_rate if commission_rate is not None else self.instance.commission_rate
+
+        has_commission = commission_rate is not None and commission_rate > Decimal('0')
+
         if discount_type == 'percentage':
-            if value <= Decimal('0') or value > Decimal('100'):
-                raise serializers.ValidationError({"value": "Percentage discount must be between 0.01 and 100."})
+            if value is not None:
+                if has_commission:
+                    if value < Decimal('0') or value > Decimal('100'):
+                        raise serializers.ValidationError({"value": "Percentage discount must be between 0 and 100."})
+                else:
+                    if value <= Decimal('0') or value > Decimal('100'):
+                        raise serializers.ValidationError({"value": "Percentage discount must be between 0.01 and 100."})
         elif discount_type == 'fixed':
-            if value <= Decimal('0'):
-                raise serializers.ValidationError({"value": "Fixed discount value must be greater than 0."})
+            if value is not None:
+                if has_commission:
+                    if value < Decimal('0'):
+                        raise serializers.ValidationError({"value": "Fixed discount value must be greater than or equal to 0."})
+                else:
+                    if value <= Decimal('0'):
+                        raise serializers.ValidationError({"value": "Fixed discount value must be greater than 0."})
+
+        if commission_type == 'percentage' and commission_rate is not None:
+            if commission_rate < Decimal('0') or commission_rate > Decimal('100'):
+                raise serializers.ValidationError({"commission_rate": "Percentage commission cut must be between 0 and 100."})
+        elif commission_type == 'fixed' and commission_rate is not None:
+            if commission_rate < Decimal('0'):
+                raise serializers.ValidationError({"commission_rate": "Fixed commission cut must be greater than or equal to 0."})
                 
         start_date = attrs.get('start_date')
         end_date = attrs.get('end_date')
@@ -996,6 +1102,39 @@ class PromoCodeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"end_date": "End date must be after start date."})
             
         return attrs
+
+
+class ReferralConversionSerializer(serializers.ModelSerializer):
+    order_id = serializers.IntegerField(source='order.id', read_only=True)
+    order_date = serializers.DateTimeField(source='order.order_date', read_only=True)
+    order_status = serializers.CharField(source='order.status', read_only=True)
+    customer_username = serializers.CharField(source='customer.username', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    promo_code_str = serializers.CharField(source='promo_code.code', read_only=True)
+
+    class Meta:
+        from .models import ReferralConversion
+        model = ReferralConversion
+        fields = [
+            'id', 'order_id', 'order_date', 'order_status', 'customer_username',
+            'customer_name', 'customer_phone', 'promo_code_str', 'affiliate_name',
+            'order_subtotal', 'discount_given', 'commission_earned', 'status',
+            'payout_date', 'payout_reference', 'created_at'
+        ]
+        read_only_fields = fields
+
+    def get_customer_name(self, obj):
+        if obj.order and obj.order.delivery_info and isinstance(obj.order.delivery_info, dict):
+            return obj.order.delivery_info.get('contact_name', '')
+        return obj.customer.get_full_name() or obj.customer.username
+
+    def get_customer_phone(self, obj):
+        if obj.order and obj.order.delivery_info and isinstance(obj.order.delivery_info, dict):
+            return obj.order.delivery_info.get('contact_phone', '')
+        if hasattr(obj.customer, 'profile') and obj.customer.profile:
+            return obj.customer.profile.phone_number
+        return ''
 
 
 class RoundedDecimalField(serializers.DecimalField):
@@ -1417,25 +1556,48 @@ class OrderSerializer(serializers.ModelSerializer):
                 except PromoCode.DoesNotExist:
                     raise serializers.ValidationError("Invalid promo code.")
                 
-                # Compute subtotal for items belonging to the seller of this promo code
-                if promo_obj.seller:
-                    matching_subtotal = sum(
-                        item.quantity * item.price
-                        for item in order.orderitem_set.all()
-                        if item.product.seller == promo_obj.seller
-                    )
-                    seller_username = promo_obj.seller.username
-                else:
-                    matching_subtotal = total
-                    seller_username = None
+                order_items = list(order.orderitem_set.select_related('product__seller').all())
+                product_ids = [item.product_id for item in order_items]
+                matching_subtotal = promo_obj.get_qualifying_subtotal(order_items)
+                seller_username = promo_obj.seller.username if promo_obj.seller else None
                 
                 is_valid, err_msg = promo_obj.is_valid_for_checkout(
                     seller_username=seller_username,
-                    subtotal=matching_subtotal
+                    subtotal=matching_subtotal,
+                    product_ids=product_ids
                 )
                 if not is_valid:
                     raise serializers.ValidationError(err_msg)
-                
+
+                # Strict anti-reuse check: Customer cannot use the code/link twice (by User ID and Contact Phone)
+                buyer = order.user
+                delivery_phone = None
+                if isinstance(order.delivery_info, dict):
+                    delivery_phone = order.delivery_info.get('contact_phone') or order.delivery_info.get('phone')
+                if not delivery_phone and buyer and hasattr(buyer, 'profile') and buyer.profile:
+                    delivery_phone = buyer.profile.phone_number
+
+                if promo_obj.max_uses_per_user:
+                    from .models import Order as OrderModel
+                    from django.db.models import Q
+                    phone_match = Q()
+                    if delivery_phone:
+                        phone_clean = str(delivery_phone).strip()
+                        phone_match = Q(delivery_info__contact_phone=phone_clean) | Q(delivery_info__phone=phone_clean)
+
+                    user_match = Q(user=buyer) if buyer else Q()
+                    combined_query = Q(promo_code=promo_obj) & (user_match | phone_match if (buyer or delivery_phone) else Q())
+
+                    prior_uses = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                    if prior_uses >= promo_obj.max_uses_per_user:
+                        raise serializers.ValidationError(
+                            f"You have already redeemed promo code '{promo_obj.code}'. It can only be used once per customer."
+                        )
+
+                # Prevent self-referral if this is an affiliate code tied to a user
+                if promo_obj.affiliate_user and buyer and promo_obj.affiliate_user == buyer:
+                    raise serializers.ValidationError("You cannot use your own affiliate referral code.")
+
                 discount_amount = promo_obj.calculate_discount(matching_subtotal)
                 
                 order.promo_code = promo_obj
@@ -1443,6 +1605,29 @@ class OrderSerializer(serializers.ModelSerializer):
                 
                 # Increment usage atomically
                 PromoCode.objects.filter(pk=promo_obj.pk).update(use_count=F('use_count') + 1)
+
+                # Create ReferralConversion ledger record if applicable
+                comm_earned = promo_obj.calculate_commission(matching_subtotal)
+                if comm_earned > Decimal('0.00') or promo_obj.affiliate_name or promo_obj.affiliate_user:
+                    from .models import ReferralConversion
+                    seller_target = promo_obj.seller
+                    if not seller_target:
+                        first_item = order.orderitem_set.select_related('product__seller').first()
+                        seller_target = first_item.product.seller if first_item and first_item.product else None
+
+                    if seller_target:
+                        ReferralConversion.objects.create(
+                            order=order,
+                            promo_code=promo_obj,
+                            seller=seller_target,
+                            affiliate_user=promo_obj.affiliate_user,
+                            affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
+                            customer=buyer,
+                            order_subtotal=matching_subtotal,
+                            discount_given=discount_amount,
+                            commission_earned=comm_earned,
+                            status='PENDING'
+                        )
             
             shipping_fee = validated_data.get('shipping_fee', 0)
             order.total_amount = max(Decimal('0.00'), total - discount_amount) + shipping_fee

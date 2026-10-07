@@ -603,6 +603,591 @@ class PromoCodeAndSubscriptionTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn('end_date', res.json())
 
+
+class AffiliateReferralSystemTests(TestCase):
+    def setUp(self):
+        from .models import SubscriptionTier, Subscription, Category, Product
+        from django.utils import timezone
+        self.client = APIClient()
+        self.customer = User.objects.create_user('aff_cust', 'aff_c@test.com', 'CustPass123!')
+        self.seller = User.objects.create_user('aff_seller', 'aff_s@test.com', 'SellerPass123!')
+        self.influencer = User.objects.create_user('aff_influencer', 'aff_i@test.com', 'InfPass123!')
+
+        # Tier for seller
+        self.tier = SubscriptionTier.objects.create(
+            name='Seller Pro',
+            price=Decimal('29000.00'),
+            benefits='Sell products',
+            duration=30,
+            tier_level='seller_pro',
+            commission_rate=Decimal('10.00')
+        )
+        self.sub = Subscription.objects.create(
+            user=self.seller,
+            tier=self.tier,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timezone.timedelta(days=30),
+            is_active=True
+        )
+        self.seller.profile.tier = 'seller_pro'
+        self.seller.profile.save()
+
+        # Product
+        self.cat = Category.objects.create(name='Gadgets', slug='gadgets')
+        self.product = Product.objects.create(
+            name='Smartphone', slug='smartphone', price=Decimal('20000.00'),
+            stock=10, seller=self.seller, category=self.cat, is_available=True
+        )
+
+    def test_create_affiliate_promo_code(self):
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'INFLUENCE10',
+            'affiliate_name': 'Tech Reviewer',
+            'affiliate_user': self.influencer.id,
+            'discount_type': 'percentage',
+            'value': '5.00',
+            'commission_type': 'percentage',
+            'commission_rate': '10.00',
+            'max_uses_per_user': 1
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        data = res.json()
+        self.assertEqual(data['code'], 'INFLUENCE10')
+        self.assertEqual(data['affiliate_name'], 'Tech Reviewer')
+        self.assertEqual(float(data['commission_rate']), 10.0)
+
+    def test_checkout_order_creates_referral_conversion(self):
+        from .models import PromoCode, ReferralConversion, Order
+        promo = PromoCode.objects.create(
+            code='JUMA10',
+            seller=self.seller,
+            affiliate_name='Juma',
+            affiliate_user=self.influencer,
+            discount_type='percentage',
+            value=Decimal('5.00'),
+            commission_type='percentage',
+            commission_rate=Decimal('10.00'),
+            max_uses_per_user=1
+        )
+
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        # Place order
+        res = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'JUMA10',
+            'delivery_info': {'contact_name': 'Aisha', 'contact_phone': '+255711223344'}
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        order_id = res.json()['id']
+
+        # Verify ReferralConversion record
+        conversion = ReferralConversion.objects.filter(order_id=order_id).first()
+        self.assertIsNotNone(conversion)
+        self.assertEqual(conversion.customer, self.customer)
+        self.assertEqual(conversion.seller, self.seller)
+        self.assertEqual(conversion.affiliate_name, 'Juma')
+        self.assertEqual(conversion.discount_given, Decimal('1000.00')) # 5% of 20,000
+        self.assertEqual(conversion.commission_earned, Decimal('2000.00')) # 10% of 20,000
+        self.assertEqual(conversion.status, 'PENDING')
+
+        # Advance order to DELIVERED
+        from .services import OrderStateMachine
+        Order.objects.filter(id=order_id).update(status='SHIPPED')
+        order = Order.objects.get(id=order_id)
+        OrderStateMachine.transition_order(order, 'DELIVERED')
+        conversion.refresh_from_db()
+        self.assertEqual(conversion.status, 'APPROVED')
+
+    def test_order_cancellation_cancels_conversion_and_restores_usage(self):
+        from .models import PromoCode, ReferralConversion, Order
+        promo = PromoCode.objects.create(
+            code='CANCELTEST',
+            seller=self.seller,
+            affiliate_name='Partner',
+            discount_type='fixed',
+            value=Decimal('2000.00'),
+            commission_type='fixed',
+            commission_rate=Decimal('3000.00')
+        )
+
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'CANCELTEST'
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        order_id = res.json()['id']
+
+        promo.refresh_from_db()
+        self.assertEqual(promo.use_count, 1)
+
+        from .services import OrderStateMachine
+        order = Order.objects.get(id=order_id)
+        OrderStateMachine.transition_order(order, 'CANCELLED')
+
+        conversion = ReferralConversion.objects.get(order_id=order_id)
+        self.assertEqual(conversion.status, 'CANCELLED')
+
+        promo.refresh_from_db()
+        self.assertEqual(promo.use_count, 0)
+
+    def test_max_uses_per_user_enforced(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='ONETIME',
+            seller=self.seller,
+            affiliate_name='OneTime',
+            discount_type='percentage',
+            value=Decimal('5.00'),
+            max_uses_per_user=1
+        )
+
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        # First order succeeds
+        res1 = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'ONETIME'
+        }, format='json')
+        self.assertEqual(res1.status_code, 201)
+
+        # Second order with same code fails
+        res2 = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'ONETIME'
+        }, format='json')
+        self.assertEqual(res2.status_code, 400)
+
+    def test_self_referral_prevented(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='SELFREF',
+            seller=self.seller,
+            affiliate_user=self.influencer,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            commission_type='percentage',
+            commission_rate=Decimal('10.00')
+        )
+
+        token = RefreshToken.for_user(self.influencer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'SELFREF'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('own affiliate referral code', str(res.json()))
+
+    def test_mark_conversion_paid(self):
+        from .models import PromoCode, ReferralConversion, Order
+        promo = PromoCode.objects.create(
+            code='PAYOUT',
+            seller=self.seller,
+            affiliate_name='Blogger',
+            discount_type='percentage',
+            value=Decimal('5.00'),
+            commission_rate=Decimal('10.00')
+        )
+        order = Order.objects.create(user=self.customer, total_amount=Decimal('19000.00'))
+        conv = ReferralConversion.objects.create(
+            order=order,
+            promo_code=promo,
+            seller=self.seller,
+            customer=self.customer,
+            order_subtotal=Decimal('20000.00'),
+            discount_given=Decimal('1000.00'),
+            commission_earned=Decimal('2000.00'),
+            status='APPROVED'
+        )
+
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post(f'/api/promo-codes/conversions/{conv.id}/mark-paid/', {
+            'payout_reference': 'MPESA-REF-9988'
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        conv.refresh_from_db()
+        self.assertEqual(conv.status, 'PAID_OUT')
+        self.assertEqual(conv.payout_reference, 'MPESA-REF-9988')
+        self.assertIsNotNone(conv.payout_date)
+
+    def test_single_product_scope_discount_and_commission_proportional(self):
+        from .models import PromoCode, ReferralConversion, Product, Order
+        product_b = Product.objects.create(
+            name='Headphones', slug='headphones', price=Decimal('40000.00'),
+            stock=10, seller=self.seller, category=self.cat, is_available=True
+        )
+
+        promo = PromoCode.objects.create(
+            code='SINGLEPHONE',
+            seller=self.seller,
+            affiliate_name='AudioReviewer',
+            applicable_scope='single_product',
+            product=self.product,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            commission_type='percentage',
+            commission_rate=Decimal('15.00'),
+            attribution_window_days=7
+        )
+
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post('/api/orders/', {
+            'items': [
+                {'product': self.product.id, 'quantity': 1},
+                {'product': product_b.id, 'quantity': 1}
+            ],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'SINGLEPHONE',
+            'delivery_info': {'contact_name': 'Test Buyer', 'contact_phone': '+255788111222'}
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        order_id = res.json()['id']
+
+        order = Order.objects.get(id=order_id)
+        self.assertEqual(order.discount_amount, Decimal('2000.00'))
+        self.assertEqual(order.total_amount, Decimal('58000.00'))
+
+        conversion = ReferralConversion.objects.get(order_id=order_id)
+        self.assertEqual(conversion.order_subtotal, Decimal('20000.00'))
+        self.assertEqual(conversion.discount_given, Decimal('2000.00'))
+        self.assertEqual(conversion.commission_earned, Decimal('3000.00'))
+
+    def test_single_product_scope_fails_if_target_not_in_cart(self):
+        from .models import PromoCode, Product
+        product_b = Product.objects.create(
+            name='Watch', slug='watch', price=Decimal('15000.00'),
+            stock=10, seller=self.seller, category=self.cat, is_available=True
+        )
+        PromoCode.objects.create(
+            code='WATCHONLY',
+            seller=self.seller,
+            applicable_scope='single_product',
+            product=product_b,
+            discount_type='percentage',
+            value=Decimal('10.00')
+        )
+
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'WATCHONLY'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('no matching items in your cart', str(res.json()))
+
+    def test_delivery_phone_anti_reuse_enforced_across_accounts(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='PHONEONETIME',
+            seller=self.seller,
+            affiliate_name='TestPartner',
+            discount_type='percentage',
+            value=Decimal('5.00'),
+            max_uses_per_user=1
+        )
+
+        token1 = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token1.access_token)}')
+        res1 = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'PHONEONETIME',
+            'delivery_info': {'contact_phone': '+255719999888'}
+        }, format='json')
+        self.assertEqual(res1.status_code, 201)
+
+        customer_2 = User.objects.create_user('diff_cust', 'diff@test.com', 'Pass1234!')
+        token2 = RefreshToken.for_user(customer_2)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token2.access_token)}')
+
+        res2 = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'DELIVERY',
+            'shipping_fee': 0,
+            'promo_code': 'PHONEONETIME',
+            'delivery_info': {'contact_phone': '+255719999888'}
+        }, format='json')
+        self.assertEqual(res2.status_code, 400)
+        self.assertIn('already redeemed', str(res2.json()))
+
+    def test_browse_products_filtered_by_ref_code(self):
+        from .models import PromoCode, Product
+        prod_other = Product.objects.create(
+            name='Camera', slug='camera', price=Decimal('80000.00'),
+            stock=5, seller=self.seller, category=self.cat, is_available=True
+        )
+        promo = PromoCode.objects.create(
+            code='PHONESPECIFIC',
+            seller=self.seller,
+            applicable_scope='single_product',
+            product=self.product,
+            discount_type='percentage',
+            value=Decimal('5.00')
+        )
+
+        self.client.credentials()
+        res = self.client.get(f'/api/products/?ref={promo.code}')
+        self.assertEqual(res.status_code, 200)
+        results = res.json().get('results', res.json())
+        product_ids = [p['id'] for p in results]
+        self.assertIn(self.product.id, product_ids)
+        self.assertNotIn(prod_other.id, product_ids)
+
+        # Test with merchant query param (should return qualifying products, not 0)
+        res_merchant = self.client.get(f'/api/products/?merchant={self.seller.username}&ref={promo.code}')
+        self.assertEqual(res_merchant.status_code, 200)
+        results_m = res_merchant.json().get('results', res_merchant.json())
+        product_ids_m = [p['id'] for p in results_m]
+        self.assertIn(self.product.id, product_ids_m)
+        self.assertNotIn(prod_other.id, product_ids_m)
+
+    def test_edit_promo_code_via_patch(self):
+        from .models import PromoCode
+        promo = PromoCode.objects.create(
+            code='EDITME',
+            seller=self.seller,
+            applicable_scope='all_products',
+            discount_type='percentage',
+            value=Decimal('5.00')
+        )
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        res = self.client.patch(f'/api/promo-codes/{promo.id}/', {
+            'affiliate_name': 'New Promoter',
+            'commission_rate': '12.50',
+            'applicable_scope': 'single_product',
+            'product': self.product.id
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        promo.refresh_from_db()
+        self.assertEqual(promo.affiliate_name, 'New Promoter')
+        self.assertEqual(float(promo.commission_rate), 12.5)
+        self.assertEqual(promo.applicable_scope, 'single_product')
+        self.assertEqual(promo.product_id, self.product.id)
+
+    def test_validate_promo_code_returns_scope_metadata(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='METATEST',
+            seller=self.seller,
+            affiliate_name='SuperAffiliate',
+            applicable_scope='single_product',
+            product=self.product,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            attribution_window_days=14
+        )
+
+        res = self.client.post('/api/promo-codes/validate/', {
+            'code': 'METATEST',
+            'items': [{'product_id': self.product.id, 'quantity': 1, 'price': '20000.00'}]
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['code'], 'METATEST')
+        self.assertEqual(data['applicable_scope'], 'single_product')
+        self.assertEqual(data['product_id'], self.product.id)
+        self.assertEqual(data['attribution_window_days'], 14)
+        self.assertEqual(float(data['discount_amount']), 2000.0)
+
+    def test_check_ref_valid_active_code(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='ACTIVECHECK',
+            seller=self.seller,
+            affiliate_name='PartnerCheck',
+            applicable_scope='single_product',
+            product=self.product,
+            discount_type='percentage',
+            value=Decimal('15.00'),
+            attribution_window_days=10
+        )
+        res = self.client.get('/api/promo-codes/check-ref/?code=ACTIVECHECK')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data['valid'])
+        self.assertFalse(data['is_expired'])
+        self.assertEqual(data['code'], 'ACTIVECHECK')
+        self.assertEqual(data['attribution_window_days'], 10)
+        self.assertEqual(data['product_id'], self.product.id)
+
+    def test_check_ref_expired_code(self):
+        from .models import PromoCode
+        from django.utils import timezone
+        PromoCode.objects.create(
+            code='EXPIREDREF',
+            seller=self.seller,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            start_date=timezone.now() - timezone.timedelta(days=10),
+            end_date=timezone.now() - timezone.timedelta(days=2),
+            is_active=True
+        )
+        res = self.client.get('/api/promo-codes/check-ref/?code=EXPIREDREF')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertFalse(data['valid'])
+        self.assertTrue(data['is_expired'])
+        self.assertEqual(data['reason'], 'expired')
+        self.assertIn('expired', data['message'].lower())
+
+    def test_check_ref_limit_reached(self):
+        from .models import PromoCode
+        PromoCode.objects.create(
+            code='LIMITREF',
+            seller=self.seller,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            max_uses=5,
+            use_count=5,
+            is_active=True
+        )
+        res = self.client.get('/api/promo-codes/check-ref/?code=LIMITREF')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertFalse(data['valid'])
+        self.assertTrue(data['is_expired'])
+        self.assertEqual(data['reason'], 'limit_reached')
+
+    def test_multi_influencer_promoting_same_product(self):
+        """Verify multiple influencers can promote the exact same product with distinct codes & ledgers."""
+        from .models import PromoCode, Order, OrderItem
+        promo_a = PromoCode.objects.create(
+            code='INFLUENCER_A',
+            seller=self.seller,
+            affiliate_name='Creator Alice',
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            commission_type='percentage',
+            commission_rate=Decimal('5.00'),
+            applicable_scope='single_product',
+            product=self.product
+        )
+        promo_b = PromoCode.objects.create(
+            code='INFLUENCER_B',
+            seller=self.seller,
+            affiliate_name='Creator Bob',
+            discount_type='percentage',
+            value=Decimal('15.00'),
+            commission_type='fixed',
+            commission_rate=Decimal('3000.00'),
+            applicable_scope='single_product',
+            product=self.product
+        )
+
+        # Both promo codes point to the exact same product without conflicts
+        self.assertEqual(promo_a.product_id, self.product.id)
+        self.assertEqual(promo_b.product_id, self.product.id)
+
+        # Validate code A
+        res_a = self.client.post('/api/promo-codes/validate/', {
+            'code': 'INFLUENCER_A',
+            'merchant': self.seller.username,
+            'items': [{'product_id': self.product.id, 'price': 50000, 'quantity': 1}]
+        }, format='json')
+        self.assertEqual(res_a.status_code, 200)
+        self.assertEqual(res_a.json()['code'], 'INFLUENCER_A')
+        self.assertEqual(res_a.json()['affiliate_name'], 'Creator Alice')
+
+        # Validate code B
+        res_b = self.client.post('/api/promo-codes/validate/', {
+            'code': 'INFLUENCER_B',
+            'merchant': self.seller.username,
+            'items': [{'product_id': self.product.id, 'price': 50000, 'quantity': 1}]
+        }, format='json')
+        self.assertEqual(res_b.status_code, 200)
+        self.assertEqual(res_b.json()['code'], 'INFLUENCER_B')
+        self.assertEqual(res_b.json()['affiliate_name'], 'Creator Bob')
+
+    def test_promo_code_edit_validation_returns_400_not_500(self):
+        """Verify editing a promo code with invalid product ownership returns 400 Bad Request, never 500."""
+        from .models import PromoCode, Product
+        other_seller = User.objects.create_user('other_seller', 'other@test.com', 'Pass123!')
+        other_product = Product.objects.create(
+            name='Other Store Item',
+            seller=other_seller,
+            category=self.cat,
+            price=Decimal('20000.00'),
+            stock=10
+        )
+        promo = PromoCode.objects.create(
+            code='SELLER_PROMO',
+            seller=self.seller,
+            value=Decimal('10.00'),
+            discount_type='percentage',
+            applicable_scope='single_product',
+            product=self.product
+        )
+
+        self.client.force_authenticate(user=self.seller)
+        # Try to patch promo with another seller's product
+        res = self.client.patch(f'/api/promo-codes/{promo.id}/', {
+            'product': other_product.id
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('product', res.json())
+        self.assertNotEqual(res.status_code, 500)
+
+    def test_admin_promo_code_edit_reassigns_seller_seamlessly(self):
+        """Verify admin editing a promo code with a new product updates seller cleanly without 500."""
+        from .models import PromoCode, Product
+        admin_user = User.objects.create_superuser('admin_user', 'admin@test.com', 'AdminPass123!')
+        admin_prod = Product.objects.create(
+            name='Admin Special Product',
+            seller=admin_user,
+            category=self.cat,
+            price=Decimal('75000.00'),
+            stock=5
+        )
+        promo = PromoCode.objects.create(
+            code='EXISTING_PROMO',
+            seller=self.seller,
+            value=Decimal('10.00'),
+            discount_type='percentage',
+            applicable_scope='single_product',
+            product=self.product
+        )
+
+        self.client.force_authenticate(user=admin_user)
+        res = self.client.patch(f'/api/promo-codes/{promo.id}/', {
+            'product': admin_prod.id
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        promo.refresh_from_db()
+        self.assertEqual(promo.product_id, admin_prod.id)
+        self.assertEqual(promo.seller_id, admin_user.id)
+
+
 class ConversationPaginationTests(TestCase):
     def setUp(self):
         self.buyer = User.objects.create_user('chatbuyer', 'chatbuyer@test.com', 'ChatPass123!')

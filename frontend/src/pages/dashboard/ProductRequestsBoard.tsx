@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, ChevronLeft, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -280,16 +280,8 @@ const ProductRequestsBoard: React.FC = () => {
         {/* Header */}
         <header className="space-y-1">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
-                title="Back"
-              >
-                <ChevronLeft size={22} />
-              </button>
-              <span>{t('product_requests', 'Demand Analytics')}</span>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('product_requests', 'Demand Analytics')}
             </h1>
 
             <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
