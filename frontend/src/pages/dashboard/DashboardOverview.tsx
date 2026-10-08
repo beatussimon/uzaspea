@@ -108,6 +108,13 @@ const DashboardOverview: React.FC = () => {
       },
     },
     {
+      label: t('commission_paid', 'Commission Paid'),
+      value: formatCompactCurrency(stats?.commission_paid || 0, 'TZS'),
+      fullValue: `TZS ${(stats?.commission_paid || 0).toLocaleString()}`,
+      sub: `${stats?.commission_rate || 10}% rate`,
+      icon: Banknote,
+    },
+    {
       label: t('avg_rating', 'Avg Rating'),
       value: stats?.avg_rating || '—',
       sub: `${stats?.total_reviews || 0} reviews`,
@@ -413,7 +420,7 @@ const DashboardOverview: React.FC = () => {
 
       {loading && !stats ? (
         <div className="space-y-6">
-          <KpiGridSkeleton count={5} cols={5} />
+          <KpiGridSkeleton count={6} cols={6} />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <ChartSkeleton type="area" />
@@ -428,7 +435,7 @@ const DashboardOverview: React.FC = () => {
       ) : (
         <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print-hide">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 print-hide">
             {kpis.map((kpi, i) => (
               <KpiCard
                 key={i}
@@ -438,7 +445,7 @@ const DashboardOverview: React.FC = () => {
                 icon={kpi.icon}
                 trend={kpi.trend}
                 sub={kpi.sub}
-                className={cn(kpi.className, i === 4 && "col-span-2 sm:col-span-1")}
+                className={kpi.className}
               />
             ))}
           </div>
@@ -537,8 +544,7 @@ const DashboardOverview: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
         {/* Top Products */}
-        <div className="space-y-6">
-          <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none">
             <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
               
@@ -658,15 +664,6 @@ const DashboardOverview: React.FC = () => {
               </table>
             </div>
           </div>
-
-          <KpiCard
-            label="Commission Paid (This Month)"
-            value={formatCompactCurrency(stats?.commission_paid || 0, 'TZS')}
-            fullValue={`TZS ${(stats?.commission_paid || 0).toLocaleString()}`}
-            icon={Banknote}
-            sub={`Calculated at ${stats?.commission_rate || 10}% on completed orders`}
-          />
-        </div>
 
         {/* Low Stock Alerts */}
         <div className="card overflow-hidden !border-none !rounded-none">
