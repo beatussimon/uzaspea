@@ -380,23 +380,49 @@ const [orders, setOrders] = useState<any[]>([]);
                             );
                           })}
                         </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={2} />
+                            <td className="pt-3 pb-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
+                              Subtotal
+                            </td>
+                            <td className="pt-3 pb-1 px-1 text-right text-xs font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                              TSh {Number(order.seller_subtotal || parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}
+                            </td>
+                          </tr>
+                          {order.shipping_fee > 0 && (
+                            <tr>
+                              <td colSpan={2} />
+                              <td className="py-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
+                                Shipping Fee
+                              </td>
+                              <td className="py-1 px-1 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                TSh {Number(order.shipping_fee).toLocaleString()}
+                              </td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td colSpan={2} />
+                            <td className="pt-2 pb-1 px-2 text-right text-xs font-bold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
+                              Total
+                            </td>
+                            <td className="pt-2 pb-1 px-1 text-right text-xs font-extrabold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
+                              TSh {Number(order.total_amount || order.seller_subtotal || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
 
                     {/* Footer Actions inside Expanded View */}
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="text-2xs text-gray-400">
-                        {order.shipping_fee > 0 && `Shipping Fee: TSh ${Number(order.shipping_fee).toLocaleString()} • `}
-                        Grand Total: <strong className="text-gray-900 dark:text-white text-xs">TSh {Number(order.total_amount || order.seller_subtotal || 0).toLocaleString()}</strong>
-                      </div>
-
-                      {order.status === 'INVOICE_GENERATED' && (
+                    {order.status === 'INVOICE_GENERATED' && (
+                      <div className="flex justify-end pt-2">
                         <Button variant="outline" size="sm" onClick={() => openQuoteModal(order)} className="flex items-center gap-1.5">
                           <Edit3 size={13} />
                           {t('adjust_invoice', 'Adjust Invoice Prices')}
                         </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
