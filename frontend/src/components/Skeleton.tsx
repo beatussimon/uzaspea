@@ -667,7 +667,7 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
         <Skeleton className="h-3 w-20 rounded" />
       </div>
       <div className="p-4 space-y-3">
-        <div className="grid grid-cols-5 gap-4 pb-2 border-b border-surface-border dark:border-surface-dark-border">
+        <div className="grid grid-cols-5 gap-4 pb-2">
           <Skeleton className="h-3 w-24 rounded" />
           <Skeleton className="h-3 w-16 mx-auto rounded" />
           <Skeleton className="h-3 w-16 rounded" />
@@ -677,7 +677,7 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
         {Array.from({ length: 4 }).map((_, r) => (
           <div
             key={r}
-            className="grid grid-cols-5 gap-4 py-2.5 items-center border-b border-surface-border/40 dark:border-surface-dark-border/40 last:border-0"
+            className="grid grid-cols-5 gap-4 py-2.5 items-center"
           >
             <div className="flex items-center gap-3">
               <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
