@@ -399,7 +399,7 @@ const ProductRequestsBoard: React.FC = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
                         <div className="flex items-center gap-1">
@@ -422,7 +422,7 @@ const ProductRequestsBoard: React.FC = () => {
                       <th scope="col" className="p-3 text-right whitespace-nowrap w-64 min-w-[250px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                     {sortedRequests.map((req) => (
                       <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${req.is_fulfilled ? 'opacity-60' : ''}`}>
                         <td className="p-3 align-middle min-w-[200px]">
