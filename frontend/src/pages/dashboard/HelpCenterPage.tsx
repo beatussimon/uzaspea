@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../api';
-import { Search, ChevronDown, ChevronRight, X, Phone, Mail, MessageCircle, BookOpen } from 'lucide-react';
+import { Search, ChevronDown, X, Phone, Mail, MessageCircle, BookOpen } from 'lucide-react';
 import { SiWhatsapp, SiInstagram, SiFacebook, SiTiktok, SiX, SiYoutube } from 'react-icons/si';
 import { FaLinkedin } from 'react-icons/fa';
 import { useAuth, useUserRoles } from '../../context/AuthContext';
@@ -516,7 +516,7 @@ const HelpCenterPage: React.FC = () => {
                 {/* Left Column: Categories List (Stationary - does not scroll) */}
                 <aside aria-label="FAQ Categories" className="hidden md:block w-48 lg:w-52 shrink-0 select-none sticky top-20">
                     <nav className="space-y-1">
-                        <p className="text-2xs font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-wider px-3 mb-1.5">
+                        <p className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider px-3 mb-2">
                             Topics
                         </p>
 
@@ -548,28 +548,25 @@ const HelpCenterPage: React.FC = () => {
                                     key={cat.id}
                                     type="button"
                                     onClick={() => setSelectedFaqCategory(cat.id)}
-                                    className={`w-full text-left py-2 px-3 text-xs sm:text-sm transition cursor-pointer flex items-center justify-between rounded-md ${
+                                    className={`w-full text-left py-2 px-3 text-xs sm:text-sm transition cursor-pointer flex items-center rounded-md ${
                                         isActive
                                             ? 'text-gray-900 dark:text-white font-bold bg-gray-100/80 dark:bg-neutral-800/60'
                                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium hover:bg-gray-50 dark:hover:bg-neutral-900/40'
                                     }`}
                                 >
                                     <span>{cat.label}</span>
-                                    {isActive && (
-                                        <ChevronRight size={14} className="text-gray-900 dark:text-white shrink-0 ml-1.5" />
-                                    )}
                                 </button>
                             );
                         })}
 
                         {/* Send us your feedback link below topics */}
-                        <div className="pt-3 px-3 border-t border-surface-border dark:border-surface-dark-border mt-3">
+                        <div className="pt-2 border-t border-surface-border dark:border-surface-dark-border mt-2">
                             <button
                                 type="button"
                                 onClick={() => openFeedbackModal('new')}
-                                className="w-full text-left text-xs sm:text-sm font-semibold text-black dark:text-white hover:underline transition cursor-pointer"
+                                className="w-full text-left py-2 px-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium hover:bg-gray-50 dark:hover:bg-neutral-900/40 transition cursor-pointer flex items-center justify-between rounded-md"
                             >
-                                Send us your feedback
+                                <span>Send us your feedback</span>
                             </button>
                         </div>
                     </nav>

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
-  Search, AlertTriangle, ArrowUp, ShoppingBag
+  Search, AlertTriangle, ArrowUp, ShoppingBag, ShoppingCart
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -423,7 +423,7 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
 const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation();
-  const { addToCart } = useCart();
+  const { addToCart, cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
@@ -470,15 +470,20 @@ const ProductDetailPage: React.FC = () => {
   const reviewsColRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  // Monitor scroll for mobile back-to-top button
+  // Monitor scroll for back-to-top button
   useEffect(() => {
     const el = scrollContainerRef.current;
-    if (!el) return;
     const handleScroll = () => {
-      setShowBackToTop(el.scrollTop > 300);
+      const elScroll = el ? el.scrollTop : 0;
+      const winScroll = window.scrollY || document.documentElement.scrollTop || 0;
+      setShowBackToTop(elScroll > 300 || winScroll > 300);
     };
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
+    if (el) el.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (el) el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, [loading]);
 
   const scrollToTop = () => {
@@ -491,6 +496,7 @@ const ProductDetailPage: React.FC = () => {
     if (reviewsColRef.current) {
       reviewsColRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRow2Wheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -2610,18 +2616,56 @@ const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Floating Action Buttons: Cart FAB with Count & Back to Top */}
+      <AnimatePresence>
+        {cartCount > 0 && (
+          <motion.button
+            key="floating-cart"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ 
+              scale: 1, 
+              opacity: 1, 
+              y: showBackToTop ? -56 : 0 
+            }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+            type="button"
+            onClick={() => navigate('/cart')}
+            className="fixed bottom-6 right-5 z-[111] w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+            aria-label={`Shopping cart with ${cartCount} items`}
+            title={`Cart (${cartCount})`}
+          >
+            <ShoppingCart size={20} className="group-hover:scale-105 transition-transform" />
+            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
+              {cartCount > 99 ? '99+' : cartCount}
+            </span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Floating Back to Top Button */}
-      {showBackToTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-5 z-[110] p-3 rounded-full shadow-2xl bg-white dark:bg-[#1f2022] text-gray-900 dark:text-white border border-gray-200 dark:border-white/15 hover:scale-110 active:scale-95 transition-all duration-300 transform flex items-center justify-center cursor-pointer group"
-          aria-label="Back to top"
-          title="Back to top"
-        >
-          <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
-        </button>
-      )}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            key="floating-back-to-top"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ duration: 0.2 }}
+            type="button"
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-5 z-[110] w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+            aria-label="Back to top"
+            title="Back to top"
+          >
+            <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {product.latitude && product.longitude && (
         <MapAppModal
