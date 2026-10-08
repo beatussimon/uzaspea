@@ -504,7 +504,7 @@ const { showPrompt } = useDialog();
 
                 {/* Collapsible Body */}
                 {isExpanded && (
-                  <div className="p-4 pt-0 border-t border-surface-border dark:border-surface-dark-border space-y-4 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
+                  <div className="p-4 pt-0 space-y-4 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
                     {/* Payment Verification Callout */}
                     {hasPendingPayment && order.payments?.length > 0 && (
                       <div className="p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20 space-y-3 mt-3">
