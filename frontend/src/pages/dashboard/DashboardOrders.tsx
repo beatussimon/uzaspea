@@ -598,39 +598,54 @@ const { showPrompt } = useDialog();
                             </tr>
                           ))}
                         </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={2} />
+                            <td className="pt-3 pb-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
+                              Subtotal
+                            </td>
+                            <td className="pt-3 pb-1 px-1 text-right text-xs font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                              TSh {(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}
+                            </td>
+                          </tr>
+                          {order.promo_code_code && (
+                            <tr>
+                              <td colSpan={2} />
+                              <td className="py-1 px-2 text-right text-2xs text-emerald-500 font-medium whitespace-nowrap">
+                                Promo ({order.promo_code_code})
+                              </td>
+                              <td className="py-1 px-1 text-right text-xs font-medium text-emerald-500 whitespace-nowrap">
+                                -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
+                              </td>
+                            </tr>
+                          )}
+                          {order.shipping_fee > 0 && (
+                            <tr>
+                              <td colSpan={2} />
+                              <td className="py-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
+                                Shipping Fee
+                              </td>
+                              <td className="py-1 px-1 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                TSh {Number(order.shipping_fee).toLocaleString()}
+                              </td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td colSpan={2} />
+                            <td className="pt-2 pb-1 px-2 text-right text-xs font-bold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
+                              Total
+                            </td>
+                            <td className="pt-2 pb-1 px-1 text-right text-xs font-extrabold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
+                              TSh {parseInt(order.total_amount || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
 
-                    {/* Footer Math & Order Timeline */}
-                    <div className="flex flex-col md:flex-row justify-between gap-4 pt-2">
-                      <div className="space-y-1 text-2xs text-gray-400">
-                        <div>
-                          <span>Subtotal: </span>
-                          <strong className="text-gray-700 dark:text-gray-300">
-                            TSh {(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}
-                          </strong>
-                        </div>
-                        {order.promo_code_code && (
-                          <div className="text-emerald-500 font-medium">
-                            Promo ({order.promo_code_code}): -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
-                          </div>
-                        )}
-                        {order.shipping_fee > 0 && (
-                          <div>
-                            <span>Shipping Fee: </span>
-                            <strong className="text-gray-700 dark:text-gray-300">TSh {Number(order.shipping_fee).toLocaleString()}</strong>
-                          </div>
-                        )}
-                        <div className="pt-1 text-xs">
-                          <span className="text-gray-500">Grand Total: </span>
-                          <strong className="text-gray-900 dark:text-white font-extrabold">
-                            TSh {parseInt(order.total_amount || 0).toLocaleString()}
-                          </strong>
-                        </div>
-                      </div>
-
-                      {/* Footer Actions */}
-                      <div className="flex items-center gap-2 self-end md:self-center">
+                    {/* Footer Actions */}
+                    {(order.status === 'SHIPPED_TO_WAREHOUSE' || ['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING'].includes(order.status)) && (
+                      <div className="flex items-center justify-end gap-2 pt-2">
                         {order.status === 'SHIPPED_TO_WAREHOUSE' && (
                           <div className="flex items-center gap-2 p-2 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
                             <QRCodeSVG value={order.id.toString()} size={36} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
@@ -654,7 +669,7 @@ const { showPrompt } = useDialog();
                           </Button>
                         )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
