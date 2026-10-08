@@ -8,6 +8,7 @@ import {
   resolveBaseVariantSpec,
   parseVariants,
   computeVariantStock,
+  getVariantDimensions,
   ProductVariantLike,
 } from './variantUtils';
 
@@ -248,6 +249,33 @@ describe('variantUtils', () => {
       expect(computeVariantStock(parsedPure, '', '1kg', baseFood, true)).toBe(50);
       expect(computeVariantStock(parsedPure, '', '5kg', baseFood, true)).toBe(20);
       expect(computeVariantStock(parsedPure, '', '25kg', baseFood, true)).toBe(0);
+    });
+  });
+
+  describe('multi-dimensional variants', () => {
+    const tvVariants: ProductVariantLike[] = [
+      { id: 1, name: '50 / Black / 220', stock: 4 },
+      { id: 2, name: '50 / Invisible / 230', stock: 4 },
+      { id: 3, name: '55 / Blue / Type-c', stock: 0 },
+      { id: 4, name: '65 / Red / 230 Regular', stock: 2 },
+    ];
+
+    it('extracts all dimensions accurately', () => {
+      const dims = getVariantDimensions(tvVariants, 'electronics-tvs-audio');
+      expect(dims.length).toBe(3);
+      expect(dims[0].label).toBe('Screen Size');
+      expect(dims[0].values).toEqual(['50', '55', '65']);
+      expect(dims[1].label).toBe('Color / Bezel');
+      expect(dims[1].values).toEqual(['Black', 'Invisible', 'Blue', 'Red']);
+      expect(dims[1].isVisual).toBe(true);
+      expect(dims[2].label).toBe('Voltage / Plug');
+      expect(dims[2].values).toEqual(['220', '230', 'Type-c', '230 Regular']);
+    });
+
+    it('preserves parts on ParsedVariant for 3-part variants', () => {
+      const parsed = parseVariants(tvVariants);
+      expect(parsed[0].parts).toEqual(['50', 'Black', '220']);
+      expect(parsed[0].primary).toBe('Black');
     });
   });
 });
