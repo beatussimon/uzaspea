@@ -108,13 +108,6 @@ const DashboardOverview: React.FC = () => {
       },
     },
     {
-      label: t('commission_paid', 'Commission Paid'),
-      value: formatCompactCurrency(stats?.commission_paid || 0, 'TZS'),
-      fullValue: `TZS ${(stats?.commission_paid || 0).toLocaleString()}`,
-      sub: `${stats?.commission_rate || 10}% rate`,
-      icon: Banknote,
-    },
-    {
       label: t('avg_rating', 'Avg Rating'),
       value: stats?.avg_rating || '—',
       sub: `${stats?.total_reviews || 0} reviews`,
@@ -420,7 +413,7 @@ const DashboardOverview: React.FC = () => {
 
       {loading && !stats ? (
         <div className="space-y-6">
-          <KpiGridSkeleton count={6} cols={6} />
+          <KpiGridSkeleton count={5} cols={5} />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <ChartSkeleton type="area" />
@@ -435,7 +428,7 @@ const DashboardOverview: React.FC = () => {
       ) : (
         <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 print-hide">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print-hide">
             {kpis.map((kpi, i) => (
               <KpiCard
                 key={i}
@@ -445,7 +438,7 @@ const DashboardOverview: React.FC = () => {
                 icon={kpi.icon}
                 trend={kpi.trend}
                 sub={kpi.sub}
-                className={kpi.className}
+                className={cn(kpi.className, i === 4 && "col-span-2 sm:col-span-1")}
               />
             ))}
           </div>
