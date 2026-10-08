@@ -39,7 +39,6 @@ import {
   parseVariants,
   computeVariantStock,
   getVariantDimensions,
-  VariantDimension,
 } from '../utils/variantUtils';
 
 interface ProductData {
