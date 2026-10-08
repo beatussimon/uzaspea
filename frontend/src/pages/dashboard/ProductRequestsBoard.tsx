@@ -393,7 +393,7 @@ const ProductRequestsBoard: React.FC = () => {
 
             {/* Data Table */}
             <div className="card overflow-hidden">
-              <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+              <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
                 <span className="text-2xs text-gray-400">{sortedRequests.length} total items</span>
               </div>
