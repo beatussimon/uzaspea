@@ -228,13 +228,15 @@ export const POSProductGridSkeleton: React.FC<{
 }> = ({ count = 8, className }) => (
   <div className={cn('grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3', className)}>
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 flex flex-col justify-between space-y-2.5">
-        <div>
-          <Skeleton className="aspect-[4/3] rounded-lg w-full mb-2" />
-          <Skeleton className="h-3.5 w-3/4 rounded mb-1.5" />
-          <Skeleton className="h-3.5 w-1/2 rounded" />
+      <div key={i} className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-[#141414] p-2.5 flex flex-col justify-between">
+        <div className="flex justify-between items-start">
+          <Skeleton className="h-5 w-14 rounded-full" />
+          <Skeleton className="h-7 w-7 rounded-full" />
         </div>
-        <Skeleton className="h-8 w-full rounded-lg" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-5 w-3/4 rounded-full" />
+          <Skeleton className="h-6 w-1/2 rounded-full" />
+        </div>
       </div>
     ))}
   </div>
