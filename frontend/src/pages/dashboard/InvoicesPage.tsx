@@ -326,7 +326,7 @@ const [orders, setOrders] = useState<any[]>([]);
 
                 {/* Collapsible Body */}
                 {isExpanded && (
-                  <div className="p-4 pt-0 border-t border-surface-border dark:border-surface-dark-border space-y-3 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
+                  <div className="p-4 pt-0 space-y-3 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
                     {/* Buyer Notes */}
                     {negData.buyer_request_note && (
                       <div className="text-gray-600 dark:text-gray-400 italic text-2xs py-1">
