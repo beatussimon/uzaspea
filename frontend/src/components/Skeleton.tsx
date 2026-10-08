@@ -225,10 +225,10 @@ export const DashboardProductListSkeleton: React.FC<{
 export const POSProductGridSkeleton: React.FC<{
   count?: number;
   className?: string;
-}> = ({ count = 6, className }) => (
-  <div className={cn('grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3', className)}>
+}> = ({ count = 8, className }) => (
+  <div className={cn('grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3', className)}>
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="p-2.5 rounded-xl flex flex-col justify-between space-y-2.5">
+      <div key={i} className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 flex flex-col justify-between space-y-2.5">
         <div>
           <Skeleton className="aspect-[4/3] rounded-lg w-full mb-2" />
           <Skeleton className="h-3.5 w-3/4 rounded mb-1.5" />

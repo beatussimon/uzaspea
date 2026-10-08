@@ -2156,13 +2156,61 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'price': price
                 })
                 
+            promo_code_str = (request.data.get('promo_code') or '').strip()
+            custom_discount = request.data.get('discount_amount', 0)
+            
+            promo_obj = None
+            discount_amount = Decimal('0.00')
+            qualifying_subtotal = Decimal('0.00')
+            if promo_code_str:
+                from .models import PromoCode
+                from django.db.models import F
+                try:
+                    promo_obj = PromoCode.objects.select_for_update().get(code__iexact=promo_code_str)
+                except PromoCode.DoesNotExist:
+                    return Response({'error': f"Promo code '{promo_code_str}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                if promo_obj.applicable_scope == 'single_product' and promo_obj.product_id:
+                    for it in order_items:
+                        if it['product'].id == promo_obj.product_id:
+                            qualifying_subtotal += Decimal(str(it['price'])) * Decimal(str(it['quantity']))
+                elif promo_obj.applicable_scope == 'specific_products' and promo_obj.pk:
+                    allowed_ids = set(promo_obj.products.values_list('id', flat=True))
+                    for it in order_items:
+                        if it['product'].id in allowed_ids:
+                            qualifying_subtotal += Decimal(str(it['price'])) * Decimal(str(it['quantity']))
+                else:
+                    qualifying_subtotal = sum(Decimal(str(it['price'])) * Decimal(str(it['quantity'])) for it in order_items)
+                    
+                seller_username = promo_obj.seller.username if promo_obj.seller else None
+                is_valid, err_msg = promo_obj.is_valid_for_checkout(
+                    seller_username=seller_username,
+                    subtotal=qualifying_subtotal,
+                    product_ids=[it['product'].id for it in order_items]
+                )
+                if not is_valid:
+                    return Response({'error': err_msg}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                discount_amount = promo_obj.calculate_discount(qualifying_subtotal)
+                PromoCode.objects.filter(pk=promo_obj.pk).update(use_count=F('use_count') + 1)
+            elif custom_discount:
+                try:
+                    discount_amount = Decimal(str(custom_discount))
+                    if discount_amount < Decimal('0.00'):
+                        discount_amount = Decimal('0.00')
+                except (ValueError, TypeError):
+                    discount_amount = Decimal('0.00')
+
             delivery_info = {
                 'is_pos': True,
                 'customer_name': customer_name or 'Walk-in Customer',
                 'amount_paid': amount_paid,
                 'amount_tendered': amount_paid,
                 'change_due': 0,
+                'discount_amount': float(discount_amount),
             }
+            if promo_obj:
+                delivery_info['promo_code'] = promo_obj.code
             
             order = Order.objects.create(
                 user=user,
@@ -2170,7 +2218,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 shipping_method='PICKUP',
                 fulfillment_type='SELLER_PICKUP',  # CRIT-5: POS orders are always seller-side pickups
                 shipping_fee=0,
-                delivery_info=delivery_info
+                delivery_info=delivery_info,
+                promo_code=promo_obj,
+                discount_amount=discount_amount
             )
             
             for item in order_items:
@@ -2203,8 +2253,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.save(update_fields=['delivery_info'])
             
             TrackingEvent.objects.create(order=order, status='COMPLETED', notes=f'In-store POS sale to {customer_name}')
+
+            # Record ReferralConversion if promo code has affiliate commission
+            if promo_obj:
+                comm_earned = promo_obj.calculate_commission(qualifying_subtotal)
+                if comm_earned > Decimal('0.00') or promo_obj.affiliate_name or promo_obj.affiliate_user:
+                    from .models import ReferralConversion
+                    seller_target = promo_obj.seller or user
+                    try:
+                        ReferralConversion.objects.create(
+                            order=order,
+                            promo_code=promo_obj,
+                            seller=seller_target,
+                            affiliate_user=promo_obj.affiliate_user,
+                            affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
+                            order_subtotal=qualifying_subtotal,
+                            commission_earned=comm_earned,
+                            status='SETTLED'
+                        )
+                    except Exception as e:
+                        print(f"Error creating ReferralConversion for POS: {e}")
             
-            # Phase 2: Platform Economics - Log 5% commission for POS
+            # Phase 2: Platform Economics - Log 3% commission for POS
             from billing.models import CommissionLedgerEntry
             
             seller_totals = {}
@@ -2216,15 +2286,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                 seller_totals[seller] += Decimal(str(item_total))
                 
             total_commission_collected = Decimal('0.00')
+            total_items_subtotal = sum(seller_totals.values()) or Decimal('1.00')
             for seller, amount in seller_totals.items():
                 actual_seller = seller or user
-                pos_commission_rate = Decimal('5.00')
-                commission_amount = amount * (pos_commission_rate / Decimal('100'))
+                pos_commission_rate = Decimal('3.00')
+                seller_share = amount / total_items_subtotal
+                net_amount = max(Decimal('0.00'), amount - (discount_amount * seller_share))
+                commission_amount = net_amount * (pos_commission_rate / Decimal('100'))
                 try:
                     CommissionLedgerEntry.objects.create(
                         order=order,
                         seller=actual_seller,
-                        order_amount=amount,
+                        order_amount=net_amount,
                         commission_rate=pos_commission_rate,
                         commission_amount=commission_amount,
                         entry_type=CommissionLedgerEntry.EntryType.COMMISSION
@@ -4881,32 +4954,46 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
             return Response({'valid': False, 'error': err_msg}, status=400)
 
         # Check per-user redemption limit (strictly 1 use / anti-reuse)
+        is_pos = request.data.get('is_pos', False)
         if promo.max_uses_per_user:
             from .models import Order as OrderModel
             from django.db.models import Q
-            buyer = request.user if request.user.is_authenticated else None
-            user_phone = phone_number
-            if not user_phone and buyer and hasattr(buyer, 'profile') and buyer.profile:
-                user_phone = buyer.profile.phone_number
+            if is_pos:
+                if phone_number:
+                    phone_clean = str(phone_number).strip()
+                    prior_count = OrderModel.objects.filter(
+                        promo_code=promo,
+                        delivery_info__contact_phone=phone_clean
+                    ).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                    if prior_count >= promo.max_uses_per_user:
+                        return Response({
+                            'valid': False,
+                            'error': f"Customer with phone '{phone_clean}' has already redeemed promo code '{promo.code}'."
+                        }, status=400)
+            else:
+                buyer = request.user if request.user.is_authenticated else None
+                user_phone = phone_number
+                if not user_phone and buyer and hasattr(buyer, 'profile') and buyer.profile:
+                    user_phone = buyer.profile.phone_number
 
-            phone_match = Q()
-            if user_phone:
-                phone_clean = str(user_phone).strip()
-                phone_match = Q(delivery_info__contact_phone=phone_clean) | Q(delivery_info__phone=phone_clean)
+                phone_match = Q()
+                if user_phone:
+                    phone_clean = str(user_phone).strip()
+                    phone_match = Q(delivery_info__contact_phone=phone_clean) | Q(delivery_info__phone=phone_clean)
 
-            user_match = Q(user=buyer) if buyer else Q()
-            combined_query = Q(promo_code=promo) & (user_match | phone_match if (buyer or user_phone) else Q())
+                user_match = Q(user=buyer) if buyer else Q()
+                combined_query = Q(promo_code=promo) & (user_match | phone_match if (buyer or user_phone) else Q())
 
-            if buyer or user_phone:
-                prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
-                if prior_count >= promo.max_uses_per_user:
-                    return Response({
-                        'valid': False, 
-                        'error': f"You have already redeemed promo code '{promo.code}'. It can only be used once per customer."
-                    }, status=400)
+                if buyer or user_phone:
+                    prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                    if prior_count >= promo.max_uses_per_user:
+                        return Response({
+                            'valid': False, 
+                            'error': f"You have already redeemed promo code '{promo.code}'. It can only be used once per customer."
+                        }, status=400)
 
         # Prevent self-referral
-        if promo.affiliate_user and request.user.is_authenticated and promo.affiliate_user == request.user:
+        if not is_pos and promo.affiliate_user and request.user.is_authenticated and promo.affiliate_user == request.user:
             return Response({'valid': False, 'error': "You cannot use your own affiliate referral code."}, status=400)
 
         discount_amount = promo.calculate_discount(qualifying_subtotal)
