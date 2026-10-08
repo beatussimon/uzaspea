@@ -47,11 +47,69 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'similar' | 'a_plus'>('similar');
   const sectionRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [isNearTop, setIsNearTop] = useState(false);
   const tabScrollPositions = useRef<Record<'similar' | 'a_plus', number | null>>({
     similar: null,
     a_plus: null,
   });
   const targetScrollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const headerEl = headerRef.current;
+    if (!headerEl) return;
+
+    const container = getScrollContainer(headerEl);
+
+    let ticking = false;
+    const checkProximity = () => {
+      if (!headerRef.current) return;
+      const containerTop =
+        container instanceof HTMLElement
+          ? container.getBoundingClientRect().top
+          : 0;
+      const headerTop = headerRef.current.getBoundingClientRect().top;
+      const distance = headerTop - containerTop;
+
+      // Close to the top (within 40px of docking at sticky top)
+      const nearTop = distance <= 40;
+      setIsNearTop((prev) => (prev !== nearTop ? nearTop : prev));
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(checkProximity);
+        ticking = true;
+      }
+    };
+
+    checkProximity();
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        checkProximity();
+      });
+      if (container instanceof HTMLElement) {
+        resizeObserver.observe(container);
+      }
+      resizeObserver.observe(headerEl);
+    }
+
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('resize', onScroll);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [currentProductId, isDesktop, activeTab]);
 
   const handleTabChange = (newTab: 'similar' | 'a_plus') => {
     if (newTab === activeTab) return;
@@ -295,8 +353,13 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
 
   return (
     <section ref={sectionRef} className={`w-full ${className}`}>
-      {/* Sticky pinned header */}
-      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8">
+      {/* Sticky pinned header with proximity-aware smooth underlay */}
+      <div
+        ref={headerRef}
+        className={`lg:sticky lg:top-0 z-20 lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8 transition-colors duration-300 ease-in-out ${
+          isNearTop ? 'bg-white dark:bg-[#18191a]' : 'bg-transparent'
+        }`}
+      >
         {hasAPlus && isDesktop ? (
           <>
             <button
