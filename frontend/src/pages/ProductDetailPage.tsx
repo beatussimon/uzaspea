@@ -38,6 +38,8 @@ import {
   getPrimaryDimensionLabel,
   parseVariants,
   computeVariantStock,
+  getVariantDimensions,
+  VariantDimension,
 } from '../utils/variantUtils';
 
 interface ProductData {
@@ -446,6 +448,11 @@ const ProductDetailPage: React.FC = () => {
     initialProduct?.variants && Array.isArray(initialProduct.variants) ? initialProduct.variants : []
   );
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [unavailableNotice, setUnavailableNotice] = useState<{
+    message: string;
+    differIndex?: number;
+    alternatives: ProductVariant[];
+  } | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
@@ -767,6 +774,7 @@ const ProductDetailPage: React.FC = () => {
     }
     setSelectedImage(0);
     setSelectedVariant(null);
+    setUnavailableNotice(null);
 
     // Instant optimistic preview from navigation state or local/session cache
     const preview = (location.state as any)?.initialProduct || getCachedProduct(slug) || null;
@@ -800,6 +808,7 @@ const ProductDetailPage: React.FC = () => {
 
   const handleSelectVariant = useCallback((v: ProductVariant | null) => {
     setSelectedVariant(v);
+    setUnavailableNotice(null);
     if (!v) {
       setSelectedImage(0);
       return;
@@ -820,7 +829,99 @@ const ProductDetailPage: React.FC = () => {
     setSelectedImage(0);
   }, [images]);
 
-  // Parse all variants into structured { variant, primary, secondary }
+  // Multi-dimensional Variant Engine
+  const variantDimensions = useMemo(() => {
+    return getVariantDimensions(variants, product?.category_slug, product?.category_name, t);
+  }, [variants, product?.category_slug, product?.category_name, t]);
+
+  const isMultiDimensional = useMemo(() => {
+    return variantDimensions.length >= 3;
+  }, [variantDimensions]);
+
+  // Active values across dimensions [dim0_val, dim1_val, ...]
+  const activeDimensionValues = useMemo(() => {
+    if (selectedVariant) {
+      const parts = selectedVariant.name.split('/').map(p => p.trim());
+      return variantDimensions.map((dim, idx) => parts[idx] || dim.values[0] || '');
+    }
+    return variantDimensions.map(dim => dim.values[0] || '');
+  }, [selectedVariant, variantDimensions]);
+
+  const handleSelectDimensionOption = useCallback((dimIndex: number, val: string) => {
+    const dim = variantDimensions[dimIndex];
+    if (!dim) return;
+
+    // Target values with this dimension replaced
+    const targetValues = [...activeDimensionValues];
+    targetValues[dimIndex] = val;
+
+    // 1. Direct match with all other currently selected dimensions
+    const exactMatch = variants.find(v => {
+      const parts = v.name.split('/').map(p => p.trim());
+      if (parts.length !== variantDimensions.length) return false;
+      return parts.every((p, idx) => p.toLowerCase() === targetValues[idx]?.toLowerCase());
+    });
+
+    if (exactMatch) {
+      handleSelectVariant(exactMatch);
+      setUnavailableNotice(null);
+      return;
+    }
+
+    // 2. If clicking a visual dimension (e.g. Color card), switch to best in-stock variant of that visual choice
+    if (dim.isVisual) {
+      const matchingColor = variants.filter(v => {
+        const parts = v.name.split('/').map(p => p.trim());
+        return parts[dimIndex]?.toLowerCase() === val.toLowerCase();
+      });
+      const inStock = matchingColor.find(v => v.stock > 0) || matchingColor[0];
+      if (inStock) {
+        handleSelectVariant(inStock);
+        setUnavailableNotice(null);
+        return;
+      }
+    }
+
+    // 3. Non-visual spec selection: check if a combination exists with the current visual selection
+    const visualDim = variantDimensions.find(d => d.isVisual);
+    if (visualDim && visualDim.index !== dimIndex) {
+      const currentVisualVal = activeDimensionValues[visualDim.index];
+      const matchWithCurrentVisual = variants.find(v => {
+        const parts = v.name.split('/').map(p => p.trim());
+        return parts[dimIndex]?.toLowerCase() === val.toLowerCase() &&
+               parts[visualDim.index]?.toLowerCase() === currentVisualVal?.toLowerCase();
+      });
+      if (matchWithCurrentVisual) {
+        handleSelectVariant(matchWithCurrentVisual);
+        setUnavailableNotice(null);
+        return;
+      }
+    }
+
+    // 4. Combination does NOT exist under current visual choice:
+    // DO NOT silently auto-switch colors!
+    // Show instant inline notice with 1-click alternative pills
+    const availableAlternatives = variants.filter(v => {
+      const parts = v.name.split('/').map(p => p.trim());
+      return parts[dimIndex]?.toLowerCase() === val.toLowerCase() && v.stock > 0;
+    });
+
+    const currentVisualName = visualDim ? activeDimensionValues[visualDim.index] : '';
+    const message = currentVisualName
+      ? `${val} is not available in ${currentVisualName}.`
+      : `${val} is not available in this combination.`;
+
+    setUnavailableNotice({
+      message,
+      differIndex: visualDim ? visualDim.index : 0,
+      alternatives: availableAlternatives.length > 0 ? availableAlternatives : variants.filter(v => {
+        const parts = v.name.split('/').map(p => p.trim());
+        return parts[dimIndex]?.toLowerCase() === val.toLowerCase();
+      }),
+    });
+  }, [variantDimensions, activeDimensionValues, variants, handleSelectVariant]);
+
+  // Parse all variants into structured { variant, primary, secondary } (for <= 2 dimensions backwards compatibility)
   const parsedVariantList = useMemo(() => {
     return parseVariants(variants);
   }, [variants]);
@@ -830,7 +931,6 @@ const ProductDetailPage: React.FC = () => {
     if (variants.length === 0) return false;
     return parsedVariantList.every(pv => !pv.primary || isSpecValue(pv.primary));
   }, [variants, parsedVariantList]);
-
 
   // Distinct Primary Visual Options (Tier 1)
   const primaryOptions = useMemo(() => {
@@ -907,8 +1007,9 @@ const ProductDetailPage: React.FC = () => {
     return getPrimaryDimensionLabel(product?.category_slug, product?.category_name, t);
   }, [product?.category_slug, product?.category_name, t]);
 
-  // Handlers for switching primary and secondary selections
+  // Handlers for switching primary and secondary selections (for 1D and 2D products)
   const handleSelectPrimaryOption = useCallback((optName: string) => {
+    setUnavailableNotice(null);
     const key = optName.toLowerCase();
     // Preserve active secondary spec if available under this primary
     const matchingSameSpec = parsedVariantList.find(
@@ -931,6 +1032,7 @@ const ProductDetailPage: React.FC = () => {
       const found = parsedVariantList.find(pv => pv.secondary === specValue);
       if (found) {
         handleSelectVariant(found.variant);
+        setUnavailableNotice(null);
       }
       return;
     }
@@ -939,28 +1041,27 @@ const ProductDetailPage: React.FC = () => {
 
     // 1. Try to find match under currently active primary
     const matchUnderCurrent = parsedVariantList.find(
-      pv => pv.primary.toLowerCase() === key && pv.secondary === specValue
+      pv => pv.primary.toLowerCase() === key && (pv.secondary === specValue || (pv.parts && pv.parts.includes(specValue)))
     );
     if (matchUnderCurrent) {
       handleSelectVariant(matchUnderCurrent.variant);
+      setUnavailableNotice(null);
       return;
     }
 
-    // 2. Cross-variant auto-switch (with polite disappearing notification)
-    const matchAny = parsedVariantList.filter(pv => pv.secondary === specValue);
-    const inStockMatch = matchAny.find(pv => pv.variant.stock > 0) || matchAny[0];
-    if (inStockMatch) {
-      handleSelectVariant(inStockMatch.variant);
-      const prevName = activePrimaryName;
-      if (inStockMatch.primary && inStockMatch.primary.toLowerCase() !== key) {
-        toast(
-          t('variant_switched_spec', `${specValue} is not available in ${prevName}. Switched to ${inStockMatch.primary}.`),
-          { id: 'variant-auto-switch', duration: 2500, icon: 'ℹ️' }
-        );
-      }
-      return;
-    }
-  }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, handleSelectVariant, t]);
+    // 2. Combination not available under active color: show instant inline notice without jumping
+    const matchAny = parsedVariantList.filter(
+      pv => pv.secondary === specValue || (pv.parts && pv.parts.includes(specValue))
+    );
+    const inStockAlternatives = matchAny.filter(pv => pv.variant.stock > 0).map(pv => pv.variant);
+    const alts = inStockAlternatives.length > 0 ? inStockAlternatives : matchAny.map(pv => pv.variant);
+
+    setUnavailableNotice({
+      message: `${specValue} is not available in ${activePrimaryName}.`,
+      differIndex: 0,
+      alternatives: alts,
+    });
+  }, [isPureSpecVariantList, parsedVariantList, activePrimaryName, handleSelectVariant]);
 
   const handleLike = async () => {
     if (!product) return;
@@ -1652,146 +1753,340 @@ const ProductDetailPage: React.FC = () => {
           {/* Variants Section */}
           {variants.length > 0 && (
             <div className="space-y-3 pt-1">
-              {/* TIER 1: Visual Style / Primary Options (Colors, Styles, Finish) */}
-              {!isPureSpecVariantList && primaryOptions.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
-                      {primaryDimensionLabel}:
-                    </span>
-                    {activePrimaryName && (
-                      <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                        {activePrimaryName}
-                      </span>
-                    )}
-                  </div>
+              {isMultiDimensional ? (
+                variantDimensions.map((dim) => {
+                  const activeVal = activeDimensionValues[dim.index] || '';
 
-                  {/* Visual Cards Shelf */}
-                  <div className="flex gap-2 sm:gap-3 w-full py-0.5 overflow-x-auto no-scrollbar">
-                    {primaryOptions.map((opt) => {
-                      const isSelected = activePrimaryName.toLowerCase() === opt.name.toLowerCase();
-                      const isOutOfStock = opt.isOutOfStock;
-                      const cardImg = opt.image || product.images?.[0]?.image || (product as any).image;
+                  if (dim.isVisual) {
+                    return (
+                      <div key={dim.index} className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                            {dim.label}:
+                          </span>
+                          {activeVal && (
+                            <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                              {activeVal}
+                            </span>
+                          )}
+                        </div>
 
-                      return (
-                        <button
-                          key={opt.name}
-                          type="button"
-                          onClick={() => handleSelectPrimaryOption(opt.name)}
-                          title={`${opt.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                          className={`group/vcard relative flex-1 min-w-[72px] max-w-[120px] flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
-                            isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
-                          }`}
-                        >
-                          {/* Image Box */}
-                          <div
-                            className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
-                              isSelected
-                                ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
-                                : isOutOfStock
-                                  ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
-                                  : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
-                            }`}
-                          >
-                            {cardImg ? (
-                              <SafeImage
-                                src={cardImg}
-                                alt={opt.name}
-                                category={product.category_name}
-                                containMode="contain"
-                                className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
-                                  isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
+                        {/* Visual Cards Shelf */}
+                        <div className="flex gap-2 sm:gap-3 w-full py-0.5 overflow-x-auto no-scrollbar">
+                          {dim.values.map((optVal) => {
+                            const isSelected = activeVal.toLowerCase() === optVal.toLowerCase();
+                            const matchingVariants = variants.filter(v => {
+                              const parts = v.name.split('/').map(p => p.trim());
+                              return parts[dim.index]?.toLowerCase() === optVal.toLowerCase();
+                            });
+                            const totalStock = matchingVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+                            const isOutOfStock = totalStock <= 0;
+                            const firstWithImage = matchingVariants.find(v => v.image);
+                            const cardImg = (firstWithImage ? (typeof firstWithImage.image === 'string' ? firstWithImage.image : (firstWithImage.image as any)?.image) : null) || product.images?.[0]?.image || (product as any).image;
+
+                            return (
+                              <button
+                                key={optVal}
+                                type="button"
+                                onClick={() => handleSelectDimensionOption(dim.index, optVal)}
+                                title={`${optVal}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                                className={`group/vcard relative flex-1 min-w-[72px] max-w-[120px] flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
+                                  isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
                                 }`}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                                <ShoppingBag size={20} />
-                              </div>
-                            )}
+                              >
+                                {/* Image Box */}
+                                <div
+                                  className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
+                                    isSelected
+                                      ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
+                                      : isOutOfStock
+                                        ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
+                                        : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+                                  }`}
+                                >
+                                  {cardImg ? (
+                                    <SafeImage
+                                      src={cardImg}
+                                      alt={optVal}
+                                      category={product.category_name}
+                                      containMode="contain"
+                                      className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
+                                        isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
+                                      }`}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                                      <ShoppingBag size={20} />
+                                    </div>
+                                  )}
 
-                            {/* Explicit Out of Stock Text on Image */}
-                            {isOutOfStock && (
-                              <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
-                                <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
-                                  {t('out_of_stock', 'Out of stock')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                                  {/* Explicit Out of Stock Text on Image */}
+                                  {isOutOfStock && (
+                                    <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                                      <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
+                                        {t('out_of_stock', 'Out of stock')}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
 
-                          {/* Variant Name Below */}
-                          <div className="w-full text-center mt-1.5 px-0.5">
-                            <span
-                              className={`text-[10.5px] sm:text-xs truncate block ${
+                                {/* Variant Name Below */}
+                                <div className="w-full text-center mt-1.5 px-0.5">
+                                  <span
+                                    className={`text-[10.5px] sm:text-xs truncate block ${
+                                      isSelected
+                                        ? 'text-gray-900 dark:text-white font-extrabold'
+                                        : isOutOfStock
+                                          ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
+                                          : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                                    }`}
+                                  >
+                                    {optVal}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Non-visual spec row (e.g. Screen Size, Voltage, etc.)
+                  return (
+                    <div key={dim.index} className="space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                          {dim.label}:
+                        </span>
+                        {activeVal && (
+                          <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {activeVal}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {dim.values.map((specVal) => {
+                          const isSelected = activeVal.toLowerCase() === specVal.toLowerCase();
+                          const matchingAll = variants.filter(v => {
+                            const parts = v.name.split('/').map(p => p.trim());
+                            return parts[dim.index]?.toLowerCase() === specVal.toLowerCase();
+                          });
+                          const totalSpecStock = matchingAll.reduce((sum, v) => sum + (v.stock || 0), 0);
+                          const isCompletelyOutOfStock = totalSpecStock <= 0;
+
+                          return (
+                            <button
+                              key={specVal}
+                              type="button"
+                              onClick={() => handleSelectDimensionOption(dim.index, specVal)}
+                              title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                              className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
                                 isSelected
-                                  ? 'text-gray-900 dark:text-white font-extrabold'
-                                  : isOutOfStock
-                                    ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
-                                    : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                                  ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                                  : isCompletelyOutOfStock
+                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
+                                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
                               }`}
                             >
-                              {opt.name}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                              {specVal}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  {/* TIER 1: Visual Style / Primary Options (Colors, Styles, Finish) */}
+                  {!isPureSpecVariantList && primaryOptions.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                          {primaryDimensionLabel}:
+                        </span>
+                        {activePrimaryName && (
+                          <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {activePrimaryName}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Visual Cards Shelf */}
+                      <div className="flex gap-2 sm:gap-3 w-full py-0.5 overflow-x-auto no-scrollbar">
+                        {primaryOptions.map((opt) => {
+                          const isSelected = activePrimaryName.toLowerCase() === opt.name.toLowerCase();
+                          const isOutOfStock = opt.isOutOfStock;
+                          const cardImg = opt.image || product.images?.[0]?.image || (product as any).image;
+
+                          return (
+                            <button
+                              key={opt.name}
+                              type="button"
+                              onClick={() => handleSelectPrimaryOption(opt.name)}
+                              title={`${opt.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                              className={`group/vcard relative flex-1 min-w-[72px] max-w-[120px] flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
+                                isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
+                              }`}
+                            >
+                              {/* Image Box */}
+                              <div
+                                className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
+                                  isSelected
+                                    ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
+                                    : isOutOfStock
+                                      ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
+                                      : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+                                }`}
+                              >
+                                {cardImg ? (
+                                  <SafeImage
+                                    src={cardImg}
+                                    alt={opt.name}
+                                    category={product.category_name}
+                                    containMode="contain"
+                                    className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
+                                      isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
+                                    }`}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                                    <ShoppingBag size={20} />
+                                  </div>
+                                )}
+
+                                {/* Explicit Out of Stock Text on Image */}
+                                {isOutOfStock && (
+                                  <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                                    <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
+                                      {t('out_of_stock', 'Out of stock')}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Variant Name Below */}
+                              <div className="w-full text-center mt-1.5 px-0.5">
+                                <span
+                                  className={`text-[10.5px] sm:text-xs truncate block ${
+                                    isSelected
+                                      ? 'text-gray-900 dark:text-white font-extrabold'
+                                      : isOutOfStock
+                                        ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
+                                        : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                                  }`}
+                                >
+                                  {opt.name}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TIER 2: Secondary Specification Boxes (Size, Storage, Weight, Placement) */}
+                  {secondaryOptions.length > 0 && (
+                    <div className="space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                          {secondaryDimensionLabel}:
+                        </span>
+                        {activeSecondaryValue && (
+                          <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {activeSecondaryValue}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Specification Boxes */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {secondaryOptions.map((specVal) => {
+                          const optStock = computeVariantStock(
+                            parsedVariantList,
+                            activePrimaryName,
+                            specVal,
+                            undefined,
+                            isPureSpecVariantList
+                          );
+
+                          // Total available stock across all variants for this specification
+                          const matchAny = parsedVariantList.filter(
+                            pv => pv.secondary === specVal || (pv.parts && pv.parts.includes(specVal))
+                          );
+                          const totalSpecStock = matchAny.reduce((sum, m) => sum + (m.variant.stock || 0), 0);
+
+                          // A spec option is ONLY crossed out if completely out of stock across the product
+                          const isCompletelyOutOfStock = isPureSpecVariantList ? optStock <= 0 : totalSpecStock <= 0;
+                          const isSelected = activeSecondaryValue === specVal;
+
+                          return (
+                            <button
+                              key={specVal}
+                              type="button"
+                              onClick={() => handleSelectSecondaryOption(specVal)}
+                              title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                              className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
+                                isSelected
+                                  ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                                  : isCompletelyOutOfStock
+                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
+                                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
+                              }`}
+                            >
+                              {specVal}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* TIER 2: Secondary Specification Boxes (Size, Storage, Weight, Placement) */}
-              {secondaryOptions.length > 0 && (
-                <div className="space-y-1.5 pt-0.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
-                      {secondaryDimensionLabel}:
+              {/* Inline Availability Notice */}
+              {unavailableNotice && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={15} className="text-amber-500 shrink-0" />
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      {unavailableNotice.message}
                     </span>
-                    {activeSecondaryValue && (
-                      <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                        {activeSecondaryValue}
+                  </div>
+                  {unavailableNotice.alternatives && unavailableNotice.alternatives.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                      <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                        {t('available_in', 'Available in:')}
                       </span>
-                    )}
-                  </div>
-
-                  {/* Specification Boxes */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {secondaryOptions.map((specVal) => {
-                      const optStock = computeVariantStock(
-                        parsedVariantList,
-                        activePrimaryName,
-                        specVal,
-                        undefined,
-                        isPureSpecVariantList
-                      );
-
-                      // Total available stock across all variants for this specification
-                      const matchAny = parsedVariantList.filter(pv => pv.secondary === specVal);
-                      const totalSpecStock = matchAny.reduce((sum, m) => sum + (m.variant.stock || 0), 0);
-
-                      // A spec option is ONLY crossed out if completely out of stock across the product
-                      const isCompletelyOutOfStock = isPureSpecVariantList ? optStock <= 0 : totalSpecStock <= 0;
-                      const isSelected = activeSecondaryValue === specVal;
-
-                      return (
-                        <button
-                          key={specVal}
-                          type="button"
-                          onClick={() => handleSelectSecondaryOption(specVal)}
-                          title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                          className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
-                            isSelected
-                              ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
-                              : isCompletelyOutOfStock
-                                ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
-                                : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
-                          }`}
-                        >
-                          {specVal}
-                        </button>
-                      );
-                    })}
-                  </div>
+                      {Array.from(new Set(unavailableNotice.alternatives.map(alt => {
+                        const parts = alt.name.split('/').map(p => p.trim());
+                        return parts[unavailableNotice.differIndex ?? 0] || alt.name;
+                      }))).map((label) => {
+                        const matchingAlt = unavailableNotice.alternatives.find(alt => {
+                          const parts = alt.name.split('/').map(p => p.trim());
+                          return (parts[unavailableNotice.differIndex ?? 0] || alt.name) === label;
+                        });
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => {
+                              if (matchingAlt) {
+                                handleSelectVariant(matchingAlt);
+                                setUnavailableNotice(null);
+                              }
+                            }}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md bg-amber-500 text-black hover:bg-amber-400 transition-colors cursor-pointer select-none shadow-xs"
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1851,7 +2146,16 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Purchase Action Zone */}
           <div className="flex flex-col gap-3">
-            {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
+            {unavailableNotice ? (
+              <div className="flex items-center gap-3">
+                <button 
+                  disabled 
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 font-bold rounded-full cursor-not-allowed text-xs uppercase tracking-wider"
+                >
+                  {t('combination_unavailable', 'Unavailable in this combination')}
+                </button>
+              </div>
+            ) : (selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
               isOwnProduct ? (
                 <div className="p-3.5 bg-gray-100 dark:bg-[#242526] rounded-full text-center border border-gray-200 dark:border-neutral-800 text-xs font-bold text-gray-400 uppercase tracking-widest">
                   {t('this_is_your_listing')}
