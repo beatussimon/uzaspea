@@ -346,7 +346,7 @@ const [orders, setOrders] = useState<any[]>([]);
                     {/* Items List Table */}
                     <div className="overflow-x-auto mt-2">
                       <table className="w-full text-left text-xs">
-                        <thead className="text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                        <thead className="text-2xs uppercase tracking-wider text-gray-400 font-bold">
                           <tr>
                             <th className="py-2.5 px-1">Item Description</th>
                             <th className="py-2.5 px-2 text-center">Qty</th>
@@ -354,7 +354,7 @@ const [orders, setOrders] = useState<any[]>([]);
                             <th className="py-2.5 px-1 text-right">Subtotal</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                        <tbody>
                           {itemsList.map((item: any) => {
                             const hasDiscount = item.catalog_price && Number(item.catalog_price) > Number(item.price);
                             return (
