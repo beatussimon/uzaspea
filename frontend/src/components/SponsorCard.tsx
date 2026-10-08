@@ -15,8 +15,8 @@ export default function SponsorCard() {
                  dark:hover:border-brand-500 hover:shadow-card-hover active:scale-[0.98]
                  transition-all duration-300 min-h-[320px] h-full"
     >
-      <div className="w-12 h-12 rounded-2xl bg-brand-500/10 dark:bg-brand-500/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-brand-500/20 transition-transform">
-        <Megaphone className="h-6 w-6 text-brand-600 dark:text-brand-400" />
+      <div className="w-12 h-12 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+        <Megaphone className="h-6 w-6 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
       </div>
 
       <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1 uppercase tracking-wide">
