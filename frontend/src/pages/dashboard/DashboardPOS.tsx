@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, History, Receipt, CalendarDays, User, Banknote } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, History, Receipt, CalendarDays, User, Banknote, Tag, Percent } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -126,7 +126,12 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                       {order.delivery_info?.customer_name || 'Walk-in Customer'}
                     </td>
                     <td className="p-3 text-right font-extrabold text-gray-900 dark:text-white">
-                      TSh {totalAmt.toLocaleString()}
+                      <div>TSh {totalAmt.toLocaleString()}</div>
+                      {parseFloat(order.discount_amount || order.delivery_info?.discount_amount || 0) > 0 && (
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          -TSh {parseFloat(order.discount_amount || order.delivery_info?.discount_amount).toLocaleString()}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                       TSh {tendered.toLocaleString()}
@@ -161,6 +166,13 @@ const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [amountPaid, setAmountPaid] = useState('');
+
+  // Discount & Promo Code System State
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [customDiscount, setCustomDiscount] = useState<number>(0);
+  const [availablePromos, setAvailablePromos] = useState<any[]>([]);
   
   const [submitting, setSubmitting] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
@@ -194,6 +206,17 @@ const { user } = useAuth();
 
   useEffect(() => {
     fetchProducts();
+    
+    // Fetch active promo codes belonging to the seller for fast 1-click POS selection
+    const currentUser = localStorage.getItem('username');
+    if (currentUser) {
+      api.get(`/api/promo-codes/?seller=${currentUser}`)
+        .then(res => {
+          const list = res.data.results || res.data || [];
+          setAvailablePromos(list.filter((p: any) => p.is_active));
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -268,6 +291,88 @@ const { user } = useAuth();
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [cart]);
 
+  // Discount calculation: Applied promo code takes precedence, otherwise custom discount
+  const discountAmount = useMemo(() => {
+    if (appliedPromo) {
+      return Number(appliedPromo.discount_amount || 0);
+    }
+    if (customDiscount > 0) {
+      return Math.min(cartTotal, customDiscount);
+    }
+    return 0;
+  }, [appliedPromo, customDiscount, cartTotal]);
+
+  const finalTotal = Math.max(0, cartTotal - discountAmount);
+
+  // Silently re-evaluate applied promo code if cart items change
+  useEffect(() => {
+    if (!appliedPromo) return;
+    if (cart.length === 0) {
+      setAppliedPromo(null);
+      return;
+    }
+    const currentUser = localStorage.getItem('username') || user?.username;
+    const itemsPayload = cart.map(item => ({
+      product_id: item.product_id,
+      price: item.price,
+      quantity: item.quantity
+    }));
+    api.post('/api/promo-codes/validate/', {
+      code: appliedPromo.code,
+      merchant: currentUser,
+      subtotal: cartTotal,
+      items: itemsPayload,
+      is_pos: true,
+    }).then(res => {
+      setAppliedPromo(res.data);
+    }).catch(() => {
+      setAppliedPromo(null);
+      toast.error(`Promo '${appliedPromo.code}' removed (requirements no longer met)`);
+    });
+  }, [cart, cartTotal]);
+
+  const handleApplyPromo = async (codeOverride?: string) => {
+    const codeToApply = (codeOverride || promoCode).trim();
+    if (!codeToApply) {
+      toast.error('Please enter a promo code');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Add items to cart first');
+      return;
+    }
+    setValidatingPromo(true);
+    try {
+      const currentUser = localStorage.getItem('username') || user?.username;
+      const itemsPayload = cart.map(item => ({
+        product_id: item.product_id,
+        price: item.price,
+        quantity: item.quantity
+      }));
+      const res = await api.post('/api/promo-codes/validate/', {
+        code: codeToApply,
+        merchant: currentUser,
+        subtotal: cartTotal,
+        items: itemsPayload,
+        is_pos: true,
+      });
+      setAppliedPromo(res.data);
+      setPromoCode(res.data.code);
+      setCustomDiscount(0);
+      toast.success(`Promo code '${res.data.code}' applied! (-TSh ${Math.round(res.data.discount_amount).toLocaleString()})`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Invalid promo code');
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode('');
+    toast.success('Promo code removed');
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty!');
@@ -279,6 +384,8 @@ const { user } = useAuth();
       const payload = {
         customer_name: customerName,
         amount_paid: amountPaid ? parseFloat(amountPaid) : null,
+        promo_code: appliedPromo ? appliedPromo.code : null,
+        discount_amount: discountAmount,
         items: cart.map(item => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
@@ -291,6 +398,9 @@ const { user } = useAuth();
       toast.success('Sale completed successfully!');
       setReceiptData(res.data);
       setCart([]);
+      setAppliedPromo(null);
+      setPromoCode('');
+      setCustomDiscount(0);
       setCustomerName('Walk-in Customer');
       setAmountPaid('');
       setIsMobileCartOpen(false);
@@ -429,7 +539,7 @@ const { user } = useAuth();
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
               {loading ? (
-                <POSProductGridSkeleton count={6} />
+                <POSProductGridSkeleton count={8} />
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-20" />
@@ -437,15 +547,15 @@ const { user } = useAuth();
                   <p className="text-2xs text-gray-400 mt-0.5">Try searching for a different keyword.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                   {filteredProducts.map((product) => (
                     <div 
                       key={product.id} 
                       onClick={() => (!product.variants || product.variants.length === 0) && product.stock > 0 ? addToCart(product) : null}
-                      className="p-2.5 rounded-xl hover:bg-surface-muted/40 dark:hover:bg-[#161616] transition flex flex-col justify-between group cursor-pointer"
+                      className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 hover:bg-gray-100 dark:hover:bg-[#191919] hover:border-gray-300 dark:hover:border-neutral-700 transition flex flex-col justify-between group cursor-pointer shadow-2xs"
                     >
                       <div>
-                        <div className="aspect-[4/3] rounded-lg bg-surface-muted/60 dark:bg-[#161616] relative overflow-hidden mb-2">
+                        <div className="aspect-[4/3] rounded-lg bg-gray-200/50 dark:bg-[#1c1c1c] relative overflow-hidden mb-2">
                           <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           {product.stock <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-10">
@@ -472,7 +582,7 @@ const { user } = useAuth();
                                   addToCart(product, v);
                                 }}
                                 disabled={v.stock <= 0}
-                                className="w-full text-left px-2 py-1 rounded-lg bg-surface-muted/60 dark:bg-[#1a1a1a] text-3xs font-medium hover:bg-surface-muted dark:hover:bg-[#222] disabled:opacity-40 flex justify-between items-center transition text-gray-700 dark:text-gray-300"
+                                className="w-full text-left px-2 py-1 rounded-lg bg-white dark:bg-[#1c1c1c] border border-gray-200/80 dark:border-neutral-800 text-3xs font-medium hover:bg-gray-50 dark:hover:bg-[#222] disabled:opacity-40 flex justify-between items-center transition text-gray-700 dark:text-gray-300"
                               >
                                 <span className="truncate pr-1">{v.name}</span>
                                 <span className="font-semibold text-brand-600 dark:text-brand-400 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
@@ -505,7 +615,18 @@ const { user } = useAuth();
           <div className="hidden lg:flex w-[380px] card overflow-hidden flex-col shrink-0 sticky top-[80px]">
             <CartContent 
               cart={cart} 
-              cartTotal={cartTotal} 
+              cartTotal={cartTotal}
+              finalTotal={finalTotal}
+              discountAmount={discountAmount}
+              promoCode={promoCode}
+              setPromoCode={setPromoCode}
+              appliedPromo={appliedPromo}
+              handleApplyPromo={handleApplyPromo}
+              handleRemovePromo={handleRemovePromo}
+              validatingPromo={validatingPromo}
+              customDiscount={customDiscount}
+              setCustomDiscount={setCustomDiscount}
+              availablePromos={availablePromos}
               customerName={customerName} 
               setCustomerName={setCustomerName} 
               amountPaid={amountPaid} 
@@ -537,7 +658,12 @@ const { user } = useAuth();
                     <span className="font-bold text-xs">Current Register Sale</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-xs">TSh {cartTotal.toLocaleString()}</span>
+                    <div className="text-right">
+                      <span className="font-extrabold text-xs block">TSh {finalTotal.toLocaleString()}</span>
+                      {discountAmount > 0 && (
+                        <span className="text-[10px] text-gray-400 line-through block">TSh {cartTotal.toLocaleString()}</span>
+                      )}
+                    </div>
                     <ChevronUp size={16} className="opacity-60" />
                   </div>
                 </button>
@@ -559,7 +685,18 @@ const { user } = useAuth();
                   <div className="flex-1 overflow-hidden flex flex-col">
                     <CartContent 
                       cart={cart} 
-                      cartTotal={cartTotal} 
+                      cartTotal={cartTotal}
+                      finalTotal={finalTotal}
+                      discountAmount={discountAmount}
+                      promoCode={promoCode}
+                      setPromoCode={setPromoCode}
+                      appliedPromo={appliedPromo}
+                      handleApplyPromo={handleApplyPromo}
+                      handleRemovePromo={handleRemovePromo}
+                      validatingPromo={validatingPromo}
+                      customDiscount={customDiscount}
+                      setCustomDiscount={setCustomDiscount}
+                      availablePromos={availablePromos}
                       customerName={customerName} 
                       setCustomerName={setCustomerName} 
                       amountPaid={amountPaid} 
@@ -670,6 +807,28 @@ const { user } = useAuth();
                   })}
                 </div>
                 
+                {(() => {
+                  const discountVal = parseFloat(receiptData?.discount_amount || receiptData?.delivery_info?.discount_amount || 0);
+                  const promoCodeName = receiptData?.promo_code_code || receiptData?.promo_code || receiptData?.delivery_info?.promo_code;
+                  if (discountVal > 0) {
+                    const rawTot = parseFloat(receiptData?.total_amount || 0);
+                    const subtotalVal = rawTot + discountVal;
+                    return (
+                      <>
+                        <div className="text-xs flex justify-between text-gray-600 mb-1">
+                          <span>SUBTOTAL</span>
+                          <span>{Math.round(subtotalVal).toLocaleString()}/=</span>
+                        </div>
+                        <div className="text-xs flex justify-between text-gray-600 mb-1">
+                          <span>DISCOUNT {promoCodeName ? `(${promoCodeName})` : ''}</span>
+                          <span>-{Math.round(discountVal).toLocaleString()}/=</span>
+                        </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+
                 <div className="text-sm font-black flex justify-between mb-1">
                   <span>TOTAL TSH</span>
                   <span>{(() => {
@@ -732,6 +891,17 @@ const { user } = useAuth();
 const CartContent = ({ 
   cart, 
   cartTotal, 
+  finalTotal,
+  discountAmount = 0,
+  promoCode = '',
+  setPromoCode,
+  appliedPromo,
+  handleApplyPromo,
+  handleRemovePromo,
+  validatingPromo = false,
+  customDiscount = 0,
+  setCustomDiscount,
+  availablePromos = [],
   customerName, 
   setCustomerName, 
   amountPaid, 
@@ -741,8 +911,12 @@ const CartContent = ({
   handleCheckout, 
   submitting 
 }: any) => {
+  const [showCustomDiscount, setShowCustomDiscount] = useState(false);
+  const [customInput, setCustomInput] = useState('');
+
   const tenderVal = parseFloat(amountPaid || '0');
-  const changeDue = Math.max(0, tenderVal - cartTotal);
+  const effectiveTotal = typeof finalTotal === 'number' ? finalTotal : Math.max(0, cartTotal - (discountAmount || 0));
+  const changeDue = Math.max(0, tenderVal - effectiveTotal);
 
   return (
     <div className="flex flex-col h-full">
@@ -837,14 +1011,167 @@ const CartContent = ({
         )}
       </div>
 
-      {/* 3. Compact Checkout Footer with Quick Tender & Change */}
+      {/* 3. Discount / Promo Code System Section */}
+      <div className="px-4 py-2.5 bg-gray-50/70 dark:bg-[#121212] border-t border-b border-surface-border/50 dark:border-neutral-800/80 shrink-0">
+        {appliedPromo || customDiscount > 0 ? (
+          <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Tag size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-bold text-emerald-800 dark:text-emerald-300 truncate">
+                {appliedPromo ? appliedPromo.code : 'Manual Discount'}
+              </span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold text-2xs shrink-0">
+                (-TSh {discountAmount.toLocaleString()})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (appliedPromo) {
+                  handleRemovePromo();
+                } else if (setCustomDiscount) {
+                  setCustomDiscount(0);
+                  setCustomInput('');
+                }
+              }}
+              className="text-emerald-600 hover:text-red-500 dark:text-emerald-400 dark:hover:text-red-400 p-0.5 rounded transition shrink-0 ml-1 cursor-pointer"
+              title="Remove discount"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ) : showCustomDiscount ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-3xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <Percent size={10} /> Custom Discount (TSh)
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCustomDiscount(false)}
+                className="text-3xs font-semibold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
+              >
+                Use Promo Code
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">TSh</span>
+                <input
+                  type="number"
+                  placeholder="Discount amount..."
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = parseFloat(customInput || '0');
+                      if (val > 0 && setCustomDiscount) {
+                        setCustomDiscount(val);
+                      }
+                    }
+                  }}
+                  className="w-full bg-white dark:bg-[#161616] border border-gray-200 dark:border-neutral-800 rounded-lg pl-9 pr-2 py-1 text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-400 outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = parseFloat(customInput || '0');
+                  if (val > 0 && setCustomDiscount) {
+                    setCustomDiscount(val);
+                  }
+                }}
+                disabled={!customInput || parseFloat(customInput) <= 0}
+                className="px-2.5 py-1 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-black text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-40 transition shrink-0 cursor-pointer"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-3xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <Tag size={10} /> Promo Code / Discount
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCustomDiscount(true)}
+                className="text-3xs font-semibold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
+              >
+                + Manual TSh
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <Tag size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Enter promo code..."
+                  value={promoCode}
+                  onChange={(e) => setPromoCode && setPromoCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleApplyPromo && handleApplyPromo();
+                    }
+                  }}
+                  className="w-full bg-white dark:bg-[#161616] border border-gray-200 dark:border-neutral-800 rounded-lg pl-7 pr-2 py-1 text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-400 outline-none uppercase"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleApplyPromo && handleApplyPromo()}
+                disabled={validatingPromo || !promoCode.trim()}
+                className="px-2.5 py-1 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-black text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-40 transition shrink-0 cursor-pointer"
+              >
+                {validatingPromo ? '...' : 'Apply'}
+              </button>
+            </div>
+
+            {/* Quick Active Store Promo Chips */}
+            {availablePromos && availablePromos.length > 0 && (
+              <div className="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar">
+                <span className="text-[10px] text-gray-400 shrink-0 font-medium">Store codes:</span>
+                {availablePromos.slice(0, 3).map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleApplyPromo && handleApplyPromo(p.code)}
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-neutral-800 hover:border-brand-500 text-gray-700 dark:text-gray-300 shrink-0 transition cursor-pointer"
+                  >
+                    {p.code} ({p.discount_type === 'percentage' ? `${p.value}%` : `TSh ${parseInt(p.value).toLocaleString()}`})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 4. Compact Checkout Footer with Quick Tender & Change */}
       <div className="p-4 shrink-0 space-y-3">
-        {/* Total Due */}
-        <div className="flex justify-between items-baseline">
-          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Due</span>
-          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
-            TSh {cartTotal.toLocaleString()}
-          </span>
+        {/* Total Breakdown */}
+        <div className="space-y-1">
+          {discountAmount > 0 && (
+            <>
+              <div className="flex justify-between items-baseline text-xs text-gray-500 dark:text-gray-400">
+                <span>Subtotal</span>
+                <span className="font-semibold">TSh {cartTotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-baseline text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                <span>Discount {appliedPromo ? `(${appliedPromo.code})` : ''}</span>
+                <span>- TSh {discountAmount.toLocaleString()}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between items-baseline pt-0.5">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Due</span>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+              TSh {effectiveTotal.toLocaleString()}
+            </span>
+          </div>
         </div>
 
         {/* Quick Cash Tender Input & Shortcuts */}
@@ -855,10 +1182,10 @@ const CartContent = ({
               <span>Cash Tendered</span>
             </label>
             {tenderVal > 0 && (
-              <span className={`text-2xs font-bold ${tenderVal >= cartTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
-                {tenderVal >= cartTotal 
+              <span className={`text-2xs font-bold ${tenderVal >= effectiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
+                {tenderVal >= effectiveTotal 
                   ? `Change: TSh ${changeDue.toLocaleString()}` 
-                  : `Remaining: TSh ${(cartTotal - tenderVal).toLocaleString()}`
+                  : `Remaining: TSh ${(effectiveTotal - tenderVal).toLocaleString()}`
                 }
               </span>
             )}
@@ -868,7 +1195,7 @@ const CartContent = ({
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-xs">TSh</span>
             <input
               type="number"
-              placeholder={cartTotal > 0 ? String(cartTotal) : '0'}
+              placeholder={effectiveTotal > 0 ? String(effectiveTotal) : '0'}
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               className="w-full bg-surface-muted/60 dark:bg-[#161616] rounded-xl pl-10 pr-3 py-2 text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-500 outline-none border-none focus:ring-0 transition"
@@ -876,25 +1203,25 @@ const CartContent = ({
           </div>
 
           {/* Quick Tender Shortcuts */}
-          {cartTotal > 0 && (
+          {effectiveTotal > 0 && (
             <div className="flex items-center gap-1.5 pt-0.5">
               <button
                 type="button"
-                onClick={() => setAmountPaid(String(cartTotal))}
+                onClick={() => setAmountPaid(String(effectiveTotal))}
                 className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
               >
                 Exact
               </button>
               <button
                 type="button"
-                onClick={() => setAmountPaid(String(Math.ceil(cartTotal / 10000) * 10000))}
+                onClick={() => setAmountPaid(String(Math.ceil(effectiveTotal / 10000) * 10000))}
                 className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
               >
                 +Round 10k
               </button>
               <button
                 type="button"
-                onClick={() => setAmountPaid(String(Math.ceil((cartTotal + 1) / 50000) * 50000))}
+                onClick={() => setAmountPaid(String(Math.ceil((effectiveTotal + 1) / 50000) * 50000))}
                 className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
               >
                 +Round 50k

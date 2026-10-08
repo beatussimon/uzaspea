@@ -1585,3 +1585,123 @@ class SiteSettingsTests(TestCase):
         self.assertEqual(res_admin.data['tiktok_url'], 'https://tiktok.com/@sokonimax')
         self.assertEqual(res_admin.data['linkedin_url'], 'https://linkedin.com/company/sokonimax')
         self.assertEqual(res_admin.data['youtube_url'], 'https://youtube.com/@sokonimax')
+
+
+class POSTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.seller = User.objects.create_user(username='pos_seller', email='seller@test.com', password='pass')
+        self.seller_profile = UserProfile.objects.get_or_create(user=self.seller, defaults={'role': 'seller', 'tier': 'seller_pro'})[0]
+        self.seller_profile.role = 'seller'
+        self.seller_profile.tier = 'seller_pro'
+        self.seller_profile.save()
+
+        from marketplace.models import SubscriptionTier, Subscription
+        from django.utils import timezone
+        from datetime import timedelta
+        tier, _ = SubscriptionTier.objects.get_or_create(name='Pro', defaults={'tier_level': 'seller_pro', 'price': Decimal('20000.00'), 'duration': 30, 'benefits': 'All Pro Features'})
+        Subscription.objects.create(
+            user=self.seller,
+            tier=tier,
+            is_active=True,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=30)
+        )
+
+        self.category = Category.objects.create(name='Electronics')
+        self.product = Product.objects.create(
+            name='POS Speaker',
+            seller=self.seller,
+            price=Decimal('100000.00'),
+            stock=10,
+            category=self.category,
+            is_available=True
+        )
+
+        from .models import PromoCode
+        self.promo = PromoCode.objects.create(
+            code='POS10',
+            seller=self.seller,
+            discount_type='percentage',
+            value=Decimal('10.00'),
+            applicable_scope='all_products',
+            is_active=True
+        )
+
+    def test_pos_checkout_with_promo_and_three_percent_commission(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from billing.models import CommissionLedgerEntry
+        from .models import Order
+
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        payload = {
+            'customer_name': 'Walk-in Alice',
+            'amount_paid': 90000,
+            'promo_code': 'POS10',
+            'items': [
+                {
+                    'product_id': self.product.id,
+                    'quantity': 1,
+                    'price': float(self.product.price)
+                }
+            ]
+        }
+
+        res = self.client.post('/api/orders/pos-checkout/', payload, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        
+        order = Order.objects.get(id=res.data['id'])
+        # Subtotal: 100,000, 10% discount = 10,000, Total = 90,000
+        self.assertEqual(order.discount_amount, Decimal('10000.00'))
+        self.assertEqual(order.total_amount, Decimal('90000.00'))
+        self.assertEqual(order.promo_code, self.promo)
+
+        # Check promo use count incremented
+        self.promo.refresh_from_db()
+        self.assertEqual(self.promo.use_count, 1)
+
+        # Check platform fee and commission ledger entry (3% of net amount 90,000 = 2,700)
+        self.assertEqual(order.platform_fee, Decimal('2700.00'))
+        ledger_entry = CommissionLedgerEntry.objects.get(order=order)
+        self.assertEqual(ledger_entry.commission_rate, Decimal('3.00'))
+        self.assertEqual(ledger_entry.order_amount, Decimal('90000.00'))
+        self.assertEqual(ledger_entry.commission_amount, Decimal('2700.00'))
+
+    def test_pos_checkout_with_custom_discount(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from billing.models import CommissionLedgerEntry
+        from .models import Order
+
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        payload = {
+            'customer_name': 'Walk-in Bob',
+            'amount_paid': 95000,
+            'discount_amount': 5000,
+            'items': [
+                {
+                    'product_id': self.product.id,
+                    'quantity': 1,
+                    'price': float(self.product.price)
+                }
+            ]
+        }
+
+        res = self.client.post('/api/orders/pos-checkout/', payload, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        
+        order = Order.objects.get(id=res.data['id'])
+        # Subtotal: 100,000, Custom discount = 5,000, Total = 95,000
+        self.assertEqual(order.discount_amount, Decimal('5000.00'))
+        self.assertEqual(order.total_amount, Decimal('95000.00'))
+        self.assertIsNone(order.promo_code)
+
+        # Platform fee (3% of 95,000 = 2,850)
+        self.assertEqual(order.platform_fee, Decimal('2850.00'))
+        ledger_entry = CommissionLedgerEntry.objects.get(order=order)
+        self.assertEqual(ledger_entry.commission_rate, Decimal('3.00'))
+        self.assertEqual(ledger_entry.order_amount, Decimal('95000.00'))
+        self.assertEqual(ledger_entry.commission_amount, Decimal('2850.00'))
