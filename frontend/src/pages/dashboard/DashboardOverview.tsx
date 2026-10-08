@@ -52,7 +52,7 @@ const DashboardOverview: React.FC = () => {
   });
 
   // Top Products limit customization
-  const [topProductsLimit, setTopProductsLimit] = useState<number>(5);
+  const [topProductsLimit, setTopProductsLimit] = useState<number>(10);
   const [isTopLimitOpen, setIsTopLimitOpen] = useState<boolean>(false);
   const [customTopInput, setCustomTopInput] = useState<string>('');
   const topLimitRef = useRef<HTMLDivElement>(null);
