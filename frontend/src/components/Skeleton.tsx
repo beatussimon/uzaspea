@@ -662,7 +662,7 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
 
     {/* Table Skeleton matching Active Demand Requests table */}
     <div className="card overflow-hidden">
-      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+      <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
         <Skeleton className="h-4 w-36 rounded" />
         <Skeleton className="h-3 w-20 rounded" />
       </div>
