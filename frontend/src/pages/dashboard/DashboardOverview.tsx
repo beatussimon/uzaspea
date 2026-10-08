@@ -538,7 +538,7 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
         {/* Top Products */}
         <div className="space-y-6">
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden !border-none !rounded-none">
             <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
               
@@ -622,26 +622,40 @@ const DashboardOverview: React.FC = () => {
                 <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-transparent border border-brand-500/40 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
               </div>
             </div>
-            <div className="divide-y divide-surface-border dark:divide-surface-dark-border max-h-96 overflow-y-auto">
-              {(stats?.top_products || []).slice(0, topProductsLimit).map((p: any, i: number) => (
-                <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
-                  <div className="flex items-center gap-3 overflow-hidden pr-2">
-                    <div className="w-7 h-7 shrink-0 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{p.name}</p>
-                      <p className="text-3xs text-gray-400 truncate">{p.sold} sold</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 max-w-[120px]">
-                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
-              {(!stats?.top_products || stats.top_products.length === 0) && (
-                <div className="p-6 text-center text-xs text-gray-400">
-                  No product sales recorded for this period
-                </div>
-              )}
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-left">
+                <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <tr>
+                    <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
+                    <th className="px-3 py-2.5 font-bold">Product</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Sold</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  {(stats?.top_products || []).slice(0, topProductsLimit).map((p: any, i: number) => (
+                    <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                      <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
+                      <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white truncate max-w-[200px]" title={p.name}>
+                        {p.name}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-gray-300">
+                        {p.sold}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-extrabold text-brand-600 dark:text-brand-400 whitespace-nowrap">
+                        TSh {(p.revenue ?? 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!stats?.top_products || stats.top_products.length === 0) && (
+                    <tr>
+                      <td colSpan={4} className="p-6 text-center text-xs text-gray-400">
+                        No product sales recorded for this period
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -655,24 +669,38 @@ const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
               <ShieldAlert size={14} className="text-amber-500" /> Stock Alerts
             </h3>
-            <span className="text-3xs text-gray-400 font-bold">{stats?.stock_alerts?.length || 0} alerts</span>
+            <span className="text-3xs text-gray-400 font-bold uppercase">{stats?.stock_alerts?.length || 0} alerts</span>
           </div>
           {(stats?.stock_alerts?.length || 0) > 0 ? (
-            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
-              {stats.stock_alerts.map((s: any, i: number) => (
-                <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
-                  <span className="text-xs font-medium text-gray-900 dark:text-white truncate pr-2">{s.name}</span>
-                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border capitalize shrink-0 bg-transparent ${s.stock === 0 ? 'text-red-600 dark:text-red-400 border-red-500/40' : 'text-amber-600 dark:text-amber-400 border-amber-500/40'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${s.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
-                    {s.stock === 0 ? 'Out of Stock' : `${s.stock} left`}
-                  </span>
-                </div>
-              ))}
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-left">
+                <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <tr>
+                    <th className="px-3 py-2.5 font-bold">Product</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  {stats.stock_alerts.map((s: any, i: number) => (
+                    <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                      <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white truncate max-w-[220px]" title={s.name}>
+                        {s.name}
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border capitalize shrink-0 bg-transparent ${s.stock === 0 ? 'text-red-600 dark:text-red-400 border-red-500/40' : 'text-amber-600 dark:text-amber-400 border-amber-500/40'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
+                          {s.stock === 0 ? 'Out of Stock' : `${s.stock} left`}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : <p className="px-5 py-8 text-center text-gray-400 text-xs">All products well-stocked 🎉</p>}
         </div>
@@ -680,7 +708,7 @@ const DashboardOverview: React.FC = () => {
 
       {/* Items Sold List */}
       {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
-        <div className="card overflow-hidden !border-none print:shadow-none print:m-0 print:p-0">
+        <div className="card overflow-hidden !border-none !rounded-none print:shadow-none print:m-0 print:p-0">
           <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between print-hide">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
             <span className="text-3xs font-bold text-gray-400 uppercase">Recent 100</span>
