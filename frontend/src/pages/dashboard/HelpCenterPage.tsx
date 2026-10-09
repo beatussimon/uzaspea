@@ -47,15 +47,23 @@ const HelpCenterPage: React.FC = () => {
 
     const [searchParams] = useSearchParams();
     const tabParam = searchParams.get('tab');
+    const qParam = searchParams.get('q') || searchParams.get('search') || '';
 
     // FAQs state
     const [faqs, setFaqs] = useState<any[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(qParam);
     const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
     const [selectedFaqCategory, setSelectedFaqCategory] = useState<string>(() => {
         if (tabParam === 'site-verification') return 'site-verification';
         return 'all';
     });
+
+    useEffect(() => {
+        const q = searchParams.get('q') || searchParams.get('search');
+        if (q) {
+            setSearchQuery(q);
+        }
+    }, [searchParams]);
     const [expandedFaq, setExpandedFaq] = useState<number | null | 'closed'>(null);
     const [loadingFaqs, setLoadingFaqs] = useState(false);
 
@@ -301,6 +309,21 @@ const HelpCenterPage: React.FC = () => {
         }
     ], []);
 
+    const AD_AND_PROMOTION_FAQS = useMemo(() => [
+        {
+            id: 9101,
+            category: 'general',
+            question: "What does the 'AD' (Sponsored) badge on a product mean?",
+            answer: "Products displaying the 'AD' (Sponsored) badge are promoted listings. Sellers pay an advertising fee to boost their product's visibility across search results and category feeds. All sponsored items must comply with SokoniMax seller verification standards, accurate product conditions (New, Used, Refurbished), and merchant policies."
+        },
+        {
+            id: 9102,
+            category: 'general',
+            question: "How do sponsored ads affect search rankings and pricing?",
+            answer: "Sponsored ads give items prominent placement in product carousels and feeds, but prices and product details remain set directly by the merchant without any hidden buyer fees. Sponsored products are clearly marked with the 'AD' badge for complete transparency."
+        }
+    ], []);
+
     // Filter FAQs by category and search query
     const filteredFaqs = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
@@ -315,7 +338,7 @@ const HelpCenterPage: React.FC = () => {
 
         // All topics
         if (selectedFaqCategory === 'all') {
-            const allItems = [...faqs, ...SITE_VERIFICATION_FAQS];
+            const allItems = [...faqs, ...SITE_VERIFICATION_FAQS, ...AD_AND_PROMOTION_FAQS];
             return allItems.filter(matchesQuery);
         }
 
@@ -327,22 +350,24 @@ const HelpCenterPage: React.FC = () => {
         }
 
         // Other topics (orders, payments, inspections, account, general)
-        const catItems = faqs.filter(faq => (faq.category || 'general').toLowerCase() === selectedFaqCategory.toLowerCase());
+        const catApiMatches = faqs.filter(faq => (faq.category || 'general').toLowerCase() === selectedFaqCategory.toLowerCase());
+        const catStaticMatches = AD_AND_PROMOTION_FAQS.filter(faq => faq.category.toLowerCase() === selectedFaqCategory.toLowerCase());
+        const catItems = [...catApiMatches, ...catStaticMatches];
         return catItems.filter(matchesQuery);
-    }, [faqs, selectedFaqCategory, searchQuery, SITE_VERIFICATION_FAQS]);
+    }, [faqs, selectedFaqCategory, searchQuery, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS]);
 
     // Count of all matches across all categories for the current search query
     const globalMatchesCount = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return 0;
-        const allItems = [...faqs, ...SITE_VERIFICATION_FAQS];
+        const allItems = [...faqs, ...SITE_VERIFICATION_FAQS, ...AD_AND_PROMOTION_FAQS];
         return allItems.filter(faq => {
             const question = (faq.question || '').toLowerCase();
             const answer = (faq.answer || '').toLowerCase();
             const category = (faq.category || '').toLowerCase();
             return question.includes(q) || answer.includes(q) || category.includes(q);
         }).length;
-    }, [faqs, SITE_VERIFICATION_FAQS, searchQuery]);
+    }, [faqs, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS, searchQuery]);
 
     const openFeedbackModal = (tab: 'new' | 'history' = 'new', category: string = 'other') => {
         setModalTab(tab);

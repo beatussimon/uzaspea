@@ -123,6 +123,7 @@ function AppRoutes() {
         <Route path="/inspector/*" element={<ProtectedRoute requireInspector><InspectorLayout /></ProtectedRoute>} />
         <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
         <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/faq" element={<HelpCenterPage />} />
         <Route path="/blog" element={<BlogPlaceholderPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
