@@ -51,9 +51,17 @@ const TrendingMetricBadge = ({ product, metricType = 'auto', compact = false }: 
 const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false, compact = false }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInteractive, setIsInteractive] = React.useState(false);
+  const [isAdHovered, setIsAdHovered] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const images = product.images || [];
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  const handleAdInfoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate('/help?q=ad');
+  };
 
   const getConditionLabel = () => {
     const c = (product.condition || '').toLowerCase();
@@ -137,21 +145,74 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 
       {viewMode === 'list' ? (
         <div className="absolute top-1 left-1 flex flex-col gap-1 z-10 pointer-events-none">
-          <span className={`h-6 px-1.5 flex items-center justify-center font-black text-[10px] uppercase tracking-wider w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
-            {getConditionLabel()}
-          </span>
+          <div 
+            className="relative pointer-events-auto inline-flex items-center gap-1 h-6 px-1.5"
+            onMouseLeave={() => setIsAdHovered(false)}
+          >
+            <span className={`font-black text-[10px] uppercase tracking-wider w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+              {getConditionLabel()}
+            </span>
+            {isSponsored && (
+              <>
+                <span className="font-bold text-[10px] text-gray-300 dark:text-neutral-600 select-none">|</span>
+                <button
+                  type="button"
+                  onClick={handleAdInfoClick}
+                  onMouseEnter={() => setIsAdHovered(true)}
+                  aria-label="What does AD mean? Click to view FAQ"
+                  className="font-black text-[10px] uppercase tracking-wider text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0"
+                >
+                  {t('ad_badge', 'AD')}
+                </button>
+                {isAdHovered && (
+                  <div
+                    onClick={handleAdInfoClick}
+                    className="absolute top-full left-0 pt-0.5 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                  >
+                    <span className="text-[8.5px] font-semibold leading-tight text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] block max-w-[85px]">
+                      {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       ) : (
         <div className={compact ? "absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 pointer-events-none" : "absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none"}>
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} compact={compact} />}
-          {isSponsored && (
-            <span className={compact ? "font-black text-[10px] sm:text-xs uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400" : "font-black text-sm uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400"}>
-              {t('sponsored', 'Sponsored')}
+          <div 
+            className="relative pointer-events-auto inline-flex items-center gap-1.5 w-fit"
+            onMouseLeave={() => setIsAdHovered(false)}
+          >
+            <span className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+              {getConditionLabel()}
             </span>
-          )}
-          <span className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
-            {getConditionLabel()}
-          </span>
+            {isSponsored && (
+              <>
+                <span className="font-bold text-xs text-gray-300 dark:text-neutral-600 select-none">|</span>
+                <button
+                  type="button"
+                  onClick={handleAdInfoClick}
+                  onMouseEnter={() => setIsAdHovered(true)}
+                  aria-label="What does AD mean? Click to view FAQ"
+                  className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0`}
+                >
+                  {t('ad_badge', 'AD')}
+                </button>
+                {isAdHovered && (
+                  <div
+                    onClick={handleAdInfoClick}
+                    className="absolute top-full left-0 pt-1 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                  >
+                    <span className="text-[10px] font-semibold tracking-normal text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+                      {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
           {!product.requires_quote && product.old_price > product.price && (
             <span className={compact ? "h-5 sm:h-6 px-1.5 sm:px-2 rounded-full font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400" : "h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400"}>
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
@@ -290,7 +351,7 @@ const ProductCard = memo(({
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-500/60 dark:ring-yellow-500/40' : ''} ${className}`}>
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'ring-2 ring-yellow-500/60 dark:ring-yellow-500/40' : ''} ${className}`}>
         <Link 
           to={`/product/${product.slug}`} 
           {...bgState} 
@@ -305,9 +366,6 @@ const ProductCard = memo(({
           {/* Content */}
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
-               {isSponsored && (
-                 <span className="text-white bg-brand-500 px-1.5 py-0.5 rounded-card text-[8px] uppercase font-black tracking-widest shrink-0 shadow-md">{t('sponsored', 'Sponsored')}</span>
-               )}
                <div className="flex items-center gap-1 shrink-0">
                  <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                  <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
@@ -374,7 +432,7 @@ const ProductCard = memo(({
   const sizingClasses = className ? className : 'min-h-[320px]';
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-500/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${sizingClasses}`}>
+    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'border-yellow-500/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${sizingClasses}`}>
       <Link 
         to={`/product/${product.slug}`} 
         {...bgState} 
