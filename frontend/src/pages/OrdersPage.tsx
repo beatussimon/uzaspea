@@ -496,7 +496,7 @@ const OrdersPage: React.FC = () => {
                       handleOrderExpand(order);
                     }
                   }}
-                  className="w-full p-4 sm:p-5 flex flex-col gap-3 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10">
+                  className="w-full p-4 sm:p-5 flex flex-col gap-3 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-0">
                   
                   {/* Top Row: Thumbnail + Info + Price & Status */}
                   <div className="flex items-start justify-between gap-3 w-full">

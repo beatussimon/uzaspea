@@ -420,6 +420,14 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
   );
 };
 
+const getCleanStem = (url?: string | null): string => {
+  if (!url) return '';
+  const filename = url.split('/').pop()?.split('?')[0]?.toLowerCase() || '';
+  const withoutExt = filename.replace(/\.[^/.]+$/, '');
+  const parts = withoutExt.split('_').filter(Boolean);
+  return (parts[0] || withoutExt).trim();
+};
+
 const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation();
@@ -468,6 +476,7 @@ const ProductDetailPage: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const similarProductsColRef = useRef<HTMLDivElement>(null);
   const reviewsColRef = useRef<HTMLDivElement>(null);
+  const hasSyncedInitialVariant = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Monitor scroll for back-to-top button
@@ -660,7 +669,7 @@ const ProductDetailPage: React.FC = () => {
 
   const images = React.useMemo(() => {
     if (!product) return [{ id: 0, image: '' }];
-    const baseImages: Array<{ id: string | number; image: string; variantId?: number }> = 
+    const baseImages: Array<{ id: string | number; image: string; variantId?: number; variantIds?: number[] }> = 
       (product.images && product.images.length > 0)
         ? product.images.map(img => ({ ...img }))
         : [];
@@ -676,20 +685,27 @@ const ProductDetailPage: React.FC = () => {
       const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
       if (!vUrl) return;
 
-      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase();
+      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase() || '';
+      const vStem = getCleanStem(vUrl);
 
       const existing = baseImages.find(img => {
         if (!img.image) return false;
         if (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image)) return true;
-        const imgFilename = img.image.split('/').pop()?.split('?')[0]?.toLowerCase();
-        if (vFilename && imgFilename && (vFilename === imgFilename || vFilename.startsWith(imgFilename.replace(/\.[^/.]+$/, '')))) return true;
+        const imgFilename = img.image.split('/').pop()?.split('?')[0]?.toLowerCase() || '';
+        if (vFilename && imgFilename) {
+          if (vFilename === imgFilename) return true;
+          const imgStem = getCleanStem(img.image);
+          if (vStem && imgStem && vStem === imgStem) return true;
+        }
         return false;
       });
 
       if (existing) {
+        if (!existing.variantIds) existing.variantIds = [];
+        if (!existing.variantIds.includes(v.id)) existing.variantIds.push(v.id);
         if (!existing.variantId) existing.variantId = v.id;
       } else {
-        baseImages.push({ id: `v-${v.id}`, image: vUrl, variantId: v.id });
+        baseImages.push({ id: `v-${v.id}`, image: vUrl, variantId: v.id, variantIds: [v.id] });
       }
     });
 
@@ -780,6 +796,7 @@ const ProductDetailPage: React.FC = () => {
     setSelectedImage(0);
     setSelectedVariant(null);
     setUnavailableNotice(null);
+    hasSyncedInitialVariant.current = false;
 
     // Instant optimistic preview from navigation state or local/session cache
     const preview = (location.state as any)?.initialProduct || getCachedProduct(slug) || null;
@@ -820,19 +837,46 @@ const ProductDetailPage: React.FC = () => {
     }
     if (v.image) {
       const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
-      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase();
-      const idx = images.findIndex((img: any) => 
-        img.variantId === v.id || 
-        (img.image && vUrl && (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image))) ||
-        (vFilename && img.image && img.image.split('/').pop()?.split('?')[0]?.toLowerCase() === vFilename)
-      );
+      const vFilename = vUrl.split('/').pop()?.split('?')[0]?.toLowerCase() || '';
+      const vStem = getCleanStem(vUrl);
+
+      const variantParts = v.name ? v.name.split('/').map(p => p.trim().toLowerCase()) : [];
+      const visualName = variantParts[0] || '';
+
+      const idx = images.findIndex((img: any) => {
+        // 1. Tagged variantIds or direct variantId match
+        if (img.variantId === v.id || (img.variantIds && img.variantIds.includes(v.id))) return true;
+        // 2. Direct URL match
+        if (img.image && vUrl && (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image))) return true;
+        // 3. Filename exact or base stem match
+        if (img.image) {
+          const imgFilename = img.image.split('/').pop()?.split('?')[0]?.toLowerCase() || '';
+          if (vFilename && imgFilename && vFilename === imgFilename) return true;
+          const imgStem = getCleanStem(img.image);
+          if (vStem && imgStem && vStem === imgStem) return true;
+          // 4. Color name fallback if stem is unavailable
+          if (visualName && visualName.length > 2) {
+            const normVisual = visualName.replace(/\s+/g, '');
+            if (imgFilename.includes(normVisual) || img.alt_text?.toLowerCase().includes(visualName)) return true;
+          }
+        }
+        return false;
+      });
+
       if (idx !== -1) {
         setSelectedImage(idx);
         return;
       }
     }
-    setSelectedImage(0);
   }, [images]);
+
+  // Initial sync: sync selectedImage to the initial selected variant if applicable
+  useEffect(() => {
+    if (!hasSyncedInitialVariant.current && selectedVariant && images.length > 0) {
+      hasSyncedInitialVariant.current = true;
+      handleSelectVariant(selectedVariant);
+    }
+  }, [selectedVariant, images, handleSelectVariant]);
 
   // Multi-dimensional Variant Engine
   const variantDimensions = useMemo(() => {
@@ -1219,7 +1263,23 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const currentImageSrc = images[selectedImage]?.image || images[0]?.image || (typeof selectedVariant?.image === 'string' ? selectedVariant.image : (selectedVariant?.image as any)?.image) || '';
+  const variantImg = typeof selectedVariant?.image === 'string'
+    ? selectedVariant.image
+    : (selectedVariant?.image as any)?.image || '';
+
+  const currentImageSrc = 
+    (selectedImage >= 0 && images[selectedImage]?.image) 
+    || variantImg 
+    || images[0]?.image 
+    || (product as any)?.image 
+    || '';
+
+  const otherMobileImages = useMemo(() => {
+    return images
+      .map((img, idx) => ({ img, originalIndex: idx }))
+      .filter(item => item.originalIndex !== selectedImage)
+      .slice(0, 2);
+  }, [images, selectedImage]);
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
@@ -1452,9 +1512,16 @@ const ProductDetailPage: React.FC = () => {
                   <img src={currentImageSrc || images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover transition-opacity duration-200" loading="eager" />
                 </div>
                 <div className="flex flex-col gap-1 sm:gap-1.5">
-                  {images.slice(1, 3).map((img, idx) => (
-                    <div key={idx} className="relative flex-1 cursor-pointer overflow-hidden bg-white dark:bg-black" onClick={() => { setSelectedImage(idx + 1); setLightboxOpen(true); }}>
-                      <img src={img.image || ''} alt={`${product.name} ${idx + 2}`} className="w-full h-full object-cover" loading="lazy" />
+                  {otherMobileImages.map(({ img, originalIndex }, idx) => (
+                    <div 
+                      key={originalIndex} 
+                      className="relative flex-1 cursor-pointer overflow-hidden bg-white dark:bg-black" 
+                      onClick={() => { 
+                        setSelectedImage(originalIndex); 
+                        if (idx === 1 && images.length > 3) setLightboxOpen(true); 
+                      }}
+                    >
+                      <img src={img.image || ''} alt={`${product.name} ${originalIndex + 1}`} className="w-full h-full object-cover" loading="lazy" />
                       {idx === 1 && images.length > 3 && (
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
                           <span className="text-white text-lg font-bold">+{images.length - 3}</span>

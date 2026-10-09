@@ -403,28 +403,48 @@ const CategoryBar: React.FC = () => {
                           });
                         });
                       }}
-                      className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-transform duration-150 border shrink-0 ${!activeSubcategorySlug ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
+                      className={`flex items-center px-3 py-1.5 rounded-full text-xs border shrink-0 ${
+                        !activeSubcategorySlug
+                          ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white border-neutral-400 dark:border-neutral-500 shadow-sm'
+                          : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-300/80 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 shadow-sm'
+                      }`}
                     >
-                      All {activeCat.name}
+                      <span>All {activeCat.name}</span>
                     </button>
-                    {availableChildren.map((sub: any) => (
-                      <button
-                        key={sub.id}
-                        onClick={() => {
-                          categoryStore.setCategory(effectiveCategorySlug, sub.slug);
-                          React.startTransition(() => {
-                            setSearchParams(prev => {
-                              const p = new URLSearchParams(prev);
-                              p.set('subcategory', sub.slug);
-                              return p;
+                    {availableChildren.map((sub: any) => {
+                      const isSelected = activeSubcategorySlug === sub.slug;
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => {
+                            categoryStore.setCategory(effectiveCategorySlug, sub.slug);
+                            React.startTransition(() => {
+                              setSearchParams(prev => {
+                                const p = new URLSearchParams(prev);
+                                p.set('subcategory', sub.slug);
+                                return p;
+                              });
                             });
-                          });
-                        }}
-                        className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-transform duration-150 border shrink-0 ${activeSubcategorySlug === sub.slug ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
-                      >
-                        {sub.name} {sub.product_count > 0 && <span className="ml-1 opacity-70">({sub.product_count})</span>}
-                      </button>
-                    ))}
+                          }}
+                          className={`flex items-center px-3 py-1.5 rounded-full text-xs border shrink-0 ${
+                            isSelected
+                              ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white border-neutral-400 dark:border-neutral-500 shadow-sm'
+                              : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-300/80 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 shadow-sm'
+                          }`}
+                        >
+                          <span>{sub.name}</span>
+                          {sub.product_count > 0 && (
+                            <span className={`ml-1 ${
+                              isSelected
+                                ? 'font-bold text-neutral-700 dark:text-neutral-300'
+                                : 'font-normal text-neutral-500 dark:text-neutral-400'
+                            }`}>
+                              ({sub.product_count})
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
