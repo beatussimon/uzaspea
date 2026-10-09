@@ -186,10 +186,10 @@ const PublicVerifyPage: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm text-gray-900 dark:text-white">{fi.label}</span>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                                fi.severity === 'critical' ? ' text-red-500  dark:text-red-500' :
-                                fi.severity === 'major' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
-                                ' text-blue-500  dark:text-blue-500'
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase border bg-transparent ${
+                                fi.severity === 'critical' ? 'border-red-500/40 text-red-500 dark:text-red-400' :
+                                fi.severity === 'major' ? 'border-amber-500/40 text-amber-600 dark:text-amber-400' :
+                                'border-blue-500/40 text-blue-500 dark:text-blue-400'
                               }`}>{fi.severity}</span>
                             </div>
                             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Found: <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span></p>
