@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ClipboardList, ChevronRight, Upload, CheckCircle, AlertTriangle,
-  Clock, FileText, Bell, Search, RefreshCw, Shield,
-  MapPin, Camera, Printer, ChevronDown, ChevronUp, Check, X, ShieldAlert, BadgeCheck, Plus, ArrowLeft, ExternalLink, Lock
+  Clock, FileText, Bell, Search, RefreshCw,
+  Camera, Printer, ChevronDown, ChevronUp, Check, X, ShieldAlert, BadgeCheck, Plus, ArrowLeft, ExternalLink, Lock
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
@@ -953,8 +953,8 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
   return (
     <div className="space-y-4">
       <div className="card p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <FileText size={16} className="text-brand-500" /> Inspection Bill
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+          Inspection Bill
         </h3>
         <div className="space-y-2">
           {lines.map((l) => (
@@ -1231,12 +1231,12 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
       {/* Top Action & Verdict Bar */}
       <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+          <div className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 bg-transparent ${
             verdict === 'pass'
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+              ? 'text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
               : verdict === 'conditional'
-              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
-              : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-800/60'
+              ? 'text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
+              : 'text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60'
           }`}>
             {verdict === 'pass' ? <BadgeCheck size={14} className="text-emerald-600 dark:text-emerald-400" /> : verdict === 'conditional' ? <AlertTriangle size={14} className="text-amber-500" /> : <ShieldAlert size={14} className="text-red-500" />}
             <span>{verdict} • Grade {report.grade || 'A'} ({score}%)</span>
@@ -1289,8 +1289,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
       {/* Checklist Breakdown & Findings - Top Priority Focus */}
       <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-brand-500" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
             Checklist Breakdown & Findings
           </h3>
           <span className="text-2xs text-gray-400 font-semibold">
@@ -1305,7 +1304,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
             <div key={section} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden shadow-xs">
               <button
                 onClick={() => toggleSection(section)}
-                className="w-full flex items-center justify-between p-3 bg-gray-50/70 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700 text-left cursor-pointer"
+                className="w-full flex items-center justify-between p-3 bg-gray-50/70 dark:bg-gray-700/30 text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-xs text-gray-800 dark:text-gray-200 capitalize">
@@ -1315,7 +1314,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                     ({items.length})
                   </span>
                   {flaggedCount > 0 && (
-                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-950/40 dark:text-red-400">
+                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold text-red-600 dark:text-red-400 bg-transparent border border-red-200 dark:border-red-800/60">
                       {flaggedCount} issues
                     </span>
                   )}
@@ -1324,54 +1323,51 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
               </button>
 
               {isOpen && (
-                <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                <div className="p-1 space-y-0.5">
                   {items.map((r) => {
                     const itemEvidences = request.evidence.filter(ev => ev.checklist_item === r.checklist_item);
                     return (
-                      <div key={r.id} className={`p-3 transition-colors ${r.flagged ? 'bg-red-50/20 dark:bg-red-950/10' : 'hover:bg-gray-50/40 dark:hover:bg-gray-700/20'}`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1 flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-bold text-xs ${r.flagged ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                                {r.item_label}
-                              </span>
-                              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
-                                r.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
-                                  : r.severity === 'major' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
-                                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400'
-                              }`}>
-                                {r.severity}
-                              </span>
+                      <div key={r.id} className="p-2.5 rounded-lg transition-colors hover:bg-gray-50/40 dark:hover:bg-gray-700/20">
+                        <div className="flex items-center justify-between gap-3 min-w-0">
+                          <span className={`font-semibold text-xs flex-1 min-w-0 ${r.flagged ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {r.item_label}
+                          </span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`text-[10px] font-black uppercase tracking-wider text-right w-16 ${
+                              r.severity === 'critical' ? 'text-red-600 dark:text-red-400'
+                                : r.severity === 'major' ? 'text-orange-600 dark:text-orange-400'
+                                : 'text-yellow-600 dark:text-yellow-400'
+                            }`}>
+                              {r.severity}
+                            </span>
+                            <div className="min-w-[50px] flex justify-end">
+                              {r.flagged ? (
+                                <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-2xs font-black uppercase">
+                                  <X size={10} strokeWidth={3} /> {r.response_value || 'FAIL'}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-2xs font-black uppercase">
+                                  <Check size={10} strokeWidth={3} /> {r.response_value || 'PASS'}
+                                </span>
+                              )}
                             </div>
-                            {r.notes ? (
-                              <p className="text-2xs text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-900/40 p-1.5 rounded border border-gray-100 dark:border-gray-800">
-                                {r.notes}
-                              </p>
-                            ) : (
-                              <p className="text-2xs text-gray-400 italic">No defect notes recorded.</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {r.flagged ? (
-                              <div className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 rounded text-2xs font-black uppercase">
-                                <X size={10} strokeWidth={3} /> {r.response_value || 'FAIL'}
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 rounded text-2xs font-black uppercase">
-                                <Check size={10} strokeWidth={3} /> {r.response_value || 'PASS'}
-                              </div>
-                            )}
                           </div>
                         </div>
 
-                        {/* Inline Evidence Thumbnails - Compact */}
+                        {r.notes && (
+                          <p className="text-2xs text-gray-500 dark:text-gray-400 mt-1 pl-0.5 leading-relaxed">
+                            {r.notes}
+                          </p>
+                        )}
+
+                        {/* Inline Evidence Thumbnails - Compact without nested boundary boxes */}
                         {itemEvidences.length > 0 && (
                           <div className="mt-2 flex gap-2 overflow-x-auto py-0.5">
                             {itemEvidences.map(ev => (
                               <div
                                 key={ev.id}
                                 onClick={() => setSelectedImage(getImageUrl(ev.image))}
-                                className="relative w-12 h-12 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 cursor-zoom-in group shrink-0 bg-gray-100 dark:bg-gray-800"
+                                className="relative w-12 h-12 rounded-md overflow-hidden cursor-zoom-in group shrink-0 bg-gray-100 dark:bg-gray-800"
                               >
                                 <img
                                   src={getImageUrl(ev.image)}
@@ -1395,31 +1391,29 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
         })}
       </div>
 
-      {/* Photo Documentation - Neat Small Thumbnails */}
+      {/* Photo Documentation - Clean Thumbnails Without Inner Boundaries */}
       {request.evidence && request.evidence.length > 0 && (
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4 shadow-xs">
-          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-2.5 flex items-center gap-1.5">
-            <Camera className="text-brand-500" size={14} /> Photo Documentation ({request.evidence.length} photos)
+          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-3">
+            Photo Documentation ({request.evidence.length} photos)
           </h3>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-3">
             {request.evidence.map((ev) => (
               <div
                 key={ev.id}
-                className="group relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden cursor-zoom-in w-20 bg-gray-50 dark:bg-gray-900/60"
+                className="group relative cursor-zoom-in w-20 transition-transform hover:scale-105"
                 onClick={() => setSelectedImage(getImageUrl(ev.image))}
               >
-                <div className="w-20 h-16 overflow-hidden bg-gray-100 dark:bg-gray-800">
+                <div className="w-20 h-16 overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <img
                     src={getImageUrl(ev.image)}
                     alt={ev.caption || 'Evidence'}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-1 text-center bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-                  <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200 truncate">
-                    {ev.item_label || 'Evidence'}
-                  </p>
-                </div>
+                <p className="text-[10px] font-medium text-gray-700 dark:text-gray-300 truncate text-center mt-1">
+                  {ev.item_label || 'Evidence'}
+                </p>
               </div>
             ))}
           </div>
@@ -1565,72 +1559,70 @@ const RequestDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="card p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => navigate('/inspections')}
-                className="inline-flex items-center gap-1 text-2xs font-bold text-gray-500 hover:text-brand-500 transition-colors uppercase tracking-wider mr-1"
-              >
-                <ArrowLeft size={12} /> Back
-              </button>
+      <div className="card p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3">
+        {/* Top bar: Back & Status + Meta */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => navigate('/inspections')}
+              className="inline-flex items-center gap-1 text-2xs font-bold text-gray-500 hover:text-brand-500 transition-colors uppercase tracking-wider mr-1"
+            >
+              <ArrowLeft size={12} /> Back
+            </button>
+            <Badge
+              text={STATUS_LABELS[request.status] || request.status}
+              className={STATUS_COLORS[request.status] || 'badge-gray'}
+            />
+            {request.report?.is_locked && (request.report.verdict as string) !== 'LOCKED' && allPaid && (
               <Badge
-                text={STATUS_LABELS[request.status] || request.status}
-                className={STATUS_COLORS[request.status] || 'badge-gray'}
+                text={`VERDICT: ${request.report.verdict.toUpperCase()}`}
+                className={VERDICT_COLORS[request.report.verdict]}
               />
-              {request.report?.is_locked && (request.report.verdict as string) !== 'LOCKED' && allPaid && (
-                <Badge
-                  text={`VERDICT: ${request.report.verdict.toUpperCase()}`}
-                  className={VERDICT_COLORS[request.report.verdict]}
-                />
-              )}
-              <span className="text-2xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded font-bold">
-                {request.inspection_id}
-              </span>
-            </div>
-
-            {/* Title */}
-            <h1 className="text-lg sm:text-xl font-black uppercase text-gray-900 dark:text-white break-words leading-tight">
-              {request.item_name}
-            </h1>
-
-            {/* Subtle Marketplace Item Link in Title Area */}
-            {request.product_snapshot && (
-              <div className="flex items-center gap-2 pt-0.5 flex-wrap">
-                <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Marketplace Item:</span>
-                <Link
-                  to={`/product/${request.product_snapshot.id}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline bg-brand-50/80 dark:bg-brand-900/20 px-2 py-0.5 rounded-md border border-brand-200/50 dark:border-brand-800/50"
-                >
-                  {request.product_snapshot.image_url && (
-                    <img
-                      src={request.product_snapshot.image_url.startsWith('http') ? request.product_snapshot.image_url : `${API_BASE_URL}${request.product_snapshot.image_url}`}
-                      alt=""
-                      className="w-4 h-4 rounded object-cover"
-                    />
-                  )}
-                  <span>{request.product_snapshot.name}</span>
-                  <span className="text-gray-500 font-normal">({fmtMoney(request.product_snapshot.price)})</span>
-                  <ChevronRight size={12} className="text-brand-500" />
-                </Link>
-              </div>
             )}
-
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {request.category_path || request.category_name}
-            </p>
+            <span className="text-2xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded font-bold">
+              {request.inspection_id}
+            </span>
           </div>
 
-          <div className="flex flex-col sm:items-end gap-1 text-xs text-gray-500 dark:text-gray-400 shrink-0">
-            <div className="flex items-center gap-2">
-              <span>Scope: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.scope}</strong></span>
-              <span>•</span>
-              <span>Speed: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.turnaround}</strong></span>
-            </div>
-            <p className="text-[10px] text-gray-400">Requested {fmtDate(request.created_at)}</p>
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 sm:justify-end flex-wrap">
+            <span>Scope: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.scope}</strong></span>
+            <span>•</span>
+            <span>Speed: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.turnaround}</strong></span>
+            <span>•</span>
+            <span className="text-[11px] text-gray-400">{fmtDate(request.created_at)}</span>
           </div>
         </div>
+
+        {/* Title - Full Width */}
+        <h1 className="text-lg sm:text-xl font-black uppercase text-gray-900 dark:text-white break-words leading-tight">
+          {request.item_name}
+        </h1>
+
+        {/* Subtle Marketplace Item Link in Title Area - NO OUTER BOUNDARY */}
+        {request.product_snapshot && (
+          <div className="flex items-center gap-2 flex-wrap pt-0.5">
+            <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Marketplace Item:</span>
+            <Link
+              to={`/product/${request.product_snapshot.id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              {request.product_snapshot.image_url && (
+                <img
+                  src={request.product_snapshot.image_url.startsWith('http') ? request.product_snapshot.image_url : `${API_BASE_URL}${request.product_snapshot.image_url}`}
+                  alt=""
+                  className="w-4 h-4 rounded object-cover"
+                />
+              )}
+              <span>{request.product_snapshot.name}</span>
+              <span className="text-gray-500 font-normal">({fmtMoney(request.product_snapshot.price)})</span>
+              <ChevronRight size={12} className="text-brand-500" />
+            </Link>
+          </div>
+        )}
+
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {request.category_path || request.category_name}
+        </p>
       </div>
 
       {/* 2-Column Balanced Grid */}
@@ -1640,24 +1632,22 @@ const RequestDetail: React.FC = () => {
         <div className="lg:col-span-1 space-y-5">
           {/* Progress Timeline */}
           <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-            <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Clock size={15} className="text-brand-500" />
+            <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4">
               Inspection Progress
             </h3>
             <Timeline status={request.status} />
 
             {request.assignment && (
-              <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-1.5">
+              <div className="mt-5 space-y-1.5">
                 <p className="text-2xs font-bold uppercase tracking-wider text-gray-400">Assigned Inspector</p>
                 <p className="text-sm font-black text-gray-900 dark:text-white">
                   {request.assignment.inspector_name}
                 </p>
                 <Badge text={request.assignment.inspector_level} className="badge-blue capitalize" />
                 {request.assignment.sla_deadline && (
-                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                    <Clock size={12} />
-                    <span>Expected by {fmtDate(request.assignment.sla_deadline)}</span>
-                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    Expected by {fmtDate(request.assignment.sla_deadline)}
+                  </p>
                 )}
               </div>
             )}
@@ -1665,8 +1655,7 @@ const RequestDetail: React.FC = () => {
 
           {/* Item & Location Specs */}
           <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-2.5">
-            <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-              <MapPin size={15} className="text-brand-500" />
+            <h3 className="font-bold text-sm text-gray-900 dark:text-white">
               Location & Specs
             </h3>
             <div className="space-y-2 text-xs">
@@ -1687,22 +1676,19 @@ const RequestDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* QR Code & Authenticity Verification Card (Takes user directly to this inspection) */}
+          {/* QR Code & Authenticity Verification Card */}
           <div className="card p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-              <Shield size={16} className="text-emerald-500" />
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
-                  Verified Certificate
-                </h4>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  ✓ Authenticity Guaranteed
-                </span>
-              </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
+                Verified Certificate
+              </h4>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                ✓ Authenticity Guaranteed
+              </span>
             </div>
 
-            <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700">
-              <div className="p-1.5 bg-white rounded-lg border border-gray-200 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-white rounded-lg shrink-0">
                 <QRCodeSVG value={verifyUrl} size={64} level="M" />
               </div>
               <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-1">
@@ -1732,6 +1718,7 @@ const RequestDetail: React.FC = () => {
             )}
           </div>
         </div>
+
 
         {/* Right Column (Bill & Report View) */}
         <div className="lg:col-span-2 space-y-5">
@@ -2099,10 +2086,10 @@ const MyInspections: React.FC = () => {
                     {/* Top Row: Tracking ID & Scope + Status Badge & Chevron */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                        <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest bg-transparent border border-brand-200/50 dark:border-brand-800/50 px-1.5 py-0.5 rounded shrink-0">
                           {req.inspection_id || `REQ #${req.id}`}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-100 dark:bg-gray-700/60 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-transparent border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded shrink-0">
                           {req.scope} scope
                         </span>
                         <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap shrink-0 hidden sm:inline">
@@ -2117,7 +2104,7 @@ const MyInspections: React.FC = () => {
                           className={STATUS_COLORS[req.status] || 'badge-gray'}
                         />
                         {req.has_report && req.status !== 'report_ready' && (
-                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 hidden sm:inline-block">
+                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 hidden sm:inline-block">
                             Report ready
                           </span>
                         )}
@@ -2146,7 +2133,7 @@ const MyInspections: React.FC = () => {
                     {/* Secondary Report indicator if not report_ready and mobile */}
                     {req.has_report && req.status !== 'report_ready' && (
                       <div className="mt-1.5 sm:hidden">
-                        <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 inline-block">
+                        <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 inline-block">
                           Report ready
                         </span>
                       </div>
