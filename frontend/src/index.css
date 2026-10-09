@@ -438,3 +438,11 @@
     display: table-header-group;
   }
 }
+
+/* Recharts Pie Sectors - Remove default white stroke/border */
+.recharts-pie-sector,
+.recharts-pie-sector path,
+.recharts-sector {
+  stroke: none !important;
+  outline: none !important;
+}
