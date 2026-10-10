@@ -1,12 +1,13 @@
 import { InspectionRequest, fmtDate, fmtMoney } from '../types/inspection';
 import { API_BASE_URL } from '../api';
+import i18n from '../i18n';
 
 export const printInspectionReport = (request: InspectionRequest) => {
   if (!request) return;
 
   const isPaid = request.payments?.some(p => p.stage === 'balance' && p.status === 'approved');
   if (!isPaid) {
-    alert('Payment Required: Please pay the 70% final balance to unlock and print the official inspection certificate and report.');
+    alert(i18n.t('payment_required_print_report', 'Payment Required: Please pay the 70% final balance to unlock and print the official inspection certificate and report.'));
     return;
   }
 

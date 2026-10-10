@@ -620,7 +620,11 @@ const location = useLocation();
     setPromoCodes(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentActive } : p));
     try {
       await api.patch(`/api/promo-codes/${id}/`, { is_active: !currentActive });
-      toast.success(t('promo_status_updated', `Promo code ${!currentActive ? 'enabled' : 'disabled'}`));
+      toast.success(
+        !currentActive
+          ? t('promo_code_enabled', 'Promo code enabled')
+          : t('promo_code_disabled', 'Promo code disabled')
+      );
     } catch {
       toast.error(t('failed_to_update_status', 'Failed to update promo status'));
       refreshPromoCodes();

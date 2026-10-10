@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, CalendarDays, Banknote, Tag } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
@@ -38,6 +39,7 @@ const formatStock = (val: any): string => {
 };
 
 const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState('');
@@ -54,7 +56,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
       })
       .catch(err => {
         console.error(err);
-        toast.error('Failed to load POS history');
+        toast.error(t('failed_to_load_pos_history', 'Failed to load POS history'));
       })
       .finally(() => setLoading(false));
   };
@@ -78,8 +80,8 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
     <div className="card overflow-hidden">
       <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-sm font-bold text-gray-900 dark:text-white">Sales History</h2>
-          <p className="text-2xs text-gray-500 dark:text-gray-400">View past walk-in customers and printed invoices</p>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('sales_history', 'Sales History')}</h2>
+          <p className="text-2xs text-gray-500 dark:text-gray-400">{t('sales_history_desc', 'View past walk-in customers and printed invoices')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -92,7 +94,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
             />
           </div>
           {dateFilter && (
-            <Button variant="outline" size="sm" onClick={() => setDateFilter('')} className="text-xs">Clear</Button>
+            <Button variant="outline" size="sm" onClick={() => setDateFilter('')} className="text-xs">{t('clear', 'Clear')}</Button>
           )}
         </div>
       </div>
@@ -101,20 +103,20 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
         <table className="w-full text-left text-xs whitespace-nowrap">
           <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
             <tr>
-              <th className="p-3">Date</th>
-              <th className="p-3">Invoice #</th>
-              <th className="p-3">Customer</th>
-              <th className="p-3 text-right">Total Sale</th>
-              <th className="p-3 text-right">Cash Tendered</th>
-              <th className="p-3 text-right">Change Given</th>
-              <th className="p-3 text-center">Receipt</th>
+              <th className="p-3">{t('date', 'Date')}</th>
+              <th className="p-3">{t('invoice_number', 'Invoice #')}</th>
+              <th className="p-3">{t('customer', 'Customer')}</th>
+              <th className="p-3 text-right">{t('total_sale', 'Total Sale')}</th>
+              <th className="p-3 text-right">{t('cash_tendered', 'Cash Tendered')}</th>
+              <th className="p-3 text-right">{t('change_given', 'Change Given')}</th>
+              <th className="p-3 text-center">{t('receipt', 'Receipt')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
             {filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">
-                  No sales found for the selected criteria.
+                  {t('no_sales_found', 'No sales found for the selected criteria.')}
                 </td>
               </tr>
             ) : (
@@ -130,7 +132,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                     </td>
                     <td className="p-3 text-brand-600 dark:text-brand-400 font-bold">#{order.id}</td>
                     <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">
-                      {order.delivery_info?.customer_name || 'Walk-in Customer'}
+                      {order.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}
                     </td>
                     <td className="p-3 text-right font-extrabold text-gray-900 dark:text-white">
                       <div>TSh {totalAmt.toLocaleString()}</div>
@@ -148,7 +150,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                     </td>
                     <td className="p-3 text-center">
                       <Button variant="outline" size="sm" onClick={() => onPrint(order)} className="text-2xs py-1 px-2.5 h-7 font-bold">
-                        <Printer size={12} className="mr-1" /> View Receipt
+                        <Printer size={12} className="mr-1" /> {t('view_receipt', 'View Receipt')}
                       </Button>
                     </td>
                   </tr>
@@ -163,7 +165,8 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 };
 
 const DashboardPOS: React.FC = () => {
-const { user } = useAuth();
+  const { user } = useAuth();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -171,7 +174,7 @@ const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [customerName, setCustomerName] = useState(t('walk_in_customer', 'Walk-in Customer'));
   const [amountPaid, setAmountPaid] = useState('');
 
   // Discount & Promo Code System State
@@ -206,7 +209,7 @@ const { user } = useAuth();
         }
         setProducts(prods);
       })
-      .catch(() => toast.error('Failed to load products'))
+      .catch(() => toast.error(t('failed_to_load_products', 'Failed to load products')))
       .finally(() => setLoading(false));
   };
 
@@ -229,14 +232,14 @@ const { user } = useAuth();
     let price = variant ? parseFloat(product.price) + parseFloat(variant.price_adjustment) : parseFloat(product.price);
     
     if (stock <= 0) {
-      toast.error('Out of stock!');
+      toast.error(t('out_of_stock', 'Out of stock!'));
       return;
     }
 
     if (product.requires_quote) {
-      const userPrice = window.prompt(`Enter agreed-upon price (TSh) for ${product.name}:`);
+      const userPrice = window.prompt(t('pos_enter_price_prompt', 'Enter agreed-upon price (TSh) for {{name}}:', { name: product.name }));
       if (userPrice === null || isNaN(parseFloat(userPrice)) || parseFloat(userPrice) < 0) {
-        toast.error('Valid price is required for this product');
+        toast.error(t('valid_price_required', 'Valid price is required for this product'));
         return;
       }
       price = parseFloat(userPrice);
@@ -246,7 +249,7 @@ const { user } = useAuth();
       const existing = prev.find(item => item.id === id);
       if (existing) {
         if (existing.quantity >= stock) {
-          toast.error('Maximum stock reached!');
+          toast.error(t('max_stock_reached', 'Maximum stock reached!'));
           return prev;
         }
         return prev.map(item => item.id === id ? { ...item, quantity: item.quantity + 1 } : item);
@@ -263,7 +266,7 @@ const { user } = useAuth();
       }];
     });
     
-    toast.success('Added to sale', { duration: 1500, icon: '🛍️' });
+    toast.success(t('pos_added_to_sale', 'Added to sale'), { duration: 1500, icon: '🛍️' });
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -322,18 +325,18 @@ const { user } = useAuth();
       setAppliedPromo(res.data);
     }).catch(() => {
       setAppliedPromo(null);
-      toast.error(`Promo '${appliedPromo.code}' removed (requirements no longer met)`);
+      toast.error(t('promo_removed_requirements', "Promo '{{code}}' removed (requirements no longer met)", { code: appliedPromo.code }));
     });
   }, [cart, cartTotal]);
 
   const handleApplyPromo = async (codeOverride?: string): Promise<boolean> => {
     const codeToApply = (codeOverride || promoCode).trim();
     if (!codeToApply) {
-      toast.error('Please enter a promo code');
+      toast.error(t('enter_promo_code', 'Please enter a promo code'));
       return false;
     }
     if (cart.length === 0) {
-      toast.error('Add items to cart first');
+      toast.error(t('add_items_first', 'Add items to cart first'));
       return false;
     }
     setValidatingPromo(true);
@@ -354,10 +357,10 @@ const { user } = useAuth();
       setAppliedPromo(res.data);
       setPromoCode(res.data.code);
       setCustomDiscount(0);
-      toast.success(`Promo code '${res.data.code}' applied! (-TSh ${Math.round(res.data.discount_amount).toLocaleString()})`);
+      toast.success(t('promo_code_applied', "Promo code '{{code}}' applied! (-TSh {{amount}})", { code: res.data.code, amount: Math.round(res.data.discount_amount).toLocaleString() }));
       return true;
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Invalid promo code');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || t('invalid_promo_code', 'Invalid promo code'));
       return false;
     } finally {
       setValidatingPromo(false);
@@ -367,12 +370,12 @@ const { user } = useAuth();
   const handleRemovePromo = () => {
     setAppliedPromo(null);
     setPromoCode('');
-    toast.success('Promo code removed');
+    toast.success(t('promo_removed', 'Promo code removed'));
   };
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      toast.error('Cart is empty!');
+      toast.error(t('pos_cart_empty', 'Cart is empty!'));
       return;
     }
 
@@ -392,18 +395,18 @@ const { user } = useAuth();
       };
 
       const res = await api.post('/api/orders/pos-checkout/', payload);
-      toast.success('Sale completed successfully!');
+      toast.success(t('pos_sale_completed', 'Sale completed successfully!'));
       setReceiptData(res.data);
       setCart([]);
       setAppliedPromo(null);
       setPromoCode('');
       setCustomDiscount(0);
-      setCustomerName('Walk-in Customer');
+      setCustomerName(t('walk_in_customer', 'Walk-in Customer'));
       setAmountPaid('');
       setIsMobileCartOpen(false);
       fetchProducts(); // Refresh stock
     } catch (error: any) {
-      toast.error(error.response?.data?.error || error.response?.data?.detail || 'Checkout failed');
+      toast.error(error.response?.data?.error || error.response?.data?.detail || t('pos_checkout_failed', 'Checkout failed'));
     } finally {
       setSubmitting(false);
     }
@@ -476,8 +479,8 @@ const { user } = useAuth();
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Point of Sale (POS)
-            </h1>
+            {t('point_of_sale', 'Point of Sale (POS)')}
+          </h1>
 
           <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
             <button 
@@ -490,7 +493,7 @@ const { user } = useAuth();
               }`}
             >
               <Receipt size={13} />
-              <span>New Sale</span>
+              <span>{t('new_sale', 'New Sale')}</span>
             </button>
             <button 
               type="button"
@@ -502,12 +505,12 @@ const { user } = useAuth();
               }`}
             >
               <History size={13} />
-              <span>Sales History</span>
+              <span>{t('sales_history', 'Sales History')}</span>
             </button>
           </div>
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          Process walk-in customer sales, print physical receipts, and manage direct orders.
+          {t('pos_subtitle', 'Process walk-in customer sales, print physical receipts, and manage direct orders.')}
         </p>
       </header>
 
@@ -518,14 +521,14 @@ const { user } = useAuth();
             {/* Search Header */}
             <div className="p-4 pb-2 flex flex-col sm:flex-row justify-between sm:items-center gap-3 shrink-0">
               <div>
-                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Store Catalog</h2>
-                <p className="text-2xs text-gray-500 dark:text-gray-400">Click any product to add to the active register cart</p>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('store_catalog', 'Store Catalog')}</h2>
+                <p className="text-2xs text-gray-500 dark:text-gray-400">{t('store_catalog_desc', 'Click any product to add to the active register cart')}</p>
               </div>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder={t('search_products', 'Search products...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-xl pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
@@ -540,8 +543,8 @@ const { user } = useAuth();
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-20" />
-                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300">No products found</p>
-                  <p className="text-2xs text-gray-400 mt-0.5">Try searching for a different keyword.</p>
+                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('no_products_found', 'No products found')}</p>
+                  <p className="text-2xs text-gray-400 mt-0.5">{t('try_different_keyword', 'Try searching for a different keyword.')}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -563,7 +566,7 @@ const { user } = useAuth();
                           />
                           {stockNum <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-20">
-                              <span className="text-white font-bold uppercase px-2.5 py-1 bg-red-600 rounded-full text-2xs shadow-md">Out of Stock</span>
+                              <span className="text-white font-bold uppercase px-2.5 py-1 bg-red-600 rounded-full text-2xs shadow-md">{t('out_of_stock', 'Out of Stock')}</span>
                             </div>
                           )}
                         </div>
@@ -571,7 +574,7 @@ const { user } = useAuth();
                         {/* Top Badges */}
                         <div className="relative z-10 p-2 flex justify-between items-start pointer-events-none">
                           <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
-                            {stockNum > 0 ? `${formatStock(product.stock)} left` : '0 left'}
+                            {stockNum > 0 ? t('items_left', '{{count}} left', { count: formatStock(product.stock) }) : t('items_left', '0 left', { count: 0 })}
                           </span>
                           {(!product.variants || product.variants.length === 0) && (
                             <button
@@ -582,7 +585,7 @@ const { user } = useAuth();
                               }}
                               disabled={stockNum <= 0}
                               className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-brand-500 group-hover:text-black group-hover:border-transparent hover:!bg-brand-400 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
-                              title="Add to cart"
+                              title={t('add_to_cart', 'Add to cart')}
                             >
                               <Plus size={14} className="stroke-[2.5]" />
                             </button>
@@ -676,7 +679,7 @@ const { user } = useAuth();
                         </span>
                       )}
                     </div>
-                    <span className="font-bold text-xs">Current Register Sale</span>
+                    <span className="font-bold text-xs">{t('current_sale', 'Current Register Sale')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
@@ -697,7 +700,7 @@ const { user } = useAuth();
                 <div className="relative bg-white dark:bg-[#121212] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
                   <div className="p-4 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <ShoppingCart size={16} className="text-brand-500" /> Current Sale
+                      <ShoppingCart size={16} className="text-brand-500" /> {t('current_sale', 'Current Sale')}
                     </h2>
                     <button onClick={() => setIsMobileCartOpen(false)} className="p-1 rounded-btn text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                       <X size={18} />
@@ -784,11 +787,11 @@ const { user } = useAuth();
                 {/* Logo Area */}
                 <div className="text-center mb-3">
                   <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-1.5" style={{ maxWidth: '96px', maxHeight: '42px' }} />
-                  <p className="text-[10px] text-gray-500">Premium Quality Products</p>
+                  <p className="text-[10px] text-gray-500">{t('pos_receipt_tagline', 'Premium Quality Products')}</p>
                 </div>
                 
                 <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">
-                  <p className="font-bold">INVOICE #{receiptData.id}</p>
+                  <p className="font-bold">{t('invoice_number', 'INVOICE #')}{receiptData.id}</p>
                   <p>{(() => {
                     const rawDate = receiptData.order_date || receiptData.created_at;
                     if (!rawDate) return new Date().toLocaleString();
@@ -798,16 +801,16 @@ const { user } = useAuth();
                 </div>
 
                 <div className="text-xs mb-3">
-                  <p><strong>Billed By:</strong> {(user as any)?.first_name && (user as any)?.last_name ? `${(user as any).first_name} ${(user as any).last_name}` : user?.username || 'Store'}</p>
-                  <p><strong>Customer:</strong> {receiptData?.delivery_info?.customer_name || 'Walk-in Customer'}</p>
+                  <p><strong>{t('billed_by', 'Billed By:')}</strong> {(user as any)?.first_name && (user as any)?.last_name ? `${(user as any).first_name} ${(user as any).last_name}` : user?.username || 'Store'}</p>
+                  <p><strong>{t('customer', 'Customer:')}</strong> {receiptData?.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}</p>
                 </div>
                 
                 {/* Items List */}
                 <div className="border-t border-b border-dashed border-gray-400 py-2 mb-3">
                   <div className="flex font-bold text-xs mb-1">
-                    <span className="flex-1">Item</span>
-                    <span className="w-10 text-center">Qty</span>
-                    <span className="w-16 text-right">Amt</span>
+                    <span className="flex-1">{t('item', 'Item')}</span>
+                    <span className="w-10 text-center">{t('qty', 'Qty')}</span>
+                    <span className="w-16 text-right">{t('amount', 'Amt')}</span>
                   </div>
                   
                   {(receiptData.items || receiptData.orderitem_set || []).map((item: any, i: number) => {
@@ -842,11 +845,11 @@ const { user } = useAuth();
                     return (
                       <>
                         <div className="text-xs flex justify-between text-gray-600 mb-1">
-                          <span>SUBTOTAL</span>
+                          <span>{t('subtotal', 'SUBTOTAL')}</span>
                           <span>{Math.round(subtotalVal).toLocaleString()}/=</span>
                         </div>
                         <div className="text-xs flex justify-between text-gray-600 mb-1">
-                          <span>DISCOUNT {promoCodeName ? `(${promoCodeName})` : ''}</span>
+                          <span>{t('discount', 'DISCOUNT')} {promoCodeName ? `(${promoCodeName})` : ''}</span>
                           <span>-{Math.round(discountVal).toLocaleString()}/=</span>
                         </div>
                       </>
@@ -856,7 +859,7 @@ const { user } = useAuth();
                 })()}
 
                 <div className="text-sm font-black flex justify-between mb-1">
-                  <span>TOTAL TSH</span>
+                  <span>{t('total_amount', 'TOTAL TSH')}</span>
                   <span>{(() => {
                     const rawTot = parseFloat(receiptData?.total_amount || 0);
                     return Math.round(isNaN(rawTot) ? 0 : rawTot).toLocaleString() + '/=';
@@ -866,14 +869,14 @@ const { user } = useAuth();
                 {(receiptData?.delivery_info?.amount_tendered || receiptData?.delivery_info?.amount_paid) && (
                   <>
                     <div className="text-xs flex justify-between text-gray-600 mb-1">
-                      <span>CASH TENDERED</span>
+                      <span>{t('cash_tendered', 'CASH TENDERED')}</span>
                       <span>{(() => {
                         const rawPaid = parseFloat(receiptData.delivery_info.amount_tendered || receiptData.delivery_info.amount_paid);
                         return Math.round(isNaN(rawPaid) ? 0 : rawPaid).toLocaleString() + '/=';
                       })()}</span>
                     </div>
                     <div className="text-xs flex justify-between text-gray-600">
-                      <span>CHANGE</span>
+                      <span>{t('change', 'CHANGE')}</span>
                       <span>{(() => {
                         const rawPaid = parseFloat(receiptData.delivery_info.amount_tendered || receiptData.delivery_info.amount_paid || 0);
                         const rawTot = parseFloat(receiptData.total_amount || 0);
@@ -886,7 +889,7 @@ const { user } = useAuth();
                 )}
                 
                 <div className="border-t border-dashed border-gray-400 mt-3 pt-4 text-center">
-                  <p className="text-[10px] font-bold mb-3">Scan to visit our store!</p>
+                  <p className="text-[10px] font-bold mb-3">{t('scan_store_receipt', 'Scan to visit our store!')}</p>
                   <div className="flex justify-center">
                     {user?.username ? (
                       <QRCodeSVG value={`${window.location.origin}/${user.username}`} size={64} level="L" />
@@ -894,7 +897,7 @@ const { user } = useAuth();
                       <div className="w-16 h-16 bg-gray-200" />
                     )}
                   </div>
-                  <p className="text-[9px] mt-2 text-gray-500">Thank you for shopping with us.</p>
+                  <p className="text-[9px] mt-2 text-gray-500">{t('receipt_thank_you', 'Thank you for shopping with us.')}</p>
                   <p className="text-[9px] text-gray-500">{window.location.host}/{user?.username || ''}</p>
                 </div>
 
@@ -903,7 +906,7 @@ const { user } = useAuth();
             
             <div className="p-4 pt-2 flex gap-2 print-hidden shrink-0">
               <Button onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold">
-                <Printer size={14} /> Print Receipt
+                <Printer size={14} /> {t('print_receipt', 'Print Receipt')}
               </Button>
             </div>
           </div>
@@ -936,6 +939,7 @@ const CartContent = ({
   handleCheckout, 
   submitting 
 }: any) => {
+  const { t } = useTranslation();
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
   const [showCustomDiscount, setShowCustomDiscount] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -970,23 +974,23 @@ const CartContent = ({
             type="text"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
-            placeholder="Walk-in Customer"
+            placeholder={t('walk_in_customer', 'Walk-in Customer')}
             className="bg-transparent border-none text-xs font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-0 w-full p-0 leading-tight outline-none"
-            title="Customer Name"
+            title={t('customer', 'Customer')}
           />
-          {customerName && customerName !== 'Walk-in Customer' && (
+          {customerName && customerName !== t('walk_in_customer', 'Walk-in Customer') && customerName !== 'Walk-in Customer' && (
             <button
               type="button"
-              onClick={() => setCustomerName('Walk-in Customer')}
+              onClick={() => setCustomerName(t('walk_in_customer', 'Walk-in Customer'))}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xs font-medium shrink-0 p-0.5 rounded transition cursor-pointer"
-              title="Reset to Walk-in"
+              title={t('reset_walk_in', 'Reset to Walk-in')}
             >
               <X size={12} />
             </button>
           )}
         </div>
         <span className="text-xs font-medium text-gray-400 dark:text-gray-400 shrink-0 whitespace-nowrap px-1 tabular-nums">
-          {cart.reduce((s: number, i: any) => s + i.quantity, 0)} {cart.reduce((s: number, i: any) => s + i.quantity, 0) === 1 ? 'item' : 'items'}
+          {cart.reduce((s: number, i: any) => s + i.quantity, 0)} {cart.reduce((s: number, i: any) => s + i.quantity, 0) === 1 ? t('item_one', 'item') : t('item_other', 'items')}
         </span>
       </div>
 
@@ -997,8 +1001,8 @@ const CartContent = ({
             <div className="w-10 h-10 bg-gray-100 dark:bg-[#161616] rounded-full flex items-center justify-center mb-2">
               <ShoppingCart size={18} className="text-gray-400 opacity-60" />
             </div>
-            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Register is empty</h3>
-            <p className="text-3xs text-gray-400 mt-0.5">Click products in the catalog to add</p>
+            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">{t('pos_cart_empty', 'Register is empty')}</h3>
+            <p className="text-3xs text-gray-400 mt-0.5">{t('pos_cart_empty_hint', 'Click products in the catalog to add')}</p>
           </div>
         ) : (
           cart.map((item: any) => (
@@ -1044,7 +1048,7 @@ const CartContent = ({
                   type="button"
                   onClick={() => removeFromCart(item.id)} 
                   className="text-gray-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 p-1 transition opacity-0 group-hover:opacity-100 cursor-pointer"
-                  title="Remove"
+                  title={t('remove', 'Remove')}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -1063,7 +1067,7 @@ const CartContent = ({
             className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white transition cursor-pointer select-none min-w-0"
           >
             <Tag size={13} className="text-gray-400 shrink-0" />
-            <span className="truncate">Promo code / Discount</span>
+            <span className="truncate">{t('promo_or_discount', 'Promo code / Discount')}</span>
             {appliedPromo && (
               <span className="shrink-0 px-1.5 py-0.5 rounded text-3xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                 {appliedPromo.code}
@@ -1083,7 +1087,7 @@ const CartContent = ({
                 onClick={() => setShowCustomDiscount(!showCustomDiscount)}
                 className="text-2xs font-medium text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
               >
-                {showCustomDiscount ? 'Use promo code' : '+ Custom amount'}
+                {showCustomDiscount ? t('use_promo_code', 'Use promo code') : t('custom_amount', '+ Custom amount')}
               </button>
             )}
             <button
@@ -1130,7 +1134,7 @@ const CartContent = ({
                   disabled={!customInput || parseFloat(customInput) <= 0}
                   className="px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-black text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition shrink-0 cursor-pointer"
                 >
-                  Apply
+                  {t('apply', 'Apply')}
                 </button>
               </div>
             ) : (
@@ -1138,7 +1142,7 @@ const CartContent = ({
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="Enter code"
+                    placeholder={t('enter_code', 'Enter code')}
                     value={promoCode}
                     onChange={(e) => setPromoCode && setPromoCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => {
@@ -1156,7 +1160,7 @@ const CartContent = ({
                   disabled={validatingPromo || !promoCode.trim()}
                   className="px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-black text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition shrink-0 cursor-pointer"
                 >
-                  {validatingPromo ? '...' : 'Apply'}
+                  {validatingPromo ? '...' : t('apply', 'Apply')}
                 </button>
               </div>
             )}
@@ -1171,14 +1175,14 @@ const CartContent = ({
           {discountAmount > 0 && (
             <>
               <div className="flex justify-between items-baseline text-xs text-gray-500 dark:text-gray-400">
-                <span className="font-normal">Subtotal</span>
+                <span className="font-normal">{t('subtotal', 'Subtotal')}</span>
                 <span className="font-medium tabular-nums text-gray-700 dark:text-gray-300">
                   TSh {cartTotal.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-baseline text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span>Discount {appliedPromo ? `(${appliedPromo.code})` : customDiscount > 0 ? '(Custom)' : ''}</span>
+                  <span>{t('discount', 'Discount')} {appliedPromo ? `(${appliedPromo.code})` : customDiscount > 0 ? '(Custom)' : ''}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1191,9 +1195,9 @@ const CartContent = ({
                       }
                     }}
                     className="text-2xs text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 underline cursor-pointer transition ml-0.5"
-                    title="Clear discount"
+                    title={t('clear_discount', 'Clear discount')}
                   >
-                    clear
+                    {t('clear', 'clear')}
                   </button>
                 </div>
                 <span className="tabular-nums">- TSh {discountAmount.toLocaleString()}</span>
@@ -1201,7 +1205,7 @@ const CartContent = ({
             </>
           )}
           <div className="flex justify-between items-baseline pt-1 border-t border-surface-border/30 dark:border-neutral-800/50">
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Total Due</span>
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{t('total_due', 'Total Due')}</span>
             <div className="flex items-baseline gap-1 text-right">
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 select-none">TSh</span>
               <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white tabular-nums">
@@ -1216,13 +1220,13 @@ const CartContent = ({
           <div className="flex items-center justify-between text-xs">
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
               <Banknote size={13} className="text-gray-400" />
-              <span>Cash tendered</span>
+              <span>{t('cash_tendered', 'Cash tendered')}</span>
             </label>
             {tenderVal > 0 && (
               <span className={`text-xs font-medium tabular-nums ${tenderVal >= effectiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
                 {tenderVal >= effectiveTotal 
-                  ? `Change: TSh ${changeDue.toLocaleString()}` 
-                  : `Remaining: TSh ${(effectiveTotal - tenderVal).toLocaleString()}`
+                  ? t('change_amount', 'Change: TSh {{amount}}', { amount: changeDue.toLocaleString() })
+                  : t('remaining_amount', 'Remaining: TSh {{amount}}', { amount: (effectiveTotal - tenderVal).toLocaleString() })
                 }
               </span>
             )}
@@ -1246,7 +1250,7 @@ const CartContent = ({
                 type="button"
                 onClick={() => setAmountPaid('')}
                 className="text-gray-400 hover:text-red-500 text-xs px-1 cursor-pointer"
-                title="Clear"
+                title={t('clear', 'Clear')}
               >
                 <X size={13} />
               </button>
@@ -1261,7 +1265,7 @@ const CartContent = ({
                 onClick={() => setAmountPaid(String(effectiveTotal))}
                 className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
               >
-                Exact
+                {t('exact', 'Exact')}
               </button>
               <button
                 type="button"
@@ -1289,7 +1293,7 @@ const CartContent = ({
           className="w-full py-3 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-black font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.98] shadow-sm cursor-pointer disabled:cursor-not-allowed"
         >
           <Receipt size={15} className="shrink-0 text-black stroke-[2]" />
-          <span className="text-black font-bold tracking-wide">{submitting ? 'Processing sale...' : 'Complete Sale'}</span>
+          <span className="text-black font-bold tracking-wide">{submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}</span>
         </button>
       </div>
     </div>

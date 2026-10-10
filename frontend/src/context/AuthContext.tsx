@@ -313,9 +313,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     const theme = localStorage.getItem('theme');
     const savedCart = localStorage.getItem('sokonimax_cart');
+    const lang = localStorage.getItem('uzaspea_language');
     localStorage.clear();
     if (theme) localStorage.setItem('theme', theme);
     if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
+    if (lang) localStorage.setItem('uzaspea_language', lang);
     setIsAuthenticated(false);
   };
 
