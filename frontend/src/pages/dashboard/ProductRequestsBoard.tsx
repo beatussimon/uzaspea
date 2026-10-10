@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -8,12 +8,13 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { DemandAnalyticsSkeleton } from '../../components/Skeleton';
 import { printElement } from '../../utils/printHelper';
+import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 
 const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TSh') => {
   if (rawNum === undefined || rawNum === null) return `${currency} 0`;
@@ -44,6 +45,16 @@ const ProductRequestsBoard: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
   const [votingId, setVotingId] = useState<number | null>(null);
+  
+  // Profitability Display State (List vs Pie Chart)
+  const [productDisplayType, setProductDisplayType] = useState<'list' | 'chart'>('list');
+
+  // Date Range Filter State (Matches Store Analytics)
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+    label: t('all_time', 'All Time')
+  });
   
   // Form State
   const [newReqName, setNewReqName] = useState('');
@@ -200,10 +211,29 @@ const ProductRequestsBoard: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const activeRequests = requests.filter(r => !r.is_fulfilled);
+  const filteredRequests = useMemo(() => {
+    if (!dateRange.startDate && !dateRange.endDate) return requests;
+    return requests.filter(req => {
+      const dateVal = req.created_at || req.last_requested;
+      if (!dateVal) return false;
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return false;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const localDateStr = `${year}-${month}-${day}`;
+
+      if (dateRange.startDate && localDateStr < dateRange.startDate) return false;
+      if (dateRange.endDate && localDateStr > dateRange.endDate) return false;
+      return true;
+    });
+  }, [requests, dateRange]);
+
+  const activeRequests = useMemo(() => filteredRequests.filter(r => !r.is_fulfilled), [filteredRequests]);
+  const fulfilledRequests = useMemo(() => filteredRequests.filter(r => r.is_fulfilled), [filteredRequests]);
   
-  const sortedRequests = useMemo(() => {
-    let sortableItems = [...requests];
+  const sortItems = (items: any[]) => {
+    let sortableItems = [...items];
     sortableItems.sort((a, b) => {
       let aValue = a[sortConfig.key];
       let bValue = b[sortConfig.key];
@@ -211,6 +241,23 @@ const ProductRequestsBoard: React.FC = () => {
       if (sortConfig.key === 'created_at' || sortConfig.key === 'last_requested') {
         aValue = aValue ? new Date(aValue).getTime() : 0;
         bValue = bValue ? new Date(bValue).getTime() : 0;
+      } else if (sortConfig.key === 'projected_profit') {
+        const sellA = parseFloat(a.price || '0') || 0;
+        const buyA = parseFloat(a.buying_price || '0') || 0;
+        aValue = Math.max(0, sellA - buyA) * (a.request_count || 0);
+
+        const sellB = parseFloat(b.price || '0') || 0;
+        const buyB = parseFloat(b.buying_price || '0') || 0;
+        bValue = Math.max(0, sellB - buyB) * (b.request_count || 0);
+      } else if (sortConfig.key === 'buying_price' || sortConfig.key === 'price') {
+        aValue = parseFloat(a[sortConfig.key] || '0') || 0;
+        bValue = parseFloat(b[sortConfig.key] || '0') || 0;
+      } else if (sortConfig.key === 'request_count') {
+        aValue = a.request_count || 0;
+        bValue = b.request_count || 0;
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = (bValue || '').toString().toLowerCase();
       }
       
       if (aValue < bValue) {
@@ -222,7 +269,11 @@ const ProductRequestsBoard: React.FC = () => {
       return 0;
     });
     return sortableItems;
-  }, [requests, sortConfig]);
+  };
+
+  const sortedActiveRequests = useMemo(() => sortItems(activeRequests), [activeRequests, sortConfig]);
+  const sortedFulfilledRequests = useMemo(() => sortItems(fulfilledRequests), [fulfilledRequests, sortConfig]);
+  const sortedRequests = useMemo(() => sortItems(filteredRequests), [filteredRequests, sortConfig]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -247,6 +298,86 @@ const ProductRequestsBoard: React.FC = () => {
   const projectedRevenue = activeRequests.reduce((acc, req) => acc + (req.price ? parseFloat(req.price) * req.request_count : 0), 0);
   const totalMissedCost = activeRequests.reduce((acc, req) => acc + (req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
   const potentialProfit = projectedRevenue - totalMissedCost;
+  const profitMargin = projectedRevenue > 0 ? Math.round((potentialProfit / projectedRevenue) * 100) : 0;
+
+  // Fulfilled history statistics
+  const fulfilledVotes = fulfilledRequests.reduce((acc, curr) => acc + (curr.request_count || 0), 0);
+  const fulfilledRevenue = fulfilledRequests.reduce((acc, req) => acc + (req.price ? parseFloat(req.price) * req.request_count : 0), 0);
+  const fulfilledCost = fulfilledRequests.reduce((acc, req) => acc + (req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
+  const fulfilledProfit = fulfilledRevenue - fulfilledCost;
+
+  const profitChartData = useMemo(() => {
+    const data: { name: string; value: number; color: string }[] = [];
+    if (potentialProfit > 0) {
+      data.push({ name: 'Est. Profit', value: Math.round(potentialProfit), color: '#10b981' });
+    }
+    if (totalMissedCost > 0) {
+      data.push({ name: 'Est. Cost', value: Math.round(totalMissedCost), color: '#3b82f6' });
+    }
+    return data;
+  }, [potentialProfit, totalMissedCost]);
+
+  // Demand-weighted projected profitability per product
+  const productProfits = useMemo(() => {
+    return activeRequests
+      .map(req => {
+        const sell = req.price ? parseFloat(req.price) : 0;
+        const buy = req.buying_price ? parseFloat(req.buying_price) : 0;
+        const unitProfit = Math.max(0, sell - buy);
+        const demand = req.request_count || 0;
+        const projectedProfit = unitProfit * demand;
+        const margin = sell > 0 ? Math.round(((sell - buy) / sell) * 100) : 0;
+        return {
+          ...req,
+          sell,
+          buy,
+          unitProfit,
+          demand,
+          projectedProfit,
+          margin
+        };
+      })
+      .filter(item => item.projectedProfit > 0)
+      .sort((a, b) => b.projectedProfit - a.projectedProfit);
+  }, [activeRequests]);
+
+  const topProfitableProduct = productProfits.length > 0 ? productProfits[0] : null;
+  const maxProjectedProfit = topProfitableProduct ? topProfitableProduct.projectedProfit : 0;
+
+  const PRODUCT_COLORS = ['#10b981', '#059669', '#0d9488', '#0284c7', '#64748b'];
+
+  const productProfitDonutData = useMemo(() => {
+    // Only display top 5 products in pie chart so legend fits comfortably without clipping
+    return productProfits.slice(0, 5).map((item, idx) => ({
+      name: item.name.length > 12 ? item.name.substring(0, 10) + '...' : item.name,
+      fullName: item.name,
+      value: Math.round(item.projectedProfit),
+      votes: item.request_count,
+      unitProfit: item.unitProfit,
+      margin: item.margin,
+      color: PRODUCT_COLORS[idx % PRODUCT_COLORS.length]
+    }));
+  }, [productProfits]);
+
+  const ProductCustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 text-xs">
+          <p className="font-bold text-gray-900 dark:text-white mb-1">{data.fullName}</p>
+          <p className="text-emerald-500 font-extrabold mb-1">
+            Proj. Profit: TZS {Number(data.value || 0).toLocaleString()}
+          </p>
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 space-y-0.5">
+            <p>Demand: <span className="font-semibold text-gray-900 dark:text-white">{data.votes} votes</span></p>
+            <p>Unit Profit: <span className="font-semibold text-gray-900 dark:text-white">TZS {Number(data.unitProfit || 0).toLocaleString()}</span></p>
+            <p>Margin: <span className="font-semibold text-emerald-500">{data.margin}%</span></p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   const chartData = useMemo(() => {
     return activeRequests
@@ -284,7 +415,8 @@ const ProductRequestsBoard: React.FC = () => {
               {t('product_requests', 'Demand Analytics')}
             </h1>
 
-            <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
               <Button
                 onClick={() => setIsModalOpen(true)}
                 size="sm"
@@ -338,146 +470,323 @@ const ProductRequestsBoard: React.FC = () => {
                 fullValue={topRequested?.name || 'N/A'}
                 sub={topRequested ? `${topRequested.request_count} votes` : undefined}
                 icon={TrendingUp}
-                color="#f59e0b"
               />
               <KpiCard
                 label="Missed Cost"
                 value={formatCompactCurrency(totalMissedCost)}
                 fullValue={`TZS ${totalMissedCost.toLocaleString()}`}
                 icon={DollarSign}
-                color="#10b981"
               />
               <KpiCard
                 label="Potential Profit"
                 value={formatCompactCurrency(potentialProfit)}
                 fullValue={`TZS ${potentialProfit.toLocaleString()}`}
                 icon={TrendingUp}
-                color="#a855f7"
+                color="#10b981"
                 className="col-span-2 sm:col-span-1 lg:col-span-1"
               />
             </div>
 
-            {/* Chart Section */}
-            <div className="card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp size={18} className="text-brand-500" />
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Demand Curve */}
+              <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
+                </div>
+                {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
+                  <div className="h-[270px] w-full min-h-[270px] flex-1">
+                    <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
+                      <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
+                        <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
+                          <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
+                        </Area>
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <BarChart2 size={36} className="mb-2 opacity-30" />
+                    <p className="text-xs font-medium">Not enough votes yet to display chart.</p>
+                  </div>
+                )}
               </div>
-              {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
-                <div className="h-[260px] w-full min-h-[260px]">
-                  <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={260} debounce={50}>
-                    <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
-                      <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
-                        <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
-                      </Area>
-                    </AreaChart>
-                  </ResponsiveContainer>
+
+              {/* Profitability Card */}
+              <div className="card p-5 flex flex-col h-[350px]">
+                <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                    Projected Profitability
+                  </h3>
+                  
+                  {productProfits.length > 0 && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setProductDisplayType('list')}
+                        className={`p-1.5 rounded-lg transition ${
+                          productDisplayType === 'list'
+                            ? 'bg-neutral-800 text-white shadow-sm'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                        title="List view"
+                      >
+                        <List size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductDisplayType('chart')}
+                        className={`p-1.5 rounded-lg transition ${
+                          productDisplayType === 'chart'
+                            ? 'bg-neutral-800 text-white shadow-sm'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                        title="Chart view"
+                      >
+                        <PieChartIcon size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="h-[220px] w-full flex flex-col items-center justify-center text-gray-400">
-                  <BarChart2 size={36} className="mb-2 opacity-30" />
-                  <p className="text-xs font-medium">Not enough votes yet to display chart.</p>
-                </div>
-              )}
+
+                {productProfits.length > 0 ? (
+                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    {/* Display Mode: List vs Chart */}
+                    {productDisplayType === 'list' ? (
+                      <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0 scrollbar-thin">
+                        {productProfits.map((item, index) => {
+                          const percentOfMax = maxProjectedProfit > 0 ? Math.round((item.projectedProfit / maxProjectedProfit) * 100) : 0;
+                          const isTop = index === 0;
+
+                          return (
+                            <div key={item.id} className="space-y-1">
+                              <div className="flex items-center justify-between text-xs gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className={`text-[11px] font-bold w-4 shrink-0 ${isTop ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                    #{index + 1}
+                                  </span>
+                                  <span className="font-medium text-gray-900 dark:text-gray-200 truncate" title={item.name}>
+                                    {item.name}
+                                  </span>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className={`text-xs ${isTop ? 'font-extrabold text-emerald-400' : 'font-semibold text-gray-700 dark:text-gray-300'}`}>
+                                    {formatCompactCurrency(item.projectedProfit)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    isTop ? 'bg-emerald-500' : 'bg-emerald-500/40 dark:bg-emerald-500/35'
+                                  }`}
+                                  style={{ width: `${percentOfMax}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-neutral-500">
+                                <span>{item.request_count} votes · {formatCompactCurrency(item.unitProfit)}/unit</span>
+                                <span>{item.margin}% margin</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-[270px] w-full min-h-[270px] flex-1">
+                        <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
+                          <PieChart margin={{ top: 0, bottom: 4, left: 0, right: 0 }}>
+                            <Pie
+                              data={productProfitDonutData}
+                              cx="50%"
+                              cy="42%"
+                              innerRadius={48}
+                              outerRadius={70}
+                              paddingAngle={4}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {productProfitDonutData.map((entry, index) => (
+                                <Cell key={`prod-cell-${index}`} fill={entry.color} stroke="none" />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<ProductCustomTooltip />} />
+                            <Legend
+                              verticalAlign="bottom"
+                              height={44}
+                              iconType="circle"
+                              wrapperStyle={{
+                                fontSize: 10,
+                                lineHeight: '16px',
+                                paddingTop: '4px'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                    <DollarSign size={36} className="mb-2 opacity-30 text-emerald-500" />
+                    <p className="text-xs font-semibold">No price or cost data available</p>
+                    <p className="text-3xs text-gray-500 mt-1">Set selling and buying prices on requests to view profitability ranking</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Data Table */}
-            <div className="card overflow-hidden">
-              <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
-                <span className="text-2xs text-gray-400">{sortedRequests.length} total items</span>
+            {/* Active Data Table */}
+            <div className="card overflow-hidden !border-none !rounded-none">
+              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
+                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+                    {sortedActiveRequests.length} active
+                  </span>
+                </div>
+                <span className="text-2xs text-gray-400">
+                  {dateRange.startDate || dateRange.endDate ? `Filtered: ${dateRange.label}` : 'Products gathering customer interest'}
+                </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold">
+                <table className="w-full text-left text-xs min-w-[860px]">
+                  <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
                         <div className="flex items-center gap-1">
                           {t('product_name', 'Product Info')} {getSortIcon('name')}
                         </div>
                       </th>
+                      <th scope="col" className="p-3 text-right w-28 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('buying_price')}>
+                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                          Buy Price {getSortIcon('buying_price')}
+                        </div>
+                      </th>
+                      <th scope="col" className="p-3 text-right w-28 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('price')}>
+                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                          Sell Price {getSortIcon('price')}
+                        </div>
+                      </th>
                       <th scope="col" className="p-3 text-center w-24 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('request_count')}>
                         <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-                          <TrendingUp size={12} />
+                          <Users size={12} className="opacity-60" />
                           Demand {getSortIcon('request_count')}
                         </div>
                       </th>
-                      <th scope="col" className="p-3 whitespace-nowrap w-36">Status</th>
+                      <th scope="col" className="p-3 text-center w-36 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('projected_profit')}>
+                        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+                          <DollarSign size={12} className="opacity-60" />
+                          Projected Profit {getSortIcon('projected_profit')}
+                        </div>
+                      </th>
                       <th scope="col" className="p-3 whitespace-nowrap w-28 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('created_at')}>
                         <div className="flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Calendar size={12} className="opacity-60" />
                           Created {getSortIcon('created_at')}
                         </div>
                       </th>
-                      <th scope="col" className="p-3 text-right whitespace-nowrap w-64 min-w-[250px]">Actions</th>
+                      <th scope="col" className="p-3 text-right whitespace-nowrap w-64 min-w-[240px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {sortedRequests.map((req) => (
-                      <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${req.is_fulfilled ? 'opacity-60' : ''}`}>
-                        <td className="p-3 align-middle min-w-[200px]">
-                          <div className="flex items-center gap-3">
-                            {req.image ? (
-                              <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
-                                <ImageIcon size={18} className="text-gray-400" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
-                              <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 mt-0.5">
-                                {req.buying_price && (
-                                  <span className="whitespace-nowrap">Buy: <strong className="text-blue-500">{formatCompactCurrency(req.buying_price)}</strong></span>
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                    {sortedActiveRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-gray-400">
+                          <Package size={28} className="mx-auto mb-2 opacity-30 text-gray-400" />
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                            {dateRange.startDate || dateRange.endDate ? `No active demands in ${dateRange.label}` : 'No active demands'}
+                          </p>
+                          <p className="text-3xs text-gray-400 mt-0.5">
+                            {dateRange.startDate || dateRange.endDate 
+                              ? `No active customer demands were recorded during "${dateRange.label}".`
+                              : 'All customer demand requests have been fulfilled or none have been created yet.'}
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedActiveRequests.map((req) => {
+                        const sell = parseFloat(req.price || '0') || 0;
+                        const buy = parseFloat(req.buying_price || '0') || 0;
+                        const unitProfit = Math.max(0, sell - buy);
+                        const projProfit = unitProfit * (req.request_count || 0);
+                        const isTop = topProfitableProduct && topProfitableProduct.id === req.id && projProfit > 0;
+
+                        return (
+                          <tr key={req.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                            <td className="p-3 align-middle min-w-[200px]">
+                              <div className="flex items-center gap-3">
+                                {req.image ? (
+                                  <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
+                                    <ImageIcon size={18} className="text-gray-400" />
+                                  </div>
                                 )}
-                                {req.price && (
-                                  <span className="whitespace-nowrap">Sell: <strong className="text-emerald-500">{formatCompactCurrency(req.price)}</strong></span>
-                                )}
-                                {req.condition && <span className="whitespace-nowrap text-gray-400">• {req.condition}</span>}
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
+                                  <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    {req.category_name && <span className="truncate">{req.category_name}</span>}
+                                    {req.condition && <span>• {req.condition}</span>}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center align-middle whitespace-nowrap w-24">
-                          <span className="font-extrabold text-sm text-brand-500">
-                            {req.request_count}
-                          </span>
-                        </td>
-                        <td className="p-3 align-middle whitespace-nowrap w-36">
-                          {req.is_fulfilled ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-500 capitalize whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                              In Inventory
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 capitalize whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
-                              Gathering Demand
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-2xs text-gray-400 align-middle whitespace-nowrap w-28">
-                          {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
-                        </td>
-                        <td className="p-3 text-right align-middle whitespace-nowrap w-64 min-w-[250px]">
-                          <div className="flex justify-end gap-1.5 items-center">
-                            {!req.is_fulfilled ? (
-                              <>
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono text-xs">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">
+                                {req.buying_price ? formatCompactCurrency(req.buying_price) : '--'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono text-xs">
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                {req.price ? formatCompactCurrency(req.price) : '--'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                              <span className="font-semibold text-xs text-gray-900 dark:text-gray-100">
+                                {req.request_count}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center align-middle whitespace-nowrap w-36">
+                              {sell > 0 && projProfit > 0 ? (
+                                <div className="flex flex-col items-center">
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-mono">
+                                      {formatCompactCurrency(projProfit)}
+                                    </span>
+                                    {isTop && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" title="Highest projected return">
+                                        #1 Return
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                    {formatCompactCurrency(unitProfit)}/ea
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">--</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-2xs text-gray-400 dark:text-gray-500 align-middle whitespace-nowrap w-28">
+                              {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-64 min-w-[240px]">
+                              <div className="flex justify-end gap-1.5 items-center">
                                 <Button 
                                   type="button"
                                   size="sm" 
                                   variant="outline"
-                                  className="text-xs py-1 px-2.5 whitespace-nowrap shrink-0 flex items-center gap-1"
+                                  className="text-xs py-1 px-2.5 whitespace-nowrap shrink-0 flex items-center gap-1 border-surface-border dark:border-surface-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                                   onClick={() => handleEditClick(req)}
                                 >
                                   <Edit size={12} className="shrink-0" /> Edit
@@ -486,7 +795,7 @@ const ProductRequestsBoard: React.FC = () => {
                                   type="button"
                                   size="sm" 
                                   variant="outline"
-                                  className="text-xs py-1 px-2.5 font-bold active:scale-95 transition-transform whitespace-nowrap shrink-0 flex items-center gap-1"
+                                  className="text-xs py-1 px-2.5 font-semibold active:scale-95 transition-transform whitespace-nowrap shrink-0 flex items-center gap-1 border-surface-border dark:border-surface-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                                   loading={votingId === req.id}
                                   onClick={() => handleIncrementDemand(req)}
                                   title="Record +1 customer demand"
@@ -496,24 +805,208 @@ const ProductRequestsBoard: React.FC = () => {
                                 <Button 
                                   type="button"
                                   size="sm" 
-                                  variant="default"
-                                  className="text-xs py-1 px-3 font-bold whitespace-nowrap shrink-0 flex items-center gap-1"
+                                  className="text-xs py-1 px-3 font-semibold whitespace-nowrap shrink-0 flex items-center gap-1 bg-neutral-900 hover:bg-black text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 border-transparent shadow-xs"
                                   onClick={() => handleConvert(req)}
                                 >
                                   <ArrowRightCircle size={12} className="shrink-0" />
                                   Convert
                                 </Button>
-                              </>
-                            ) : (
-                              <span className="text-gray-400 text-xs italic font-medium">Fulfilled</span>
-                            )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                  {sortedActiveRequests.length > 0 && (
+                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold border-t-2 border-surface-border dark:border-surface-dark-border">
+                      <tr>
+                        <td className="p-3 align-middle min-w-[200px]">
+                          <div className="font-bold text-gray-900 dark:text-white text-xs">Total Active Demands</div>
+                          <div className="text-3xs text-gray-400 font-normal">{sortedActiveRequests.length} products</div>
+                        </td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {formatCompactCurrency(totalMissedCost)}
                           </div>
+                          <div className="text-3xs text-gray-400 font-normal">total buy cost</div>
+                        </td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {formatCompactCurrency(projectedRevenue)}
+                          </div>
+                          <div className="text-3xs text-gray-400 font-normal">total sell value</div>
+                        </td>
+                        <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {totalVotes}
+                          </div>
+                          <div className="text-3xs text-gray-400 font-normal">total votes</div>
+                        </td>
+                        <td className="p-3 text-center align-middle whitespace-nowrap w-36 font-mono">
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                            {formatCompactCurrency(potentialProfit)}
+                          </div>
+                          <div className="text-3xs text-emerald-600/70 dark:text-emerald-400/70 font-normal">total profit</div>
+                        </td>
+                        <td colSpan={2} className="p-3 text-right text-3xs text-gray-400 align-middle">
+                          Overall Margin: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{profitMargin}%</span>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
+                    </tfoot>
+                  )}
                 </table>
               </div>
+            </div>
+
+            {/* Fulfilled Requests Table (In Inventory History) */}
+            <div className="card overflow-hidden !border-none !rounded-none">
+              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests</h3>
+                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    In Inventory History
+                  </span>
+                </div>
+                <span className="text-2xs text-gray-400">
+                  {dateRange.startDate || dateRange.endDate ? `${sortedFulfilledRequests.length} in ${dateRange.label}` : `${sortedFulfilledRequests.length} converted items`}
+                </span>
+              </div>
+
+              {sortedFulfilledRequests.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <CheckCircle2 size={32} className="mx-auto mb-2 opacity-30 text-emerald-500" />
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    {dateRange.startDate || dateRange.endDate ? `No fulfilled requests in ${dateRange.label}` : 'No fulfilled requests yet'}
+                  </p>
+                  <p className="text-3xs text-gray-400 mt-0.5">
+                    {dateRange.startDate || dateRange.endDate 
+                      ? `No demand requests in your inventory history match "${dateRange.label}".`
+                      : 'When active demand requests are converted into inventory, they will appear here as history.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[800px]">
+                    <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                      <tr>
+                        <th scope="col" className="p-3">
+                          {t('product_name', 'Product Info')}
+                        </th>
+                        <th scope="col" className="p-3 text-right w-28">Buy Price</th>
+                        <th scope="col" className="p-3 text-right w-28">Sell Price</th>
+                        <th scope="col" className="p-3 text-center w-24">Final Demand</th>
+                        <th scope="col" className="p-3 text-center w-36">Realized / Proj. Profit</th>
+                        <th scope="col" className="p-3 whitespace-nowrap w-28">Created</th>
+                        <th scope="col" className="p-3 text-right whitespace-nowrap w-36">Record</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                      {sortedFulfilledRequests.map((req) => {
+                        const sell = parseFloat(req.price || '0') || 0;
+                        const buy = parseFloat(req.buying_price || '0') || 0;
+                        const unitProfit = Math.max(0, sell - buy);
+                        const projProfit = unitProfit * (req.request_count || 0);
+
+                        return (
+                          <tr key={req.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition opacity-85 hover:opacity-100">
+                            <td className="p-3 align-middle min-w-[200px]">
+                              <div className="flex items-center gap-3">
+                                {req.image ? (
+                                  <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
+                                    <ImageIcon size={18} className="text-gray-400" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
+                                  <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    {req.category_name && <span className="truncate">{req.category_name}</span>}
+                                    {req.condition && <span>• {req.condition}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono text-xs">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">
+                                {req.buying_price ? formatCompactCurrency(req.buying_price) : '--'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono text-xs">
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                {req.price ? formatCompactCurrency(req.price) : '--'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                              <span className="font-semibold text-xs text-gray-700 dark:text-gray-300">
+                                {req.request_count}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center align-middle whitespace-nowrap w-36">
+                              {sell > 0 && projProfit > 0 ? (
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-mono">
+                                    {formatCompactCurrency(projProfit)}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                    {formatCompactCurrency(unitProfit)}/ea
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">--</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-2xs text-gray-400 dark:text-gray-500 align-middle whitespace-nowrap w-28">
+                              {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
+                            </td>
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-36">
+                              <span className="inline-flex items-center gap-1 text-2xs text-gray-400 dark:text-gray-500 font-medium">
+                                <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Converted
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold border-t-2 border-surface-border dark:border-surface-dark-border">
+                      <tr>
+                        <td className="p-3 align-middle min-w-[200px]">
+                          <div className="font-bold text-gray-900 dark:text-white text-xs">Total Converted History</div>
+                          <div className="text-3xs text-gray-400 font-normal">{sortedFulfilledRequests.length} items</div>
+                        </td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {formatCompactCurrency(fulfilledCost)}
+                          </div>
+                          <div className="text-3xs text-gray-400 font-normal">fulfilled cost</div>
+                        </td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {formatCompactCurrency(fulfilledRevenue)}
+                          </div>
+                          <div className="text-3xs text-gray-400 font-normal">fulfilled revenue</div>
+                        </td>
+                        <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                            {fulfilledVotes}
+                          </div>
+                          <div className="text-3xs text-gray-400 font-normal">total votes</div>
+                        </td>
+                        <td className="p-3 text-center align-middle whitespace-nowrap w-36 font-mono">
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                            {formatCompactCurrency(fulfilledProfit)}
+                          </div>
+                          <div className="text-3xs text-emerald-600/70 dark:text-emerald-400/70 font-normal">realized profit</div>
+                        </td>
+                        <td colSpan={2} className="p-3 text-right text-3xs text-gray-400 align-middle">
+                          Historical Record
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -646,7 +1139,7 @@ const ProductRequestsBoard: React.FC = () => {
       <div className="hidden">
         <div ref={printDemandRef} className="p-4 bg-white text-black font-sans w-full">
           <ReportPrintHeader 
-            title="Demand Analytics Report" 
+            title={`Demand Analytics Report${dateRange.startDate || dateRange.endDate ? ` (${dateRange.label})` : ''}`} 
             user={user} 
             logoUrl="/logo_dark.png"
           />
@@ -660,6 +1153,7 @@ const ProductRequestsBoard: React.FC = () => {
                 <th className="py-2 px-2 w-16 font-black text-center">VOTES</th>
                 <th className="py-2 px-2 w-28 font-black text-right">EST. COST (TSH)</th>
                 <th className="py-2 px-2 w-28 font-black text-right">EST. PRICE (TSH)</th>
+                <th className="py-2 px-2 w-28 font-black text-right">PROJ. PROFIT (TSH)</th>
                 <th className="py-2 px-2 w-20 font-black text-center">STATUS</th>
               </tr>
             </thead>
@@ -672,25 +1166,28 @@ const ProductRequestsBoard: React.FC = () => {
                   <td className="py-2 px-2 text-center font-bold">{req.request_count}</td>
                   <td className="py-2 px-2 text-right font-mono">{req.buying_price ? parseFloat(req.buying_price).toLocaleString() : '-'}</td>
                   <td className="py-2 px-2 text-right font-mono font-bold">{req.price ? parseFloat(req.price).toLocaleString() : '-'}</td>
+                  <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800">
+                    {req.price && req.buying_price ? Math.max(0, (parseFloat(req.price) - parseFloat(req.buying_price)) * (req.request_count || 0)).toLocaleString() : '-'}
+                  </td>
                   <td className="py-2 px-2 text-center font-semibold">{req.is_fulfilled ? 'Fulfilled' : 'Active'}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
+                <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-black">
                   {totalMissedCost.toLocaleString()} TZS
                 </td>
               </tr>
               <tr className="font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
+                <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-black">
                   {projectedRevenue.toLocaleString()} TZS
                 </td>
               </tr>
               <tr className="font-black border-t border-gray-200 bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
+                <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-black">
                   {potentialProfit.toLocaleString()} TZS
                 </td>
