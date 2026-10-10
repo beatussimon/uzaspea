@@ -5888,6 +5888,28 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             'message': f"Demand updated for {pr.name}."
         })
 
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def cancel(self, request, pk=None):
+        """
+        Seller cancels a demand card without converting it to a product.
+        The demand card is moved out of active demands into the history table as cancelled.
+        """
+        pr = self.get_object()
+        if not self.check_demand_card_permission(request, pr):
+            return Response({'error': 'You do not have permission to cancel this demand card.'}, status=403)
+        if pr.is_fulfilled and pr.fulfilled_product_id:
+            return Response({'error': 'Cannot cancel an already fulfilled product demand.'}, status=400)
+        
+        pr.is_cancelled = True
+        pr.is_fulfilled = True
+        pr.save()
+        
+        serializer = self.get_serializer(pr)
+        return Response({
+            'message': f"Demand for '{pr.name}' cancelled.",
+            'data': serializer.data
+        })
+
 class SellerAnalyticsView(APIView):
     """
     Returns analytics for the logged-in seller.

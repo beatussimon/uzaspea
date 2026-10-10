@@ -31,7 +31,7 @@ class ProductRequestSerializer(serializers.ModelSerializer):
             'user', 'user_username', 'request_count', 'votes_count', 'has_voted',
             'created_at', 'last_requested', 'category', 'category_name',
             'price', 'buying_price', 'condition', 'requires_quote', 'image', 'image_url',
-            'is_fulfilled', 'fulfilled_product_id', 'fulfilled_product_slug'
+            'is_fulfilled', 'is_cancelled', 'fulfilled_product_id', 'fulfilled_product_slug'
         ]
         read_only_fields = ['request_count', 'last_requested', 'fulfilled_product_id', 'fulfilled_product_slug']
 
