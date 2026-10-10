@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -46,6 +46,9 @@ const ProductRequestsBoard: React.FC = () => {
   const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
   const [votingId, setVotingId] = useState<number | null>(null);
   
+  // Action Dropdown State (Convert / Cancel)
+  const [actionDropdownId, setActionDropdownId] = useState<number | null>(null);
+
   // Profitability Display State (List vs Pie Chart)
   const [productDisplayType, setProductDisplayType] = useState<'list' | 'chart'>('list');
 
@@ -91,6 +94,16 @@ const ProductRequestsBoard: React.FC = () => {
   useEffect(() => {
     fetchRequests();
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest('.action-dropdown-container')) {
+        setActionDropdownId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchRequests = async (showLoader = true) => {
@@ -157,6 +170,18 @@ const ProductRequestsBoard: React.FC = () => {
 
   const handleConvert = (req: any) => {
     navigate('/dashboard/products', { state: { convert_request: req } });
+  };
+
+  const handleCancelDemand = async (req: any) => {
+    try {
+      setActionDropdownId(null);
+      await api.post(`/api/product-requests/${req.id}/cancel/`);
+      toast.success(t('demand_cancelled', `Demand for "${req.name}" cancelled.`));
+      fetchRequests(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.error || t('cancel_error', 'Failed to cancel demand'));
+    }
   };
 
   const handleEditClick = (req: any) => {
@@ -229,8 +254,8 @@ const ProductRequestsBoard: React.FC = () => {
     });
   }, [requests, dateRange]);
 
-  const activeRequests = useMemo(() => filteredRequests.filter(r => !r.is_fulfilled), [filteredRequests]);
-  const fulfilledRequests = useMemo(() => filteredRequests.filter(r => r.is_fulfilled), [filteredRequests]);
+  const activeRequests = useMemo(() => filteredRequests.filter(r => !r.is_fulfilled && !r.is_cancelled), [filteredRequests]);
+  const fulfilledRequests = useMemo(() => filteredRequests.filter(r => r.is_fulfilled || r.is_cancelled), [filteredRequests]);
   
   const sortItems = (items: any[]) => {
     let sortableItems = [...items];
@@ -302,8 +327,8 @@ const ProductRequestsBoard: React.FC = () => {
 
   // Fulfilled history statistics
   const fulfilledVotes = fulfilledRequests.reduce((acc, curr) => acc + (curr.request_count || 0), 0);
-  const fulfilledRevenue = fulfilledRequests.reduce((acc, req) => acc + (req.price ? parseFloat(req.price) * req.request_count : 0), 0);
-  const fulfilledCost = fulfilledRequests.reduce((acc, req) => acc + (req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
+  const fulfilledRevenue = fulfilledRequests.reduce((acc, req) => acc + (!req.is_cancelled && req.price ? parseFloat(req.price) * req.request_count : 0), 0);
+  const fulfilledCost = fulfilledRequests.reduce((acc, req) => acc + (!req.is_cancelled && req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
   const fulfilledProfit = fulfilledRevenue - fulfilledCost;
 
   const profitChartData = useMemo(() => {
@@ -646,7 +671,7 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Active Data Table */}
-            <div className="card overflow-hidden !border-none !rounded-none">
+            <div className="card !border-none !rounded-none">
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
@@ -658,7 +683,7 @@ const ProductRequestsBoard: React.FC = () => {
                   {dateRange.startDate || dateRange.endDate ? `Filtered: ${dateRange.label}` : 'Products gathering customer interest'}
                 </span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-h-[160px]">
                 <table className="w-full text-left text-xs min-w-[860px]">
                   <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
@@ -722,7 +747,7 @@ const ProductRequestsBoard: React.FC = () => {
                         const isTop = topProfitableProduct && topProfitableProduct.id === req.id && projProfit > 0;
 
                         return (
-                          <tr key={req.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                          <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${actionDropdownId === req.id ? 'relative z-20' : ''}`}>
                             <td className="p-3 align-middle min-w-[200px]">
                               <div className="flex items-center gap-3">
                                 {req.image ? (
@@ -802,15 +827,40 @@ const ProductRequestsBoard: React.FC = () => {
                                 >
                                   <Plus size={12} className="shrink-0" /> 1 Demand
                                 </Button>
-                                <Button 
-                                  type="button"
-                                  size="sm" 
-                                  className="text-xs py-1 px-3 font-semibold whitespace-nowrap shrink-0 flex items-center gap-1 bg-neutral-900 hover:bg-black text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 border-transparent shadow-xs"
-                                  onClick={() => handleConvert(req)}
-                                >
-                                  <ArrowRightCircle size={12} className="shrink-0" />
-                                  Convert
-                                </Button>
+
+                                <div className="relative inline-block text-left action-dropdown-container">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActionDropdownId(actionDropdownId === req.id ? null : req.id)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-semibold bg-neutral-900 hover:bg-black text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+                                  >
+                                    <ArrowRightCircle size={12} className="shrink-0" />
+                                    <span>Convert</span>
+                                    <ChevronDown size={12} className={`transition-transform duration-200 ${actionDropdownId === req.id ? 'rotate-180' : ''}`} />
+                                  </button>
+
+                                  {actionDropdownId === req.id && (
+                                    <div className="absolute inset-x-0 top-full mt-1 w-full rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg z-50 p-0.5 flex flex-col whitespace-normal animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActionDropdownId(null);
+                                          handleConvert(req);
+                                        }}
+                                        className="w-full text-center px-1 py-1 rounded text-[9.5px] font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 transition cursor-pointer whitespace-nowrap tracking-tight"
+                                      >
+                                        Convert to Product
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelDemand(req)}
+                                        className="w-full text-center px-1 py-1 rounded text-[9.5px] font-semibold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer whitespace-nowrap tracking-tight"
+                                      >
+                                        Cancel Demand
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -863,13 +913,13 @@ const ProductRequestsBoard: React.FC = () => {
             <div className="card overflow-hidden !border-none !rounded-none">
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests</h3>
-                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    In Inventory History
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests / History</h3>
+                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+                    Converted & Cancelled
                   </span>
                 </div>
                 <span className="text-2xs text-gray-400">
-                  {dateRange.startDate || dateRange.endDate ? `${sortedFulfilledRequests.length} in ${dateRange.label}` : `${sortedFulfilledRequests.length} converted items`}
+                  {dateRange.startDate || dateRange.endDate ? `${sortedFulfilledRequests.length} in ${dateRange.label}` : `${sortedFulfilledRequests.length} historical items`}
                 </span>
               </div>
 
@@ -944,7 +994,7 @@ const ProductRequestsBoard: React.FC = () => {
                               </span>
                             </td>
                             <td className="p-3 text-center align-middle whitespace-nowrap w-36">
-                              {sell > 0 && projProfit > 0 ? (
+                              {!req.is_cancelled && sell > 0 && projProfit > 0 ? (
                                 <div className="flex flex-col items-center">
                                   <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-mono">
                                     {formatCompactCurrency(projProfit)}
@@ -954,16 +1004,22 @@ const ProductRequestsBoard: React.FC = () => {
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-gray-400 text-xs">--</span>
+                                <span className="text-gray-400 text-xs font-mono">--</span>
                               )}
                             </td>
                             <td className="p-3 text-2xs text-gray-400 dark:text-gray-500 align-middle whitespace-nowrap w-28">
                               {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
                             </td>
                             <td className="p-3 text-right align-middle whitespace-nowrap w-36">
-                              <span className="inline-flex items-center gap-1 text-2xs text-gray-400 dark:text-gray-500 font-medium">
-                                <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Converted
-                              </span>
+                              {req.is_cancelled ? (
+                                <span className="inline-flex items-center gap-1 text-2xs text-rose-500 font-medium">
+                                  <XCircle size={13} className="text-rose-500 shrink-0" /> Cancelled
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-2xs text-gray-400 dark:text-gray-500 font-medium">
+                                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Converted
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -972,7 +1028,7 @@ const ProductRequestsBoard: React.FC = () => {
                     <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold border-t-2 border-surface-border dark:border-surface-dark-border">
                       <tr>
                         <td className="p-3 align-middle min-w-[200px]">
-                          <div className="font-bold text-gray-900 dark:text-white text-xs">Total Converted History</div>
+                          <div className="font-bold text-gray-900 dark:text-white text-xs">Total History</div>
                           <div className="text-3xs text-gray-400 font-normal">{sortedFulfilledRequests.length} items</div>
                         </td>
                         <td className="p-3 text-right align-middle whitespace-nowrap w-28 font-mono">
@@ -1167,9 +1223,9 @@ const ProductRequestsBoard: React.FC = () => {
                   <td className="py-2 px-2 text-right font-mono">{req.buying_price ? parseFloat(req.buying_price).toLocaleString() : '-'}</td>
                   <td className="py-2 px-2 text-right font-mono font-bold">{req.price ? parseFloat(req.price).toLocaleString() : '-'}</td>
                   <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800">
-                    {req.price && req.buying_price ? Math.max(0, (parseFloat(req.price) - parseFloat(req.buying_price)) * (req.request_count || 0)).toLocaleString() : '-'}
+                    {!req.is_cancelled && req.price && req.buying_price ? Math.max(0, (parseFloat(req.price) - parseFloat(req.buying_price)) * (req.request_count || 0)).toLocaleString() : '-'}
                   </td>
-                  <td className="py-2 px-2 text-center font-semibold">{req.is_fulfilled ? 'Fulfilled' : 'Active'}</td>
+                  <td className="py-2 px-2 text-center font-semibold">{req.is_cancelled ? 'Cancelled' : (req.is_fulfilled ? 'Fulfilled' : 'Active')}</td>
                 </tr>
               ))}
             </tbody>
