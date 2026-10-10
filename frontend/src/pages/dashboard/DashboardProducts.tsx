@@ -386,10 +386,14 @@ const DashboardProducts: React.FC = () => {
         name: req.name || '',
         description: req.description || '',
         price: req.price ? String(req.price) : '',
+        buying_price: req.buying_price ? String(req.buying_price) : '',
         category: req.category?.id ? String(req.category.id) : (req.category ? String(req.category) : ''),
         condition: req.condition || 'New',
         requires_quote: req.requires_quote || false,
       }));
+      if (req.image) {
+        setExistingImages([{ id: 'demand-cover', image: req.image }]);
+      }
       setFulfillRequestId(req.id);
       setShowForm(true);
       window.history.replaceState({}, document.title);
@@ -1372,7 +1376,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         const cancelForm = () => {
-          setShowForm(false); setEditingId(null); setEditingProductId(null); setWizardStep(1);
+          setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null); setWizardStep(1);
           setSelectedRootCatId(null);
           setHasCustomUnit(false);
           setForm(INITIAL_FORM);
@@ -1412,6 +1416,11 @@ const DashboardProducts: React.FC = () => {
                   <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                     {editingId ? 'Edit Product' : 'New Product Listing'}
                   </h3>
+                  {fulfillRequestId && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Fulfilling Demand #{fulfillRequestId}
+                    </span>
+                  )}
                   {selectedCat && (
                     <span className="text-xs text-neutral-500 dark:text-neutral-400">
                       • {selectedCat.name.replace(/^[\s›]+/, '')}

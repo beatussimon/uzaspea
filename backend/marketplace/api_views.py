@@ -749,26 +749,32 @@ class ProductViewSet(viewsets.ModelViewSet):
             try:
                 pr = ProductRequest.objects.get(id=fulfill_request_id, seller=seller)
                 pr.is_fulfilled = True
+                pr.is_cancelled = False
                 pr.fulfilled_product = product
-                pr.save(update_fields=['is_fulfilled', 'fulfilled_product'])
+                pr.save(update_fields=['is_fulfilled', 'is_cancelled', 'fulfilled_product'])
 
-                # Notify requester and all voters that the requested product is in stock!
-                recipient_ids = set()
-                if pr.user_id:
-                    recipient_ids.add(pr.user_id)
-                for vote in pr.votes.all():
-                    recipient_ids.add(vote.user_id)
+                # If product has no uploaded images but demand card had an image, attach it to product
+                if pr.image and not product.images.exists():
+                    ProductImage.objects.create(product=product, image=pr.image)
 
-                for uid in recipient_ids:
-                    recipient_user = User.objects.filter(id=uid).first()
-                    if recipient_user:
-                        push_notification(
-                            user=recipient_user,
-                            notification_type='order',
-                            title="Requested Item Now in Stock!",
-                            message=f"Good news! '{pr.name}' requested from @{seller.username} is now available.",
-                            link=f"/products/{product.slug}"
-                        )
+                # Only notify requester and all voters if product is published & available (not draft)
+                if not product.is_draft and product.is_available:
+                    recipient_ids = set()
+                    if pr.user_id:
+                        recipient_ids.add(pr.user_id)
+                    for vote in pr.votes.all():
+                        recipient_ids.add(vote.user_id)
+
+                    for uid in recipient_ids:
+                        recipient_user = User.objects.filter(id=uid).first()
+                        if recipient_user:
+                            push_notification(
+                                user=recipient_user,
+                                notification_type='order',
+                                title="Requested Item Now in Stock!",
+                                message=f"Good news! '{pr.name}' requested from @{seller.username} is now available.",
+                                link=f"/products/{product.slug}"
+                            )
             except ProductRequest.DoesNotExist:
                 pass
 
