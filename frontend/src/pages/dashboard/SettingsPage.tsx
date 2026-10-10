@@ -39,7 +39,7 @@ const SettingsPage: React.FC = () => {
         twitter_username: '', 
         youtube_url: '', 
         linkedin_url: '', 
-        show_product_requests: true 
+        show_product_requests: false 
     });
     const [defaultCountryCode, setDefaultCountryCode] = useState<string>(() => getDefaultCountry(username).code);
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
@@ -147,7 +147,7 @@ const SettingsPage: React.FC = () => {
                     twitter_username: r.data.twitter_username || '',
                     youtube_url: r.data.youtube_url || '',
                     linkedin_url: r.data.linkedin_url || '',
-                    show_product_requests: r.data.show_product_requests !== false,
+                    show_product_requests: Boolean(r.data.show_product_requests),
                 });
             });
 

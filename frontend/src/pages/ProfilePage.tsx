@@ -64,7 +64,7 @@ const ProfilePage: React.FC = () => {
     profile?.tier === 'business' ||
     (products && products.length > 0)
   );
-  const showDemandsTab = isSellerProfile && (isOwner || profile?.show_product_requests !== false);
+  const showDemandsTab = isSellerProfile && Boolean(profile?.show_product_requests);
 
   // Extract unique categories from seller's products for quick-filter pills
   const sellerCategories = useMemo(() => {
@@ -545,15 +545,6 @@ const ProfilePage: React.FC = () => {
                 <MessageSquare className="w-3.5 h-3.5 text-brand-500" />
                 {startingChat ? t('opening...', 'Opening...') : t('message', 'Message')}
               </button>
-              {isSellerProfile && (
-                <button
-                  onClick={() => setIsRequestModalOpen(true)}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
-                >
-                  <Plus size={14} />
-                  {t('request_product', 'Request Product')}
-                </button>
-              )}
             </div>
           )}
 
