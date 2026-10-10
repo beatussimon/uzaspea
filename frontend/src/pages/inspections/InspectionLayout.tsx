@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import inspectionApi from '../../api/inspectionApi';
 import api, { API_BASE_URL } from '../../api';
 import './InspectionLayout.css';
@@ -193,6 +194,7 @@ const CategoryDropdownSelector: React.FC<{
 
 // ─── Request Form ───────────────────────────
 const RequestForm: React.FC = () => {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<InspectionCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<InspectionCategory | null>(null);
   const [form, setForm] = useState({
@@ -319,7 +321,7 @@ const RequestForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) {
-      toast.error('Please select an inspection category');
+      toast.error(t('select_inspection_category_error', 'Please select an inspection category'));
       return;
     }
     setLoading(true);
@@ -333,10 +335,10 @@ const RequestForm: React.FC = () => {
         item_age_years: form.item_age_years ? parseInt(form.item_age_years) : null,
       };
       const res = await inspectionApi.requests.create(payload);
-      toast.success('Inspection request submitted!');
+      toast.success(t('inspection_request_submitted', 'Inspection request submitted!'));
       navigate(`/inspections/${res.data.id}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to submit request');
+      toast.error(err.response?.data?.detail || t('failed_submit_inspection', 'Failed to submit request'));
     } finally {
       setLoading(false);
     }
@@ -1035,14 +1037,15 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
 
 // ─── Inspection Timeline ────────────────────
 const Timeline: React.FC<{ status: string }> = ({ status }) => {
+  const { t } = useTranslation();
   // Handle terminal/special statuses outside main flow
   if (status === 'cancelled') {
     return (
       <div className="p-4 rounded-xl   border border-red-500 dark:border-red-500 flex items-center gap-3">
         <X size={18} className="text-red-500 shrink-0" />
         <div>
-          <p className="font-semibold text-red-500 dark:text-red-500">Inspection Cancelled</p>
-          <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">This inspection request has been cancelled. Contact support if you need help.</p>
+          <p className="font-semibold text-red-500 dark:text-red-500">{t('inspection_cancelled', 'Inspection Cancelled')}</p>
+          <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">{t('inspection_cancelled_desc', 'This inspection request has been cancelled. Contact support if you need help.')}</p>
         </div>
       </div>
     );
@@ -1052,8 +1055,8 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
       <div className="p-4 rounded-xl   border border-orange-500 dark:border-orange-500 flex items-center gap-3">
         <AlertTriangle size={18} className="text-orange-500 shrink-0" />
         <div>
-          <p className="font-semibold text-orange-500 dark:text-orange-500">On Hold</p>
-          <p className="text-xs text-orange-500 dark:text-orange-500 mt-0.5">Your inspection is temporarily on hold. Our team will be in touch shortly.</p>
+          <p className="font-semibold text-orange-500 dark:text-orange-500">{t('on_hold', 'On Hold')}</p>
+          <p className="text-xs text-orange-500 dark:text-orange-500 mt-0.5">{t('inspection_on_hold_desc', 'Your inspection is temporarily on hold. Our team will be in touch shortly.')}</p>
         </div>
       </div>
     );
@@ -1063,24 +1066,24 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
       <div className="p-4 rounded-xl   border border-blue-500 dark:border-blue-500 flex items-center gap-3">
         <RefreshCw size={18} className="text-blue-500 shrink-0" />
         <div>
-          <p className="font-semibold text-blue-500 dark:text-blue-500">Rescheduled</p>
-          <p className="text-xs text-blue-500 dark:text-blue-500 mt-0.5">Your inspection has been rescheduled. A new time will be confirmed shortly.</p>
+          <p className="font-semibold text-blue-500 dark:text-blue-500">{t('rescheduled', 'Rescheduled')}</p>
+          <p className="text-xs text-blue-500 dark:text-blue-500 mt-0.5">{t('inspection_rescheduled_desc', 'Your inspection has been rescheduled. A new time will be confirmed shortly.')}</p>
         </div>
       </div>
     );
   }
 
   const steps = [
-    { key: 'requested', label: 'Requested' },
-    { key: 'bill_sent', label: 'Bill Ready' },
-    { key: 'awaiting_payment', label: 'Awaiting Payment' },
-    { key: 'deposit_paid', label: 'Deposit Paid' },
-    { key: 'pre_inspection', label: 'Pre-Inspection' },
-    { key: 'assigned', label: 'Inspector Assigned' },
-    { key: 'in_progress', label: 'Inspection Running' },
-    { key: 'submitted', label: 'Report Submitted' },
-    { key: 'qa_review', label: 'QA Review' },
-    { key: 'published', label: 'Report Ready' },
+    { key: 'requested', label: t('requested_status', 'Requested') },
+    { key: 'bill_sent', label: t('bill_ready_status', 'Bill Ready') },
+    { key: 'awaiting_payment', label: t('awaiting_payment_status', 'Awaiting Payment') },
+    { key: 'deposit_paid', label: t('deposit_paid_status', 'Deposit Paid') },
+    { key: 'pre_inspection', label: t('pre_inspection_status', 'Pre-Inspection') },
+    { key: 'assigned', label: t('assigned_inspector', 'Inspector Assigned') },
+    { key: 'in_progress', label: t('inspecting', 'Inspection Running') },
+    { key: 'submitted', label: t('report_submitted_status', 'Report Submitted') },
+    { key: 'qa_review', label: t('under_qa', 'QA Review') },
+    { key: 'published', label: t('report_ready_status', 'Report Ready') },
   ];
   const idx = steps.findIndex((s) => s.key === status);
   // If status not in steps (e.g. unknown future status), show all complete
@@ -1451,6 +1454,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
 
 // ─── Request Detail ─────────────────────────
 const RequestDetail: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [request, setRequest] = useState<InspectionRequest | null>(null);
@@ -1466,7 +1470,7 @@ const RequestDetail: React.FC = () => {
     }
     inspectionApi.requests.get(numericId)
       .then((r: any) => setRequest(r.data))
-      .catch(() => toast.error('Failed to load inspection'))
+      .catch(() => toast.error(t('failed_load_inspection', 'Failed to load inspection')))
       .finally(() => setLoading(false));
   };
 
@@ -1494,7 +1498,7 @@ const RequestDetail: React.FC = () => {
                 notif.link?.includes(String(numericId)) ||
                 (request && notif.inspection_id === request.inspection_id)
               ) {
-                toast.success(notif.message || notif.title || 'Inspection status updated!');
+                toast.success(notif.message || notif.title || t('inspection_status_updated', 'Inspection status updated!'));
                 load();
               }
             }
@@ -1544,14 +1548,14 @@ const RequestDetail: React.FC = () => {
         original_request: request.id,
         reason: reInspectReason,
       });
-      toast.success('Re-inspection requested');
+      toast.success(t('reinspection_requested', 'Re-inspection requested'));
       setShowReInspect(false);
       load();
-    } catch { toast.error('Failed to request re-inspection'); }
+    } catch { toast.error(t('failed_reinspection', 'Failed to request re-inspection')); }
   };
 
   if (loading) return <RequestDetailSkeleton />;
-  if (!request) return <p className="text-center py-12 text-gray-400">Inspection not found</p>;
+  if (!request) return <p className="text-center py-12 text-gray-400">{t('inspection_not_found', 'Inspection not found')}</p>;
 
   const allPaid = Boolean(request.payments?.some(p => p.stage === 'balance' && p.status === 'approved'));
   const verifyUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://sokonimax.com'}/verify/${request.inspection_id}`;
@@ -1567,7 +1571,7 @@ const RequestDetail: React.FC = () => {
               onClick={() => navigate('/inspections')}
               className="inline-flex items-center gap-1 text-2xs font-bold text-gray-500 hover:text-brand-500 transition-colors uppercase tracking-wider mr-1"
             >
-              <ArrowLeft size={12} /> Back
+              <ArrowLeft size={12} /> {t('back', 'Back')}
             </button>
             <Badge
               text={STATUS_LABELS[request.status] || request.status}
@@ -1797,6 +1801,7 @@ const isInspectionCode = (str: string): boolean => {
 
 // ─── My Inspections List ────────────────────
 const MyInspections: React.FC = () => {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState<InspectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1806,7 +1811,7 @@ const MyInspections: React.FC = () => {
   useEffect(() => {
     inspectionApi.requests.list()
       .then((r: any) => setRequests(r.data.results || r.data))
-      .catch(() => toast.error('Failed to load inspections'))
+      .catch(() => toast.error(t('failed_load_inspection', 'Failed to load inspections')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1873,15 +1878,15 @@ const MyInspections: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My Inspections"
-        subtitle="Track, verify, and manage your item inspections"
+        title={t('my_inspections', 'My Inspections')}
+        subtitle={t('my_inspections_subtitle', 'Track, verify, and manage your item inspections')}
         actions={
           <Link
             to="/inspections/new"
             className="btn-primary text-xs sm:text-sm px-3.5 py-2 flex items-center gap-1.5 font-bold shadow-xs"
           >
             <Plus size={16} />
-            <span>New Request</span>
+            <span>{t('new_request', 'New Request')}</span>
           </Link>
         }
       />
@@ -1905,7 +1910,7 @@ const MyInspections: React.FC = () => {
               onClick={() => setFilterStatus('')}
               className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
             >
-              <span>All</span>
+              <span>{t('all', 'All')}</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                 !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}>
@@ -1921,7 +1926,7 @@ const MyInspections: React.FC = () => {
                 }`}
               >
                 <CheckCircle size={14} className="inline mr-0.5" />
-                <span>Report Ready</span>
+                <span>{t('report_ready', 'Report Ready')}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   filterStatus === 'report_ready' ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
@@ -1938,7 +1943,7 @@ const MyInspections: React.FC = () => {
                 }`}
               >
                 <Clock size={14} className="inline mr-0.5" />
-                <span>In Progress</span>
+                <span>{t('in_progress', 'In Progress')}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   filterStatus === 'in_progress' ? 'bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
@@ -1955,7 +1960,7 @@ const MyInspections: React.FC = () => {
                 }`}
               >
                 <FileText size={14} className="inline mr-0.5" />
-                <span>Awaiting Payment</span>
+                <span>{t('awaiting_payment', 'Awaiting Payment')}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   filterStatus === 'awaiting_payment' ? 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
@@ -1974,7 +1979,7 @@ const MyInspections: React.FC = () => {
             className={`input pl-8 py-1.5 text-xs w-full ${
               searchQuery.trim() ? (isCode ? 'pr-16' : 'pr-8') : 'pr-3'
             }`}
-            placeholder="Search inspections or ID"
+            placeholder={t('search_inspections_placeholder', 'Search inspections or ID')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -1984,16 +1989,16 @@ const MyInspections: React.FC = () => {
                 <button
                   type="submit"
                   className="text-[11px] font-bold text-brand-500 hover:text-brand-600 transition px-1"
-                  title="Verify public inspection ID"
+                  title={t('verify_inspection', 'Verify public inspection ID')}
                 >
-                  Verify →
+                  {t('verify_btn', 'Verify →')}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 transition"
-                  title="Clear search"
+                  title={t('clear_search', 'Clear search')}
                 >
                   <X size={13} />
                 </button>
@@ -2025,17 +2030,17 @@ const MyInspections: React.FC = () => {
           icon={ClipboardList}
           title={
             searchQuery.trim()
-              ? `No inspections found matching "${searchQuery}"`
+              ? t('no_inspections_matching', 'No inspections found matching "{{query}}"', { query: searchQuery })
               : requests.length === 0
-              ? "You haven't requested any inspections yet."
-              : "No inspections with this status."
+              ? t('no_inspections_yet', "You haven't requested any inspections yet.")
+              : t('no_inspections_status', "No inspections with this status.")
           }
           action={{
             label: searchQuery.trim()
-              ? "Clear Search"
+              ? t('clear_search', 'Clear Search')
               : requests.length === 0
-              ? "Request Inspection"
-              : "View All Inspections",
+              ? t('request_inspection', 'Request Inspection')
+              : t('view_all_inspections', 'View All Inspections'),
             onClick: () => {
               if (searchQuery.trim()) {
                 setSearchQuery('');

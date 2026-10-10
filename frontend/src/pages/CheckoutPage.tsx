@@ -328,7 +328,8 @@ export const CheckoutPage: React.FC = () => {
       toast.error(
         t(
           'phone_length_mismatch',
-          `Phone number must be exactly ${expectedDigits} digits for ${selectedCountry.name} (after ${selectedCountry.dialCode}).`
+          'Phone number must be exactly {{expectedDigits}} digits for {{country}} (after {{dialCode}}).',
+          { expectedDigits, country: selectedCountry.name, dialCode: selectedCountry.dialCode }
         )
       );
       return;
@@ -666,7 +667,10 @@ export const CheckoutPage: React.FC = () => {
       if (previousCode && previousCode.toUpperCase() !== res.data.code.toUpperCase()) {
         // Active replacement: Inform user of the change
         toast.success(
-          t('promo_replaced', `Promo code ${res.data.code} applied! (Replaced previous code ${previousCode})`),
+          t('promo_replaced', 'Promo code {{code}} applied! (Replaced previous code {{previousCode}})', {
+            code: res.data.code,
+            previousCode,
+          }),
           { id: 'promo-status-toast' }
         );
       } else if (isManualApply) {
@@ -945,7 +949,8 @@ export const CheckoutPage: React.FC = () => {
       toast.error(
         t(
           'phone_digit_count_error',
-          `Phone number must be exactly ${expectedDigits} digits for ${selectedCountry.name} (after ${selectedCountry.dialCode}).`
+          'Phone number must be exactly {{expectedDigits}} digits for {{country}} (after {{dialCode}}).',
+          { expectedDigits, country: selectedCountry.name, dialCode: selectedCountry.dialCode }
         )
       );
       return;

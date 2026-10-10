@@ -74,6 +74,21 @@ export const LanguageFlag: React.FC<{ code: string; className?: string }> = ({
           </g>
         </svg>
       );
+    case 'zh': // China (Five-star Red Flag)
+      return (
+        <svg
+          viewBox="0 0 640 480"
+          className={`${className} rounded-[2px] object-cover shrink-0 shadow-xs border border-black/10 dark:border-white/10`}
+          aria-hidden="true"
+        >
+          <path fill="#de2910" d="M0 0h640v480H0z" />
+          <polygon fill="#ffde00" points="107,36 118,70 153,70 124,91 135,125 107,104 78,125 90,91 61,70 96,70" />
+          <polygon fill="#ffde00" points="213,29 217,40 228,40 219,47 222,57 213,50 205,57 208,47 199,40 210,40" transform="rotate(-30 213 43)" />
+          <polygon fill="#ffde00" points="256,64 260,75 271,75 262,82 265,92 256,85 248,92 251,82 242,75 253,75" transform="rotate(-10 256 78)" />
+          <polygon fill="#ffde00" points="256,120 260,131 271,131 262,138 265,148 256,141 248,148 251,138 242,131 253,131" transform="rotate(15 256 135)" />
+          <polygon fill="#ffde00" points="213,163 217,174 228,174 219,181 222,191 213,184 205,191 208,181 199,174 210,174" transform="rotate(35 213 178)" />
+        </svg>
+      );
     default:
       return null;
   }

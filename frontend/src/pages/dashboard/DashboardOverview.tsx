@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { TrendingUp, Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
+import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
@@ -457,7 +457,6 @@ const DashboardOverview: React.FC = () => {
                   {stats.revenue_trend_pct >= 0 ? '+' : ''}{stats.revenue_trend_pct}%
                 </span>
               )}
-              <TrendingUp size={16} className="text-brand-500" />
             </div>
           </div>
           <div className="h-[270px] w-full min-h-[270px] flex-1">
@@ -617,8 +616,6 @@ const DashboardOverview: React.FC = () => {
                     </div>
                   )}
                 </div>
-
-                <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 capitalize">Best Sellers</span>
               </div>
             </div>
             <div className="overflow-x-auto max-h-96">
@@ -661,8 +658,8 @@ const DashboardOverview: React.FC = () => {
         {/* Low Stock Alerts */}
         <div className="card overflow-hidden !border-none !rounded-none">
           <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <AlertTriangle size={14} className="text-red-500" /> Stock Alerts
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white">
+              Stock Alerts
             </h3>
             <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">{stats?.stock_alerts?.length || 0} alerts</span>
           </div>

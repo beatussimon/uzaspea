@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { Search, ChevronDown, X, Phone, Mail, MessageCircle, BookOpen } from 'lucide-react';
 import { SiWhatsapp, SiInstagram, SiFacebook, SiTiktok, SiX, SiYoutube } from 'react-icons/si';
@@ -28,6 +29,7 @@ const resolveWhatsAppUrl = (input?: string): string => {
 };
 
 const HelpCenterPage: React.FC = () => {
+    const { t } = useTranslation();
     const { isAuthenticated, user } = useAuth();
     const roles = useUserRoles();
     const isSellerOrBusiness = isAuthenticated && !roles.isPureCustomer;
@@ -90,13 +92,13 @@ const HelpCenterPage: React.FC = () => {
 
 
     const faqCategories = [
-        { id: 'all', label: 'All' },
-        { id: 'site-verification', label: isSellerOrBusiness ? 'Seller Guide' : 'Selling on SokoniMax' },
-        { id: 'orders', label: 'Orders & Delivery' },
-        { id: 'payments', label: 'Payments' },
-        { id: 'inspections', label: 'Inspections' },
-        { id: 'account', label: 'Account' },
-        { id: 'general', label: 'General' },
+        { id: 'all', label: t('all', 'All') },
+        { id: 'site-verification', label: isSellerOrBusiness ? t('seller_guide', 'Seller Guide') : t('selling_on_sokonimax', 'Selling on SokoniMax') },
+        { id: 'orders', label: t('orders_and_delivery', 'Orders & Delivery') },
+        { id: 'payments', label: t('payments', 'Payments') },
+        { id: 'inspections', label: t('inspections', 'Inspections') },
+        { id: 'account', label: t('account', 'Account') },
+        { id: 'general', label: t('general', 'General') },
     ];
 
     useEffect(() => {
@@ -397,13 +399,9 @@ const HelpCenterPage: React.FC = () => {
             <div className="text-center py-1 sm:py-1.5 px-2">
                 <h1 className="text-[26px] sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight max-w-xs sm:max-w-none mx-auto">
                     {firstName ? (
-                        <>
-                            Hello {firstName},<br className="sm:hidden" /> How can we help you?
-                        </>
+                        t('help_greeting', 'How can we help you, {{name}}?', { name: firstName })
                     ) : (
-                        <>
-                            How can we<br className="sm:hidden" /> help you?
-                        </>
+                        t('how_can_we_help', 'How can we help you?')
                     )}
                 </h1>
             </div>
@@ -424,7 +422,7 @@ const HelpCenterPage: React.FC = () => {
                             <input
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder="Search FAQs..."
+                                placeholder={t('search_faqs', 'Search FAQs...')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-7 pr-7 py-1.5 text-xs bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-full text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-0 transition"
@@ -433,7 +431,7 @@ const HelpCenterPage: React.FC = () => {
                                 type="button"
                                 onClick={handleCloseSearch}
                                 className="absolute right-2 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer"
-                                aria-label="Close search"
+                                aria-label={t('close_search', 'Close search')}
                             >
                                 <X size={12} />
                             </button>
@@ -446,7 +444,7 @@ const HelpCenterPage: React.FC = () => {
                             exit={{ opacity: 0 }}
                             onClick={handleOpenSearch}
                             className="w-8 h-8 rounded-full flex items-center justify-center bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border shrink-0 cursor-pointer"
-                            aria-label="Search FAQs"
+                            aria-label={t('search_faqs', 'Search FAQs')}
                         >
                             <Search size={13} />
                         </motion.button>
@@ -539,17 +537,17 @@ const HelpCenterPage: React.FC = () => {
             {/* Main Content Area: Symmetrical 3-Column Layout with Mathematically Equal Left and Right Spaces */}
             <div className="flex flex-col md:flex-row gap-6 lg:gap-8 md:items-start">
                 {/* Left Column: Categories List (Stationary - does not scroll) */}
-                <aside aria-label="FAQ Categories" className="hidden md:block w-48 lg:w-52 shrink-0 select-none sticky top-20">
+                <aside aria-label={t('faq_topics', 'FAQ Categories')} className="hidden md:block w-48 lg:w-52 shrink-0 select-none sticky top-20">
                     <nav className="space-y-1">
                         <p className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider px-3 mb-2">
-                            Topics
+                            {t('topics', 'Topics')}
                         </p>
 
                         {/* Search Input (Minimalist Single Underline) */}
                         <div className="relative w-full px-2 mb-2.5">
                             <input
                                 type="text"
-                                placeholder="Search FAQs..."
+                                placeholder={t('search_faqs', 'Search FAQs...')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-1 pr-6 py-1 text-xs bg-transparent border-0 border-b border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 rounded-none outline-none focus:outline-none ring-0 focus:ring-0 focus:border-gray-900 dark:focus:border-white transition-colors"
@@ -559,7 +557,7 @@ const HelpCenterPage: React.FC = () => {
                                     type="button"
                                     onClick={() => setSearchQuery('')}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer"
-                                    aria-label="Clear search"
+                                    aria-label={t('clear_search', 'Clear search')}
                                 >
                                     <X size={12} />
                                 </button>
@@ -591,7 +589,7 @@ const HelpCenterPage: React.FC = () => {
                                 onClick={() => openFeedbackModal('new')}
                                 className="w-full text-left py-2 px-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium hover:bg-gray-50 dark:hover:bg-neutral-900/40 transition cursor-pointer flex items-center justify-between rounded-md"
                             >
-                                <span>Send us your feedback</span>
+                                <span>{t('send_us_feedback', 'Send us your feedback')}</span>
                             </button>
                         </div>
                     </nav>
@@ -608,20 +606,20 @@ const HelpCenterPage: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                     <div>
                                         <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                                            Store Verification
+                                            {t('store_verification', 'Store Verification')}
                                         </h2>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            All sellers on SokoniMax require a physical store inspection before account activation.
+                                            {t('store_verification_desc', 'All sellers on SokoniMax require a physical store inspection before account activation.')}
                                         </p>
                                     </div>
                                     {siteStatus?.status === 'pending_review' && (
                                         <span className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
-                                            Inspection Under Review
+                                            {t('inspection_under_review', 'Inspection Under Review')}
                                         </span>
                                     )}
                                     {siteStatus?.can_upgrade && (
                                         <span className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                                            Verified ✓
+                                            {t('verified_badge', 'Verified ✓')}
                                         </span>
                                     )}
                                 </div>
@@ -629,18 +627,18 @@ const HelpCenterPage: React.FC = () => {
                                 {siteStatus?.can_upgrade ? (
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-surface-border dark:border-surface-dark-border">
                                         <p className="text-xs text-gray-600 dark:text-gray-300">
-                                            Your location has been verified. You can now choose your seller tier and start selling.
+                                            {t('store_verified_can_upgrade', 'Your location has been verified. You can now choose your seller tier and start selling.')}
                                         </p>
                                         <Link
                                             to="/upgrade"
                                             className="px-3.5 py-2 rounded-btn bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold transition shrink-0"
                                         >
-                                            Upgrade Store
+                                            {t('upgrade_store', 'Upgrade Store')}
                                         </Link>
                                     </div>
                                 ) : siteStatus?.status === 'pending_review' ? (
                                     <p className="text-xs text-gray-600 dark:text-gray-400 pt-1 border-t border-surface-border dark:border-surface-dark-border">
-                                        Your store visit report has been submitted and is currently being reviewed by our administration.
+                                        {t('store_visit_submitted_review', 'Your store visit report has been submitted and is currently being reviewed by our administration.')}
                                     </p>
                                 ) : (
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-surface-border dark:border-surface-dark-border">

@@ -939,6 +939,17 @@ class UserProfile(models.Model):
         choices=[('TZS', 'Tanzanian Shilling'), ('USD', 'US Dollar')],
         default='TZS'
     )
+    preferred_language = models.CharField(
+        max_length=5,
+        choices=[
+            ('sw', 'Swahili'),
+            ('en', 'English'),
+            ('fr', 'French'),
+            ('zh', 'Chinese'),
+        ],
+        default='sw',
+        blank=True
+    )
     terms_accepted = models.BooleanField(default=False)
     gender = models.CharField(
         max_length=15,

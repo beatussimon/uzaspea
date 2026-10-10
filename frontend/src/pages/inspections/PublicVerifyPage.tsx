@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Shield, Search, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import inspectionApi from '../../api/inspectionApi';
 import { STATUS_COLORS, VERDICT_COLORS, fmtDate } from '../../types/inspection';
@@ -12,6 +13,7 @@ const Badge: React.FC<{ text: string; className?: string }> = ({ text, className
 );
 
 const PublicVerifyPage: React.FC = () => {
+  const { t } = useTranslation();
   const { inspection_id } = useParams();
   const [query, setQuery] = useState(inspection_id || '');
   const [result, setResult] = useState<any>(null);
@@ -47,13 +49,13 @@ const PublicVerifyPage: React.FC = () => {
         <div className="p-3   rounded-full w-14 h-14 flex items-center justify-center mx-auto mb-4">
           <Shield size={28} className="text-brand-500 dark:text-brand-500" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Verify Inspection</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('verify_inspection', 'Verify Inspection')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Enter an Inspection ID to verify its authenticity
+          {t('enter_inspection_id_desc', 'Enter an Inspection ID to verify its authenticity')}
         </p>
 
         <form onSubmit={handleSearch} className="flex gap-2">
-          <input className="input" placeholder="e.g. OKO-AUT-20240424-00001"
+          <input className="input" placeholder={t('inspection_id_placeholder', 'e.g. OKO-AUT-20240424-00001')}
             value={query} onChange={(e) => setQuery(e.target.value)} />
           <button type="submit" className="btn-primary px-4 py-2 shrink-0">
             <Search size={16} />
@@ -64,7 +66,7 @@ const PublicVerifyPage: React.FC = () => {
 
         {searched && !loading && !result && (
           <div className="mt-6 p-4 rounded-lg   border border-red-500 dark:border-red-500/30 text-red-500 dark:text-red-500 text-sm">
-            No inspection found with this ID.
+            {t('no_inspection_found_id', 'No inspection found with this ID.')}
           </div>
         )}
 
@@ -79,43 +81,43 @@ const PublicVerifyPage: React.FC = () => {
                 ? <CheckCircle size={20} className="text-green-500" />
                 : <Clock size={20} className="text-yellow-500" />}
               <span className={`font-bold ${result.is_verified ? 'text-green-500 dark:text-green-500' : 'text-yellow-500 dark:text-yellow-500'}`}>
-                {result.is_verified ? 'Verified Inspection' : 'Inspection In Progress'}
+                {result.is_verified ? t('verified_inspection', 'Verified Inspection') : t('inspection_in_progress', 'Inspection In Progress')}
               </span>
             </div>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">ID</span>
+                <span className="text-gray-500">{t('id', 'ID')}</span>
                 <span className="font-mono font-bold text-gray-900 dark:text-white">{result.inspection_id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Category</span>
+                <span className="text-gray-500">{t('category', 'Category')}</span>
                 <span className="text-gray-700 dark:text-gray-300">{result.category}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
+                <span className="text-gray-500">{t('status', 'Status')}</span>
                 <Badge text={result.status} className={STATUS_COLORS[result.status] || 'badge-gray'} />
               </div>
               {result.verdict && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Verdict</span>
+                  <span className="text-gray-500">{t('verdict', 'Verdict')}</span>
                   <Badge text={result.verdict.toUpperCase()} className={VERDICT_COLORS[result.verdict]} />
                 </div>
               )}
               {result.report_hash && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Report Hash</span>
+                  <span className="text-gray-500">{t('report_hash', 'Report Hash')}</span>
                   <span className="font-mono text-xs text-gray-400">{result.report_hash.slice(0, 20)}…</span>
                 </div>
               )}
               {result.inspected_stock !== null && result.inspected_stock !== undefined && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Inspected Stock</span>
-                  <span className="font-bold text-gray-900 dark:text-white">{result.inspected_stock} units</span>
+                  <span className="text-gray-500">{t('inspected_stock', 'Inspected Stock')}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{result.inspected_stock} {t('units', 'units')}</span>
                 </div>
               )}
               {result.inspected_at && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Inspected</span>
+                  <span className="text-gray-500">{t('inspected', 'Inspected')}</span>
                   <span className="text-gray-700 dark:text-gray-300">{fmtDate(result.inspected_at)}</span>
                 </div>
               )}
@@ -125,10 +127,10 @@ const PublicVerifyPage: React.FC = () => {
             {result.has_post_inspection_changes && result.post_inspection_events && result.post_inspection_events.length > 0 ? (
               <div className="mt-5 pt-5 border-t border-gray-100 dark:border-neutral-800 space-y-2">
                 <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Activity Recorded After Inspection ({result.post_inspection_events.length})
+                  {t('activity_after_inspection', 'Activity Recorded After Inspection ({{count}})', { count: result.post_inspection_events.length })}
                 </div>
                 <p className="text-2xs text-gray-500 dark:text-gray-400">
-                  Stock or details were updated after this inspection certificate was issued:
+                  {t('stock_updated_after_cert', 'Stock or details were updated after this inspection certificate was issued:')}
                 </p>
                 <div className="space-y-1.5">
                   {result.post_inspection_events.map((ev: any, idx: number) => (
@@ -155,7 +157,7 @@ const PublicVerifyPage: React.FC = () => {
                   {result.quality_score && (
                     <div className="text-center shrink-0">
                       <div className="text-2xl font-black text-gray-900 dark:text-white">{parseFloat(result.quality_score).toFixed(1)}%</div>
-                      <div className="text-[10px] uppercase font-bold text-gray-500">Score</div>
+                      <div className="text-[10px] uppercase font-bold text-gray-500">{t('score', 'Score')}</div>
                     </div>
                   )}
                   {result.grade && (
@@ -165,7 +167,7 @@ const PublicVerifyPage: React.FC = () => {
                         result.grade.startsWith('B') ? 'text-blue-500' :
                         result.grade.startsWith('C') ? 'text-amber-500' : 'text-red-500'
                       }`}>{result.grade}</div>
-                      <div className="text-[10px] uppercase font-bold text-gray-500">Grade</div>
+                      <div className="text-[10px] uppercase font-bold text-gray-500">{t('grade', 'Grade')}</div>
                     </div>
                   )}
                   <div className="flex-1 min-w-[200px]">
@@ -175,7 +177,7 @@ const PublicVerifyPage: React.FC = () => {
 
                 {result.flagged_items && result.flagged_items.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Flagged Issues ({result.flagged_items.length})</p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('flagged_issues', 'Flagged Issues ({{count}})', { count: result.flagged_items.length })}</p>
                     <div className="divide-y divide-green-200/50 dark:divide-green-800/30">
                       {result.flagged_items.map((fi: any, idx: number) => (
                         <div key={idx} className="py-2.5 flex items-start gap-3">
@@ -192,7 +194,7 @@ const PublicVerifyPage: React.FC = () => {
                                 'border-blue-500/40 text-blue-500 dark:text-blue-400'
                               }`}>{fi.severity}</span>
                             </div>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Found: <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span></p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t('found', 'Found:')} <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span></p>
                             {fi.notes && <p className="text-xs text-gray-500 mt-0.5 italic">{fi.notes}</p>}
                           </div>
                         </div>

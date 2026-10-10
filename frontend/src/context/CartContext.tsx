@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 
 interface CartItem {
@@ -33,6 +34,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
@@ -76,7 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const returnUrl = window.location.pathname + window.location.search;
       sessionStorage.setItem('loginRedirect', returnUrl);
       sessionStorage.setItem('pendingCartItem', JSON.stringify({ product, quantity }));
-      toast.error("Please sign in to add items to your cart");
+      toast.error(t('sign_in_to_add_cart', "Please sign in to add items to your cart"));
       navigate(`/login?next=${encodeURIComponent(returnUrl)}`);
       return;
     }
@@ -84,7 +86,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const currentUsername = user?.username || localStorage.getItem('username');
       if (currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase()) {
-        toast.error("You cannot add your own product to the cart");
+        toast.error(t('cannot_add_own_product', "You cannot add your own product to the cart"));
         return prev;
       }
 
@@ -94,21 +96,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existing) {
         const newQty = existing.quantity + quantity;
         if (newQty > product.stock) {
-          toast.error(`Only ${product.stock} available in stock`);
+          toast.error(t('only_stock_available', "Only {{count}} available in stock", { count: product.stock }));
           return prev;
         }
-        toast.success(`Updated ${product.name} quantity`);
+        toast.success(t('updated_quantity', "Updated {{name}} quantity", { name: product.name }));
         return prev.map((i) =>
           i.productId === product.id ? { ...i, quantity: newQty } : i
         );
       }
 
       if (quantity > product.stock) {
-        toast.error(`Only ${product.stock} available in stock`);
+        toast.error(t('only_stock_available', "Only {{count}} available in stock", { count: product.stock }));
         return prev;
       }
 
-      toast.success(`${product.name} added to cart`);
+      toast.success(t('item_added_to_cart', "{{name}} added to cart", { name: product.name }));
       return [
         ...prev,
         {
@@ -128,15 +130,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         },
       ];
     });
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, t]);
 
   const removeFromCart = useCallback((productId: string | number) => {
     setItems((prev) => {
       const item = prev.find((i) => i.productId === productId);
-      if (item) toast.success(`${item.name} removed from cart`);
+      if (item) toast.success(t('item_removed_from_cart', "{{name}} removed from cart", { name: item.name }));
       return prev.filter((i) => i.productId !== productId);
     });
-  }, []);
+  }, [t]);
 
   const updateQuantity = useCallback((productId: string | number, quantity: number) => {
     setItems((prev) => {
@@ -146,7 +148,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return prev.map((i) => {
         if (i.productId === productId) {
           if (quantity > i.stock) {
-            toast.error(`Only ${i.stock} available`);
+            toast.error(t('only_stock_available', "Only {{count}} available in stock", { count: i.stock }));
             return { ...i, quantity: i.stock };
           }
           return { ...i, quantity };
@@ -154,7 +156,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return i;
       });
     });
-  }, []);
+  }, [t]);
 
   const clearCart = useCallback(() => {
     setItems([]);

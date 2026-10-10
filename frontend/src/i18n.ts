@@ -7,6 +7,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'sw', label: 'Kiswahili', nativeLabel: 'Kiswahili', flag: '🇹🇿', region: 'Tanzania' },
   { code: 'en', label: 'English', nativeLabel: 'English', flag: '🇺🇸', region: 'International' },
   { code: 'fr', label: 'Français', nativeLabel: 'Français', flag: '🇫🇷', region: 'France' },
+  { code: 'zh', label: 'Chinese', nativeLabel: '中文 (简体)', flag: '🇨🇳', region: 'China' },
 ] as const;
 
 export type SupportedLanguageCode = typeof SUPPORTED_LANGUAGES[number]['code'];
@@ -16,7 +17,7 @@ i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    supportedLngs: ['sw', 'en', 'fr'],
+    supportedLngs: ['sw', 'en', 'fr', 'zh'],
     nonExplicitSupportedLngs: true,
     load: 'languageOnly',
     fallbackLng: 'en',
@@ -32,6 +33,9 @@ i18n
     },
     interpolation: {
       escapeValue: false // react already safes from xss
+    },
+    react: {
+      useSuspense: false // Prevents uncaught suspension bubbles in unbracketed layout components
     }
   });
 
