@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2, XCircle } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -1015,6 +1015,18 @@ const ProductRequestsBoard: React.FC = () => {
                                 <span className="inline-flex items-center gap-1 text-2xs text-rose-500 font-medium">
                                   <XCircle size={13} className="text-rose-500 shrink-0" /> Cancelled
                                 </span>
+                              ) : req.fulfilled_product_slug ? (
+                                <a
+                                  href={`/products/${req.fulfilled_product_slug}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
+                                  title="View converted product"
+                                >
+                                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                                  <span>Converted</span>
+                                  <ExternalLink size={10} className="shrink-0 opacity-70" />
+                                </a>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-2xs text-gray-400 dark:text-gray-500 font-medium">
                                   <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Converted
