@@ -2121,43 +2121,39 @@ const ProductDetailPage: React.FC = () => {
 
               {/* Inline Availability Notice */}
               {unavailableNotice && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <AlertTriangle size={15} className="text-amber-500 shrink-0" />
-                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                      {unavailableNotice.message}
-                    </span>
-                  </div>
+                <div className="py-1 flex items-center flex-wrap gap-x-1.5 text-xs text-gray-900 dark:text-white">
+                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                  <span>{unavailableNotice.message}</span>
                   {unavailableNotice.alternatives && unavailableNotice.alternatives.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                      <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                        {t('available_in', 'Available in:')}
-                      </span>
+                    <span className="inline-flex items-center gap-1 flex-wrap">
+                      <span>{t('available_in', 'Available in')}</span>
                       {Array.from(new Set(unavailableNotice.alternatives.map(alt => {
                         const parts = alt.name.split('/').map(p => p.trim());
                         return parts[unavailableNotice.differIndex ?? 0] || alt.name;
-                      }))).map((label) => {
+                      }))).map((label, idx, arr) => {
                         const matchingAlt = unavailableNotice.alternatives.find(alt => {
                           const parts = alt.name.split('/').map(p => p.trim());
                           return (parts[unavailableNotice.differIndex ?? 0] || alt.name) === label;
                         });
                         return (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => {
-                              if (matchingAlt) {
-                                handleSelectVariant(matchingAlt);
-                                setUnavailableNotice(null);
-                              }
-                            }}
-                            className="px-2.5 py-1 text-xs font-bold rounded-md bg-amber-500 text-black hover:bg-amber-400 transition-colors cursor-pointer select-none shadow-xs"
-                          >
-                            {label}
-                          </button>
+                          <span key={label} className="inline-flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (matchingAlt) {
+                                  handleSelectVariant(matchingAlt);
+                                  setUnavailableNotice(null);
+                                }
+                              }}
+                              className="underline underline-offset-2 hover:opacity-75 transition cursor-pointer select-none font-medium"
+                            >
+                              {label}
+                            </button>
+                            {idx < arr.length - 1 && <span className="mr-1">,</span>}
+                          </span>
                         );
                       })}
-                    </div>
+                    </span>
                   )}
                 </div>
               )}
