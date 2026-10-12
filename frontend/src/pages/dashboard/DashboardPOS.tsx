@@ -32,12 +32,6 @@ interface CartItem {
   max_stock: number;
 }
 
-const formatStock = (val: any): string => {
-  const num = parseFloat(String(val || 0));
-  if (isNaN(num)) return '0';
-  return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-};
-
 const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
@@ -574,7 +568,7 @@ const DashboardPOS: React.FC = () => {
                         {/* Top Badges */}
                         <div className="relative z-10 p-2 flex justify-between items-start pointer-events-none">
                           <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
-                            {stockNum > 0 ? t('items_left', '{{count}} left', { count: formatStock(product.stock) }) : t('items_left', '0 left', { count: 0 })}
+                            {stockNum > 0 ? t('items_left', '{{count}} left', { count: Number(product.stock) || 0 }) : t('items_left', '0 left', { count: 0 })}
                           </span>
                           {(!product.variants || product.variants.length === 0) && (
                             <button
