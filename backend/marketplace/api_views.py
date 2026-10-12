@@ -5111,7 +5111,11 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
 
         status_filter = request.query_params.get('status')
         if status_filter:
-            conversions = conversions.filter(status=status_filter.upper())
+            if status_filter.upper() == 'EXPIRED':
+                from django.db.models import Q
+                conversions = conversions.filter(Q(status='EXPIRED') | Q(order__status='EXPIRED'))
+            else:
+                conversions = conversions.filter(status=status_filter.upper())
 
         aggregates = conversions.aggregate(
             total_sales=Sum('order_subtotal'),
