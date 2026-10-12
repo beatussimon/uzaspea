@@ -118,6 +118,9 @@ const location = useLocation();
   // Promo Code Form State
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [editingPromoId, setEditingPromoId] = useState<number | null>(null);
+  const [promoFormType, setPromoFormType] = useState<'coupon' | 'affiliate'>('coupon');
+  const [couponStatusFilter, setCouponStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [affiliateStatusFilter, setAffiliateStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const promoFormRef = useRef<HTMLFormElement>(null);
   const [promoForm, setPromoForm] = useState({
     code: '',
@@ -278,9 +281,49 @@ const location = useLocation();
     refreshReferralConversions(newStatus);
   };
 
+  const isPromoExpired = (p: any) => {
+    if (p.end_date && new Date(p.end_date).getTime() < nowTimestamp) return true;
+    if (p.max_uses !== null && p.max_uses !== undefined && (p.use_count || 0) >= p.max_uses) return true;
+    return false;
+  };
+
   const affiliateCodes = useMemo(() => {
     return promoCodes.filter((p: any) => Boolean(p.affiliate_name) || (parseFloat(p.commission_rate || '0') > 0));
   }, [promoCodes]);
+
+  const filteredAffiliateCodes = useMemo(() => {
+    return affiliateCodes.filter((p: any) => {
+      const expired = isPromoExpired(p);
+      if (affiliateStatusFilter === 'active') return p.is_active && !expired;
+      if (affiliateStatusFilter === 'expired') return expired;
+      return true;
+    });
+  }, [affiliateCodes, affiliateStatusFilter, nowTimestamp]);
+
+  const activeAffiliatesCount = useMemo(() => {
+    return affiliateCodes.filter((p: any) => p.is_active && !isPromoExpired(p)).length;
+  }, [affiliateCodes, nowTimestamp]);
+
+  const expiredAffiliatesCount = useMemo(() => {
+    return affiliateCodes.filter((p: any) => isPromoExpired(p)).length;
+  }, [affiliateCodes, nowTimestamp]);
+
+  const filteredCoupons = useMemo(() => {
+    return promoCodes.filter((p: any) => {
+      const expired = isPromoExpired(p);
+      if (couponStatusFilter === 'active') return p.is_active && !expired;
+      if (couponStatusFilter === 'expired') return expired;
+      return true;
+    });
+  }, [promoCodes, couponStatusFilter, nowTimestamp]);
+
+  const activeCouponsCount = useMemo(() => {
+    return promoCodes.filter((c: any) => c.is_active && !isPromoExpired(c)).length;
+  }, [promoCodes, nowTimestamp]);
+
+  const expiredCouponsCount = useMemo(() => {
+    return promoCodes.filter((c: any) => isPromoExpired(c)).length;
+  }, [promoCodes, nowTimestamp]);
 
   const handleCopyAffiliateLink = (promoOrCode: any) => {
     const origin = window.location.origin;
@@ -349,7 +392,6 @@ const location = useLocation();
     return promotions.filter(p => getCampaignStatus(p) === 'pending').length;
   }, [promotions]);
 
-  const activeCouponsCount = useMemo(() => promoCodes.filter(c => c.is_active).length, [promoCodes]);
   const totalRedemptions = useMemo(() => promoCodes.reduce((sum, c) => sum + (c.use_count || 0), 0), [promoCodes]);
 
   // Filtered campaigns
@@ -466,6 +508,8 @@ const location = useLocation();
   };
 
   const handleStartEditPromo = (promo: any) => {
+    const isAffiliate = Boolean(promo.affiliate_name) || (parseFloat(promo.commission_rate || '0') > 0) || activeTab === 'referrals';
+    setPromoFormType(isAffiliate ? 'affiliate' : 'coupon');
     setEditingPromoId(promo.id);
     setPromoForm({
       code: promo.code || '',
@@ -478,7 +522,7 @@ const location = useLocation();
       max_uses: promo.max_uses ? String(promo.max_uses) : '',
       max_uses_per_user: promo.max_uses_per_user ? String(promo.max_uses_per_user) : '1',
       end_date: promo.end_date ? new Date(promo.end_date).toISOString().split('T')[0] : '',
-      applicable_scope: (promo.applicable_scope as any) || 'single_product',
+      applicable_scope: (promo.applicable_scope as any) || (isAffiliate ? 'single_product' : 'all_products'),
       product_id: promo.product ? String(promo.product) : promo.product_id ? String(promo.product_id) : (products.length > 0 ? String(products[0].id) : ''),
       selected_product_ids: Array.isArray(promo.products) ? promo.products : [],
       attribution_window_days: String(promo.attribution_window_days || '7')
@@ -489,7 +533,9 @@ const location = useLocation();
     }, 50);
   };
 
-  const handleOpenCreatePromo = () => {
+  const handleOpenCreatePromo = (overrideType?: 'coupon' | 'affiliate') => {
+    const targetType = overrideType || (activeTab === 'referrals' ? 'affiliate' : 'coupon');
+    setPromoFormType(targetType);
     setEditingPromoId(null);
     setPromoForm({
       code: '',
@@ -502,7 +548,7 @@ const location = useLocation();
       max_uses: '',
       max_uses_per_user: '1',
       end_date: '',
-      applicable_scope: 'single_product',
+      applicable_scope: targetType === 'affiliate' ? 'single_product' : 'all_products',
       product_id: products.length > 0 ? String(products[0].id) : '',
       selected_product_ids: [],
       attribution_window_days: '7'
@@ -521,13 +567,20 @@ const location = useLocation();
     e.preventDefault();
     const cleanCode = promoForm.code.trim().toUpperCase();
     if (!cleanCode) {
-      toast.error(t('enter_promo_code', 'Please enter a coupon code'));
+      toast.error(t('enter_promo_code', 'Please enter a promo code'));
       return;
     }
-    const hasCommission = promoForm.commission_rate && parseFloat(promoForm.commission_rate) > 0;
+    const isAffiliate = promoFormType === 'affiliate';
+    const hasCommission = isAffiliate && promoForm.commission_rate && parseFloat(promoForm.commission_rate) > 0;
     const discountVal = parseFloat(promoForm.value || '0');
-    if (!hasCommission && discountVal <= 0) {
+
+    if (!isAffiliate && discountVal <= 0) {
       toast.error(t('enter_valid_discount', 'Please enter a valid discount amount'));
+      return;
+    }
+
+    if (isAffiliate && !hasCommission && discountVal <= 0) {
+      toast.error(t('enter_valid_discount_or_commission', 'Please enter a discount amount or influencer commission cut'));
       return;
     }
 
@@ -549,20 +602,30 @@ const location = useLocation();
         value: discountVal,
         min_purchase_amount: parseFloat(promoForm.min_purchase_amount || '0'),
         applicable_scope: promoForm.applicable_scope,
-        attribution_window_days: parseInt(promoForm.attribution_window_days || '7', 10)
       };
+
       if (promoForm.applicable_scope === 'single_product') {
         data.product = parseInt(promoForm.product_id, 10);
       } else if (promoForm.applicable_scope === 'specific_products') {
         data.products = promoForm.selected_product_ids;
       }
-      if (promoForm.affiliate_name.trim()) {
-        data.affiliate_name = promoForm.affiliate_name.trim();
+
+      if (isAffiliate) {
+        if (promoForm.affiliate_name.trim()) {
+          data.affiliate_name = promoForm.affiliate_name.trim();
+        }
+        if (promoForm.commission_rate) {
+          data.commission_type = promoForm.commission_type;
+          data.commission_rate = parseFloat(promoForm.commission_rate);
+        }
+        data.attribution_window_days = parseInt(promoForm.attribution_window_days || '7', 10);
+      } else {
+        data.affiliate_name = '';
+        data.commission_rate = 0;
+        data.commission_type = 'percentage';
+        data.attribution_window_days = 7;
       }
-      if (promoForm.commission_rate) {
-        data.commission_type = promoForm.commission_type;
-        data.commission_rate = parseFloat(promoForm.commission_rate);
-      }
+
       if (promoForm.max_uses) {
         data.max_uses = parseInt(promoForm.max_uses, 10);
       }
@@ -575,10 +638,10 @@ const location = useLocation();
 
       if (editingPromoId) {
         await api.patch(`/api/promo-codes/${editingPromoId}/`, data);
-        toast.success(promoForm.affiliate_name ? t('affiliate_updated_success', 'Affiliate referral code updated!') : t('promo_updated_success', 'Promo code updated successfully!'));
+        toast.success(isAffiliate ? t('affiliate_updated_success', 'Affiliate referral code updated!') : t('promo_updated_success', 'Promo code updated successfully!'));
       } else {
         await api.post('/api/promo-codes/', data);
-        toast.success(promoForm.affiliate_name ? t('affiliate_created_success', 'Affiliate referral code created!') : t('promo_created_success', 'Promo code created successfully'));
+        toast.success(isAffiliate ? t('affiliate_created_success', 'Affiliate referral code created!') : t('promo_created_success', 'Promo code created successfully!'));
       }
       setShowPromoForm(false);
       setEditingPromoId(null);
@@ -593,7 +656,7 @@ const location = useLocation();
         max_uses: '',
         max_uses_per_user: '1',
         end_date: '',
-        applicable_scope: 'single_product',
+        applicable_scope: isAffiliate ? 'single_product' : 'all_products',
         product_id: products.length > 0 ? String(products[0].id) : '',
         selected_product_ids: [],
         attribution_window_days: '7'
@@ -678,19 +741,21 @@ const location = useLocation();
     return Math.round(pct);
   };
 
+  const isAffiliate = promoFormType === 'affiliate';
+
   const promoFormJsx = showPromoForm && (
     <form ref={promoFormRef} onSubmit={handlePromoSubmit} className="card p-5 space-y-4 animate-scale-in text-xs border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
       <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 flex justify-between items-center">
         <div>
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
             {editingPromoId
-              ? (activeTab === 'referrals' ? t('edit_affiliate_code', 'Edit Affiliate Referral Code') : t('edit_store_coupon', 'Edit Store Coupon Code'))
-              : (activeTab === 'referrals' ? t('create_affiliate_code', 'Create Affiliate Referral Code') : t('create_store_coupon', 'Create Store Coupon Code'))}
+              ? (isAffiliate ? t('edit_affiliate_code', 'Edit Affiliate Referral Code') : t('edit_store_coupon', 'Edit Promo Code'))
+              : (isAffiliate ? t('create_affiliate_code', 'Create Affiliate Referral Code') : t('create_store_coupon', 'Create Promo Code'))}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {editingPromoId
-              ? t('edit_promo_desc', 'Modify promoter settings, commission cut, qualifying products, and campaign rules.')
-              : (activeTab === 'referrals'
+              ? (isAffiliate ? t('edit_affiliate_desc', 'Modify promoter settings, commission cut, qualifying products, and campaign rules.') : t('edit_coupon_desc', 'Update discount amount, qualifying products, and usage rules.'))
+              : (isAffiliate
                   ? t('affiliate_form_desc', 'Assign a code or link to an influencer and define their commission cut.')
                   : t('coupon_form_desc', 'Generate percentage or fixed discounts for buyers to apply during checkout.'))}
           </p>
@@ -704,11 +769,11 @@ const location = useLocation();
         </button>
       </div>
 
-      {/* Row 1: Code and Influencer Name */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Row 1: Code (and Influencer Name ONLY if affiliate) */}
+      <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3" : ""}>
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Ticket size={12} /> {t('coupon_or_referral_code', 'Code')} <span className="text-red-500">*</span>
+            <Ticket size={12} /> {isAffiliate ? t('referral_code', 'Referral Code') : t('promo_code', 'Promo Code')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -716,35 +781,106 @@ const location = useLocation();
             required
             value={promoForm.code}
             onChange={handlePromoChange}
-            placeholder="e.g. SARAH10, FLASH20"
+            placeholder={isAffiliate ? "e.g. SARAH10, JUMA5" : "e.g. FLASH20, WELCOME10"}
             className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
           />
         </div>
+        {isAffiliate && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <UserCheck size={12} /> {t('influencer_partner_name', 'Influencer / Promoter Name')}
+            </label>
+            <input
+              type="text"
+              name="affiliate_name"
+              value={promoForm.affiliate_name}
+              onChange={handlePromoChange}
+              placeholder="e.g. @sarah_tz or Juma Kimaro (Optional)"
+              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Row 2: Buyer Discount Settings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <UserCheck size={12} /> {t('influencer_partner_name', 'Influencer / Promoter Name')}
+            <Percent size={12} /> {isAffiliate ? t('buyer_discount_type', 'Buyer Discount Type') : t('discount_type', 'Discount Type')}
+          </label>
+          <select
+            name="discount_type"
+            value={promoForm.discount_type}
+            onChange={handlePromoChange}
+            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+          >
+            <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
+            <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {isAffiliate ? t('buyer_discount_value', 'Buyer Discount Amount') : t('discount_value', 'Discount Value')} {!isAffiliate && <span className="text-red-500">*</span>}
           </label>
           <input
-            type="text"
-            name="affiliate_name"
-            value={promoForm.affiliate_name}
+            type="number"
+            name="value"
+            min="0"
+            step="any"
+            required={!isAffiliate}
+            value={promoForm.value}
             onChange={handlePromoChange}
-            placeholder="e.g. @sarah_tz or Juma Kimaro (Optional)"
+            placeholder={promoForm.discount_type === 'percentage' ? (isAffiliate ? 'e.g. 10 (or 0 for cut only)' : 'e.g. 15 (for 15% off)') : 'e.g. 5000 (for TSh 5,000 off)'}
             className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
           />
         </div>
       </div>
 
-      {/* Row 2: Product Applicability Scope */}
+      {/* Promoter Commission Cut Settings (ONLY visible in Affiliate mode) */}
+      {isAffiliate && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/20">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <Percent size={12} /> {t('influencer_cut_type', 'Promoter Commission Type')}
+            </label>
+            <select
+              name="commission_type"
+              value={promoForm.commission_type}
+              onChange={handlePromoChange}
+              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+            >
+              <option value="percentage">{t('cut_percentage_label', 'Percentage of Sale (%)')}</option>
+              <option value="fixed">{t('cut_fixed_label', 'Fixed Bounty per Order (TZS)')}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('influencer_cut_rate', 'Promoter Commission Amount')}
+            </label>
+            <input
+              type="number"
+              name="commission_rate"
+              min="0"
+              step="any"
+              value={promoForm.commission_rate}
+              onChange={handlePromoChange}
+              placeholder={promoForm.commission_type === 'percentage' ? 'e.g. 10 (for 10% cut per sale)' : 'e.g. 3000 (for TSh 3,000 bounty)'}
+              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Product Applicability Scope */}
       <div className="space-y-2">
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
           {t('product_scope', 'Product Applicability Scope')} <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {[
-            { id: 'single_product', label: t('scope_single', 'Single Product (Default)'), desc: t('scope_single_desc', 'Direct link to 1 product') },
-            { id: 'specific_products', label: t('scope_specific', 'Selected Products'), desc: t('scope_specific_desc', 'Selected collection') },
-            { id: 'all_products', label: t('scope_all', 'Storewide'), desc: t('scope_all_desc', 'All store inventory') }
+            { id: 'all_products', label: t('scope_all', 'Storewide'), desc: t('scope_all_desc', 'All store inventory') },
+            { id: 'single_product', label: t('scope_single', 'Single Product'), desc: t('scope_single_desc', 'Direct link to 1 product') },
+            { id: 'specific_products', label: t('scope_specific', 'Selected Products'), desc: t('scope_specific_desc', 'Selected collection') }
           ].map(scope => {
             const isSelected = promoForm.applicable_scope === scope.id;
             return (
@@ -790,7 +926,9 @@ const location = useLocation();
               </select>
             )}
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-              {t('single_product_link_hint', 'Generates a direct link to this product page with attribution auto-captured at checkout.')}
+              {isAffiliate
+                ? t('single_product_link_hint', 'Generates a direct link to this product page with attribution auto-captured at checkout.')
+                : t('single_product_coupon_hint', 'This discount code will only apply to this selected item.')}
             </p>
           </div>
         )}
@@ -829,78 +967,12 @@ const location = useLocation();
 
         {promoForm.applicable_scope === 'all_products' && (
           <p className="text-[11px] text-gray-500 dark:text-gray-400 pt-1">
-            {t('all_products_hint', 'This promo applies to all items across your store. Links will direct buyers to your store catalog.')}
+            {t('all_products_hint', 'This promo applies to all items across your store catalog.')}
           </p>
         )}
       </div>
 
-      {/* Row 3: Buyer Discount Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Percent size={12} /> {t('buyer_discount_type', 'Buyer Discount Type')}
-          </label>
-          <select
-            name="discount_type"
-            value={promoForm.discount_type}
-            onChange={handlePromoChange}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          >
-            <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
-            <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('buyer_discount_value', 'Buyer Discount Amount')}
-          </label>
-          <input
-            type="number"
-            name="value"
-            min="0"
-            step="any"
-            value={promoForm.value}
-            onChange={handlePromoChange}
-            placeholder={promoForm.discount_type === 'percentage' ? 'e.g. 10 (or 0 for cut only)' : 'e.g. 5000'}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-      </div>
-
-      {/* Row 4: Promoter Commission Cut Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Percent size={12} /> {t('influencer_cut_type', 'Influencer Commission Cut Type')}
-          </label>
-          <select
-            name="commission_type"
-            value={promoForm.commission_type}
-            onChange={handlePromoChange}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          >
-            <option value="percentage">{t('cut_percentage_label', 'Percentage of Sale (%)')}</option>
-            <option value="fixed">{t('cut_fixed_label', 'Fixed Bounty per Order (TZS)')}</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('influencer_cut_rate', 'Influencer Commission Cut Amount')}
-          </label>
-          <input
-            type="number"
-            name="commission_rate"
-            min="0"
-            step="any"
-            value={promoForm.commission_rate}
-            onChange={handlePromoChange}
-            placeholder={promoForm.commission_type === 'percentage' ? 'e.g. 10 (for 10% cut per sale)' : 'e.g. 3000 (for TSh 3,000 bounty)'}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-      </div>
-
-      {/* Row 5: Usage Limits */}
+      {/* Usage Limits */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -913,7 +985,7 @@ const location = useLocation();
             step="any"
             value={promoForm.min_purchase_amount}
             onChange={handlePromoChange}
-            placeholder="e.g. 10000 (0 for no min)"
+            placeholder="0 for no min"
             className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
           />
         </div>
@@ -927,7 +999,7 @@ const location = useLocation();
             min="1"
             value={promoForm.max_uses_per_user}
             onChange={handlePromoChange}
-            placeholder="1 (default 1 use per customer)"
+            placeholder="1 (default 1 use)"
             className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
           />
         </div>
@@ -947,26 +1019,8 @@ const location = useLocation();
         </div>
       </div>
 
-      {/* Row 6: Expiration & Attribution Window */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Clock size={12} /> {t('attribution_window_label', 'Attribution Window (Days)')}
-          </label>
-          <input
-            type="number"
-            name="attribution_window_days"
-            min="1"
-            max="90"
-            value={promoForm.attribution_window_days}
-            onChange={handlePromoChange}
-            placeholder="7"
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {t('attribution_window_help', 'How many days after clicking the referral remains active for customer (default: 7).')}
-          </p>
-        </div>
+      {/* Expiration Date (and Attribution Window ONLY if affiliate) */}
+      <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3" : ""}>
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
             <Calendar size={12} /> {t('expiration_date_optional', 'Expiration Date (Optional)')}
@@ -979,9 +1033,29 @@ const location = useLocation();
             className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
           />
         </div>
+        {isAffiliate && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <Clock size={12} /> {t('attribution_window_label', 'Attribution Window (Days)')}
+            </label>
+            <input
+              type="number"
+              name="attribution_window_days"
+              min="1"
+              max="90"
+              value={promoForm.attribution_window_days}
+              onChange={handlePromoChange}
+              placeholder="7"
+              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+            />
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              {t('attribution_window_help', 'How many days after clicking the referral remains active for customer (default: 7).')}
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex justify-end gap-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
         <Button type="button" variant="outline" size="sm" onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }}>
           {t('cancel', 'Cancel')}
         </Button>
@@ -995,7 +1069,7 @@ const location = useLocation();
             ? t('saving', 'Saving...') 
             : editingPromoId
             ? t('save_changes', 'Save Changes')
-            : (activeTab === 'referrals' ? t('create_affiliate_btn', 'Create Affiliate Code') : t('create_code_btn', 'Create Coupon'))}
+            : (isAffiliate ? t('create_affiliate_btn', 'Create Referral Code') : t('create_code_btn', 'Create Promo Code'))}
         </Button>
       </div>
     </form>
@@ -1708,24 +1782,88 @@ const location = useLocation();
         <div className="space-y-6">
           {promoFormJsx}
 
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                {t('store_coupons_title', 'Store Promo Codes & Coupons')}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t('store_coupons_desc', 'Discount codes for your customers to apply during checkout.')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#141414] p-0.5 rounded-lg border border-surface-border dark:border-surface-dark-border text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCouponStatusFilter('all')}
+                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    couponStatusFilter === 'all'
+                      ? 'bg-white dark:bg-[#202020] text-gray-900 dark:text-white shadow-xs font-semibold'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {t('all', 'All')} ({promoCodes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCouponStatusFilter('active')}
+                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    couponStatusFilter === 'active'
+                      ? 'bg-white dark:bg-[#202020] text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {t('active', 'Active')} ({activeCouponsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCouponStatusFilter('expired')}
+                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    couponStatusFilter === 'expired'
+                      ? 'bg-white dark:bg-[#202020] text-red-600 dark:text-red-400 shadow-xs font-semibold'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {t('expired', 'Expired')} ({expiredCouponsCount})
+                </button>
+              </div>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleOpenCreatePromo('coupon')}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <Plus size={13} />
+                {t('new_coupon', 'New Promo Code')}
+              </Button>
+            </div>
+          </div>
+
           {initialLoading ? (
             <TableSkeleton rows={3} cols={5} />
           ) : promoCodes.length === 0 ? (
             <EmptyState
               icon={Ticket}
-              title={t('no_coupons_title', 'No Store Coupons Created')}
+              title={t('no_coupons_title', 'No Store Promo Codes Created')}
               description={t('no_coupons_desc', 'Create custom discount codes to reward returning buyers or boost seasonal campaign sales.')}
               action={{
-                label: t('create_first_coupon', 'Create First Coupon'),
-                onClick: () => setShowPromoForm(true)
+                label: t('create_first_coupon', 'Create First Promo Code'),
+                onClick: () => handleOpenCreatePromo('coupon')
               }}
             />
+          ) : filteredCoupons.length === 0 ? (
+            <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
+              {couponStatusFilter === 'expired'
+                ? t('no_expired_coupons', 'No expired promo codes found.')
+                : t('no_active_coupons', 'No active promo codes found.')}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
                   <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
-                    <th className="p-3 rounded-l-lg">{t('coupon_code', 'Coupon Code')}</th>
+                    <th className="p-3 rounded-l-lg">{t('coupon_code', 'Promo Code')}</th>
                     <th className="p-3">{t('discount', 'Discount')}</th>
                     <th className="p-3 text-right">{t('min_spend', 'Min Order')}</th>
                     <th className="p-3 text-center">{t('redemptions', 'Redemptions')}</th>
@@ -1735,8 +1873,8 @@ const location = useLocation();
                   </tr>
                 </thead>
                 <tbody>
-                  {promoCodes.map((promo: any) => {
-                    const isExpired = promo.end_date && new Date(promo.end_date).getTime() < nowTimestamp;
+                  {filteredCoupons.map((promo: any) => {
+                    const isExpired = isPromoExpired(promo);
                     return (
                       <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
                         <td className="p-3">
@@ -1785,23 +1923,40 @@ const location = useLocation();
                               {new Date(promo.end_date).toLocaleDateString()}
                               {isExpired && ` (${t('expired', 'Expired')})`}
                             </span>
+                          ) : promo.max_uses && (promo.use_count || 0) >= promo.max_uses ? (
+                            <span className="text-red-500 font-medium">{t('limit_reached', 'Limit Reached')}</span>
                           ) : (
                             t('never', 'Never')
                           )}
                         </td>
                         <td className="p-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
-                            className="transition inline-flex cursor-pointer"
-                            title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
-                          >
-                            {promo.is_active ? (
-                              <ToggleRight size={26} className="text-brand-500" />
+                          <div className="flex flex-col items-center gap-1">
+                            {isExpired ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 uppercase tracking-tight">
+                                {t('expired', 'Expired')}
+                              </span>
+                            ) : promo.is_active ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-tight">
+                                {t('active', 'Active')}
+                              </span>
                             ) : (
-                              <ToggleLeft size={26} className="text-gray-300 dark:text-gray-600" />
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20 uppercase tracking-tight">
+                                {t('paused', 'Paused')}
+                              </span>
                             )}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
+                              className="transition inline-flex cursor-pointer mt-0.5"
+                              title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
+                            >
+                              {promo.is_active ? (
+                                <ToggleRight size={22} className="text-brand-500" />
+                              ) : (
+                                <ToggleLeft size={22} className="text-gray-300 dark:text-gray-600" />
+                              )}
+                            </button>
+                          </div>
                         </td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -1809,7 +1964,7 @@ const location = useLocation();
                               type="button"
                               onClick={() => handleStartEditPromo(promo)}
                               className="p-1 text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 rounded transition cursor-pointer"
-                              title={t('edit_coupon', 'Edit Coupon')}
+                              title={t('edit_coupon', 'Edit Promo Code')}
                             >
                               <Edit2 size={13} />
                             </button>
@@ -1840,24 +1995,66 @@ const location = useLocation();
 
           {/* Section 1: Active Affiliate Links */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                  {t('active_affiliate_codes', 'Active Affiliate & Partner Codes')}
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>{t('active_affiliate_codes', 'Affiliate & Partner Codes')}</span>
+                  <span className="text-xs font-normal text-gray-400">
+                    ({affiliateCodes.length})
+                  </span>
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {t('active_affiliate_desc', 'Trackable codes and share links configured for influencers with custom commission cuts.')}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleOpenCreatePromo}
-                className="text-xs flex items-center gap-1.5"
-              >
-                <Plus size={13} />
-                {t('add_influencer_code', 'Add Influencer Code')}
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#141414] p-0.5 rounded-lg border border-surface-border dark:border-surface-dark-border text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setAffiliateStatusFilter('all')}
+                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                      affiliateStatusFilter === 'all'
+                        ? 'bg-white dark:bg-[#202020] text-gray-900 dark:text-white shadow-xs font-semibold'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {t('all', 'All')} ({affiliateCodes.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAffiliateStatusFilter('active')}
+                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                      affiliateStatusFilter === 'active'
+                        ? 'bg-white dark:bg-[#202020] text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {t('active', 'Active')} ({activeAffiliatesCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAffiliateStatusFilter('expired')}
+                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                      affiliateStatusFilter === 'expired'
+                        ? 'bg-white dark:bg-[#202020] text-red-600 dark:text-red-400 shadow-xs font-semibold'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {t('expired', 'Expired')} ({expiredAffiliatesCount})
+                  </button>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleOpenCreatePromo('affiliate')}
+                  className="text-xs flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus size={13} />
+                  {t('add_influencer_code', 'Add Influencer Code')}
+                </Button>
+              </div>
             </div>
 
             {affiliateCodes.length === 0 ? (
@@ -1873,12 +2070,18 @@ const location = useLocation();
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => setShowPromoForm(true)}
+                  onClick={() => handleOpenCreatePromo('affiliate')}
                   className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs"
                 >
                   <Plus size={13} className="mr-1 inline" />
                   {t('create_influencer_code', 'Create Influencer Code')}
                 </Button>
+              </div>
+            ) : filteredAffiliateCodes.length === 0 ? (
+              <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
+                {affiliateStatusFilter === 'expired'
+                  ? t('no_expired_affiliates', 'No expired affiliate or partner codes found.')
+                  : t('no_active_affiliates', 'No active affiliate or partner codes found.')}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1892,12 +2095,15 @@ const location = useLocation();
                       <th className="p-3">{t('buyer_discount', 'Buyer Discount')}</th>
                       <th className="p-3 text-center">{t('window', 'Window')}</th>
                       <th className="p-3 text-center">{t('redemptions', 'Sales')}</th>
+                      <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
                       <th className="p-3 text-center">{t('status', 'Status')}</th>
                       <th className="p-3 text-center rounded-r-lg">{t('actions', 'Actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {affiliateCodes.map((promo: any) => (
+                    {filteredAffiliateCodes.map((promo: any) => {
+                      const isExpired = isPromoExpired(promo);
+                      return (
                       <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
                         <td className="p-3">
                           <div className="flex items-center gap-2">
@@ -1967,19 +2173,43 @@ const location = useLocation();
                             <span className="font-mono">{promo.use_count}</span>
                             <span className="text-[10px] text-gray-400"> / {promo.max_uses || '∞'}</span>
                           </td>
+                          <td className="p-3 text-gray-600 dark:text-gray-300 text-[11px]">
+                            {promo.end_date ? (
+                              <span className={isExpired ? 'text-red-500 font-semibold' : ''}>
+                                {new Date(promo.end_date).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">{t('no_expiry', 'No expiry')}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
-                              className="transition inline-flex cursor-pointer"
-                              title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
-                            >
-                              {promo.is_active ? (
-                                <ToggleRight size={26} className="text-brand-500" />
+                            <div className="flex flex-col items-center gap-1">
+                              {isExpired ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                  {t('expired', 'Expired')}
+                                </span>
+                              ) : promo.is_active ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  {t('active', 'Active')}
+                                </span>
                               ) : (
-                                <ToggleLeft size={26} className="text-gray-300 dark:text-gray-600" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-500/10 text-gray-500 border border-gray-500/20">
+                                  {t('paused', 'Paused')}
+                                </span>
                               )}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
+                                className="transition inline-flex cursor-pointer mt-0.5"
+                                title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
+                              >
+                                {promo.is_active ? (
+                                  <ToggleRight size={22} className="text-brand-500" />
+                                ) : (
+                                  <ToggleLeft size={22} className="text-gray-300 dark:text-gray-600" />
+                                )}
+                              </button>
+                            </div>
                           </td>
                           <td className="p-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
@@ -2010,7 +2240,8 @@ const location = useLocation();
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                     </tbody>
                   </table>
                 </div>
@@ -2039,6 +2270,7 @@ const location = useLocation();
                   { key: 'PENDING', label: t('pending', 'Pending') },
                   { key: 'APPROVED', label: t('approved', 'Approved') },
                   { key: 'PAID_OUT', label: t('settled', 'Settled') },
+                  { key: 'EXPIRED', label: t('expired', 'Expired') },
                   { key: 'CANCELLED', label: t('cancelled', 'Cancelled') }
                 ].map(filter => (
                   <button
@@ -2090,7 +2322,8 @@ const location = useLocation();
                         const isPending = conv.status === 'PENDING';
                         const isApproved = conv.status === 'APPROVED';
                         const isPaid = conv.status === 'PAID_OUT';
-                        const isCancelled = conv.status === 'CANCELLED';
+                        const isExpired = conv.status === 'EXPIRED' || conv.order_status === 'EXPIRED';
+                        const isCancelled = conv.status === 'CANCELLED' && !isExpired;
 
                         return (
                           <tr key={conv.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
@@ -2154,31 +2387,36 @@ const location = useLocation();
 
                             {/* Cut Status */}
                             <td className="p-3 text-center">
-                              {isPending && (
+                              {isExpired ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                  {t('expired', 'Expired')}
+                                </span>
+                              ) : isPending ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                                   {t('pending', 'Pending')}
                                 </span>
-                              )}
-                              {isApproved && (
+                              ) : isApproved ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                   {t('approved', 'Approved')}
                                 </span>
-                              )}
-                              {isPaid && (
+                              ) : isPaid ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                                   {t('settled', 'Settled')}
                                 </span>
-                              )}
-                              {isCancelled && (
+                              ) : isCancelled ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-500/10 text-neutral-500 border border-neutral-500/20">
                                   {t('cancelled', 'Cancelled')}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-500/10 text-neutral-500 border border-neutral-500/20">
+                                  {conv.status || 'UNKNOWN'}
                                 </span>
                               )}
                             </td>
 
                             {/* Action */}
                             <td className="p-3 text-center">
-                              {(isApproved || isPending) && (
+                              {!isExpired && (isApproved || isPending) && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -2194,7 +2432,7 @@ const location = useLocation();
                                   {conv.payout_reference ? `Ref: ${conv.payout_reference}` : t('settled', 'Settled')}
                                 </div>
                               )}
-                              {isCancelled && (
+                              {(isCancelled || isExpired) && (
                                 <span className="text-[11px] text-gray-400">-</span>
                               )}
                             </td>
