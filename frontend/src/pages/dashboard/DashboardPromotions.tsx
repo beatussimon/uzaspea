@@ -680,6 +680,12 @@ const location = useLocation();
   };
 
   const handleTogglePromoActive = async (id: number, currentActive: boolean) => {
+    const promo = promoCodes.find(p => p.id === id);
+    if (promo && isPromoExpired(promo)) {
+      toast.error(t('cannot_toggle_expired', 'This promo code has expired. Edit the expiry date to reactivate it.'));
+      return;
+    }
+
     setPromoCodes(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentActive } : p));
     try {
       await api.patch(`/api/promo-codes/${id}/`, { is_active: !currentActive });
@@ -1930,33 +1936,35 @@ const location = useLocation();
                           )}
                         </td>
                         <td className="p-3 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            {isExpired ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 uppercase tracking-tight">
-                                {t('expired', 'Expired')}
-                              </span>
-                            ) : promo.is_active ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-tight">
-                                {t('active', 'Active')}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20 uppercase tracking-tight">
-                                {t('paused', 'Paused')}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
-                              className="transition inline-flex cursor-pointer mt-0.5"
-                              title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
-                            >
+                          {isExpired ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 uppercase tracking-tight">
+                              {t('expired', 'Expired')}
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
                               {promo.is_active ? (
-                                <ToggleRight size={22} className="text-brand-500" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-tight">
+                                  {t('active', 'Active')}
+                                </span>
                               ) : (
-                                <ToggleLeft size={22} className="text-gray-300 dark:text-gray-600" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20 uppercase tracking-tight">
+                                  {t('paused', 'Paused')}
+                                </span>
                               )}
-                            </button>
-                          </div>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePromoActive(promo.id, promo.is_active)}
+                                className="transition inline-flex cursor-pointer mt-0.5"
+                                title={promo.is_active ? t('deactivate', 'Deactivate') : t('activate', 'Activate')}
+                              >
+                                {promo.is_active ? (
+                                  <ToggleRight size={22} className="text-brand-500" />
+                                ) : (
+                                  <ToggleLeft size={22} className="text-gray-300 dark:text-gray-600" />
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -2088,12 +2096,11 @@ const location = useLocation();
                 <table className="w-full text-left text-xs">
                   <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
                     <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
-                      <th className="p-3 rounded-l-lg">{t('code_and_link', 'Code & Share Link')}</th>
+                      <th className="p-3 rounded-l-lg min-w-[240px]">{t('code_and_link', 'Code & Share Link')}</th>
                       <th className="p-3">{t('scope_product', 'Scope / Target')}</th>
                       <th className="p-3">{t('influencer_partner', 'Influencer / Partner')}</th>
                       <th className="p-3">{t('influencer_cut', 'Promoter Cut')}</th>
                       <th className="p-3">{t('buyer_discount', 'Buyer Discount')}</th>
-                      <th className="p-3 text-center">{t('window', 'Window')}</th>
                       <th className="p-3 text-center">{t('redemptions', 'Sales')}</th>
                       <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
                       <th className="p-3 text-center">{t('status', 'Status')}</th>
@@ -2107,88 +2114,89 @@ const location = useLocation();
                       <tr key={promo.id} className="hover:bg-surface-muted/40 dark:hover:bg-[#141414] transition-colors">
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2 py-0.5 rounded">
+                            <span
+                              className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2.5 py-1 rounded w-36 truncate text-center shrink-0 border border-surface-border dark:border-surface-dark-border"
+                              title={promo.code}
+                            >
                               {promo.code}
                             </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyAffiliateLink(promo)}
-                                className="text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 text-[11px] font-medium cursor-pointer ml-1"
-                                title={t('copy_affiliate_link', 'Copy shareable affiliate link')}
-                              >
-                                <Share2 size={12} />
-                                <span>{copiedCode === promo.code ? t('copied', 'Copied!') : t('copy_link', 'Copy Link')}</span>
-                              </button>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            {promo.applicable_scope === 'single_product' ? (
-                              <div className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200">
-                                <Package size={12} className="text-brand-500 shrink-0" />
-                                <span className="font-medium truncate max-w-[150px]" title={promo.product_name}>
-                                  {promo.product_name || t('single_product', 'Single Product')}
-                                </span>
-                                {promo.product_slug && (
-                                  <a
-                                    href={`/product/${promo.product_slug}?ref=${encodeURIComponent(promo.code)}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-gray-400 hover:text-brand-500 inline-flex items-center"
-                                    title={t('view_product', 'View Product')}
-                                  >
-                                    <ArrowUpRight size={11} />
-                                  </a>
-                                )}
-                              </div>
-                            ) : promo.applicable_scope === 'specific_products' ? (
-                              <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                                <Package size={12} className="shrink-0" />
-                                <span>{promo.products?.length || 0} {t('selected_products', 'Products')}</span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-600 dark:text-gray-400">{t('storewide', 'Storewide')}</span>
-                            )}
-                          </td>
-                          <td className="p-3 font-medium text-gray-900 dark:text-white">
-                            {promo.affiliate_name || t('unspecified', 'Unspecified')}
-                          </td>
-                          <td className="p-3 font-semibold text-brand-600 dark:text-brand-400 font-mono">
-                            {promo.commission_type === 'percentage'
-                              ? `${parseFloat(promo.commission_rate || '0')}% of Sale`
-                              : `TSh ${parseInt(promo.commission_rate || '0', 10).toLocaleString()} / Order`}
-                          </td>
-                          <td className="p-3 text-gray-600 dark:text-gray-300 font-mono">
-                            {parseFloat(promo.value) > 0 ? (
-                              promo.discount_type === 'percentage'
-                                ? `${parseFloat(promo.value)}% Off`
-                                : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`
-                            ) : (
-                              <span className="text-gray-400 font-sans">{t('no_buyer_discount', '0% (Cut only)')}</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-center text-gray-500 dark:text-gray-400 font-mono text-[11px]">
-                            {promo.attribution_window_days || 7}d
-                          </td>
-                          <td className="p-3 text-center text-gray-500 dark:text-gray-400">
-                            <span className="font-mono">{promo.use_count}</span>
-                            <span className="text-[10px] text-gray-400"> / {promo.max_uses || '∞'}</span>
-                          </td>
-                          <td className="p-3 text-gray-600 dark:text-gray-300 text-[11px]">
-                            {promo.end_date ? (
-                              <span className={isExpired ? 'text-red-500 font-semibold' : ''}>
-                                {new Date(promo.end_date).toLocaleDateString()}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyAffiliateLink(promo)}
+                              className="text-brand-600 dark:text-brand-400 hover:text-brand-500 flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:underline px-1 py-0.5 rounded transition"
+                              title={t('copy_affiliate_link', 'Copy shareable affiliate link')}
+                            >
+                              <Share2 size={12} className="shrink-0" />
+                              <span>{copiedCode === promo.code ? t('copied', 'Copied!') : t('copy_link', 'Copy Link')}</span>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          {promo.applicable_scope === 'single_product' ? (
+                            <div className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200">
+                              <Package size={12} className="text-brand-500 shrink-0" />
+                              <span className="font-medium truncate max-w-[150px]" title={promo.product_name}>
+                                {promo.product_name || t('single_product', 'Single Product')}
                               </span>
-                            ) : (
-                              <span className="text-gray-400">{t('no_expiry', 'No expiry')}</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-center">
+                              {promo.product_slug && (
+                                <a
+                                  href={`/product/${promo.product_slug}?ref=${encodeURIComponent(promo.code)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-gray-400 hover:text-brand-500 inline-flex items-center"
+                                  title={t('view_product', 'View Product')}
+                                >
+                                  <ArrowUpRight size={11} />
+                                </a>
+                              )}
+                            </div>
+                          ) : promo.applicable_scope === 'specific_products' ? (
+                            <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                              <Package size={12} className="shrink-0" />
+                              <span>{promo.products?.length || 0} {t('selected_products', 'Products')}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-600 dark:text-gray-400">{t('storewide', 'Storewide')}</span>
+                          )}
+                        </td>
+                        <td className="p-3 font-medium text-gray-900 dark:text-white">
+                          {promo.affiliate_name || t('unspecified', 'Unspecified')}
+                        </td>
+                        <td className="p-3 font-semibold text-brand-600 dark:text-brand-400 font-mono">
+                          {promo.commission_type === 'percentage'
+                            ? `${parseFloat(promo.commission_rate || '0')}% of Sale`
+                            : `TSh ${parseInt(promo.commission_rate || '0', 10).toLocaleString()} / Order`}
+                        </td>
+                        <td className="p-3 text-gray-600 dark:text-gray-300 font-mono">
+                          {parseFloat(promo.value) > 0 ? (
+                            promo.discount_type === 'percentage'
+                              ? `${parseFloat(promo.value)}% Off`
+                              : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`
+                          ) : (
+                            <span className="text-gray-400 font-sans">{t('no_buyer_discount', '0% (Cut only)')}</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center text-gray-500 dark:text-gray-400">
+                          <span className="font-mono">{promo.use_count}</span>
+                          <span className="text-[10px] text-gray-400"> / {promo.max_uses || '∞'}</span>
+                        </td>
+                        <td className="p-3 text-gray-600 dark:text-gray-300 text-[11px]">
+                          {promo.end_date ? (
+                            <span className={isExpired ? 'text-red-500 font-semibold' : ''}>
+                              {new Date(promo.end_date).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">{t('no_expiry', 'No expiry')}</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {isExpired ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                              {t('expired', 'Expired')}
+                            </span>
+                          ) : (
                             <div className="flex flex-col items-center gap-1">
-                              {isExpired ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                                  {t('expired', 'Expired')}
-                                </span>
-                              ) : promo.is_active ? (
+                              {promo.is_active ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                   {t('active', 'Active')}
                                 </span>
@@ -2210,7 +2218,8 @@ const location = useLocation();
                                 )}
                               </button>
                             </div>
-                          </td>
+                          )}
+                        </td>
                           <td className="p-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
