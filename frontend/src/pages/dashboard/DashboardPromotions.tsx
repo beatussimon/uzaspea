@@ -300,13 +300,6 @@ const location = useLocation();
     });
   }, [affiliateCodes, affiliateStatusFilter, nowTimestamp]);
 
-  const activeAffiliatesCount = useMemo(() => {
-    return affiliateCodes.filter((p: any) => p.is_active && !isPromoExpired(p)).length;
-  }, [affiliateCodes, nowTimestamp]);
-
-  const expiredAffiliatesCount = useMemo(() => {
-    return affiliateCodes.filter((p: any) => isPromoExpired(p)).length;
-  }, [affiliateCodes, nowTimestamp]);
 
   const filteredCoupons = useMemo(() => {
     return promoCodes.filter((p: any) => {
@@ -319,10 +312,6 @@ const location = useLocation();
 
   const activeCouponsCount = useMemo(() => {
     return promoCodes.filter((c: any) => c.is_active && !isPromoExpired(c)).length;
-  }, [promoCodes, nowTimestamp]);
-
-  const expiredCouponsCount = useMemo(() => {
-    return promoCodes.filter((c: any) => isPromoExpired(c)).length;
   }, [promoCodes, nowTimestamp]);
 
   const handleCopyAffiliateLink = (promoOrCode: any) => {
@@ -1787,39 +1776,39 @@ const location = useLocation();
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#141414] p-0.5 rounded-lg border border-surface-border dark:border-surface-dark-border text-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setCouponStatusFilter('all')}
-                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                     couponStatusFilter === 'all'
-                      ? 'bg-white dark:bg-[#202020] text-gray-900 dark:text-white shadow-xs font-semibold'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                   }`}
                 >
-                  {t('all', 'All')} ({promoCodes.length})
+                  {t('all', 'All')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCouponStatusFilter('active')}
-                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                     couponStatusFilter === 'active'
-                      ? 'bg-white dark:bg-[#202020] text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                   }`}
                 >
-                  {t('active', 'Active')} ({activeCouponsCount})
+                  {t('active', 'Active')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCouponStatusFilter('expired')}
-                  className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                     couponStatusFilter === 'expired'
-                      ? 'bg-white dark:bg-[#202020] text-red-600 dark:text-red-400 shadow-xs font-semibold'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                   }`}
                 >
-                  {t('expired', 'Expired')} ({expiredCouponsCount})
+                  {t('expired', 'Expired')}
                 </button>
               </div>
 
@@ -2006,39 +1995,39 @@ const location = useLocation();
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#141414] p-0.5 rounded-lg border border-surface-border dark:border-surface-dark-border text-xs">
+                <div className="flex items-center gap-1.5 overflow-x-auto">
                   <button
                     type="button"
                     onClick={() => setAffiliateStatusFilter('all')}
-                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                       affiliateStatusFilter === 'all'
-                        ? 'bg-white dark:bg-[#202020] text-gray-900 dark:text-white shadow-xs font-semibold'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                   >
-                    {t('all', 'All')} ({affiliateCodes.length})
+                    {t('all', 'All')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAffiliateStatusFilter('active')}
-                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                       affiliateStatusFilter === 'active'
-                        ? 'bg-white dark:bg-[#202020] text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                   >
-                    {t('active', 'Active')} ({activeAffiliatesCount})
+                    {t('active', 'Active')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAffiliateStatusFilter('expired')}
-                    className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                       affiliateStatusFilter === 'expired'
-                        ? 'bg-white dark:bg-[#202020] text-red-600 dark:text-red-400 shadow-xs font-semibold'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                   >
-                    {t('expired', 'Expired')} ({expiredAffiliatesCount})
+                    {t('expired', 'Expired')}
                   </button>
                 </div>
 
@@ -2275,10 +2264,10 @@ const location = useLocation();
                     key={filter.key}
                     type="button"
                     onClick={() => handleFilterStatusChange(filter.key)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                       referralFilterStatus === filter.key
                         ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
-                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                   >
                     {filter.label}
