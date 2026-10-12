@@ -403,7 +403,7 @@ const { showPrompt } = useDialog();
                         <StatusBadge status={order.status} size="sm" />
 
                         {order.delivery_info?.is_pos && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-transparent text-purple-600 dark:text-purple-400 border border-purple-500/40 flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
                             <Receipt size={10} /> POS
                           </span>
                         )}
@@ -647,7 +647,7 @@ const { showPrompt } = useDialog();
                     {(order.status === 'SHIPPED_TO_WAREHOUSE' || ['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING'].includes(order.status)) && (
                       <div className="flex items-center justify-end gap-2 pt-2">
                         {order.status === 'SHIPPED_TO_WAREHOUSE' && (
-                          <div className="flex items-center gap-2 p-2 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                          <div className="flex items-center gap-2 p-2 rounded-btn bg-surface-muted dark:bg-[#161616]">
                             <QRCodeSVG value={order.id.toString()} size={36} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
                             <div className="text-3xs text-gray-400">
                               <p className="font-bold text-gray-800 dark:text-gray-200">Warehouse Drop-off Tag</p>
