@@ -1997,6 +1997,11 @@ class ProductRequest(models.Model):
     def __str__(self):
         return f"{self.name} requested {self.request_count} times for {self.seller.username}"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=400)
+
 
 class ProductRequestVote(models.Model):
     request = models.ForeignKey(ProductRequest, on_delete=models.CASCADE, related_name='votes')
