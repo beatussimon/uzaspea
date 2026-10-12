@@ -1091,7 +1091,7 @@ const location = useLocation();
             </h1>
 
           <div className="flex items-center gap-2 shrink-0">
-            {activeTab === 'sponsored' ? (
+            {activeTab === 'sponsored' && (
               <Button
                 size="sm"
                 onClick={() => setShowForm(!showForm)}
@@ -1099,17 +1099,6 @@ const location = useLocation();
               >
                 {showForm ? <X size={14} /> : <Plus size={14} />}
                 {showForm ? t('close', 'Close') : t('new_promotion', 'New Promotion')}
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => { if (showPromoForm) { setShowPromoForm(false); setEditingPromoId(null); } else { handleOpenCreatePromo(); } }}
-                className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
-              >
-                {showPromoForm ? <X size={14} /> : <Plus size={14} />}
-                {showPromoForm 
-                  ? t('close', 'Close') 
-                  : (activeTab === 'referrals' ? t('new_affiliate_code', 'New Referral Code') : t('new_coupon', 'New Coupon'))}
               </Button>
             )}
           </div>
