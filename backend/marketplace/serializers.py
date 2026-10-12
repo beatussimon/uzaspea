@@ -986,6 +986,7 @@ class PromoCodeSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     product_image = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
     
     class Meta:
         from .models import PromoCode
@@ -997,9 +998,18 @@ class PromoCodeSerializer(serializers.ModelSerializer):
             'products', 'attribution_window_days', 'discount_type', 'value',
             'commission_type', 'commission_rate', 'min_purchase_amount',
             'max_uses', 'max_uses_per_user', 'use_count', 'start_date',
-            'end_date', 'is_active', 'created_at'
+            'end_date', 'is_active', 'is_expired', 'created_at'
         ]
         read_only_fields = ['seller', 'use_count', 'created_at']
+
+    def get_is_expired(self, obj):
+        from django.utils import timezone
+        now = timezone.now()
+        if obj.end_date and now > obj.end_date:
+            return True
+        if obj.max_uses is not None and obj.use_count >= obj.max_uses:
+            return True
+        return False
 
     def get_product_image(self, obj):
         if obj.product and obj.product.images.exists():
@@ -1100,6 +1110,16 @@ class PromoCodeSerializer(serializers.ModelSerializer):
             
         if end_date and start_date and end_date <= start_date:
             raise serializers.ValidationError({"end_date": "End date must be after start date."})
+
+        # Prevent activating an expired promo code
+        is_active = attrs.get('is_active')
+        if is_active is True and self.instance:
+            check_end = attrs.get('end_date') or self.instance.end_date
+            if check_end and timezone.now() > check_end:
+                raise serializers.ValidationError({"is_active": "Cannot activate an expired promo code. Please update the end date to reactivate it."})
+            max_uses = attrs.get('max_uses') if 'max_uses' in attrs else self.instance.max_uses
+            if max_uses is not None and self.instance.use_count >= max_uses:
+                raise serializers.ValidationError({"is_active": "Cannot activate a promo code that has reached its maximum redemptions limit."})
             
         return attrs
 
