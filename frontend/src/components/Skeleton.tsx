@@ -620,6 +620,90 @@ export const BillingSkeleton: React.FC<{
 };
 
 /**
+ * Demand Curve Chart Skeleton (Matching lg:col-span-2 card p-5 flex flex-col h-[350px])
+ */
+export const DemandCurveSkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('lg:col-span-2 card p-5 flex flex-col h-[350px] justify-between relative overflow-hidden', className)}>
+    <div className="flex items-center justify-between mb-4 shrink-0">
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-48 rounded" />
+        <Skeleton className="h-2.5 w-28 rounded" />
+      </div>
+      <Skeleton className="h-5 w-16 rounded-full" />
+    </div>
+
+    {/* Neutral wireframe chart canvas matching industry standard */}
+    <div className="h-[270px] w-full min-h-[270px] flex-1 flex flex-col justify-between pt-2">
+      <div className="flex-1 w-full relative flex flex-col justify-between py-2">
+        {/* Subtle grid lines matching CartesianGrid */}
+        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
+        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
+        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
+
+        {/* Subtle neutral wireframe bars */}
+        <div className="absolute inset-0 flex items-end justify-between gap-3 px-2 pb-1">
+          {[35, 55, 45, 75, 60, 85, 65, 90].map((h, idx) => (
+            <Skeleton
+              key={idx}
+              className="flex-1 rounded-t-sm opacity-40 dark:opacity-30"
+              style={{ height: `${h}%` }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <Skeleton key={idx} className="h-2.5 w-10 rounded" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * Projected Profitability Card Skeleton (Matching card p-5 flex flex-col h-[350px])
+ */
+export const ProjectedProfitabilitySkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('card p-5 flex flex-col h-[350px] relative overflow-hidden', className)}>
+    <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-36 rounded" />
+        <Skeleton className="h-2.5 w-24 rounded" />
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Skeleton className="w-7 h-7 rounded-lg" />
+        <Skeleton className="w-7 h-7 rounded-lg" />
+      </div>
+    </div>
+
+    {/* Neutral list rows - standard monochromatic placeholders without colored fills */}
+    <div className="flex-1 flex flex-col justify-between space-y-3 py-1 overflow-hidden">
+      {[75, 55, 40, 25].map((widthPct, i) => (
+        <div key={i} className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Skeleton className="w-4 h-3.5 rounded" />
+              <Skeleton className={cn('h-3.5 rounded', i === 0 ? 'w-28' : i === 1 ? 'w-20' : 'w-24')} />
+            </div>
+            <Skeleton className="h-3.5 w-14 rounded" />
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+            <Skeleton
+              className="h-full rounded-full"
+              style={{ width: `${widthPct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[10px]">
+            <Skeleton className="h-2.5 w-24 rounded" />
+            <Skeleton className="h-2.5 w-12 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/**
  * Demand Analytics Page Skeleton (5 KPI Cards + Chart Box + Table)
  */
 export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -646,20 +730,10 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
       ))}
     </div>
 
-    {/* Chart Skeleton matching card p-5 h-[260px] */}
-    <div className="card p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 rounded" />
-        <Skeleton className="h-4 w-52 rounded" />
-      </div>
-      <div className="h-[220px] w-full flex flex-col justify-between pt-2">
-        <Skeleton className="h-[180px] w-full rounded-xl" />
-        <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <Skeleton key={idx} className="h-2 w-12 rounded" />
-          ))}
-        </div>
-      </div>
+    {/* Charts Section matching Demand Curve (2 cols) and Projected Profitability (1 col) */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <DemandCurveSkeleton />
+      <ProjectedProfitabilitySkeleton />
     </div>
 
     {/* Table Skeleton matching Active Demand Requests table */}
