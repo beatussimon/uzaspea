@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, Award, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+import { cn } from '../../lib/utils';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { DemandAnalyticsSkeleton } from '../../components/Skeleton';
 import { printElement } from '../../utils/printHelper';
@@ -30,6 +31,54 @@ const formatCompactCurrency = (rawNum: number | string | undefined | null, curre
     return `${currency} ${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   }
   return `${currency} ${num.toLocaleString()}`;
+};
+
+const ProductRequestThumbnail: React.FC<{
+  src?: string | null;
+  alt: string;
+}> = ({ src, alt }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (!src || error) {
+    return (
+      <div 
+        className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0"
+        title={alt}
+      >
+        <ImageIcon size={18} className="text-gray-400 opacity-60" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border overflow-hidden shrink-0">
+      {/* Low-res blurred preview placeholder while decoding */}
+      {!loaded && (
+        <img
+          src={src}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover filter blur-[4px] scale-110 opacity-60 pointer-events-none transition-opacity duration-300"
+          loading="eager"
+          decoding="async"
+        />
+      )}
+
+      {/* Crisp image that fades in smoothly once decoded */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={`w-full h-full object-cover transition-all duration-300 ease-out ${
+          loaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        }`}
+      />
+    </div>
+  );
 };
 
 const ProductRequestsBoard: React.FC = () => {
@@ -52,12 +101,16 @@ const ProductRequestsBoard: React.FC = () => {
   // Profitability Display State (List vs Pie Chart)
   const [productDisplayType, setProductDisplayType] = useState<'list' | 'chart'>('list');
 
+
   // Date Range Filter State (Matches Store Analytics)
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
     label: t('all_time', 'All Time')
   });
+  
+  // Custom Demand Increment Amount per row (default 1)
+  const [demandAmounts, setDemandAmounts] = useState<Record<number, string>>({});
   
   // Form State
   const [newReqName, setNewReqName] = useState('');
@@ -108,7 +161,9 @@ const ProductRequestsBoard: React.FC = () => {
 
   const fetchRequests = async (showLoader = true) => {
     try {
-      if (showLoader && requests.length === 0) setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       const res = await api.get('/api/product-requests/?mine=true');
       setRequests(res.data.results || res.data);
     } catch (err) {
@@ -197,23 +252,75 @@ const ProductRequestsBoard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleIncrementDemand = async (req: any) => {
+  const getDemandAmount = (id: number): number => {
+    const val = demandAmounts[id];
+    if (!val) return 1;
+    const num = parseInt(val, 10);
+    return isNaN(num) || num < 1 ? 1 : Math.min(1000, num);
+  };
+
+  const handleDemandAmountChange = (id: number, val: string) => {
+    const cleanVal = val.replace(/\D/g, '');
+    if (cleanVal === '') {
+      setDemandAmounts(prev => ({ ...prev, [id]: '' }));
+      return;
+    }
+    const parsed = parseInt(cleanVal, 10);
+    if (parsed > 1000) {
+      setDemandAmounts(prev => ({ ...prev, [id]: '1000' }));
+    } else {
+      setDemandAmounts(prev => ({ ...prev, [id]: String(parsed) }));
+    }
+  };
+
+  const handleDemandAmountBlur = (id: number) => {
+    setDemandAmounts(prev => {
+      const val = prev[id];
+      if (!val || parseInt(val, 10) < 1) {
+        return { ...prev, [id]: '1' };
+      }
+      return prev;
+    });
+  };
+
+  const handleDemandKeyDown = (e: React.KeyboardEvent, req: any) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const curr = getDemandAmount(req.id);
+      const next = Math.min(1000, curr + 1);
+      setDemandAmounts(prev => ({ ...prev, [req.id]: String(next) }));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const curr = getDemandAmount(req.id);
+      const next = Math.max(1, curr - 1);
+      setDemandAmounts(prev => ({ ...prev, [req.id]: String(next) }));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleIncrementDemand(req);
+    }
+  };
+
+  const handleIncrementDemand = async (req: any, customAmount?: number) => {
     if (req.is_fulfilled) {
       toast.error(t('fulfilled_demand_error', 'Cannot add demand to a fulfilled request'));
       return;
     }
 
+    const amountToAdd = customAmount !== undefined ? customAmount : getDemandAmount(req.id);
+    const validAmount = Math.max(1, Math.min(amountToAdd, 1000));
     const previousCount = req.request_count || 0;
-    const newCount = previousCount + 1;
+    const newCount = previousCount + validAmount;
 
     // Optimistic UI update for instant feedback
     setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: newCount } : r));
 
     try {
       setVotingId(req.id);
-      const res = await api.post(`/api/product-requests/${req.id}/increment_demand/`);
+      const res = await api.post(`/api/product-requests/${req.id}/increment_demand/`, { amount: validAmount });
       setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: res.data.request_count } : r));
-      toast.success(`+1 demand recorded for ${req.name}! (${res.data.request_count} total)`);
+      toast.success(`+${validAmount} demand recorded for ${req.name}! (${res.data.request_count} total)`);
+      // Reset input back to default 1
+      setDemandAmounts(prev => ({ ...prev, [req.id]: '1' }));
     } catch (err: any) {
       // Revert optimistic update on failure
       setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: previousCount } : r));
@@ -330,17 +437,6 @@ const ProductRequestsBoard: React.FC = () => {
   const fulfilledRevenue = fulfilledRequests.reduce((acc, req) => acc + (!req.is_cancelled && req.price ? parseFloat(req.price) * req.request_count : 0), 0);
   const fulfilledCost = fulfilledRequests.reduce((acc, req) => acc + (!req.is_cancelled && req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
   const fulfilledProfit = fulfilledRevenue - fulfilledCost;
-
-  const profitChartData = useMemo(() => {
-    const data: { name: string; value: number; color: string }[] = [];
-    if (potentialProfit > 0) {
-      data.push({ name: 'Est. Profit', value: Math.round(potentialProfit), color: '#10b981' });
-    }
-    if (totalMissedCost > 0) {
-      data.push({ name: 'Est. Cost', value: Math.round(totalMissedCost), color: '#3b82f6' });
-    }
-    return data;
-  }, [potentialProfit, totalMissedCost]);
 
   // Demand-weighted projected profitability per product
   const productProfits = useMemo(() => {
@@ -475,7 +571,7 @@ const ProductRequestsBoard: React.FC = () => {
             description={t('no_requests_desc', 'Create a demand card to gauge interest on a "Product in Making".')}
           />
         ) : (
-          <div className="space-y-6">
+          <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
               <KpiCard
@@ -516,158 +612,158 @@ const ProductRequestsBoard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Demand Curve */}
               <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
-                </div>
-                {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
-                  <div className="h-[270px] w-full min-h-[270px] flex-1">
-                    <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
-                      <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
-                        <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
-                          <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
-                        </Area>
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
                   </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <BarChart2 size={36} className="mb-2 opacity-30" />
-                    <p className="text-xs font-medium">Not enough votes yet to display chart.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Profitability Card */}
-              <div className="card p-5 flex flex-col h-[350px]">
-                <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                    Projected Profitability
-                  </h3>
-                  
-                  {productProfits.length > 0 && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setProductDisplayType('list')}
-                        className={`p-1.5 rounded-lg transition ${
-                          productDisplayType === 'list'
-                            ? 'bg-neutral-800 text-white shadow-sm'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                        title="List view"
-                      >
-                        <List size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProductDisplayType('chart')}
-                        className={`p-1.5 rounded-lg transition ${
-                          productDisplayType === 'chart'
-                            ? 'bg-neutral-800 text-white shadow-sm'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                        title="Chart view"
-                      >
-                        <PieChartIcon size={14} />
-                      </button>
+                  {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
+                    <div className="h-[270px] w-full min-h-[270px] flex-1">
+                      <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
+                        <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
+                          <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
+                            <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
+                          </Area>
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                      <BarChart2 size={36} className="mb-2 opacity-30" />
+                      <p className="text-xs font-medium">Not enough votes yet to display chart.</p>
                     </div>
                   )}
                 </div>
 
-                {productProfits.length > 0 ? (
-                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    {/* Display Mode: List vs Chart */}
-                    {productDisplayType === 'list' ? (
-                      <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0 scrollbar-thin">
-                        {productProfits.map((item, index) => {
-                          const percentOfMax = maxProjectedProfit > 0 ? Math.round((item.projectedProfit / maxProjectedProfit) * 100) : 0;
-                          const isTop = index === 0;
-
-                          return (
-                            <div key={item.id} className="space-y-1">
-                              <div className="flex items-center justify-between text-xs gap-2">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className={`text-[11px] font-bold w-4 shrink-0 ${isTop ? 'text-emerald-400' : 'text-gray-500'}`}>
-                                    #{index + 1}
-                                  </span>
-                                  <span className="font-medium text-gray-900 dark:text-gray-200 truncate" title={item.name}>
-                                    {item.name}
-                                  </span>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <span className={`text-xs ${isTop ? 'font-extrabold text-emerald-400' : 'font-semibold text-gray-700 dark:text-gray-300'}`}>
-                                    {formatCompactCurrency(item.projectedProfit)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    isTop ? 'bg-emerald-500' : 'bg-emerald-500/40 dark:bg-emerald-500/35'
-                                  }`}
-                                  style={{ width: `${percentOfMax}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-neutral-500">
-                                <span>{item.request_count} votes · {formatCompactCurrency(item.unitProfit)}/unit</span>
-                                <span>{item.margin}% margin</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="h-[270px] w-full min-h-[270px] flex-1">
-                        <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
-                          <PieChart margin={{ top: 0, bottom: 4, left: 0, right: 0 }}>
-                            <Pie
-                              data={productProfitDonutData}
-                              cx="50%"
-                              cy="42%"
-                              innerRadius={48}
-                              outerRadius={70}
-                              paddingAngle={4}
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              {productProfitDonutData.map((entry, index) => (
-                                <Cell key={`prod-cell-${index}`} fill={entry.color} stroke="none" />
-                              ))}
-                            </Pie>
-                            <Tooltip content={<ProductCustomTooltip />} />
-                            <Legend
-                              verticalAlign="bottom"
-                              height={44}
-                              iconType="circle"
-                              wrapperStyle={{
-                                fontSize: 10,
-                                lineHeight: '16px',
-                                paddingTop: '4px'
-                              }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
+              {/* Profitability Card */}
+              <div className="card p-5 flex flex-col h-[350px]">
+                  <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                      Projected Profitability
+                    </h3>
+                    
+                    {productProfits.length > 0 && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setProductDisplayType('list')}
+                          className={`p-1.5 rounded-lg transition ${
+                            productDisplayType === 'list'
+                              ? 'bg-neutral-800 text-white shadow-sm'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                          title="List view"
+                        >
+                          <List size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProductDisplayType('chart')}
+                          className={`p-1.5 rounded-lg transition ${
+                            productDisplayType === 'chart'
+                              ? 'bg-neutral-800 text-white shadow-sm'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                          title="Chart view"
+                        >
+                          <PieChartIcon size={14} />
+                        </button>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-                    <DollarSign size={36} className="mb-2 opacity-30 text-emerald-500" />
-                    <p className="text-xs font-semibold">No price or cost data available</p>
-                    <p className="text-3xs text-gray-500 mt-1">Set selling and buying prices on requests to view profitability ranking</p>
-                  </div>
-                )}
-              </div>
+
+                  {productProfits.length > 0 ? (
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                      {/* Display Mode: List vs Chart */}
+                      {productDisplayType === 'list' ? (
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0 scrollbar-thin">
+                          {productProfits.map((item, index) => {
+                            const percentOfMax = maxProjectedProfit > 0 ? Math.round((item.projectedProfit / maxProjectedProfit) * 100) : 0;
+                            const isTop = index === 0;
+
+                            return (
+                              <div key={item.id} className="space-y-1">
+                                <div className="flex items-center justify-between text-xs gap-2">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`text-[11px] font-bold w-4 shrink-0 ${isTop ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                      #{index + 1}
+                                    </span>
+                                    <span className="font-medium text-gray-900 dark:text-gray-200 truncate" title={item.name}>
+                                      {item.name}
+                                    </span>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className={`text-xs ${isTop ? 'font-extrabold text-emerald-400' : 'font-semibold text-gray-700 dark:text-gray-300'}`}>
+                                      {formatCompactCurrency(item.projectedProfit)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      isTop ? 'bg-emerald-500' : 'bg-emerald-500/40 dark:bg-emerald-500/35'
+                                    }`}
+                                    style={{ width: `${percentOfMax}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-neutral-500">
+                                  <span>{item.request_count} votes · {formatCompactCurrency(item.unitProfit)}/unit</span>
+                                  <span>{item.margin}% margin</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="h-[270px] w-full min-h-[270px] flex-1">
+                          <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
+                            <PieChart margin={{ top: 0, bottom: 4, left: 0, right: 0 }}>
+                              <Pie
+                                data={productProfitDonutData}
+                                cx="50%"
+                                cy="42%"
+                                innerRadius={48}
+                                outerRadius={70}
+                                paddingAngle={4}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {productProfitDonutData.map((entry, index) => (
+                                  <Cell key={`prod-cell-${index}`} fill={entry.color} stroke="none" />
+                                ))}
+                              </Pie>
+                              <Tooltip content={<ProductCustomTooltip />} />
+                              <Legend
+                                verticalAlign="bottom"
+                                height={44}
+                                iconType="circle"
+                                wrapperStyle={{
+                                  fontSize: 10,
+                                  lineHeight: '16px',
+                                  paddingTop: '4px'
+                                }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                      <DollarSign size={36} className="mb-2 opacity-30 text-emerald-500" />
+                      <p className="text-xs font-semibold">No price or cost data available</p>
+                      <p className="text-3xs text-gray-500 mt-1">Set selling and buying prices on requests to view profitability ranking</p>
+                    </div>
+                  )}
+                </div>
             </div>
 
             {/* Active Data Table */}
@@ -684,7 +780,7 @@ const ProductRequestsBoard: React.FC = () => {
                 </span>
               </div>
               <div className="overflow-x-auto min-h-[160px]">
-                <table className="w-full text-left text-xs min-w-[860px]">
+                <table className="w-full text-left text-xs min-w-[900px]">
                   <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
@@ -720,7 +816,7 @@ const ProductRequestsBoard: React.FC = () => {
                           Created {getSortIcon('created_at')}
                         </div>
                       </th>
-                      <th scope="col" className="p-3 text-right whitespace-nowrap w-64 min-w-[240px]">Actions</th>
+                      <th scope="col" className="p-3 text-right whitespace-nowrap w-72 min-w-[280px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
@@ -750,13 +846,7 @@ const ProductRequestsBoard: React.FC = () => {
                           <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${actionDropdownId === req.id ? 'relative z-20' : ''}`}>
                             <td className="p-3 align-middle min-w-[200px]">
                               <div className="flex items-center gap-3">
-                                {req.image ? (
-                                  <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
-                                    <ImageIcon size={18} className="text-gray-400" />
-                                  </div>
-                                )}
+                                <ProductRequestThumbnail src={req.image} alt={req.name} />
                                 <div className="min-w-0 flex-1">
                                   <p className="font-semibold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
                                   <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -805,28 +895,60 @@ const ProductRequestsBoard: React.FC = () => {
                             <td className="p-3 text-2xs text-gray-400 dark:text-gray-500 align-middle whitespace-nowrap w-28">
                               {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
                             </td>
-                            <td className="p-3 text-right align-middle whitespace-nowrap w-64 min-w-[240px]">
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-72 min-w-[280px]">
                               <div className="flex justify-end gap-1.5 items-center">
                                 <Button 
                                   type="button"
                                   size="sm" 
-                                  variant="outline"
-                                  className="text-xs py-1 px-2.5 whitespace-nowrap shrink-0 flex items-center gap-1 border-surface-border dark:border-surface-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                                  variant="ghost"
+                                  className="text-xs py-1 px-2.5 whitespace-nowrap shrink-0 flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-surface-muted dark:hover:bg-white/5 rounded-btn transition-colors"
                                   onClick={() => handleEditClick(req)}
                                 >
                                   <Edit size={12} className="shrink-0" /> Edit
                                 </Button>
-                                <Button 
-                                  type="button"
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-xs py-1 px-2.5 font-semibold active:scale-95 transition-transform whitespace-nowrap shrink-0 flex items-center gap-1 border-surface-border dark:border-surface-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                                  loading={votingId === req.id}
-                                  onClick={() => handleIncrementDemand(req)}
-                                  title="Record +1 customer demand"
+
+                                <div 
+                                  className="inline-flex items-center h-8 rounded-btn bg-transparent hover:bg-surface-muted/40 dark:hover:bg-white/[0.04] transition-colors shrink-0 select-none"
+                                  title={`Record +${getDemandAmount(req.id)} customer demand`}
                                 >
-                                  <Plus size={12} className="shrink-0" /> 1 Demand
-                                </Button>
+                                  <button
+                                    type="button"
+                                    disabled={votingId === req.id}
+                                    onClick={() => handleIncrementDemand(req)}
+                                    className="h-full pl-1.5 pr-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white active:scale-90 transition-colors flex items-center justify-center shrink-0 disabled:opacity-50"
+                                    title={`Add ${getDemandAmount(req.id)} demand`}
+                                  >
+                                    <Plus size={12} className="shrink-0" />
+                                  </button>
+
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={demandAmounts[req.id] ?? '1'}
+                                    onChange={(e) => handleDemandAmountChange(req.id, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onBlur={() => handleDemandAmountBlur(req.id)}
+                                    onKeyDown={(e) => handleDemandKeyDown(e, req)}
+                                    disabled={votingId === req.id}
+                                    className="w-6 h-6 text-center font-bold font-mono text-xs bg-transparent hover:bg-surface-muted/60 dark:hover:bg-white/10 focus:bg-surface-muted/80 dark:focus:bg-white/10 rounded text-gray-900 dark:text-white outline-none transition-colors px-0 cursor-text [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    title="Demand quantity (Default: 1. Press Up/Down to adjust, Enter to submit)"
+                                  />
+
+                                  <button
+                                    type="button"
+                                    disabled={votingId === req.id}
+                                    onClick={() => handleIncrementDemand(req)}
+                                    className="h-full pl-0.5 pr-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white active:scale-95 transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50"
+                                    title={`Record +${getDemandAmount(req.id)} customer demand`}
+                                  >
+                                    {votingId === req.id ? (
+                                      <Loader2 size={12} className="animate-spin text-brand-500 shrink-0" />
+                                    ) : (
+                                      <span>Demand</span>
+                                    )}
+                                  </button>
+                                </div>
 
                                 <div className="relative inline-block text-left action-dropdown-container">
                                   <button
@@ -962,13 +1084,7 @@ const ProductRequestsBoard: React.FC = () => {
                           <tr key={req.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition opacity-85 hover:opacity-100">
                             <td className="p-3 align-middle min-w-[200px]">
                               <div className="flex items-center gap-3">
-                                {req.image ? (
-                                  <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
-                                    <ImageIcon size={18} className="text-gray-400" />
-                                  </div>
-                                )}
+                                <ProductRequestThumbnail src={req.image} alt={req.name} />
                                 <div className="min-w-0 flex-1">
                                   <p className="font-semibold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
                                   <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 dark:text-gray-500 mt-0.5">
