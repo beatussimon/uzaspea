@@ -340,12 +340,12 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
                       onClick={closeMobileMenuAnimated}
                       className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                         isActive
-                          ? 'text-brand-500 font-bold bg-brand-500/5 dark:bg-brand-500/10'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 font-medium'
+                          ? 'bg-gradient-to-r from-gray-100 to-gray-50/80 dark:from-neutral-800 dark:to-neutral-800/60 text-gray-900 dark:text-white font-semibold shadow-2xs'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-neutral-900/50 font-medium'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <item.icon size={18} className="shrink-0" />
+                        <item.icon size={18} className={`shrink-0 ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {item.badge !== undefined && (
