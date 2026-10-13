@@ -28,6 +28,7 @@ const SettingsPage: React.FC = () => {
     };
 
     const [profile, setProfile] = useState<any>({});
+    const [initialForm, setInitialForm] = useState<any>(null);
     const [siteVisitStatus, setSiteVisitStatus] = useState<any>(null);
     const [form, setForm] = useState({ 
         bio: '', 
@@ -44,6 +45,7 @@ const SettingsPage: React.FC = () => {
         show_product_requests: false 
     });
     const [defaultCountryCode, setDefaultCountryCode] = useState<string>(() => getDefaultCountry(username).code);
+    const [initialCountryCode, setInitialCountryCode] = useState<string>(() => getDefaultCountry(username).code);
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [passwordChanging, setPasswordChanging] = useState(false);
     const [passwordRequestPending, setPasswordRequestPending] = useState(false);
@@ -137,7 +139,7 @@ const SettingsPage: React.FC = () => {
         if (username) {
             api.get(`/api/profiles/${username}/`).then(r => {
                 setProfile(r.data);
-                setForm({
+                const loaded = {
                     bio: r.data.bio || '',
                     phone_number: r.data.phone_number || '',
                     location: r.data.location || '',
@@ -150,7 +152,9 @@ const SettingsPage: React.FC = () => {
                     youtube_url: r.data.youtube_url || '',
                     linkedin_url: r.data.linkedin_url || '',
                     show_product_requests: Boolean(r.data.show_product_requests),
-                });
+                };
+                setForm(loaded);
+                setInitialForm(loaded);
             });
 
             api.get('/api/seller-site-visits/my-status/')
@@ -159,11 +163,41 @@ const SettingsPage: React.FC = () => {
         }
     }, [username]);
 
+    const isProfileDirty = Boolean(
+        initialForm && (
+            form.bio !== initialForm.bio ||
+            form.phone_number !== initialForm.phone_number ||
+            form.location !== initialForm.location ||
+            form.website !== initialForm.website ||
+            form.instagram_username !== initialForm.instagram_username ||
+            form.whatsapp_number !== initialForm.whatsapp_number ||
+            form.facebook_url !== initialForm.facebook_url ||
+            form.tiktok_username !== initialForm.tiktok_username ||
+            form.twitter_username !== initialForm.twitter_username ||
+            form.youtube_url !== initialForm.youtube_url ||
+            form.linkedin_url !== initialForm.linkedin_url ||
+            defaultCountryCode !== initialCountryCode
+        )
+    );
+
+    const isPasswordReady = Boolean(
+        passwords.old.trim() && passwords.new1.trim() && passwords.new2.trim()
+    );
+
+    const isFeaturesDirty = Boolean(
+        initialForm && form.show_product_requests !== initialForm.show_product_requests
+    );
+
     const handleProfileSave = async () => {
         setSaving(true);
         try {
             await api.patch(`/api/profiles/${username}/`, form);
             toast.success('Profile updated');
+            setInitialForm({ ...form });
+            if (defaultCountryCode !== initialCountryCode) {
+                setDefaultCountry(username, defaultCountryCode);
+                setInitialCountryCode(defaultCountryCode);
+            }
         } catch { 
             toast.error('Failed to save'); 
         } finally { 
@@ -268,13 +302,13 @@ const SettingsPage: React.FC = () => {
                             key={item.key}
                             type="button"
                             onClick={() => handleTabChange(item.key)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                                 isActive
-                                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black font-semibold shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900'
+                                    ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 font-medium'
                             }`}
                         >
-                            <Icon size={14} className={isActive ? 'text-white dark:text-black' : 'text-gray-400 dark:text-neutral-500'} />
+                            <Icon size={14} className={isActive ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'} />
                             <span>{item.label}</span>
                         </button>
                     );
@@ -324,13 +358,13 @@ const SettingsPage: React.FC = () => {
                                     key={item.key}
                                     type="button"
                                     onClick={() => handleTabChange(item.key)}
-                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left cursor-pointer ${
                                         isActive
-                                            ? 'bg-gray-900 text-white dark:bg-white dark:text-black font-semibold shadow-xs'
-                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900/60'
+                                            ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
+                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-900/60 font-medium'
                                     }`}
                                 >
-                                    <Icon size={15} className={isActive ? 'text-white dark:text-black' : 'text-gray-400 dark:text-neutral-500'} />
+                                    <Icon size={15} className={isActive ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'} />
                                     <span>{item.label}</span>
                                 </button>
                             );
@@ -534,10 +568,14 @@ const SettingsPage: React.FC = () => {
                                 <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-neutral-800">
                                     <Button
                                         onClick={handleProfileSave}
-                                        disabled={saving}
+                                        disabled={!isProfileDirty || saving}
                                         loading={saving}
                                         size="sm"
-                                        className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 rounded-btn px-5 font-semibold text-xs cursor-pointer shadow-sm"
+                                        className={`rounded-btn px-5 text-xs transition-all ${
+                                            !isProfileDirty
+                                                ? '!bg-gray-100 dark:!bg-neutral-800/80 !text-gray-400 dark:!text-neutral-500 border border-gray-200/80 dark:border-neutral-700/60 font-medium shadow-none cursor-not-allowed'
+                                                : '!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 font-semibold shadow-sm cursor-pointer'
+                                        }`}
                                     >
                                         Save Profile
                                     </Button>
@@ -656,9 +694,13 @@ const SettingsPage: React.FC = () => {
                                         <Button
                                             onClick={handlePasswordChange}
                                             loading={passwordChanging}
-                                            disabled={passwordChanging}
+                                            disabled={!isPasswordReady || passwordChanging}
                                             size="sm"
-                                            className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 rounded-btn px-5 font-semibold text-xs cursor-pointer shadow-sm"
+                                            className={`rounded-btn px-5 text-xs transition-all ${
+                                                !isPasswordReady
+                                                    ? '!bg-gray-100 dark:!bg-neutral-800/80 !text-gray-400 dark:!text-neutral-500 border border-gray-200/80 dark:border-neutral-700/60 font-medium shadow-none cursor-not-allowed'
+                                                    : '!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 font-semibold shadow-sm cursor-pointer'
+                                            }`}
                                         >
                                             Request Password Change
                                         </Button>
@@ -782,10 +824,14 @@ const SettingsPage: React.FC = () => {
                             <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-neutral-800">
                                 <Button
                                     onClick={handleProfileSave}
-                                    disabled={saving}
+                                    disabled={!isFeaturesDirty || saving}
                                     loading={saving}
                                     size="sm"
-                                    className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 rounded-btn px-5 font-semibold text-xs cursor-pointer shadow-sm"
+                                    className={`rounded-btn px-5 text-xs transition-all ${
+                                        !isFeaturesDirty
+                                            ? '!bg-gray-100 dark:!bg-neutral-800/80 !text-gray-400 dark:!text-neutral-500 border border-gray-200/80 dark:border-neutral-700/60 font-medium shadow-none cursor-not-allowed'
+                                            : '!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 font-semibold shadow-sm cursor-pointer'
+                                    }`}
                                 >
                                     Save Feature Settings
                                 </Button>
