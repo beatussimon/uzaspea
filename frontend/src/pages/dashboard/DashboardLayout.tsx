@@ -596,7 +596,7 @@ const DashboardLayout: React.FC = () => {
             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
 
-          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative">
+          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative">
             <div>
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
