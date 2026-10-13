@@ -181,27 +181,29 @@ const DashboardPOS: React.FC = () => {
   const [receiptData, setReceiptData] = useState<any>(null);
   
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [activeVariantCardId, setActiveVariantCardId] = useState<number | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
 
   const fetchProducts = () => {
     setLoading(true);
     const currentUser = localStorage.getItem('username');
-    api.get(`/api/products/?seller=${currentUser}&page=1`)
-      .then(async (res) => {
+    const endpoint = currentUser
+      ? `/api/products/?seller=${encodeURIComponent(currentUser)}&page=1&page_size=100`
+      : `/api/products/?mine=true&page=1&page_size=100`;
+
+    api.get(endpoint)
+      .then((res) => {
         let prods = res.data.results || res.data;
-        try {
-          const vRes = await api.get(`/api/variants/`);
-          const variants = vRes.data.results || vRes.data;
-          
+        if (Array.isArray(prods)) {
           prods = prods.map((p: any) => ({
             ...p,
-            variants: variants.filter((v: any) => v.product === p.id && v.is_available !== false)
+            variants: Array.isArray(p.variants)
+              ? p.variants.filter((v: any) => v.is_available !== false)
+              : []
           }));
-        } catch (e) {
-          console.error("Failed to load variants", e);
+          setProducts(prods);
         }
-        setProducts(prods);
       })
       .catch(() => toast.error(t('failed_to_load_products', 'Failed to load products')))
       .finally(() => setLoading(false));
@@ -210,6 +212,16 @@ const DashboardPOS: React.FC = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeVariantCardId !== null) {
+        setActiveVariantCardId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeVariantCardId]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -223,7 +235,9 @@ const DashboardPOS: React.FC = () => {
   const addToCart = (product: Product, variant: any = null) => {
     const id = variant ? `${product.id}-${variant.id}` : `${product.id}-null`;
     const stock = variant ? variant.stock : product.stock;
-    let price = variant ? parseFloat(product.price) + parseFloat(variant.price_adjustment) : parseFloat(product.price);
+    let price = variant 
+      ? (variant.final_price != null ? parseFloat(variant.final_price) : parseFloat(product.price) + parseFloat(variant.price_adjustment || 0))
+      : parseFloat(product.price);
     
     if (stock <= 0) {
       toast.error(t('out_of_stock', 'Out of stock!'));
@@ -270,6 +284,16 @@ const DashboardPOS: React.FC = () => {
         if (newQ > 0 && newQ <= item.max_stock) {
           return { ...item, quantity: newQ };
         }
+      }
+      return item;
+    }));
+  };
+
+  const setQuantity = (id: string, newQty: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === id) {
+        const clamped = Math.max(1, Math.min(item.max_stock, Math.floor(newQty)));
+        return { ...item, quantity: clamped };
       }
       return item;
     }));
@@ -544,11 +568,27 @@ const DashboardPOS: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                   {filteredProducts.map((product) => {
                     const stockNum = parseFloat(String(product.stock || 0));
+                    const hasVariants = Boolean(product.variants && product.variants.length > 0);
+                    const isVariantOpen = activeVariantCardId === product.id;
+                    const effectiveStock = hasVariants
+                      ? product.variants!.reduce((sum: number, v: any) => sum + parseFloat(String(v.stock || 0)), 0)
+                      : stockNum;
+
                     return (
                       <div 
                         key={product.id} 
-                        onClick={() => (!product.variants || product.variants.length === 0) && stockNum > 0 ? addToCart(product) : null}
-                        className="group relative rounded-2xl overflow-hidden cursor-pointer border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-[#141414] hover:border-gray-300 dark:hover:border-neutral-600 hover:shadow-card-hover transition-all flex flex-col aspect-[3/4] select-none"
+                        onClick={() => {
+                          if (hasVariants) {
+                            setActiveVariantCardId(prev => prev === product.id ? null : product.id);
+                          } else if (effectiveStock > 0) {
+                            addToCart(product);
+                          }
+                        }}
+                        className={`group relative rounded-2xl overflow-hidden cursor-pointer border bg-gray-100 dark:bg-[#141414] transition-all flex flex-col aspect-[3/4] select-none ${
+                          isVariantOpen
+                            ? 'border-brand-500 shadow-lg ring-1 ring-brand-500/50'
+                            : 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-600 hover:shadow-card-hover'
+                        }`}
                       >
                         {/* Image covering entire card - clearly visible, no dark fade */}
                         <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-100 dark:bg-[#161616]">
@@ -558,7 +598,7 @@ const DashboardPOS: React.FC = () => {
                             category={product.category_name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
-                          {stockNum <= 0 && (
+                          {effectiveStock <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-20">
                               <span className="text-white font-bold uppercase px-2.5 py-1 bg-red-600 rounded-full text-2xs shadow-md">{t('out_of_stock', 'Out of Stock')}</span>
                             </div>
@@ -568,60 +608,164 @@ const DashboardPOS: React.FC = () => {
                         {/* Top Badges */}
                         <div className="relative z-10 p-2 flex justify-between items-start pointer-events-none">
                           <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
-                            {stockNum > 0 ? t('items_left', '{{count}} left', { count: Number(product.stock) || 0 }) : t('items_left', '0 left', { count: 0 })}
+                            {effectiveStock > 0 ? t('items_left', '{{count}} left', { count: Math.round(effectiveStock) }) : t('items_left', '0 left', { count: 0 })}
                           </span>
-                          {(!product.variants || product.variants.length === 0) && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (stockNum > 0) addToCart(product);
-                              }}
-                              disabled={stockNum <= 0}
-                              className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-brand-500 group-hover:text-black group-hover:border-transparent hover:!bg-brand-400 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
-                              title={t('add_to_cart', 'Add to cart')}
-                            >
-                              <Plus size={14} className="stroke-[2.5]" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasVariants) {
+                                setActiveVariantCardId(prev => prev === product.id ? null : product.id);
+                              } else if (effectiveStock > 0) {
+                                addToCart(product);
+                              }
+                            }}
+                            disabled={effectiveStock <= 0}
+                            className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-brand-500 group-hover:text-black group-hover:border-transparent hover:!bg-brand-400 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                            title={hasVariants ? t('select_variant', 'Select variation') : t('add_to_cart', 'Add to cart')}
+                          >
+                            <Plus size={14} className="stroke-[2.5]" />
+                          </button>
                         </div>
 
-                        {/* Bottom Floating Bubbles Overlay (Clear image, no dark gradient wash) */}
+                        {/* Bottom Floating Bubbles Overlay (Clean layout, no extra space wasted) */}
                         <div className="relative z-10 mt-auto p-2 flex flex-col justify-end gap-1.5 pointer-events-none">
                           {/* Name Bubble */}
                           <div className="w-fit max-w-full px-2.5 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md overflow-hidden">
                             <h3 className="font-bold text-xs text-white truncate leading-tight">{product.name}</h3>
                           </div>
 
-                          {/* Price Bubble - Pure white text, no color */}
+                          {/* Price Bubble - Pure white text */}
                           <div className="w-fit max-w-full px-2.5 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center gap-1 overflow-hidden">
                             <span className="font-black text-white text-xs sm:text-sm tabular-nums leading-tight">
                               TSh {parseInt(product.price).toLocaleString()}
                             </span>
+                            {hasVariants && (
+                              <span className="text-3xs text-brand-400 font-bold ml-0.5">
+                                ({product.variants!.length})
+                              </span>
+                            )}
                           </div>
-
-                          {/* Variants Picker Pills (if product has variants) */}
-                          {product.variants && product.variants.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-0.5 pointer-events-auto">
-                              {product.variants.map((v: any) => (
-                                <button
-                                  key={v.id}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    addToCart(product, v);
-                                  }}
-                                  disabled={parseFloat(String(v.stock)) <= 0}
-                                  className="px-2 py-0.5 rounded-full bg-black/85 hover:bg-brand-500 hover:text-black text-white text-3xs font-semibold border border-white/15 shadow-sm disabled:opacity-40 transition cursor-pointer truncate max-w-full"
-                                  title={`${v.name} (+TSh ${parseFloat(v.price_adjustment).toLocaleString()})`}
-                                >
-                                  <span>{v.name}</span>
-                                  <span className="opacity-80 ml-1 text-gray-300">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
                         </div>
+
+                        {/* In-Card Variation Selection Overlay */}
+                        {isVariantOpen && hasVariants && (
+                          <div 
+                            className="absolute inset-0 z-30 bg-neutral-950/95 dark:bg-black/95 backdrop-blur-md p-2.5 rounded-2xl flex flex-col animate-fade-in pointer-events-auto cursor-default"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Card Overlay Header */}
+                            <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-white/10 shrink-0">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-white truncate leading-tight">{product.name}</p>
+                                <span className="text-3xs text-gray-400 block truncate">
+                                  {product.variants!.length} {t('variations', 'variations')}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setActiveVariantCardId(null)}
+                                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                                title={t('close', 'Close')}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+
+                            {/* Scrollable Variations List on the same card */}
+                            <div className="flex-1 overflow-y-auto space-y-1.5 my-1.5 pr-0.5 scrollbar-thin">
+                              {product.variants!.map((v: any) => {
+                                const vStock = parseFloat(String(v.stock || 0));
+                                const adj = parseFloat(v.price_adjustment || 0);
+                                const vPrice = v.final_price != null ? parseFloat(v.final_price) : parseFloat(product.price) + adj;
+                                const cartItemId = `${product.id}-${v.id}`;
+                                const cartItem = cart.find(ci => ci.id === cartItemId);
+                                const qtyInCart = cartItem?.quantity || 0;
+
+                                return (
+                                  <div
+                                    key={v.id}
+                                    onClick={() => {
+                                      if (vStock > 0 && qtyInCart === 0) {
+                                        addToCart(product, v);
+                                      }
+                                    }}
+                                    className={`p-1.5 rounded-xl border text-left transition flex items-center justify-between gap-1.5 ${
+                                      vStock <= 0
+                                        ? 'opacity-40 border-white/5 bg-white/5 cursor-not-allowed'
+                                        : qtyInCart > 0
+                                          ? 'border-brand-500/50 bg-brand-500/10'
+                                          : 'border-white/10 bg-white/5 hover:bg-white/15 cursor-pointer'
+                                    }`}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-2xs font-semibold text-white truncate block leading-tight">{v.name}</span>
+                                      <div className="flex items-center gap-1.5 text-3xs text-gray-400 mt-0.5 tabular-nums">
+                                        <span>{vStock > 0 ? `${vStock} left` : t('out_of_stock', 'Out of stock')}</span>
+                                        <span className="font-bold text-white">TSh {Math.round(vPrice).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Stepper or Add button */}
+                                    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                      {vStock <= 0 ? (
+                                        <span className="text-3xs text-red-400 uppercase font-bold">{t('empty', 'Empty')}</span>
+                                      ) : qtyInCart > 0 ? (
+                                        <div className="flex items-center bg-black/60 rounded-lg p-0.5 border border-white/20">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateQuantity(cartItemId, -1)}
+                                            disabled={qtyInCart <= 1}
+                                            className="w-4.5 h-4.5 flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-30 transition cursor-pointer"
+                                          >
+                                            <Minus size={8} />
+                                          </button>
+                                          <CartQuantityInput
+                                            quantity={qtyInCart}
+                                            maxStock={vStock}
+                                            onChangeQty={(newQ) => setQuantity(cartItemId, newQ)}
+                                            className="w-5 text-3xs font-bold text-center bg-transparent border-none outline-none text-white tabular-nums p-0"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateQuantity(cartItemId, 1)}
+                                            disabled={qtyInCart >= vStock}
+                                            className="w-4.5 h-4.5 flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-30 transition cursor-pointer"
+                                          >
+                                            <Plus size={8} />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => addToCart(product, v)}
+                                          className="w-5.5 h-5.5 rounded-full bg-brand-500 hover:bg-brand-400 text-black flex items-center justify-center transition active:scale-90 cursor-pointer shadow-sm"
+                                          title={t('add_to_cart', 'Add to sale')}
+                                        >
+                                          <Plus size={11} className="stroke-[2.5]" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Done / Close footer */}
+                            <div className="pt-1.5 border-t border-white/10 flex justify-between items-center shrink-0">
+                              <span className="text-3xs text-gray-400">
+                                {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0)} {t('in_sale', 'in sale')}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setActiveVariantCardId(null)}
+                                className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-3xs font-semibold transition cursor-pointer"
+                              >
+                                {t('done', 'Done')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -650,6 +794,7 @@ const DashboardPOS: React.FC = () => {
               amountPaid={amountPaid} 
               setAmountPaid={setAmountPaid} 
               updateQuantity={updateQuantity} 
+              setQuantity={setQuantity}
               removeFromCart={removeFromCart} 
               handleCheckout={handleCheckout} 
               submitting={submitting} 
@@ -719,6 +864,7 @@ const DashboardPOS: React.FC = () => {
                       amountPaid={amountPaid} 
                       setAmountPaid={setAmountPaid} 
                       updateQuantity={updateQuantity} 
+                      setQuantity={setQuantity}
                       removeFromCart={removeFromCart} 
                       handleCheckout={handleCheckout} 
                       submitting={submitting} 
@@ -910,6 +1056,65 @@ const DashboardPOS: React.FC = () => {
   );
 };
 
+// Interactive Quantity Input Component allowing instant inline editing of quantity
+const CartQuantityInput: React.FC<{
+  quantity: number;
+  maxStock: number;
+  onChangeQty: (newQty: number) => void;
+  className?: string;
+}> = ({ quantity, maxStock, onChangeQty, className }) => {
+  const [val, setVal] = useState<string>(String(quantity));
+
+  useEffect(() => {
+    setVal(String(quantity));
+  }, [quantity]);
+
+  const commit = (inputVal: string) => {
+    const parsed = parseInt(inputVal, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      setVal('1');
+      onChangeQty(1);
+    } else if (parsed > maxStock) {
+      toast.error(`Max stock available: ${maxStock}`);
+      setVal(String(maxStock));
+      onChangeQty(maxStock);
+    } else {
+      setVal(String(parsed));
+      onChangeQty(parsed);
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={val}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        const clean = e.target.value.replace(/[^0-9]/g, '');
+        setVal(clean);
+        const parsed = parseInt(clean, 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= maxStock) {
+          onChangeQty(parsed);
+        }
+      }}
+      onBlur={() => commit(val)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          commit(val);
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className={
+        className ||
+        "w-6 sm:w-7 text-xs font-semibold text-center bg-transparent border-none outline-none text-gray-900 dark:text-white tabular-nums p-0 focus:ring-1 focus:ring-brand-500/60 rounded cursor-text"
+      }
+      title="Click to edit quantity"
+    />
+  );
+};
+
 // Reusable Cart Content Component
 const CartContent = ({ 
   cart, 
@@ -929,6 +1134,7 @@ const CartContent = ({
   amountPaid, 
   setAmountPaid, 
   updateQuantity, 
+  setQuantity,
   removeFromCart, 
   handleCheckout, 
   submitting 
@@ -1020,9 +1226,11 @@ const CartContent = ({
                   >
                     <Minus size={10} />
                   </button>
-                  <span className="text-xs font-semibold w-5 text-center text-gray-900 dark:text-white select-none tabular-nums">
-                    {item.quantity}
-                  </span>
+                  <CartQuantityInput
+                    quantity={item.quantity}
+                    maxStock={item.max_stock}
+                    onChangeQty={(newQ) => setQuantity ? setQuantity(item.id, newQ) : null}
+                  />
                   <button 
                     type="button"
                     onClick={() => updateQuantity(item.id, 1)} 
