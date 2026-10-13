@@ -456,7 +456,7 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
             }
           }}
           disabled={!selectedVariant || vStock <= 0}
-          className="px-4 py-1 rounded-full bg-white text-neutral-900 hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-35 disabled:cursor-not-allowed text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
+          className="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/25 text-white text-2xs font-medium border border-white/10 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
         >
           {vStock <= 0 ? t('out_of_stock', 'Out of stock') : t('add', 'Add')}
         </button>
