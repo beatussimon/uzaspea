@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
-  LayoutDashboard, ClipboardList, Megaphone, Activity,
+  LayoutDashboard, ClipboardList, Megaphone,
   CheckCircle2, AlertTriangle, Shield, Star,
   CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
-  BarChart2, ChevronLeft, ChevronRight, Search, Eye, X, ArrowUpRight,
+  ChevronLeft, ChevronRight, Search, Eye, X, ArrowUpRight,
   UserCircle, Clock, MapPin, Plus, ExternalLink, Phone
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -127,21 +127,24 @@ interface StaffHomeProps {
 const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = ({ data }) => {
   if (!data) return null;
   const metrics = [
-    { label: 'Subscriptions', val: data.subscriptions_pending, icon: CreditCard, path: '/staff/subscriptions' },
-    { label: 'Seller Upgrades', val: data.seller_upgrades_pending, icon: Shield, path: '/staff/seller-applications' },
-    { label: 'Warehouse Intake', val: data.warehouse_intake_pending, icon: Package, path: '/staff/warehouse' },
-    { label: 'Logistics Transit', val: data.logistics_in_transit, icon: Truck, path: '/staff/logistics' },
-    { label: 'Commissions', val: data.commissions_pending, icon: FileText, path: '/staff/invoices' },
-    { label: 'Product Moderation', val: data.products_pending, icon: Layers, path: '/staff/products' },
-    { label: 'Pending Reviews', val: data.reviews_pending, icon: Star, path: '/staff/reviews' },
-    { label: 'Inspections', val: data.inspections_pending, icon: LayoutDashboard, path: '/staff/inspections' },
+    { label: 'Subscriptions', val: data.subscriptions_pending, icon: CreditCard, path: '/staff/subscriptions', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/15' },
+    { label: 'Seller Upgrades', val: data.seller_upgrades_pending, icon: Shield, path: '/staff/seller-applications', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10 dark:bg-purple-500/15' },
+    { label: 'Warehouse Intake', val: data.warehouse_intake_pending, icon: Package, path: '/staff/warehouse', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/15' },
+    { label: 'Logistics Transit', val: data.logistics_in_transit, icon: Truck, path: '/staff/logistics', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-500/10 dark:bg-sky-500/15' },
+    { label: 'Commissions', val: data.commissions_pending, icon: FileText, path: '/staff/invoices', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/15' },
+    { label: 'Product Moderation', val: data.products_pending, icon: Layers, path: '/staff/products', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10 dark:bg-rose-500/15' },
+    { label: 'Pending Reviews', val: data.reviews_pending, icon: Star, path: '/staff/reviews', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 dark:bg-orange-500/15' },
+    { label: 'Inspections', val: data.inspections_pending, icon: LayoutDashboard, path: '/staff/inspections', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10 dark:bg-indigo-500/15' },
   ];
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Global Operational Queues</h3>
-        <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-2.5 py-0.5 rounded-full">Live Pipeline</span>
+        <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live Pipeline
+        </span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
         {metrics.map((m) => (
@@ -151,8 +154,8 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
             className="card p-3 flex flex-col justify-between hover:border-gray-900/30 dark:hover:border-white/30 transition-all hover:shadow-xs group select-none min-h-[78px]"
           >
             <div className="flex items-center justify-between gap-1.5">
-              <div className="w-6 h-6 rounded-lg bg-brand-500/10 dark:bg-brand-500/15 flex items-center justify-center shrink-0">
-                <m.icon size={13} className="text-brand-500 shrink-0" />
+              <div className={`w-6 h-6 rounded-lg ${m.bg} flex items-center justify-center shrink-0`}>
+                <m.icon size={13} className={`${m.color} shrink-0`} />
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-lg font-black text-gray-900 dark:text-white leading-none tracking-tight">
@@ -264,13 +267,30 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
       {/* Analytics Chart for Admins */}
       {isGlobal && data.admin_task_metrics && (
         <div className="card p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <BarChart2 className="text-brand-500" size={16} />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             Worker Performance Metrics
           </h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.admin_task_metrics.worker_performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="workerCompleted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#059669" stopOpacity={0.9} />
+                  </linearGradient>
+                  <linearGradient id="workerInProgress" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.9} />
+                  </linearGradient>
+                  <linearGradient id="workerPending" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#d97706" stopOpacity={0.9} />
+                  </linearGradient>
+                  <linearGradient id="workerOnHold" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#e11d48" stopOpacity={0.9} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:opacity-10" />
                 <XAxis dataKey="worker" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} />
@@ -279,10 +299,10 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                   contentStyle={{ borderRadius: '8px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '12px' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="completed" name="Completed" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="in_progress" name="In Progress" stackId="a" fill="#3b82f6" />
-                <Bar dataKey="pending" name="Pending" stackId="a" fill="#eab308" />
-                <Bar dataKey="on_hold" name="On Hold" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="completed" name="Completed" stackId="a" fill="url(#workerCompleted)" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="in_progress" name="In Progress" stackId="a" fill="url(#workerInProgress)" />
+                <Bar dataKey="pending" name="Pending" stackId="a" fill="url(#workerPending)" />
+                <Bar dataKey="on_hold" name="On Hold" stackId="a" fill="url(#workerOnHold)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -385,8 +405,8 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
           {(data.user.permissions.includes('can_review_promotions') || data.user.permissions.includes('can_approve_content')) && (
             <div className="card p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                  <Megaphone size={15} className="text-purple-500" /> Promotion Review
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                  Promotion Review
                 </h3>
                 <Link to="/staff/promotions" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
                   Queue ({data.pending_promotions.length}) <ChevronRight size={13} />
@@ -412,8 +432,8 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
 
           {/* Activity Log */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-              <Activity size={15} className="text-emerald-500" /> Recent Actions
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+              Recent Actions
             </h3>
             {data.recent_actions.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-4">No recorded recent staff actions.</p>
@@ -2858,57 +2878,56 @@ const StaffDashboardLayout: React.FC = () => {
   ].filter((item) => item.show === undefined || item.show);
 
   return (
-    <div className="w-full border-t border-gray-200/80 dark:border-neutral-800 -mt-4 md:-mt-6">
-      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
-        {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
-        <DashboardMobileDrawer
-          title="Staff Operations"
-          subtitle={data?.user?.username ? `@${data.user.username}` : undefined}
-          badgeText={isSuper ? "Superuser" : "Staff Panel"}
-          navItems={navItems}
-          menuButtonAriaLabel="Staff Dashboard Menu"
-          footerContent={
-            <div className="space-y-1">
-              {isSuper && (
-                <Link
-                  to="/staff-admin"
-                  className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
-                >
-                  <Shield size={16} className="shrink-0" />
-                  <span>Admin Command Center</span>
-                </Link>
-              )}
+    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+      {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
+      <DashboardMobileDrawer
+        title="Staff Operations"
+        subtitle={data?.user?.username ? `@${data.user.username}` : undefined}
+        badgeText={isSuper ? "Superuser" : "Staff Panel"}
+        navItems={navItems}
+        menuButtonAriaLabel="Staff Dashboard Menu"
+        footerContent={
+          <div className="space-y-1">
+            {isSuper && (
               <Link
-                to="/"
-                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+                to="/staff-admin"
+                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
               >
-                <ArrowUpRight size={16} className="shrink-0" />
-                <span>Return to Marketplace</span>
+                <Shield size={16} className="shrink-0" />
+                <span>Admin Command Center</span>
               </Link>
+            )}
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+            >
+              <ArrowUpRight size={16} className="shrink-0" />
+              <span>Return to Marketplace</span>
+            </Link>
+          </div>
+        }
+      />
+
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
+        {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
+          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+              title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+
+            <div className={`px-3 pt-2 pb-2 mb-1 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : 'opacity-100'}`}>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
+                Staff Panel
+              </h2>
+              {data?.user?.username && <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5 truncate">@{data.user.username}</p>}
             </div>
-          }
-        />
 
-        <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
-          {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
-          <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
-            <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
-              <button
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
-                title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
-              >
-                {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-              </button>
-
-              <div className={`px-3 py-2 mb-1 border-b border-surface-border dark:border-surface-dark-border transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                  Staff Panel
-                </h3>
-                {data?.user?.username && <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-0.5 truncate">@{data.user.username}</p>}
-              </div>
-
-              {navItems.map((item) => {
+            {navItems.map((item) => {
                 const isActive = location.pathname === item.path || (item.path !== '/staff' && location.pathname.startsWith(item.path));
                 return (
                   <Link
@@ -2950,8 +2969,7 @@ const StaffDashboardLayout: React.FC = () => {
           </main>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default StaffDashboardLayout;

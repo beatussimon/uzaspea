@@ -486,14 +486,14 @@ const { showConfirm } = useDialog();
                 if (isSubActive) {
                   return (
                     <div className="space-y-6">
-                      <div className="card p-6 space-y-6">
+                      <div className="p-6 rounded-card bg-white dark:bg-[#0A0A0A] shadow-xs space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
                             <div className="flex items-center gap-2.5">
                               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                                 {currentSub?.tier?.name || 'Seller'} Plan
                               </h2>
-                              <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                              <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                                 Active
                               </span>
                             </div>
@@ -522,7 +522,7 @@ const { showConfirm } = useDialog();
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-surface-border dark:border-surface-dark-border text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-100 dark:border-neutral-800/80 text-xs">
                           <div>
                             <span className="text-gray-400 text-3xs uppercase font-medium block">Price</span>
                             <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
@@ -552,7 +552,7 @@ const { showConfirm } = useDialog();
 
                       {/* Upgrade prompt only if on a lower tier like Seller Pro */}
                       {(isSellerProActive || isOtherActive) && businessTier && (
-                        <div className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="p-5 rounded-card bg-white dark:bg-[#0A0A0A] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
                             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                               Upgrade to Business Plan
@@ -588,9 +588,9 @@ const { showConfirm } = useDialog();
                 // -------------------------------------------------------------
                 return (
                   <div className="space-y-6">
-                    <div className="card p-5 border border-red-500/30 bg-white dark:bg-[#0A0A0A]">
+                    <div className="p-5 rounded-card bg-gray-100/60 dark:bg-neutral-900/60">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-full bg-transparent text-red-600 dark:text-red-400 border border-red-500/40">
+                        <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
                           Subscription Expired
                         </span>
                         {expiredSub?.end_date && (
@@ -613,7 +613,7 @@ const { showConfirm } = useDialog();
                         {tiers.filter((t: any) => t.tier_level === 'seller_pro' || t.tier_level === 'business').map((t: any) => {
                           const isBusinessPlan = t.tier_level === 'business';
                           return (
-                            <div key={t.id} className="card p-5 flex flex-col justify-between">
+                            <div key={t.id} className="p-5 rounded-card bg-gray-100/80 dark:bg-neutral-900/80 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-all flex flex-col justify-between">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <h4 className="text-sm font-bold text-gray-900 dark:text-white">

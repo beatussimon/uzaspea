@@ -7,7 +7,7 @@ import {
   UserPlus, Building2, Briefcase,
   CreditCard, Layers,
   ChevronLeft, ChevronRight, Search, Check, X,
-  ArrowUpRight, BarChart2, DollarSign, KeyRound, ShieldAlert,
+  ArrowUpRight, KeyRound, ShieldAlert,
   Headphones, MapPin, ExternalLink
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -195,8 +195,8 @@ const AdminOverview: React.FC = () => {
         {/* Revenue Growth Chart */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <DollarSign size={14} className="text-brand-500" /> Platform Revenue Trend (TZS)
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Platform Revenue Trend (TZS)
             </h3>
             <span className="text-3xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">+34.8% H1</span>
           </div>
@@ -229,8 +229,8 @@ const AdminOverview: React.FC = () => {
 
         {/* Staff Workload Bar Chart */}
         <div className="card p-5 space-y-4">
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <BarChart2 size={14} className="text-blue-500" /> Active Staff Load (Assigned Tasks)
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Active Staff Load (Assigned Tasks)
           </h3>
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -238,11 +238,17 @@ const AdminOverview: React.FC = () => {
                 data={data.staffers.slice(0, 8).map(s => ({ username: s.username, tasks: s.tasks_count }))}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
+                <defs>
+                  <linearGradient id="adminStaffTasks" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#0284c7" stopOpacity={0.9} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:opacity-10" />
                 <XAxis dataKey="username" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888' }} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '12px' }} />
-                <Bar dataKey="tasks" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="tasks" fill="url(#adminStaffTasks)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -254,8 +260,8 @@ const AdminOverview: React.FC = () => {
         {/* Activity Log */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-              <ScrollText size={16} className="text-brand-500" /> Global Security & Admin Logs
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Global Security & Admin Logs
             </h3>
             <Link to="/staff-admin/audit" className="text-xs font-bold text-brand-500 hover:underline flex items-center gap-1">
               View All <ChevronRight size={12} />
@@ -279,8 +285,8 @@ const AdminOverview: React.FC = () => {
 
         {/* Teams & Capacity */}
         <div className="card p-5 space-y-4">
-          <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-            <Building2 size={16} className="text-purple-500" /> Department Capacity & Distribution
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Department Capacity & Distribution
           </h3>
           <div className="space-y-4 pt-2">
             {data.departments.map((dept) => {
@@ -292,7 +298,7 @@ const AdminOverview: React.FC = () => {
                     <span className="text-brand-500">{dept.count} members ({pct}%)</span>
                   </div>
                   <div className="w-full h-2 bg-surface-muted dark:bg-[#161616] rounded-full overflow-hidden">
-                    <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -1645,55 +1651,54 @@ const StaffAdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="w-full border-t border-gray-200/80 dark:border-neutral-800 -mt-4 md:-mt-6">
-      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
-        {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
-        <DashboardMobileDrawer
-          title="Admin Control"
-          subtitle={user?.username ? `@${user.username}` : undefined}
-          badgeText="Superuser"
-          navItems={navItems}
-          menuButtonAriaLabel="Staff Admin Menu"
-          footerContent={
-            <div className="space-y-1">
-              <Link
-                to="/staff"
-                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
-              >
-                <ArrowUpRight size={16} className="shrink-0" />
-                <span>Staff Operations Hub</span>
-              </Link>
-              <Link
-                to="/dashboard/settings"
-                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
-              >
-                <Shield size={16} className="shrink-0" />
-                <span>Account & Security</span>
-              </Link>
+    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+      {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
+      <DashboardMobileDrawer
+        title="Admin Control"
+        subtitle={user?.username ? `@${user.username}` : undefined}
+        badgeText="Superuser"
+        navItems={navItems}
+        menuButtonAriaLabel="Staff Admin Menu"
+        footerContent={
+          <div className="space-y-1">
+            <Link
+              to="/staff"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
+            >
+              <ArrowUpRight size={16} className="shrink-0" />
+              <span>Staff Operations Hub</span>
+            </Link>
+            <Link
+              to="/dashboard/settings"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+            >
+              <Shield size={16} className="shrink-0" />
+              <span>Account & Security</span>
+            </Link>
+          </div>
+        }
+      />
+
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
+        {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
+          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+              title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+
+            <div className={`px-3 pt-2 pb-2 mb-1 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : 'opacity-100'}`}>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
+                Admin Control
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">Superuser</p>
             </div>
-          }
-        />
 
-        <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
-          {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
-          <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
-            <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
-              <button
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
-                title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
-              >
-                {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-              </button>
-
-              <div className={`px-3 py-2 mb-1 border-b border-surface-border dark:border-surface-dark-border transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                  Admin Control
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-0.5">Superuser</p>
-              </div>
-
-              {navItems.map((item) => {
+            {navItems.map((item) => {
                 const isActive = location.pathname === item.path || (item.path !== '/staff-admin' && item.path !== '/staff' && location.pathname.startsWith(item.path));
                 return (
                   <Link
@@ -1732,8 +1737,7 @@ const StaffAdminLayout: React.FC = () => {
           </main>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default StaffAdminLayout;
