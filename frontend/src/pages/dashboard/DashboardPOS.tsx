@@ -126,7 +126,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                     <td className="p-3 text-gray-500 dark:text-gray-400">
                       {new Date(order.order_date).toLocaleDateString()} {new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="p-3 text-brand-600 dark:text-brand-400 font-bold">#{order.id}</td>
+                    <td className="p-3 text-gray-900 dark:text-white font-bold">#{order.id}</td>
                     <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">
                       {order.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}
                     </td>
@@ -491,6 +491,13 @@ const DashboardPOS: React.FC = () => {
   const [activeVariantCardId, setActiveVariantCardId] = useState<number | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const receiptScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (receiptData && receiptScrollRef.current) {
+      receiptScrollRef.current.scrollTop = 0;
+    }
+  }, [receiptData]);
 
   const fetchProducts = () => {
     setLoading(true);
@@ -1090,18 +1097,18 @@ const DashboardPOS: React.FC = () => {
           >
             <button 
               onClick={() => setReceiptData(null)} 
-              className="absolute top-3 right-3 text-surface-subdued hover:text-surface-text bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 p-1.5 rounded-full backdrop-blur-xs transition z-30 print-hidden"
+              className="absolute top-3 right-3 text-neutral-400 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full backdrop-blur-xs transition z-30 print-hidden cursor-pointer"
               aria-label="Close"
             >
               <X size={16} />
             </button>
             
-            <div className="p-4 pt-6 overflow-y-auto flex-1 flex justify-center print:bg-white print:p-0 print:overflow-visible">
+            <div ref={receiptScrollRef} className="p-4 pt-4 overflow-y-auto flex-1 flex justify-center scrollbar-thin print:bg-white print:p-0 print:overflow-visible">
               
               {/* Actual Thermal Receipt Container */}
               <div 
                 id="receipt-content" 
-                className="bg-white text-black p-4 w-[80mm] min-w-[80mm] max-w-[80mm] min-h-max mx-auto shadow-xs relative" 
+                className="bg-white text-black p-5 w-[80mm] min-w-[80mm] max-w-[80mm] min-h-max mx-auto shadow-md rounded-xl relative my-2" 
                 ref={printRef}
                 style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', lineHeight: '1.4' }}
               >
@@ -1243,10 +1250,14 @@ const DashboardPOS: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-4 pt-2 flex gap-2 print-hidden shrink-0">
-              <Button onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold">
+            <div className="p-3 border-t border-surface-border dark:border-neutral-800 flex justify-center gap-2 print-hidden shrink-0">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white border border-white/10 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+              >
                 <Printer size={14} /> {t('print_receipt', 'Print Receipt')}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
