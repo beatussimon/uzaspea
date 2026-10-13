@@ -146,7 +146,7 @@ const DashboardOverview: React.FC = () => {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0">
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[40px]">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
             {t('store_analytics', 'Store Analytics')}
           </h1>

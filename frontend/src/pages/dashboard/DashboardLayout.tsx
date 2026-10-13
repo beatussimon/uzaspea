@@ -590,7 +590,7 @@ const DashboardLayout: React.FC = () => {
           <button 
             type="button"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-30"
+            className="hidden lg:flex absolute -right-3 top-4 w-6 h-6 items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-full p-0 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-30"
             title={isSidebarCollapsed ? t('expand', 'Expand') : t('collapse', 'Collapse')}
           >
             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -728,7 +728,7 @@ const DashboardLayout: React.FC = () => {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 min-w-0 animate-fade-in w-full">
+      <main className="flex-1 min-w-0 animate-fade-in w-full lg:pt-2">
         <Routes>
           <Route index element={<DashboardOverview />} />
           <Route path="analytics" element={<Navigate to="/dashboard" replace />} />
