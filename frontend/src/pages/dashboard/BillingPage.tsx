@@ -868,11 +868,11 @@ const { showConfirm } = useDialog();
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="p-3.5 rounded-btn bg-blue-500/10 border border-blue-500/20">
-            <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-              <Truck size={14} /> Logistics & Delivery Costs
-            </h4>
-            <p className="text-2xs text-gray-600 dark:text-gray-400 leading-relaxed">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Logistics & Delivery Costs
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
               These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from payouts.
             </p>
           </div>
