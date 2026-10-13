@@ -586,7 +586,7 @@ const DashboardPOS: React.FC = () => {
                         }}
                         className={`group relative rounded-2xl overflow-hidden cursor-pointer border bg-gray-100 dark:bg-[#141414] transition-all flex flex-col aspect-[3/4] select-none ${
                           isVariantOpen
-                            ? 'border-brand-500 shadow-lg ring-1 ring-brand-500/50'
+                            ? 'border-neutral-700 shadow-xl ring-1 ring-white/10'
                             : 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-600 hover:shadow-card-hover'
                         }`}
                       >
@@ -621,7 +621,7 @@ const DashboardPOS: React.FC = () => {
                               }
                             }}
                             disabled={effectiveStock <= 0}
-                            className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-brand-500 group-hover:text-black group-hover:border-transparent hover:!bg-brand-400 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                            className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-white group-hover:text-black group-hover:border-transparent hover:!bg-neutral-200 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
                             title={hasVariants ? t('select_variant', 'Select variation') : t('add_to_cart', 'Add to cart')}
                           >
                             <Plus size={14} className="stroke-[2.5]" />
@@ -641,7 +641,7 @@ const DashboardPOS: React.FC = () => {
                               TSh {parseInt(product.price).toLocaleString()}
                             </span>
                             {hasVariants && (
-                              <span className="text-3xs text-brand-400 font-bold ml-0.5">
+                              <span className="text-3xs text-neutral-400 font-medium ml-0.5">
                                 ({product.variants!.length})
                               </span>
                             )}
@@ -658,14 +658,14 @@ const DashboardPOS: React.FC = () => {
                             <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-white/10 shrink-0">
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs font-bold text-white truncate leading-tight">{product.name}</p>
-                                <span className="text-3xs text-gray-400 block truncate">
+                                <span className="text-3xs text-neutral-400 block truncate">
                                   {product.variants!.length} {t('variations', 'variations')}
                                 </span>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => setActiveVariantCardId(null)}
-                                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
                                 title={t('close', 'Close')}
                               >
                                 <X size={12} />
@@ -690,35 +690,35 @@ const DashboardPOS: React.FC = () => {
                                         addToCart(product, v);
                                       }
                                     }}
-                                    className={`p-1.5 rounded-xl border text-left transition flex items-center justify-between gap-1.5 ${
+                                    className={`p-2 rounded-xl border text-left transition flex items-center justify-between gap-2 ${
                                       vStock <= 0
-                                        ? 'opacity-40 border-white/5 bg-white/5 cursor-not-allowed'
+                                        ? 'opacity-40 border-white/5 bg-white/[0.02] cursor-not-allowed'
                                         : qtyInCart > 0
-                                          ? 'border-brand-500/50 bg-brand-500/10'
-                                          : 'border-white/10 bg-white/5 hover:bg-white/15 cursor-pointer'
+                                          ? 'border-white/25 bg-white/10 shadow-xs'
+                                          : 'border-white/8 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/15 cursor-pointer'
                                     }`}
                                   >
                                     <div className="min-w-0 flex-1">
                                       <span className="text-2xs font-semibold text-white truncate block leading-tight">{v.name}</span>
-                                      <div className="flex items-center gap-1.5 text-3xs text-gray-400 mt-0.5 tabular-nums">
+                                      <div className="flex items-center gap-1.5 text-3xs text-neutral-400 mt-0.5 tabular-nums">
                                         <span>{vStock > 0 ? `${vStock} left` : t('out_of_stock', 'Out of stock')}</span>
-                                        <span className="font-bold text-white">TSh {Math.round(vPrice).toLocaleString()}</span>
+                                        <span className="font-semibold text-neutral-200">TSh {Math.round(vPrice).toLocaleString()}</span>
                                       </div>
                                     </div>
 
                                     {/* Stepper or Add button */}
                                     <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                                       {vStock <= 0 ? (
-                                        <span className="text-3xs text-red-400 uppercase font-bold">{t('empty', 'Empty')}</span>
+                                        <span className="text-3xs text-neutral-500 uppercase font-medium">{t('empty', 'Empty')}</span>
                                       ) : qtyInCart > 0 ? (
-                                        <div className="flex items-center bg-black/60 rounded-lg p-0.5 border border-white/20">
+                                        <div className="flex items-center bg-black/75 rounded-lg p-0.5 border border-white/20">
                                           <button
                                             type="button"
                                             onClick={() => updateQuantity(cartItemId, -1)}
                                             disabled={qtyInCart <= 1}
-                                            className="w-4.5 h-4.5 flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-30 transition cursor-pointer"
+                                            className="w-5 h-5 flex items-center justify-center text-neutral-300 hover:text-white disabled:opacity-30 transition cursor-pointer rounded"
                                           >
-                                            <Minus size={8} />
+                                            <Minus size={9} />
                                           </button>
                                           <CartQuantityInput
                                             quantity={qtyInCart}
@@ -730,16 +730,16 @@ const DashboardPOS: React.FC = () => {
                                             type="button"
                                             onClick={() => updateQuantity(cartItemId, 1)}
                                             disabled={qtyInCart >= vStock}
-                                            className="w-4.5 h-4.5 flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-30 transition cursor-pointer"
+                                            className="w-5 h-5 flex items-center justify-center text-neutral-300 hover:text-white disabled:opacity-30 transition cursor-pointer rounded"
                                           >
-                                            <Plus size={8} />
+                                            <Plus size={9} />
                                           </button>
                                         </div>
                                       ) : (
                                         <button
                                           type="button"
                                           onClick={() => addToCart(product, v)}
-                                          className="w-5.5 h-5.5 rounded-full bg-brand-500 hover:bg-brand-400 text-black flex items-center justify-center transition active:scale-90 cursor-pointer shadow-sm"
+                                          className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
                                           title={t('add_to_cart', 'Add to sale')}
                                         >
                                           <Plus size={11} className="stroke-[2.5]" />
@@ -753,13 +753,13 @@ const DashboardPOS: React.FC = () => {
 
                             {/* Done / Close footer */}
                             <div className="pt-1.5 border-t border-white/10 flex justify-between items-center shrink-0">
-                              <span className="text-3xs text-gray-400">
+                              <span className="text-3xs text-neutral-400 tabular-nums font-medium">
                                 {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0)} {t('in_sale', 'in sale')}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => setActiveVariantCardId(null)}
-                                className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-3xs font-semibold transition cursor-pointer"
+                                className="px-3 py-1 rounded-full bg-white text-neutral-900 hover:bg-neutral-200 text-3xs font-semibold transition cursor-pointer shadow-xs"
                               >
                                 {t('done', 'Done')}
                               </button>
