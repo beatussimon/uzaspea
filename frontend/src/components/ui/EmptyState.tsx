@@ -10,6 +10,7 @@ export interface EmptyStateProps {
   action?: {
     label: string;
     onClick: () => void;
+    className?: string;
   };
   className?: string;
 }
@@ -44,7 +45,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         </p>
       )}
       {action && (
-        <Button onClick={action.onClick} variant="default" size="sm">
+        <Button onClick={action.onClick} variant="default" size="sm" className={action.className}>
           {action.label}
         </Button>
       )}

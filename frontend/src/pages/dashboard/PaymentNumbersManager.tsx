@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Smartphone, Plus, Edit2, Trash2, Copy, Check } from 'lucide-react';
+import { Smartphone, Plus, Edit2, Trash2, Copy, Check, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 // ============ Dashboard Payment Numbers ============
 const PaymentNumbersManager: React.FC = () => {
-const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
+  const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
   const [networks, setNetworks] = useState<any[]>([]);
   const [form, setForm] = useState({ network: '', number: '', name: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -35,7 +36,8 @@ const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
       setLipaNumbers(r.data.results || r.data);
       setForm({ network: '', number: '', name: '' });
       setEditingId(null);
-      toast.success('Payment number saved');
+      setShowForm(false);
+      toast.success(editingId ? 'Payment number updated' : 'Payment number saved');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save payment number');
     }
@@ -64,81 +66,104 @@ const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Payment Numbers
-            </h1>
+            Payment Numbers
+          </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Configure mobile money (Lipa) numbers displayed to buyers for manual offline payments.
           </p>
         </div>
+
+        <Button
+          type="button"
+          size="sm"
+          variant={showForm || editingId ? 'outline' : 'default'}
+          onClick={() => {
+            if (showForm || editingId) {
+              setShowForm(false);
+              setEditingId(null);
+              setForm({ network: '', number: '', name: '' });
+            } else {
+              setShowForm(true);
+            }
+          }}
+          className="font-medium flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+        >
+          {showForm || editingId ? <X size={14} /> : <Plus size={14} />}
+          <span>{showForm || editingId ? 'Close' : 'Add Payment Number'}</span>
+        </Button>
       </header>
 
-      {/* Form Card */}
-      <div className="card p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            {editingId ? 'Edit Payment Number' : 'Add New Payment Number'}
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Provide your official mobile money number for direct buyer payments
-          </p>
-        </div>
-
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+      {/* Form Card (Hidden by default; revealed via Add button or Edit action) */}
+      {(showForm || editingId) && (
+        <div className="card !border-none p-5 space-y-4 animate-scale-in">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mobile Network</label>
-            <select
-              value={form.network}
-              onChange={e => setForm({ ...form, network: e.target.value })}
-              className="input py-2 text-xs w-full"
-              required
-            >
-              <option value="">Select Network</option>
-              {networks.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone / Till Number</label>
-            <input
-              placeholder="e.g. 0712345678"
-              value={form.number}
-              onChange={e => setForm({ ...form, number: e.target.value })}
-              className="input py-2 text-xs w-full font-mono"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account Name</label>
-            <input
-              placeholder="Registered owner name"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              className="input py-2 text-xs w-full"
-              required
-            />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              {editingId ? 'Edit Payment Number' : 'Add New Payment Number'}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Provide your official mobile money number for direct buyer payments
+            </p>
           </div>
 
-          <div className="sm:col-span-3 flex items-center justify-end gap-2 pt-2">
-            {editingId && (
+          <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mobile Network</label>
+              <select
+                value={form.network}
+                onChange={e => setForm({ ...form, network: e.target.value })}
+                className="input py-2 text-xs w-full"
+                required
+              >
+                <option value="">Select Network</option>
+                {networks.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone / Till Number</label>
+              <input
+                placeholder="e.g. 0712345678"
+                value={form.number}
+                onChange={e => setForm({ ...form, number: e.target.value })}
+                className="input py-2 text-xs w-full font-mono"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account Name</label>
+              <input
+                placeholder="Registered owner name"
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                className="input py-2 text-xs w-full"
+                required
+              />
+            </div>
+
+            <div className="sm:col-span-3 flex items-center justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => { setEditingId(null); setForm({ network: '', number: '', name: '' }); }}
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingId(null);
+                  setForm({ network: '', number: '', name: '' });
+                }}
               >
                 Cancel
               </Button>
-            )}
-            <Button
-              type="submit"
-              size="sm"
-              className="font-medium flex items-center gap-1.5"
-            >
-              <Plus size={14} />
-              {editingId ? 'Update Number' : 'Save Payment Number'}
-            </Button>
-          </div>
-        </form>
-      </div>
+              <Button
+                type="submit"
+                size="sm"
+                className="font-medium flex items-center gap-1.5 !bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 shadow-sm"
+              >
+                <Plus size={14} />
+                {editingId ? 'Update Number' : 'Save Payment Number'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Numbers List */}
       <div>
@@ -151,7 +176,11 @@ const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
           <EmptyState
             icon={Smartphone}
             title="No Payment Numbers Configured"
-            description="Add your Vodacom M-Pesa, Tigo Pesa, Airtel Money, or Halopesa number above."
+            description="Add your Vodacom M-Pesa, Tigo Pesa, Airtel Money, or Halopesa number to accept customer payments."
+            action={{
+              label: 'Add Payment Number',
+              onClick: () => setShowForm(true),
+            }}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -182,7 +211,11 @@ const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => { setEditingId(lipa.id); setForm({ network: lipa.network, number: lipa.number, name: lipa.name }); }}
+                      onClick={() => {
+                        setEditingId(lipa.id);
+                        setForm({ network: lipa.network, number: lipa.number, name: lipa.name });
+                        setShowForm(true);
+                      }}
                       className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition flex items-center gap-1 font-normal"
                     >
                       <Edit2 size={12} />
