@@ -4932,19 +4932,28 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
             except Exception:
                 return Response({'valid': False, 'error': 'Invalid subtotal.'}, status=400)
 
+        # Safely parse product ID helper (handles numeric IDs and composite variant IDs like '433-78')
+        def _parse_pid(val):
+            if val is None:
+                return None
+            try:
+                return int(str(val).split('-')[0].strip())
+            except (ValueError, TypeError):
+                return None
+
         # Calculate qualifying subtotal if items are provided
         product_ids = []
         qualifying_subtotal = Decimal('0.00')
         if items and isinstance(items, list):
-            product_ids = [int(it.get('product_id')) for it in items if it.get('product_id')]
+            product_ids = [_parse_pid(it.get('product_id')) for it in items if _parse_pid(it.get('product_id')) is not None]
             if promo.applicable_scope == 'single_product' and promo.product_id:
                 for it in items:
-                    if int(it.get('product_id')) == promo.product_id:
+                    if _parse_pid(it.get('product_id')) == promo.product_id:
                         qualifying_subtotal += Decimal(str(it.get('price', 0))) * Decimal(str(it.get('quantity', 1)))
             elif promo.applicable_scope == 'specific_products' and promo.pk:
                 allowed_ids = set(promo.products.values_list('id', flat=True))
                 for it in items:
-                    if int(it.get('product_id')) in allowed_ids:
+                    if _parse_pid(it.get('product_id')) in allowed_ids:
                         qualifying_subtotal += Decimal(str(it.get('price', 0))) * Decimal(str(it.get('quantity', 1)))
             else:
                 qualifying_subtotal = subtotal
@@ -4970,7 +4979,7 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
                     prior_count = OrderModel.objects.filter(
                         promo_code=promo,
                         delivery_info__contact_phone=phone_clean
-                    ).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                    ).exclude(status__in=['CANCELLED', 'EXPIRED', 'CART']).count()
                     if prior_count >= promo.max_uses_per_user:
                         return Response({
                             'valid': False,
@@ -4991,7 +5000,7 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
                 combined_query = Q(promo_code=promo) & (user_match | phone_match if (buyer or user_phone) else Q())
 
                 if buyer or user_phone:
-                    prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
+                    prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED', 'CART']).count()
                     if prior_count >= promo.max_uses_per_user:
                         return Response({
                             'valid': False, 

@@ -635,11 +635,20 @@ export const CheckoutPage: React.FC = () => {
     setValidatingPromo(true);
 
     try {
-      const itemsPayload = checkoutItems.map((i: any) => ({
-        product_id: i.productId || i.product?.id,
-        price: i.product?.price || i.price,
-        quantity: i.quantity || 1
-      }));
+      const itemsPayload = checkoutItems.map((i: any) => {
+        let rawPid = i.productId || i.product?.id;
+        let pid = rawPid;
+        if (typeof rawPid === 'string' && rawPid.includes('-')) {
+          pid = parseInt(rawPid.split('-')[0], 10);
+        } else if (rawPid != null && !isNaN(Number(rawPid))) {
+          pid = Number(rawPid);
+        }
+        return {
+          product_id: pid,
+          price: i.product?.price || i.price,
+          quantity: i.quantity || 1
+        };
+      });
       const res = await api.post('/api/promo-codes/validate/', {
         code: cleanCode,
         merchant: merchant,
