@@ -1645,90 +1645,92 @@ const StaffAdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
-      {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
-      <DashboardMobileDrawer
-        title="Admin Control"
-        subtitle={user?.username ? `@${user.username}` : undefined}
-        badgeText="Superuser"
-        navItems={navItems}
-        menuButtonAriaLabel="Staff Admin Menu"
-        footerContent={
-          <div className="space-y-1">
-            <Link
-              to="/staff"
-              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-brand-500 hover:bg-brand-500/5 transition"
-            >
-              <ArrowUpRight size={16} className="shrink-0" />
-              <span>Staff Operations Hub</span>
-            </Link>
-            <Link
-              to="/dashboard/settings"
-              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
-            >
-              <Shield size={16} className="shrink-0" />
-              <span>Account & Security</span>
-            </Link>
-          </div>
-        }
-      />
-
-      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
-        {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
-        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
-          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative h-full">
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
-              title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-
-            <div className={`px-3 py-2 mb-1 border-b border-surface-border dark:border-surface-dark-border transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                Admin Control
-              </h3>
-              <p className="text-xs text-brand-500 font-bold mt-0.5">Superuser</p>
+    <div className="w-full border-t border-gray-200/80 dark:border-neutral-800 -mt-4 md:-mt-6">
+      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+        {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
+        <DashboardMobileDrawer
+          title="Admin Control"
+          subtitle={user?.username ? `@${user.username}` : undefined}
+          badgeText="Superuser"
+          navItems={navItems}
+          menuButtonAriaLabel="Staff Admin Menu"
+          footerContent={
+            <div className="space-y-1">
+              <Link
+                to="/staff"
+                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
+              >
+                <ArrowUpRight size={16} className="shrink-0" />
+                <span>Staff Operations Hub</span>
+              </Link>
+              <Link
+                to="/dashboard/settings"
+                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+              >
+                <Shield size={16} className="shrink-0" />
+                <span>Account & Security</span>
+              </Link>
             </div>
+          }
+        />
 
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path !== '/staff-admin' && item.path !== '/staff' && location.pathname.startsWith(item.path));
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
-                    isActive
-                      ? 'text-brand-500 font-medium bg-brand-500/5'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-surface-muted/50 dark:hover:bg-neutral-900/50'
-                  }`}
-                  title={isSidebarCollapsed ? item.label : undefined}
-                >
-                  <item.icon size={18} className="shrink-0" />
-                  {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+        <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
+          {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
+          <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
+            <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
+              <button
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+                title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+              >
+                {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </button>
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 animate-fade-in">
-          <Routes>
-            <Route index element={<AdminOverview />} />
-            <Route path="users" element={<PlatformUserExplorer />} />
-            <Route path="employees" element={<EmployeeManager />} />
-            <Route path="permissions" element={<PermissionMatrix />} />
-            <Route path="password-requests" element={<PasswordChangeRequestsManager />} />
-            <Route path="audit" element={<AuditLogViewer />} />
-            <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
-            <Route path="catalog-moderation" element={<CatalogModerationManager />} />
-            <Route path="reserved-usernames" element={<ReservedUsernamesManager />} />
-            <Route path="contact-settings" element={<PlatformContactSettingsManager />} />
-            <Route path="site-visits" element={<AdminSiteVisitsReview />} />
-          </Routes>
-        </main>
+              <div className={`px-3 py-2 mb-1 border-b border-surface-border dark:border-surface-dark-border transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                  Admin Control
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-0.5">Superuser</p>
+              </div>
+
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path || (item.path !== '/staff-admin' && item.path !== '/staff' && location.pathname.startsWith(item.path));
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
+                      isActive
+                        ? 'bg-gradient-to-r from-gray-100 to-gray-50/80 dark:from-neutral-800 dark:to-neutral-800/60 text-gray-900 dark:text-white font-semibold shadow-2xs'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-neutral-900/50 font-medium'
+                    }`}
+                    title={isSidebarCollapsed ? item.label : undefined}
+                  >
+                    <item.icon size={18} className={`shrink-0 ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'}`} />
+                    {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 min-w-0 animate-fade-in">
+            <Routes>
+              <Route index element={<AdminOverview />} />
+              <Route path="users" element={<PlatformUserExplorer />} />
+              <Route path="employees" element={<EmployeeManager />} />
+              <Route path="permissions" element={<PermissionMatrix />} />
+              <Route path="password-requests" element={<PasswordChangeRequestsManager />} />
+              <Route path="audit" element={<AuditLogViewer />} />
+              <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
+              <Route path="catalog-moderation" element={<CatalogModerationManager />} />
+              <Route path="reserved-usernames" element={<ReservedUsernamesManager />} />
+              <Route path="contact-settings" element={<PlatformContactSettingsManager />} />
+              <Route path="site-visits" element={<AdminSiteVisitsReview />} />
+            </Routes>
+          </main>
+        </div>
       </div>
     </div>
   );
