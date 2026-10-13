@@ -56,9 +56,9 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 print:p-0 print:bg-white print:block">
       <div className="bg-gray-50 dark:bg-neutral-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] print:shadow-none print:rounded-none print:max-h-none print:h-auto print:max-w-none">
         
-        <div className="bg-brand-500 p-4 text-center text-white relative shrink-0 print-hidden">
+        <div className="bg-gray-900 dark:bg-black border-b border-gray-800 p-4 text-center text-white relative shrink-0 print-hidden">
           <h2 className="text-xl font-black">Invoice #{order.id}</h2>
-          <button onClick={onClose} className="absolute top-3 right-3 text-white/70 hover:text-white bg-black/20 p-1 rounded-full backdrop-blur-md transition">
+          <button onClick={onClose} className="absolute top-3 right-3 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full backdrop-blur-md transition cursor-pointer">
             <X size={18} />
           </button>
         </div>
