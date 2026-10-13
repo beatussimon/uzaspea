@@ -486,7 +486,7 @@ const { showConfirm } = useDialog();
                 if (isSubActive) {
                   return (
                     <div className="space-y-6">
-                      <div className="p-6 rounded-card bg-white dark:bg-[#0A0A0A] shadow-xs space-y-6">
+                      <div className="p-6 rounded-card bg-gray-200/70 dark:bg-neutral-900/90 shadow-xs space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
                             <div className="flex items-center gap-2.5">
@@ -522,7 +522,7 @@ const { showConfirm } = useDialog();
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-100 dark:border-neutral-800/80 text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-300/40 dark:border-neutral-800/80 text-xs">
                           <div>
                             <span className="text-gray-400 text-3xs uppercase font-medium block">Price</span>
                             <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
@@ -552,7 +552,7 @@ const { showConfirm } = useDialog();
 
                       {/* Upgrade prompt only if on a lower tier like Seller Pro */}
                       {(isSellerProActive || isOtherActive) && businessTier && (
-                        <div className="p-5 rounded-card bg-white dark:bg-[#0A0A0A] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="p-5 rounded-card bg-gray-200/70 dark:bg-neutral-900/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
                             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                               Upgrade to Business Plan
@@ -588,18 +588,18 @@ const { showConfirm } = useDialog();
                 // -------------------------------------------------------------
                 return (
                   <div className="space-y-6">
-                    <div className="p-5 rounded-card bg-gray-100/60 dark:bg-neutral-900/60">
+                    <div className="p-5 rounded-card bg-gray-200/70 dark:bg-neutral-900/90">
                       <div className="flex items-center gap-2">
                         <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
                           Subscription Expired
                         </span>
                         {expiredSub?.end_date && (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                             Expired on {new Date(expiredSub.end_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-neutral-300 mt-2">
+                      <p className="text-xs text-gray-700 dark:text-neutral-300 mt-2">
                         Your seller subscription has expired. Product listings remain visible in the marketplace, but dashboard tools are locked until renewed.
                       </p>
                     </div>
@@ -613,7 +613,7 @@ const { showConfirm } = useDialog();
                         {tiers.filter((t: any) => t.tier_level === 'seller_pro' || t.tier_level === 'business').map((t: any) => {
                           const isBusinessPlan = t.tier_level === 'business';
                           return (
-                            <div key={t.id} className="p-5 rounded-card bg-gray-100/80 dark:bg-neutral-900/80 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-all flex flex-col justify-between">
+                            <div key={t.id} className="p-5 rounded-card bg-gray-200/70 dark:bg-neutral-900/90 hover:bg-gray-200/90 dark:hover:bg-neutral-900 transition-all flex flex-col justify-between">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <h4 className="text-sm font-bold text-gray-900 dark:text-white">
