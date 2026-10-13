@@ -86,60 +86,63 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             animate="visible"
             exit="hidden"
           >
-            {/* Header */}
-            <motion.div variants={itemVariants} className="mb-4 sm:mb-6 shrink-0 flex flex-col items-center justify-center text-center w-full">
-              <h2 className="text-2xl md:text-3xl font-black text-white leading-none drop-shadow-md">
-                {t('shop_by_category', 'Shop by category')}
-              </h2>
-              <p className="text-xs md:text-sm font-medium text-gray-300 mt-1">
-                {t('find_exactly_what_youre_looking_for', "Find exactly what you're looking for")}
-              </p>
-            </motion.div>
+            {/* Scrollable Container containing Header + Categories together */}
+            <div className="w-full flex-1 flex flex-col items-center overflow-y-auto overscroll-contain no-scrollbar py-2 px-2">
+              <div className="w-full max-w-4xl mx-auto my-auto flex flex-col items-center pt-2 pb-14 sm:pb-16">
+                {/* Header */}
+                <motion.div variants={itemVariants} className="mb-5 sm:mb-7 shrink-0 flex flex-col items-center justify-center text-center w-full">
+                  <h2 className="text-2xl md:text-3xl font-black text-white leading-none drop-shadow-md">
+                    {t('shop_by_category', 'Shop by category')}
+                  </h2>
+                  <p className="text-xs md:text-sm font-medium text-gray-300 mt-1">
+                    {t('find_exactly_what_youre_looking_for', "Find exactly what you're looking for")}
+                  </p>
+                </motion.div>
 
-            {/* Circular Category Showcase - Centered responsive flex wrap */}
-            <div className="w-full flex-1 flex flex-col justify-center items-center overflow-y-auto overscroll-contain no-scrollbar py-2 px-2">
-              <div className="w-full flex flex-wrap justify-center items-start gap-5 sm:gap-7 md:gap-9 max-w-4xl mx-auto pb-4">
-                {loading ? (
-                  [...Array(7)].map((_, i) => (
-                    <div key={i} className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2.5">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full bg-white/10 animate-pulse" />
-                      <div className="w-16 h-3 bg-white/10 animate-pulse rounded-full" />
-                    </div>
-                  ))
-                ) : (
-                  categories.map((cat) => (
-                    <motion.div 
-                      key={cat.id} 
-                      variants={itemVariants} 
-                      className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2 group text-center"
-                    >
-                      <Link 
-                        to={`/products?category=${cat.slug}`} 
-                        className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full relative overflow-hidden bg-black/40 border-2 border-white/20 hover:border-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)] transition-all duration-300 group-hover:scale-105 active:scale-95 shrink-0 shadow-lg shadow-black/50"
+                {/* Circular Category Showcase - Centered responsive flex wrap */}
+                <div className="w-full flex flex-wrap justify-center items-start gap-5 sm:gap-7 md:gap-9">
+                  {loading ? (
+                    [...Array(7)].map((_, i) => (
+                      <div key={i} className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2.5">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full bg-white/10 animate-pulse" />
+                        <div className="w-16 h-3 bg-white/10 animate-pulse rounded-full" />
+                      </div>
+                    ))
+                  ) : (
+                    categories.map((cat) => (
+                      <motion.div 
+                        key={cat.id} 
+                        variants={itemVariants} 
+                        className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2 group text-center"
                       >
-                        <SafeImage 
-                          src={cat.image || getCategoryFallbackImage(cat.name)} 
-                          alt={cat.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent group-hover:from-black/10 transition-colors duration-300" />
-                      </Link>
-                      
-                      <Link 
-                        to={`/products?category=${cat.slug}`}
-                        className="text-xs sm:text-sm font-bold text-white text-center line-clamp-2 leading-tight group-hover:text-amber-400 transition-colors mt-0.5 drop-shadow"
-                      >
-                        {cat.name}
-                      </Link>
+                        <Link 
+                          to={`/products?category=${cat.slug}`} 
+                          className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full relative overflow-hidden bg-black/40 border-2 border-white/20 hover:border-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)] transition-all duration-300 group-hover:scale-105 active:scale-95 shrink-0 shadow-lg shadow-black/50"
+                        >
+                          <SafeImage 
+                            src={cat.image || getCategoryFallbackImage(cat.name)} 
+                            alt={cat.name}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent group-hover:from-black/10 transition-colors duration-300" />
+                        </Link>
+                        
+                        <Link 
+                          to={`/products?category=${cat.slug}`}
+                          className="text-xs sm:text-sm font-bold text-white text-center line-clamp-2 leading-tight group-hover:text-amber-400 transition-colors mt-0.5 drop-shadow"
+                        >
+                          {cat.name}
+                        </Link>
 
-                      {cat.total_products !== undefined && cat.total_products > 0 && (
-                        <span className="text-[10px] font-semibold text-gray-400 group-hover:text-amber-300/90 transition-colors">
-                          {cat.total_products.toLocaleString()} {cat.total_products === 1 ? t('item', 'item') : t('items_count', 'items')}
-                        </span>
-                      )}
-                    </motion.div>
-                  ))
-                )}
+                        {cat.total_products !== undefined && cat.total_products > 0 && (
+                          <span className="text-[10px] font-semibold text-gray-400 group-hover:text-amber-300/90 transition-colors">
+                            {cat.total_products.toLocaleString()} {cat.total_products === 1 ? t('item', 'item') : t('items_count', 'items')}
+                          </span>
+                        )}
+                      </motion.div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
             
