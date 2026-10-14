@@ -500,7 +500,7 @@ const PlatformUserExplorer: React.FC = () => {
           description={search ? 'No users match your search query.' : 'There are currently no users in this view.'}
         />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
@@ -878,7 +878,7 @@ const PermissionMatrix: React.FC = () => {
       {loading ? (
         <TableSkeleton rows={6} cols={6} />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
@@ -1296,7 +1296,7 @@ const AdminSiteVisitsReview: React.FC = () => {
           description={search ? 'No requests match your search criteria.' : 'There are currently no verification requests in this queue.'}
         />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">

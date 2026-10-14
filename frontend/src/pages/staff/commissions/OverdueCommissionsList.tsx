@@ -124,7 +124,7 @@ export const OverdueCommissionsList: React.FC = () => {
           description={search ? 'No invoices match your search query.' : 'All seller commission invoices are settled or currently under review.'}
         />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none p-0">
+        <div className="card overflow-hidden !border-none !rounded-none p-0 !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">

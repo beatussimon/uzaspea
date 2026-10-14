@@ -1843,7 +1843,7 @@ const location = useLocation();
                 : t('no_active_coupons', 'No active promo codes found.')}
             </div>
           ) : (
-            <div className="card overflow-hidden !border-none !rounded-none">
+            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
@@ -2072,7 +2072,7 @@ const location = useLocation();
                   : t('no_active_affiliates', 'No active affiliate or partner codes found.')}
               </div>
             ) : (
-              <div className="card overflow-hidden !border-none !rounded-none">
+              <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
@@ -2293,7 +2293,7 @@ const location = useLocation();
                 }
               />
             ) : (
-              <div className="card overflow-hidden !border-none !rounded-none">
+              <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
