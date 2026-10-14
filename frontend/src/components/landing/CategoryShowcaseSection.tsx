@@ -87,10 +87,10 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             exit="hidden"
           >
             {/* Scrollable Container containing Header + Categories together */}
-            <div className="w-full flex-1 flex flex-col items-center overflow-y-auto overscroll-contain no-scrollbar py-2 px-2">
-              <div className="w-full max-w-4xl mx-auto my-auto flex flex-col items-center pt-2 pb-14 sm:pb-16">
-                {/* Header */}
-                <motion.div variants={itemVariants} className="mb-5 sm:mb-7 shrink-0 flex flex-col items-center justify-center text-center w-full">
+            <div className="w-full flex-1 flex flex-col items-center overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 px-2">
+              <div className="w-full max-w-4xl mx-auto my-0 md:my-auto flex flex-col items-center pt-2 pb-24 md:pb-16">
+                {/* Header - scrolls together with categories */}
+                <motion.div variants={itemVariants} className="mb-4 sm:mb-6 shrink-0 flex flex-col items-center justify-center text-center w-full">
                   <h2 className="text-2xl md:text-3xl font-black text-white leading-none drop-shadow-md">
                     {t('shop_by_category', 'Shop by category')}
                   </h2>
