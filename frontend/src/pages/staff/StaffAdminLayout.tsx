@@ -1692,7 +1692,7 @@ const StaffAdminLayout: React.FC = () => {
             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
 
-          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative">
+          <nav className="p-2 space-y-1 relative">
             {navItems.map((item) => {
                 const isActive = location.pathname === item.path || (item.path !== '/staff-admin' && item.path !== '/staff' && location.pathname.startsWith(item.path));
                 return (
