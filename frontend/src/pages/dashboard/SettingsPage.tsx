@@ -284,11 +284,6 @@ const SettingsPage: React.FC = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
                         {isCustomer ? 'Account Settings' : 'Store & Account Settings'}
                     </h1>
-                    {!isCustomer && profile.tier && (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 border border-gray-200/80 dark:border-neutral-700">
-                            {profile.tier}
-                        </span>
-                    )}
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 ml-7">
                     {isCustomer
