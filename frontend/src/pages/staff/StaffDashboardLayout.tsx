@@ -214,7 +214,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
       {/* Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff Control Center</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">Staff Control Center</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Real-time oversight of operations, assigned tasks, verification pipelines, and customer disputes.
           </p>
@@ -2908,19 +2908,21 @@ const StaffDashboardLayout: React.FC = () => {
         }
       />
 
-      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0 items-start">
         {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
-        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
-          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative h-full">
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
-              title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 relative h-fit hidden lg:block`}>
+          {/* Toggle Expand/Collapse Button (Never clipped) */}
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-3.5 w-6 h-6 items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-full p-0 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-30"
+            title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
 
-            <div className={`px-3 pt-2 pb-2 mb-1 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : 'opacity-100'}`}>
+          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm p-2 space-y-1 relative">
+            <div className={`px-3 pt-1.5 pb-2 mb-1 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : 'opacity-100'}`}>
               <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
                 Staff Panel
               </h2>
@@ -2949,7 +2951,7 @@ const StaffDashboardLayout: React.FC = () => {
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 min-w-0 animate-fade-in">
+          <main className="flex-1 min-w-0 animate-fade-in w-full lg:pt-2.5">
             <Routes>
               <Route index element={<StaffHome data={data} loading={loading} />} />
               <Route path="tasks" element={<StaffTasks />} />
