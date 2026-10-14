@@ -73,8 +73,8 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
   if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
-    <div className="card overflow-hidden !border-none !rounded-none">
-      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+    <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('sales_history', 'Sales History')}</h2>
           <p className="text-2xs text-gray-500 dark:text-gray-400">{t('sales_history_desc', 'View past walk-in customers and printed invoices')}</p>

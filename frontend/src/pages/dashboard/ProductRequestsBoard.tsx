@@ -767,7 +767,7 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Active Data Table */}
-            <div className="card overflow-hidden !border-none !rounded-none">
+            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
@@ -1032,7 +1032,7 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Fulfilled Requests Table (In Inventory History) */}
-            <div className="card overflow-hidden !border-none !rounded-none">
+            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests / History</h3>

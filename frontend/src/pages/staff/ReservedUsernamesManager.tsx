@@ -405,7 +405,7 @@ export const ReservedUsernamesManager: React.FC = () => {
       </div>
 
       {/* Reserved Usernames Table */}
-      <div className="card overflow-hidden !border-none !rounded-none shadow-sm">
+      <div className="card overflow-hidden !border-none !rounded-none shadow-sm !bg-transparent">
         {loading ? (
           <div className="p-12 text-center text-gray-400">Loading reserved usernames...</div>
         ) : items.length === 0 ? (

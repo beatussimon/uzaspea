@@ -629,7 +629,7 @@ export const SubscriptionConfirmation: React.FC = () => {
           description={search ? 'No requests match your search criteria.' : `There are currently no ${filter} upgrade requests.`}
         />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
@@ -1594,7 +1594,7 @@ export const CommissionPaymentsManager: React.FC = () => {
           description={search ? 'No payments match your search criteria.' : `There are no ${filter.toLowerCase()} commission payments.`}
         />
       ) : (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">

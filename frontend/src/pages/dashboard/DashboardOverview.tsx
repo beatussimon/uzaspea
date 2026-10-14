@@ -536,7 +536,7 @@ const DashboardOverview: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
         {/* Top Products */}
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
             <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
               
@@ -656,7 +656,7 @@ const DashboardOverview: React.FC = () => {
           </div>
 
         {/* Low Stock Alerts */}
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">
               Stock Alerts
@@ -694,7 +694,7 @@ const DashboardOverview: React.FC = () => {
 
       {/* Items Sold List */}
       {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
-        <div className="card overflow-hidden !border-none !rounded-none print:shadow-none print:m-0 print:p-0">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent print:shadow-none print:m-0 print:p-0">
           <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2 print-hide">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
             <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Recent 100</span>

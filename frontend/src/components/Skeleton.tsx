@@ -81,9 +81,9 @@ export const TableSkeleton: React.FC<{
   className?: string;
   withHeader?: boolean;
 }> = ({ rows = 4, cols = 4, className, withHeader = true }) => (
-  <div className={cn('card overflow-hidden !border-none !rounded-none', className)}>
+  <div className={cn('card overflow-hidden !border-none !rounded-none !bg-transparent', className)}>
     {withHeader && (
-      <div className="p-3.5 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex justify-between items-center">
+      <div className="p-3.5 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex justify-between items-center">
         <Skeleton className="h-4 w-28 rounded-none" />
         <Skeleton className="h-7 w-32 rounded-none" />
       </div>
@@ -746,8 +746,8 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
     </div>
 
     {/* Table Skeleton matching Active Demand Requests table */}
-    <div className="card overflow-hidden !border-none !rounded-none">
-      <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border">
+    <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+      <div className="p-4 bg-transparent flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border">
         <Skeleton className="h-4 w-36 rounded-none" />
         <Skeleton className="h-3 w-20 rounded-none" />
       </div>

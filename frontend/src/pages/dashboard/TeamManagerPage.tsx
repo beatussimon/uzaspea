@@ -623,7 +623,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
 
       {/* Tab: Activity Log */}
       {activeTab === 'audit' && (
-        <div className="card overflow-hidden !border-none !rounded-none">
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
           {auditLogs.length === 0 ? (
             <div className="p-8 text-center text-xs text-gray-500">
               No team activity recorded yet.
