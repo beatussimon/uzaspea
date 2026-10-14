@@ -623,7 +623,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
 
       {/* Tab: Activity Log */}
       {activeTab === 'audit' && (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           {auditLogs.length === 0 ? (
             <div className="p-8 text-center text-xs text-gray-500">
               No team activity recorded yet.
@@ -631,7 +631,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                   <tr>
                     <th className="p-3">Date & Time</th>
                     <th className="p-3">Action</th>

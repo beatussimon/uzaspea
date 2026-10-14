@@ -25,11 +25,11 @@ export function DataTable<T>({
   className,
 }: DataTableProps<T>) {
   return (
-    <div className={cn('w-full overflow-hidden card', className)}>
+    <div className={cn('w-full overflow-hidden card !rounded-none !border-none', className)}>
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-surface-border dark:border-surface-dark-border bg-surface-muted dark:bg-[#111]/40 text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 select-none">
+            <tr className="border-b border-surface-border dark:border-surface-dark-border bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold select-none">
               {columns.map((col, idx) => (
                 <th key={idx} className={cn('px-6 py-3.5 font-bold', col.className)}>
                   {col.header}

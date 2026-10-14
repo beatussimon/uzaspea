@@ -73,7 +73,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
   if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden !border-none !rounded-none">
       <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('sales_history', 'Sales History')}</h2>
@@ -97,7 +97,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs whitespace-nowrap">
-          <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+          <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
             <tr>
               <th className="p-3">{t('date', 'Date')}</th>
               <th className="p-3">{t('invoice_number', 'Invoice #')}</th>

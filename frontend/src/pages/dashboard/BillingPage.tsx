@@ -694,10 +694,10 @@ const { showConfirm } = useDialog();
               description="Monthly subscription & commission statements will accumulate and appear here."
             />
           ) : (
-            <div className="card overflow-hidden">
+            <div className="card overflow-hidden !border-none !rounded-none">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th className="p-3">Billing Period</th>
                       <th className="p-3 text-right">Orders Value</th>
@@ -803,10 +803,10 @@ const { showConfirm } = useDialog();
               description="Commission deductions and adjustments will be recorded here in real-time."
             />
           ) : (
-            <div className="card overflow-hidden">
+            <div className="card overflow-hidden !border-none !rounded-none">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th className="p-3">Date</th>
                       <th className="p-3">Order ID</th>
@@ -903,10 +903,10 @@ const { showConfirm } = useDialog();
               description="No driver delivery payouts or costs logged yet for fulfilled orders."
             />
           ) : (
-            <div className="card overflow-hidden">
+            <div className="card overflow-hidden !border-none !rounded-none">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th className="p-3">Date</th>
                       <th className="p-3">Order ID</th>
