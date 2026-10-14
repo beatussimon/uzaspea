@@ -350,7 +350,7 @@ const SettingsPage: React.FC = () => {
 
                     {/* Subtle "Sell on SokoniMax" Verification Card for Customers */}
                     {isCustomer && (
-                        <div className="p-3.5 rounded-xl border border-gray-200/70 dark:border-neutral-800/70 bg-gray-50/70 dark:bg-neutral-900/40 space-y-2">
+                        <div className="p-3.5 rounded-xl bg-gray-50/70 dark:bg-neutral-900/40 space-y-2">
                             <div className="text-xs font-semibold text-gray-900 dark:text-white">
                                 Sell on SokoniMax
                             </div>
@@ -396,7 +396,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 {/* Main Content Pane */}
-                <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-gray-200/80 dark:border-neutral-800/80 p-6 sm:p-8 shadow-xs">
+                <div className="bg-white dark:bg-[#0A0A0A] rounded-card p-6 sm:p-8 shadow-xs">
                     
                     {/* 1. Profile Tab */}
                     {activeTab === 'profile' && (
