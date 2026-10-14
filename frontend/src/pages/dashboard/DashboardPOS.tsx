@@ -1009,31 +1009,44 @@ const DashboardPOS: React.FC = () => {
 
           {/* Mobile Cart Floating Action Bar & Modal */}
           <div className="lg:hidden">
-            <div className="fixed bottom-16 inset-x-0 p-4 z-40 pointer-events-none">
-              <div className="pointer-events-auto max-w-md mx-auto">
+            <div 
+              className="fixed z-40 pointer-events-none flex justify-center"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+                left: '72px',
+                right: '72px'
+              }}
+            >
+              <div className="pointer-events-auto w-full max-w-[420px]">
                 <button 
+                  type="button"
                   onClick={() => setIsMobileCartOpen(true)}
-                  className="w-full bg-gray-900 dark:bg-white text-white dark:text-black rounded-card shadow-2xl p-3.5 flex items-center justify-between active:scale-[0.98] transition-transform"
+                  className="w-full h-11 bg-white dark:bg-white text-black dark:text-black rounded-full shadow-xl border border-black/10 px-3.5 sm:px-4 flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer select-none"
+                  aria-label={t('current_sale', 'Current Sale')}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <ShoppingCart size={20} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="relative shrink-0">
+                      <ShoppingCart size={17} className="text-black" />
                       {cart.length > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-brand-500 text-white text-3xs font-black rounded-full w-4 h-4 flex items-center justify-center border-2 border-gray-900 dark:border-white">
-                          {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                        <span className="absolute -top-1.5 -right-2 bg-brand-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">
+                          {cart.reduce((sum: number, item: any) => sum + item.quantity, 0)}
                         </span>
                       )}
                     </div>
-                    <span className="font-bold text-xs">{t('current_sale', 'Current Register Sale')}</span>
+                    <span className="font-bold text-xs text-black whitespace-nowrap truncate">{t('current_sale', 'Current Sale')}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <div className="text-right">
-                      <span className="font-extrabold text-xs block">TSh {finalTotal.toLocaleString()}</span>
+                      <span className="font-semibold text-xs text-black whitespace-nowrap tabular-nums block">
+                        TSh {finalTotal.toLocaleString()}
+                      </span>
                       {discountAmount > 0 && (
-                        <span className="text-[10px] text-gray-400 line-through block">TSh {cartTotal.toLocaleString()}</span>
+                        <span className="text-[10px] text-gray-400 line-through block leading-none">
+                          TSh {cartTotal.toLocaleString()}
+                        </span>
                       )}
                     </div>
-                    <ChevronUp size={16} className="opacity-60" />
+                    <ChevronUp size={16} className="text-black shrink-0 opacity-70" />
                   </div>
                 </button>
               </div>
