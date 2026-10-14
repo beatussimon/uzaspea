@@ -79,36 +79,45 @@ export const TableSkeleton: React.FC<{
   rows?: number;
   cols?: number;
   className?: string;
-}> = ({ rows = 4, cols = 4, className }) => (
-  <div className={cn('card overflow-hidden', className)}>
-    <div className="p-3.5 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex justify-between items-center">
-      <Skeleton className="h-4 w-28 rounded" />
-      <Skeleton className="h-7 w-32 rounded-lg" />
-    </div>
-    <div className="p-3.5 space-y-2.5">
+  withHeader?: boolean;
+}> = ({ rows = 4, cols = 4, className, withHeader = true }) => (
+  <div className={cn('card overflow-hidden !border-none !rounded-none', className)}>
+    {withHeader && (
+      <div className="p-3.5 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex justify-between items-center">
+        <Skeleton className="h-4 w-28 rounded-none" />
+        <Skeleton className="h-7 w-32 rounded-none" />
+      </div>
+    )}
+    <div className="overflow-x-auto">
       {/* Table Header */}
-      <div className="grid gap-4 pb-2 border-b border-surface-border dark:border-surface-dark-border" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      <div
+        className="grid gap-4 px-4 py-3 bg-neutral-100 dark:bg-neutral-800/80 border-b border-surface-border dark:border-surface-dark-border"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
         {Array.from({ length: cols }).map((_, i) => (
-          <Skeleton key={i} className="h-2.5 w-2/3 rounded" />
+          <Skeleton key={i} className="h-2.5 w-2/3 rounded-none" />
         ))}
       </div>
       {/* Table Rows */}
-      {Array.from({ length: rows }).map((_, r) => (
-        <div
-          key={r}
-          className="grid gap-4 py-2.5 items-center border-b border-surface-border/40 dark:border-surface-dark-border/40 last:border-0"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-          {Array.from({ length: cols }).map((_, c) => (
-            <Skeleton
-              key={c}
-              className={cn(
-                'h-3 rounded',
-                c === 0 ? 'w-4/5' : c === cols - 1 ? 'w-1/2 ml-auto' : 'w-2/3'
-              )}
-            />
-          ))}
-        </div>
-      ))}
+      <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
+        {Array.from({ length: rows }).map((_, r) => (
+          <div
+            key={r}
+            className="grid gap-4 px-4 py-3.5 items-center"
+            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: cols }).map((_, c) => (
+              <Skeleton
+                key={c}
+                className={cn(
+                  'h-3 rounded-none',
+                  c === 0 ? 'w-4/5' : c === cols - 1 ? 'w-1/2 ml-auto' : 'w-2/3'
+                )}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );
@@ -737,46 +746,50 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
     </div>
 
     {/* Table Skeleton matching Active Demand Requests table */}
-    <div className="card overflow-hidden">
-      <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
-        <Skeleton className="h-4 w-36 rounded" />
-        <Skeleton className="h-3 w-20 rounded" />
+    <div className="card overflow-hidden !border-none !rounded-none">
+      <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border">
+        <Skeleton className="h-4 w-36 rounded-none" />
+        <Skeleton className="h-3 w-20 rounded-none" />
       </div>
-      <div className="p-4 space-y-3">
-        <div className="grid grid-cols-5 gap-4 pb-2">
-          <Skeleton className="h-3 w-24 rounded" />
-          <Skeleton className="h-3 w-16 mx-auto rounded" />
-          <Skeleton className="h-3 w-16 rounded" />
-          <Skeleton className="h-3 w-20 rounded" />
-          <Skeleton className="h-3 w-16 ml-auto rounded" />
+      <div className="overflow-x-auto">
+        <div className="bg-neutral-100 dark:bg-neutral-800/80 px-4 py-3 border-b border-surface-border dark:border-surface-dark-border">
+          <div className="grid grid-cols-5 gap-4">
+            <Skeleton className="h-3 w-24 rounded-none" />
+            <Skeleton className="h-3 w-16 mx-auto rounded-none" />
+            <Skeleton className="h-3 w-16 rounded-none" />
+            <Skeleton className="h-3 w-20 rounded-none" />
+            <Skeleton className="h-3 w-16 ml-auto rounded-none" />
+          </div>
         </div>
-        {Array.from({ length: 4 }).map((_, r) => (
-          <div
-            key={r}
-            className="grid grid-cols-5 gap-4 py-2.5 items-center"
-          >
-            <div className="flex items-center gap-3">
-              <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <Skeleton className="h-3.5 w-28 rounded" />
-                <Skeleton className="h-2.5 w-20 rounded" />
+        <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
+          {Array.from({ length: 4 }).map((_, r) => (
+            <div
+              key={r}
+              className="grid grid-cols-5 gap-4 px-4 py-3.5 items-center"
+            >
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-none shrink-0" />
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <Skeleton className="h-3.5 w-28 rounded-none" />
+                  <Skeleton className="h-2.5 w-20 rounded-none" />
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <Skeleton className="h-5 w-8 rounded-none" />
+              </div>
+              <div>
+                <Skeleton className="h-5 w-24 rounded-none" />
+              </div>
+              <div>
+                <Skeleton className="h-3 w-20 rounded-none" />
+              </div>
+              <div className="flex justify-end gap-1.5">
+                <Skeleton className="h-7 w-12 rounded-none" />
+                <Skeleton className="h-7 w-16 rounded-none" />
               </div>
             </div>
-            <div className="flex justify-center">
-              <Skeleton className="h-5 w-8 rounded-full" />
-            </div>
-            <div>
-              <Skeleton className="h-5 w-24 rounded-full" />
-            </div>
-            <div>
-              <Skeleton className="h-3 w-20 rounded" />
-            </div>
-            <div className="flex justify-end gap-1.5">
-              <Skeleton className="h-7 w-12 rounded-lg" />
-              <Skeleton className="h-7 w-16 rounded-lg" />
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   </div>

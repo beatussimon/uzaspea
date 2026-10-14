@@ -45,7 +45,7 @@ export function DataTable<T>({
                     <td key={c} className={cn('px-6 py-4', col.className)}>
                       <div
                         className={cn(
-                          'relative overflow-hidden bg-gray-200 dark:bg-white/5 h-4 rounded-md animate-pulse',
+                          'relative overflow-hidden bg-gray-200 dark:bg-white/5 h-4 rounded-none animate-pulse',
                           c === 0 ? 'w-4/5' : c === columns.length - 1 ? 'w-1/2 ml-auto' : 'w-2/3'
                         )}
                       />
