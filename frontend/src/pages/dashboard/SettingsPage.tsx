@@ -4,7 +4,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
     User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, 
-    ChevronLeft, ShieldCheck, ExternalLink, MapPin, Sparkles, HelpCircle
+    ChevronLeft, ShieldCheck, ExternalLink, MapPin, Sparkles, HelpCircle, Pencil
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useUserRoles } from '../../context/AuthContext';
@@ -28,6 +28,7 @@ const SettingsPage: React.FC = () => {
     };
 
     const [profile, setProfile] = useState<any>({});
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [initialForm, setInitialForm] = useState<any>(null);
     const [siteVisitStatus, setSiteVisitStatus] = useState<any>(null);
     const [form, setForm] = useState({ 
@@ -194,10 +195,12 @@ const SettingsPage: React.FC = () => {
             await api.patch(`/api/profiles/${username}/`, form);
             toast.success('Profile updated');
             setInitialForm({ ...form });
+            setProfile((prev: any) => ({ ...prev, ...form }));
             if (defaultCountryCode !== initialCountryCode) {
                 setDefaultCountry(username, defaultCountryCode);
                 setInitialCountryCode(defaultCountryCode);
             }
+            setIsEditingProfile(false);
         } catch { 
             toast.error('Failed to save'); 
         } finally { 
@@ -320,34 +323,6 @@ const SettingsPage: React.FC = () => {
                 
                 {/* Desktop Sticky Sidebar */}
                 <div className="hidden lg:block space-y-4 sticky top-20">
-                    {/* User Identity Snapshot */}
-                    <div className="p-3.5 rounded-card border border-gray-200/80 dark:border-neutral-800/80 bg-white dark:bg-[#0A0A0A] shadow-xs space-y-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-full bg-gray-900 dark:bg-white text-white dark:text-black font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                                {(username || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
-                                    {profile.store_name || username || 'My Account'}
-                                </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
-                                    @{username}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100 dark:border-neutral-800/80">
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-700/60">
-                                {isCustomer ? 'Customer' : 'Seller Store'}
-                            </span>
-                            {profile.is_location_verified && (
-                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
-                                    <CheckCircle2 size={11} /> Verified
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
                     {/* Navigation Menu */}
                     <nav className="space-y-1">
                         {navItems.map(item => {
@@ -423,165 +398,377 @@ const SettingsPage: React.FC = () => {
                     
                     {/* 1. Profile Tab */}
                     {activeTab === 'profile' && (
-                        <div className="space-y-6">
-                            <div className="border-b border-gray-100 dark:border-neutral-800 pb-4">
-                                <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                                    {isCustomer ? 'Profile Information' : 'Store Profile & Details'}
-                                </h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {isCustomer
-                                        ? 'Update your personal details, bio, and contact information.'
-                                        : 'Update your public storefront description, contact details, and social links.'}
-                                </p>
-                            </div>
-
-                            <div className="space-y-5">
-                                {/* Bio */}
-                                <div className="space-y-1.5">
-                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                        {isCustomer ? 'Bio' : 'Store Bio'}
-                                    </label>
-                                    <textarea
-                                        value={form.bio}
-                                        onChange={e => setForm({ ...form, bio: e.target.value })}
-                                        rows={3}
-                                        placeholder={isCustomer ? "Tell us a bit about yourself..." : "Describe your store, products, and specialties..."}
-                                        className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all resize-none"
-                                    />
+                        !isEditingProfile ? (
+                            <div className="space-y-6">
+                                {/* Section Header with Edit Action */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-neutral-800 pb-4">
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                                            {isCustomer ? 'Profile Information' : 'Store Profile & Details'}
+                                        </h2>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {isCustomer
+                                                ? 'Your personal profile details, contact information, and preferences.'
+                                                : 'Your public storefront overview, description, and contact channels.'}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsEditingProfile(true)}
+                                        size="sm"
+                                        className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 text-xs rounded-btn font-semibold px-4 flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0 self-start sm:self-auto"
+                                    >
+                                        <Pencil size={13} />
+                                        <span>{isCustomer ? 'Edit Profile' : 'Edit Store Profile'}</span>
+                                    </Button>
                                 </div>
 
-                                {/* Phone & Location */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                            Phone Number
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            value={form.phone_number}
-                                            onChange={e => setForm({ ...form, phone_number: e.target.value })}
-                                            placeholder="+255..."
-                                            className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
-                                        />
-                                    </div>
-                                    {isCustomer && (
-                                        <div className="space-y-1.5">
-                                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                                Location / City
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={form.location}
-                                                onChange={e => setForm({ ...form, location: e.target.value })}
-                                                placeholder="e.g. Dar es Salaam"
-                                                className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
-                                            />
+                                {/* Profile Identity Preview Card */}
+                                <div className="p-5 rounded-2xl border border-gray-200/80 dark:border-neutral-800/80 bg-gray-50/50 dark:bg-neutral-900/40 space-y-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className="w-13 h-13 rounded-full bg-gray-900 dark:bg-white text-white dark:text-black font-bold text-lg flex items-center justify-center shrink-0 shadow-xs">
+                                                {(username || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h3 className="font-bold text-base text-gray-900 dark:text-white truncate">
+                                                        {profile.store_name || username || 'My Account'}
+                                                    </h3>
+                                                    <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-gray-200/80 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
+                                                        {isCustomer ? 'Customer' : 'Seller Store'}
+                                                    </span>
+                                                    {!isCustomer && profile.tier && (
+                                                        <span className="text-2xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black">
+                                                            {profile.tier}
+                                                        </span>
+                                                    )}
+                                                    {profile.is_location_verified && (
+                                                        <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
+                                                            <CheckCircle2 size={11} /> Verified Location
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                                                    @{username}
+                                                </p>
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="space-y-1.5 sm:col-span-2">
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                            Default Order & Delivery Country
-                                        </label>
-                                        <select
-                                            value={defaultCountryCode}
-                                            onChange={(e) => {
-                                                const newCode = e.target.value;
-                                                setDefaultCountryCode(newCode);
-                                                setDefaultCountry(newCode, username);
-                                                toast.success('Default delivery country updated');
-                                            }}
-                                            className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all cursor-pointer"
-                                        >
-                                            {SUPPORTED_COUNTRIES.map((c) => (
-                                                <option key={c.code} value={c.code}>
-                                                    {c.flag} {c.name} ({c.dialCode})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                            Sets your default phone dial code and destination country for checkout orders.
+
+                                        {!isCustomer && username && (
+                                            <Link
+                                                to={`/${username}`}
+                                                target="_blank"
+                                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0"
+                                            >
+                                                <span>View Storefront</span>
+                                                <ExternalLink size={12} />
+                                            </Link>
+                                        )}
+                                    </div>
+
+                                    {/* Bio */}
+                                    <div className="pt-3 border-t border-gray-200/60 dark:border-neutral-800/60 space-y-1">
+                                        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
+                                            {isCustomer ? 'About Me' : 'Store Bio & Description'}
+                                        </div>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                                            {form.bio || <span className="italic text-gray-400 dark:text-neutral-500">No bio provided yet. Click "Edit Store Profile" to add one.</span>}
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* Seller Links */}
-                                {!isCustomer && (
-                                    <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Key Details Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                    <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
+                                        <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Phone Number</span>
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white font-mono">
+                                            {form.phone_number || <span className="text-gray-400 font-normal italic">Not provided</span>}
+                                        </p>
+                                    </div>
+
+                                    <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
+                                        <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Default Delivery Country</span>
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                            {(() => {
+                                                const country = SUPPORTED_COUNTRIES.find(c => c.code === defaultCountryCode) || SUPPORTED_COUNTRIES[0];
+                                                return (
+                                                    <>
+                                                        <span>{country.flag}</span>
+                                                        <span>{country.name} ({country.dialCode})</span>
+                                                    </>
+                                                );
+                                            })()}
+                                        </p>
+                                    </div>
+
+                                    {form.location && (
+                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
+                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Location / City</span>
+                                            <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                                                {form.location}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {!isCustomer && form.website && (
+                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
+                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Website</span>
+                                            <a
+                                                href={form.website.startsWith('http') ? form.website : `https://${form.website}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline truncate flex items-center gap-1"
+                                            >
+                                                <span className="truncate">{form.website}</span>
+                                                <ExternalLink size={11} className="shrink-0" />
+                                            </a>
+                                        </div>
+                                    )}
+
+                                    {!isCustomer && form.instagram_username && (
+                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
+                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Instagram</span>
+                                            <a
+                                                href={`https://instagram.com/${form.instagram_username.replace('@', '')}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-xs font-semibold text-gray-900 dark:text-white hover:underline truncate flex items-center gap-1"
+                                            >
+                                                <span>@{form.instagram_username.replace('@', '')}</span>
+                                                <ExternalLink size={11} className="shrink-0 text-gray-400" />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Social Channels Preview (if seller has any configured) */}
+                                {!isCustomer && (form.whatsapp_number || form.facebook_url || form.tiktok_username || form.twitter_username || form.youtube_url || form.linkedin_url) && (
+                                    <div className="pt-2 space-y-2.5">
+                                        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
+                                            Connected Social Channels
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {form.whatsapp_number && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                    WhatsApp: {form.whatsapp_number}
+                                                </span>
+                                            )}
+                                            {form.facebook_url && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    Facebook
+                                                </span>
+                                            )}
+                                            {form.tiktok_username && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    TikTok: @{form.tiktok_username.replace('@', '')}
+                                                </span>
+                                            )}
+                                            {form.twitter_username && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    X: @{form.twitter_username.replace('@', '')}
+                                                </span>
+                                            )}
+                                            {form.youtube_url && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    YouTube
+                                                </span>
+                                            )}
+                                            {form.linkedin_url && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
+                                                    LinkedIn
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-neutral-800 pb-4">
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                                            {isCustomer ? 'Edit Profile Information' : 'Edit Store Profile & Details'}
+                                        </h2>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            {isCustomer
+                                                ? 'Update your personal details, bio, and contact information.'
+                                                : 'Update your public storefront description, contact details, and social links.'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (initialForm) setForm({ ...initialForm });
+                                            setDefaultCountryCode(initialCountryCode);
+                                            setIsEditingProfile(false);
+                                        }}
+                                        className="text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-900 transition cursor-pointer self-start sm:self-auto shrink-0"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+
+                                <div className="space-y-5">
+                                    {/* Bio */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                            {isCustomer ? 'Bio' : 'Store Bio'}
+                                        </label>
+                                        <textarea
+                                            value={form.bio}
+                                            onChange={e => setForm({ ...form, bio: e.target.value })}
+                                            rows={3}
+                                            placeholder={isCustomer ? "Tell us a bit about yourself..." : "Describe your store, products, and specialties..."}
+                                            className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Phone & Location */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                Phone Number
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                value={form.phone_number}
+                                                onChange={e => setForm({ ...form, phone_number: e.target.value })}
+                                                placeholder="+255..."
+                                                className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
+                                            />
+                                        </div>
+                                        {isCustomer && (
                                             <div className="space-y-1.5">
                                                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                                    Website URL
-                                                </label>
-                                                <input
-                                                    type="url"
-                                                    value={form.website}
-                                                    onChange={e => setForm({ ...form, website: e.target.value })}
-                                                    placeholder="https://..."
-                                                    className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                                    Instagram Handle
+                                                    Location / City
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    value={form.instagram_username}
-                                                    onChange={e => setForm({ ...form, instagram_username: e.target.value })}
-                                                    placeholder="@username"
+                                                    value={form.location}
+                                                    onChange={e => setForm({ ...form, location: e.target.value })}
+                                                    placeholder="e.g. Dar es Salaam"
                                                     className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
                                                 />
                                             </div>
-                                        </div>
-
-                                        {/* Social Channels */}
-                                        <div className="pt-4 border-t border-gray-100 dark:border-neutral-800 space-y-3">
-                                            <div>
-                                                <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Social Channels</h3>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Links displayed on your store profile for customer inquiries</p>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                {[
-                                                    { key: 'whatsapp_number', label: 'WhatsApp', type: 'tel', placeholder: '+255712345678' },
-                                                    { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
-                                                    { key: 'tiktok_username', label: 'TikTok', type: 'text', placeholder: '@username' },
-                                                    { key: 'twitter_username', label: 'X (Twitter)', type: 'text', placeholder: '@username' },
-                                                    { key: 'youtube_url', label: 'YouTube URL', type: 'url', placeholder: 'https://youtube.com/...' },
-                                                    { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
-                                                ].map(field => (
-                                                    <div key={field.key} className="space-y-1">
-                                                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">{field.label}</label>
-                                                        <input
-                                                            type={field.type}
-                                                            value={(form as any)[field.key]}
-                                                            onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                                                            placeholder={field.placeholder}
-                                                            className="w-full px-3 py-2 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
-                                                        />
-                                                    </div>
+                                        )}
+                                        <div className="space-y-1.5 sm:col-span-2">
+                                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                Default Order & Delivery Country
+                                            </label>
+                                            <select
+                                                value={defaultCountryCode}
+                                                onChange={(e) => {
+                                                    const newCode = e.target.value;
+                                                    setDefaultCountryCode(newCode);
+                                                    setDefaultCountry(newCode, username);
+                                                    toast.success('Default delivery country updated');
+                                                }}
+                                                className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all cursor-pointer"
+                                            >
+                                                {SUPPORTED_COUNTRIES.map((c) => (
+                                                    <option key={c.code} value={c.code}>
+                                                        {c.flag} {c.name} ({c.dialCode})
+                                                    </option>
                                                 ))}
-                                            </div>
+                                            </select>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                Sets your default phone dial code and destination country for checkout orders.
+                                            </p>
                                         </div>
-                                    </>
-                                )}
+                                    </div>
 
-                                <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-neutral-800">
-                                    <Button
-                                        onClick={handleProfileSave}
-                                        disabled={!isProfileDirty || saving}
-                                        loading={saving}
-                                        size="sm"
-                                        className={`rounded-btn px-5 text-xs transition-all ${
-                                            !isProfileDirty
-                                                ? '!bg-gray-100 dark:!bg-neutral-800/80 !text-gray-400 dark:!text-neutral-500 border border-gray-200/80 dark:border-neutral-700/60 font-medium shadow-none cursor-not-allowed'
-                                                : '!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 font-semibold shadow-sm cursor-pointer'
-                                        }`}
-                                    >
-                                        Save Profile
-                                    </Button>
+                                    {/* Seller Links */}
+                                    {!isCustomer && (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                        Website URL
+                                                    </label>
+                                                    <input
+                                                        type="url"
+                                                        value={form.website}
+                                                        onChange={e => setForm({ ...form, website: e.target.value })}
+                                                        placeholder="https://..."
+                                                        className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                        Instagram Handle
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={form.instagram_username}
+                                                        onChange={e => setForm({ ...form, instagram_username: e.target.value })}
+                                                        placeholder="@username"
+                                                        className="w-full px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Social Channels */}
+                                            <div className="pt-4 border-t border-gray-100 dark:border-neutral-800 space-y-3">
+                                                <div>
+                                                    <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Social Channels</h3>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Links displayed on your store profile for customer inquiries</p>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {[
+                                                        { key: 'whatsapp_number', label: 'WhatsApp', type: 'tel', placeholder: '+255712345678' },
+                                                        { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
+                                                        { key: 'tiktok_username', label: 'TikTok', type: 'text', placeholder: '@username' },
+                                                        { key: 'twitter_username', label: 'X (Twitter)', type: 'text', placeholder: '@username' },
+                                                        { key: 'youtube_url', label: 'YouTube URL', type: 'url', placeholder: 'https://youtube.com/...' },
+                                                        { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
+                                                    ].map(field => (
+                                                        <div key={field.key} className="space-y-1">
+                                                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">{field.label}</label>
+                                                            <input
+                                                                type={field.type}
+                                                                value={(form as any)[field.key]}
+                                                                onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                                                                placeholder={field.placeholder}
+                                                                className="w-full px-3 py-2 rounded-btn border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white transition-all"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-neutral-800">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (initialForm) setForm({ ...initialForm });
+                                                setDefaultCountryCode(initialCountryCode);
+                                                setIsEditingProfile(false);
+                                            }}
+                                            className="px-4 py-2 rounded-btn text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <Button
+                                            onClick={handleProfileSave}
+                                            disabled={!isProfileDirty || saving}
+                                            loading={saving}
+                                            size="sm"
+                                            className={`rounded-btn px-5 text-xs transition-all ${
+                                                !isProfileDirty
+                                                    ? '!bg-gray-100 dark:!bg-neutral-800/80 !text-gray-400 dark:!text-neutral-500 border border-gray-200/80 dark:border-neutral-700/60 font-medium shadow-none cursor-not-allowed'
+                                                    : '!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 font-semibold shadow-sm cursor-pointer'
+                                            }`}
+                                        >
+                                            Save Profile
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )
                     )}
 
                     {/* 2. Notifications Tab */}
