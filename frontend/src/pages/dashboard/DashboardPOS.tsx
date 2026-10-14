@@ -1319,7 +1319,7 @@ const CartContent = ({
   return (
     <div className="flex flex-col flex-1 h-full bg-white dark:bg-[#0A0A0A]">
       {/* 1. Customer & Status Header */}
-      <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0 border-b border-surface-border/40 dark:border-neutral-800/60">
+      <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <input
             type="text"
