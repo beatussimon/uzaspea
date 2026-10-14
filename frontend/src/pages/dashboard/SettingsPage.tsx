@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import api from '../../api';
+import api, { API_BASE_URL } from '../../api';
 import toast from 'react-hot-toast';
 import { 
     User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, 
     ChevronLeft, ShieldCheck, ExternalLink, MapPin, Sparkles, HelpCircle, Pencil
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import VerifiedBadge from '../../components/VerifiedBadge';
+import SocialLinks from '../../components/SocialLinks';
 import { useUserRoles } from '../../context/AuthContext';
 import { SUPPORTED_COUNTRIES, getDefaultCountry, setDefaultCountry } from '../../services/addressService';
 
@@ -399,190 +401,120 @@ const SettingsPage: React.FC = () => {
                     {/* 1. Profile Tab */}
                     {activeTab === 'profile' && (
                         !isEditingProfile ? (
-                            <div className="space-y-6">
-                                {/* Section Header with Edit Action */}
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-neutral-800 pb-4">
-                                    <div>
-                                        <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                                            {isCustomer ? 'Profile Information' : 'Store Profile & Details'}
-                                        </h2>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            {isCustomer
-                                                ? 'Your personal profile details, contact information, and preferences.'
-                                                : 'Your public storefront overview, description, and contact channels.'}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setIsEditingProfile(true)}
-                                        size="sm"
-                                        className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 text-xs rounded-btn font-semibold px-4 flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0 self-start sm:self-auto"
-                                    >
-                                        <Pencil size={13} />
-                                        <span>{isCustomer ? 'Edit Profile' : 'Edit Store Profile'}</span>
-                                    </Button>
+                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                                {/* Left: Avatar Column */}
+                                <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full border border-gray-150 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 shrink-0 overflow-hidden flex items-center justify-center shadow-xs">
+                                    {profile.profile_picture ? (
+                                        <img 
+                                            src={profile.profile_picture.startsWith('http') ? profile.profile_picture : `${API_BASE_URL}${profile.profile_picture}`} 
+                                            alt={profile.store_name || username} 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    ) : (
+                                        <span className="text-4xl font-light text-gray-300 dark:text-neutral-700 uppercase select-none">
+                                            {(username || 'U').charAt(0)}
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* Profile Identity Preview Card */}
-                                <div className="p-5 rounded-2xl border border-gray-200/80 dark:border-neutral-800/80 bg-gray-50/50 dark:bg-neutral-900/40 space-y-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3.5 min-w-0">
-                                            <div className="w-13 h-13 rounded-full bg-gray-900 dark:bg-white text-white dark:text-black font-bold text-lg flex items-center justify-center shrink-0 shadow-xs">
-                                                {(username || 'U').charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <h3 className="font-bold text-base text-gray-900 dark:text-white truncate">
-                                                        {profile.store_name || username || 'My Account'}
-                                                    </h3>
-                                                    <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-gray-200/80 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
-                                                        {isCustomer ? 'Customer' : 'Seller Store'}
-                                                    </span>
-                                                    {!isCustomer && profile.tier && (
-                                                        <span className="text-2xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black">
-                                                            {profile.tier}
-                                                        </span>
-                                                    )}
-                                                    {profile.is_location_verified && (
-                                                        <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
-                                                            <CheckCircle2 size={11} /> Verified Location
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
-                                                    @{username}
-                                                </p>
-                                            </div>
+                                {/* Right: Username, Badges, CTAs & Bio */}
+                                <div className="flex-1 min-w-0 space-y-3.5 w-full text-center sm:text-left">
+                                    {/* Row 1: Name, Badges & Actions */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                                            <h2 className="text-xl sm:text-2xl font-light text-gray-900 dark:text-white flex items-center gap-1.5 leading-none">
+                                                {profile.store_name || username}
+                                                <VerifiedBadge tier={profile.tier} isVerified={profile.is_verified || profile.is_location_verified} className="w-5 h-5 sm:w-6 sm:h-6" />
+                                            </h2>
+
+                                            {!isCustomer && profile.tier && (
+                                                <span className="text-2xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black">
+                                                    {profile.tier}
+                                                </span>
+                                            )}
+
+                                            {profile.is_location_verified && (
+                                                <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
+                                                    <CheckCircle2 size={11} /> Verified Location
+                                                </span>
+                                            )}
                                         </div>
 
-                                        {!isCustomer && username && (
-                                            <Link
-                                                to={`/${username}`}
-                                                target="_blank"
-                                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0"
+                                        {/* Action Buttons */}
+                                        <div className="flex items-center justify-center sm:justify-end gap-2 shrink-0">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setIsEditingProfile(true)} 
+                                                className="px-4 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-xs font-semibold text-gray-700 dark:text-neutral-300 transition duration-150 active:scale-95 flex items-center gap-1.5 cursor-pointer"
                                             >
-                                                <span>View Storefront</span>
-                                                <ExternalLink size={12} />
-                                            </Link>
+                                                <Pencil size={12} className="text-gray-400 dark:text-gray-500" />
+                                                <span>{isCustomer ? 'Edit Profile' : 'Edit Store Profile'}</span>
+                                            </button>
+
+                                            {!isCustomer && username && (
+                                                <Link 
+                                                    to={`/${username}`}
+                                                    target="_blank"
+                                                    className="px-3.5 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-xs font-semibold text-gray-700 dark:text-neutral-300 transition duration-150 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <span>View Storefront</span>
+                                                    <ExternalLink size={12} className="text-gray-400 dark:text-gray-500" />
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Handle */}
+                                    <p className="text-xs text-gray-500 dark:text-neutral-400 font-mono">
+                                        @{username}
+                                    </p>
+
+                                    {/* Row 3: Bio */}
+                                    <div className="space-y-3 text-sm text-gray-800 dark:text-neutral-200 w-full max-w-xl">
+                                        {form.bio ? (
+                                            <p className="leading-relaxed whitespace-pre-wrap break-words">{form.bio}</p>
+                                        ) : (
+                                            <p className="italic text-gray-400 dark:text-neutral-600">No biography details provided.</p>
                                         )}
-                                    </div>
 
-                                    {/* Bio */}
-                                    <div className="pt-3 border-t border-gray-200/60 dark:border-neutral-800/60 space-y-1">
-                                        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
-                                            {isCustomer ? 'About Me' : 'Store Bio & Description'}
+                                        {/* Bottom Meta Details & Social Links */}
+                                        <div className="pt-1 space-y-2 flex flex-col items-center sm:items-start w-full">
+                                            {/* Contact Details & Location */}
+                                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-xs text-gray-500 dark:text-neutral-400 font-medium">
+                                                {form.phone_number && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Smartphone size={13} />
+                                                        <span className="font-mono">{form.phone_number}</span>
+                                                    </div>
+                                                )}
+
+                                                {(() => {
+                                                    const country = SUPPORTED_COUNTRIES.find(c => c.code === defaultCountryCode) || SUPPORTED_COUNTRIES[0];
+                                                    return (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>{country.flag}</span>
+                                                            <span>{country.name} ({country.dialCode})</span>
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                {form.location && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <MapPin size={13} />
+                                                        <span>{form.location}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Social Media Icons */}
+                                            {!isCustomer && (
+                                                <div className="flex items-center justify-center sm:justify-start w-full pt-1">
+                                                    <SocialLinks profile={form} iconSize={16} className="justify-center sm:justify-start" />
+                                                </div>
+                                            )}
                                         </div>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                                            {form.bio || <span className="italic text-gray-400 dark:text-neutral-500">No bio provided yet. Click "Edit Store Profile" to add one.</span>}
-                                        </p>
                                     </div>
                                 </div>
-
-                                {/* Key Details Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                    <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
-                                        <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Phone Number</span>
-                                        <p className="text-xs font-semibold text-gray-900 dark:text-white font-mono">
-                                            {form.phone_number || <span className="text-gray-400 font-normal italic">Not provided</span>}
-                                        </p>
-                                    </div>
-
-                                    <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
-                                        <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Default Delivery Country</span>
-                                        <p className="text-xs font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                            {(() => {
-                                                const country = SUPPORTED_COUNTRIES.find(c => c.code === defaultCountryCode) || SUPPORTED_COUNTRIES[0];
-                                                return (
-                                                    <>
-                                                        <span>{country.flag}</span>
-                                                        <span>{country.name} ({country.dialCode})</span>
-                                                    </>
-                                                );
-                                            })()}
-                                        </p>
-                                    </div>
-
-                                    {form.location && (
-                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
-                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Location / City</span>
-                                            <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                                                {form.location}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {!isCustomer && form.website && (
-                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
-                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Website</span>
-                                            <a
-                                                href={form.website.startsWith('http') ? form.website : `https://${form.website}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline truncate flex items-center gap-1"
-                                            >
-                                                <span className="truncate">{form.website}</span>
-                                                <ExternalLink size={11} className="shrink-0" />
-                                            </a>
-                                        </div>
-                                    )}
-
-                                    {!isCustomer && form.instagram_username && (
-                                        <div className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800/80 bg-white dark:bg-[#0E0E0E] space-y-1">
-                                            <span className="text-[11px] font-medium text-gray-400 dark:text-neutral-500">Instagram</span>
-                                            <a
-                                                href={`https://instagram.com/${form.instagram_username.replace('@', '')}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-xs font-semibold text-gray-900 dark:text-white hover:underline truncate flex items-center gap-1"
-                                            >
-                                                <span>@{form.instagram_username.replace('@', '')}</span>
-                                                <ExternalLink size={11} className="shrink-0 text-gray-400" />
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Social Channels Preview (if seller has any configured) */}
-                                {!isCustomer && (form.whatsapp_number || form.facebook_url || form.tiktok_username || form.twitter_username || form.youtube_url || form.linkedin_url) && (
-                                    <div className="pt-2 space-y-2.5">
-                                        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
-                                            Connected Social Channels
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {form.whatsapp_number && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                    WhatsApp: {form.whatsapp_number}
-                                                </span>
-                                            )}
-                                            {form.facebook_url && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    Facebook
-                                                </span>
-                                            )}
-                                            {form.tiktok_username && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    TikTok: @{form.tiktok_username.replace('@', '')}
-                                                </span>
-                                            )}
-                                            {form.twitter_username && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    X: @{form.twitter_username.replace('@', '')}
-                                                </span>
-                                            )}
-                                            {form.youtube_url && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    YouTube
-                                                </span>
-                                            )}
-                                            {form.linkedin_url && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#0E0E0E] text-xs font-medium text-gray-800 dark:text-gray-200">
-                                                    LinkedIn
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         ) : (
                             <div className="space-y-6">
