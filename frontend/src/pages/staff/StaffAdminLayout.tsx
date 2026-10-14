@@ -500,10 +500,10 @@ const PlatformUserExplorer: React.FC = () => {
           description={search ? 'No users match your search query.' : 'There are currently no users in this view.'}
         />
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border dark:border-surface-dark-border text-xs font-medium text-gray-500 dark:text-gray-400">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="px-5 py-3">Account</th>
                   <th className="px-5 py-3">Tier</th>
@@ -878,10 +878,10 @@ const PermissionMatrix: React.FC = () => {
       {loading ? (
         <TableSkeleton rows={6} cols={6} />
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-medium text-gray-500 dark:text-gray-400">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="px-5 py-3">Staff Member</th>
                   {capabilities.map(c => (
@@ -889,7 +889,7 @@ const PermissionMatrix: React.FC = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border text-xs">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border text-xs">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-surface-muted/30 transition">
                     <td className="px-5 py-3.5">
@@ -1296,10 +1296,10 @@ const AdminSiteVisitsReview: React.FC = () => {
           description={search ? 'No requests match your search criteria.' : 'There are currently no verification requests in this queue.'}
         />
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="px-4 py-3">Store & Applicant</th>
                   <th className="px-4 py-3">Physical Location & GPS</th>
@@ -1309,7 +1309,7 @@ const AdminSiteVisitsReview: React.FC = () => {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border text-xs">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border text-xs">
                 {filteredItems.map((item) => {
                   const locParts = [item.district, item.region].filter(Boolean);
                   const locStr = locParts.join(', ');

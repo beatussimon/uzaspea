@@ -767,7 +767,7 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Active Data Table */}
-            <div className="card !border-none !rounded-none">
+            <div className="card overflow-hidden !border-none !rounded-none">
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
@@ -781,7 +781,7 @@ const ProductRequestsBoard: React.FC = () => {
               </div>
               <div className="overflow-x-auto min-h-[160px]">
                 <table className="w-full text-left text-xs min-w-[900px]">
-                  <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
                         <div className="flex items-center gap-1">
@@ -1060,7 +1060,7 @@ const ProductRequestsBoard: React.FC = () => {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs min-w-[800px]">
-                    <thead className="bg-neutral-50 dark:bg-neutral-900/50 text-2xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                       <tr>
                         <th scope="col" className="p-3">
                           {t('product_name', 'Product Info')}

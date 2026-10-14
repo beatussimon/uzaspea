@@ -1843,20 +1843,21 @@ const location = useLocation();
                 : t('no_active_coupons', 'No active promo codes found.')}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
-                  <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
-                    <th className="p-3 rounded-l-lg">{t('coupon_code', 'Promo Code')}</th>
-                    <th className="p-3">{t('discount', 'Discount')}</th>
-                    <th className="p-3 text-right">{t('min_spend', 'Min Order')}</th>
-                    <th className="p-3 text-center">{t('redemptions', 'Redemptions')}</th>
-                    <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
-                    <th className="p-3 text-center">{t('status', 'Status')}</th>
-                    <th className="p-3 text-center rounded-r-lg">{t('action', 'Action')}</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="card overflow-hidden !border-none !rounded-none">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <tr>
+                      <th className="p-3">{t('coupon_code', 'Promo Code')}</th>
+                      <th className="p-3">{t('discount', 'Discount')}</th>
+                      <th className="p-3 text-right">{t('min_spend', 'Min Order')}</th>
+                      <th className="p-3 text-center">{t('redemptions', 'Redemptions')}</th>
+                      <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
+                      <th className="p-3 text-center">{t('status', 'Status')}</th>
+                      <th className="p-3 text-center">{t('action', 'Action')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                   {filteredCoupons.map((promo: any) => {
                     const isExpired = isPromoExpired(promo);
                     return (
@@ -1970,6 +1971,7 @@ const location = useLocation();
                 </tbody>
               </table>
             </div>
+          </div>
           )}
         </div>
       )}
@@ -2070,22 +2072,23 @@ const location = useLocation();
                   : t('no_active_affiliates', 'No active affiliate or partner codes found.')}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
-                    <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
-                      <th className="p-3 rounded-l-lg min-w-[240px]">{t('code_and_link', 'Code & Share Link')}</th>
-                      <th className="p-3">{t('scope_product', 'Scope / Target')}</th>
-                      <th className="p-3">{t('influencer_partner', 'Influencer / Partner')}</th>
-                      <th className="p-3">{t('influencer_cut', 'Promoter Cut')}</th>
-                      <th className="p-3">{t('buyer_discount', 'Buyer Discount')}</th>
-                      <th className="p-3 text-center">{t('redemptions', 'Sales')}</th>
-                      <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
-                      <th className="p-3 text-center">{t('status', 'Status')}</th>
-                      <th className="p-3 text-center rounded-r-lg">{t('actions', 'Actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="card overflow-hidden !border-none !rounded-none">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                      <tr>
+                        <th className="p-3 min-w-[240px]">{t('code_and_link', 'Code & Share Link')}</th>
+                        <th className="p-3">{t('scope_product', 'Scope / Target')}</th>
+                        <th className="p-3">{t('influencer_partner', 'Influencer / Partner')}</th>
+                        <th className="p-3">{t('influencer_cut', 'Promoter Cut')}</th>
+                        <th className="p-3">{t('buyer_discount', 'Buyer Discount')}</th>
+                        <th className="p-3 text-center">{t('redemptions', 'Sales')}</th>
+                        <th className="p-3">{t('expiry_date', 'Expiry Date')}</th>
+                        <th className="p-3 text-center">{t('status', 'Status')}</th>
+                        <th className="p-3 text-center">{t('actions', 'Actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {filteredAffiliateCodes.map((promo: any) => {
                       const isExpired = isPromoExpired(promo);
                       return (
@@ -2232,6 +2235,7 @@ const location = useLocation();
                     </tbody>
                   </table>
                 </div>
+              </div>
             )}
           </div>
 
@@ -2289,22 +2293,23 @@ const location = useLocation();
                 }
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
-                    <tr className="bg-neutral-100/70 dark:bg-white/[0.03]">
-                      <th className="p-3 rounded-l-lg">{t('customer', 'Customer')}</th>
-                      <th className="p-3">{t('influencer_code', 'Influencer / Code')}</th>
-                      <th className="p-3">{t('order_ref', 'Order # / Date')}</th>
-                      <th className="p-3 text-right">{t('subtotal', 'Order Subtotal')}</th>
-                      <th className="p-3 text-right">{t('discount', 'Discount Given')}</th>
-                      <th className="p-3 text-right">{t('promoter_cut', 'Promoter Cut')}</th>
-                      <th className="p-3 text-center">{t('order_status', 'Order Status')}</th>
-                      <th className="p-3 text-center">{t('cut_status', 'Cut Status')}</th>
-                      <th className="p-3 text-center rounded-r-lg">{t('action', 'Action')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="card overflow-hidden !border-none !rounded-none">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                      <tr>
+                        <th className="p-3">{t('customer', 'Customer')}</th>
+                        <th className="p-3">{t('influencer_code', 'Influencer / Code')}</th>
+                        <th className="p-3">{t('order_ref', 'Order # / Date')}</th>
+                        <th className="p-3 text-right">{t('subtotal', 'Order Subtotal')}</th>
+                        <th className="p-3 text-right">{t('discount', 'Discount Given')}</th>
+                        <th className="p-3 text-right">{t('promoter_cut', 'Promoter Cut')}</th>
+                        <th className="p-3 text-center">{t('order_status', 'Order Status')}</th>
+                        <th className="p-3 text-center">{t('cut_status', 'Cut Status')}</th>
+                        <th className="p-3 text-center">{t('action', 'Action')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                       {referralConversions.map((conv: any) => {
                         const isPending = conv.status === 'PENDING';
                         const isApproved = conv.status === 'APPROVED';
@@ -2429,6 +2434,7 @@ const location = useLocation();
                     </tbody>
                   </table>
                 </div>
+              </div>
             )}
           </div>
         </div>

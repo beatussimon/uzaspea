@@ -405,7 +405,7 @@ export const ReservedUsernamesManager: React.FC = () => {
       </div>
 
       {/* Reserved Usernames Table */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-hidden">
+      <div className="card overflow-hidden !border-none !rounded-none shadow-sm">
         {loading ? (
           <div className="p-12 text-center text-gray-400">Loading reserved usernames...</div>
         ) : items.length === 0 ? (
@@ -417,7 +417,7 @@ export const ReservedUsernamesManager: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted/30 dark:bg-neutral-900/50 text-xs font-semibold text-gray-500 uppercase border-b border-surface-border dark:border-surface-dark-border">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="py-3 px-4">Reserved Username</th>
                   <th className="py-3 px-4">Category</th>

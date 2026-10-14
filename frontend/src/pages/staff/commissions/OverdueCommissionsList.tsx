@@ -124,11 +124,11 @@ export const OverdueCommissionsList: React.FC = () => {
           description={search ? 'No invoices match your search query.' : 'All seller commission invoices are settled or currently under review.'}
         />
       ) : (
-        <div className="card overflow-hidden border border-surface-border p-0">
+        <div className="card overflow-hidden !border-none !rounded-none p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-surface-border bg-surface-muted/50 dark:bg-black text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <tr>
                   <th className="px-5 py-3">Seller / Store</th>
                   <th className="px-4 py-3">Invoice Period</th>
                   <th className="px-4 py-3">Overdue Status</th>
@@ -138,7 +138,7 @@ export const OverdueCommissionsList: React.FC = () => {
                   <th className="px-5 py-3 text-right">Outreach</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                 {items.map((item) => {
                   const hasPhone = !!(item.phone_number || item.whatsapp_number);
                   const callNumber = item.phone_number || item.whatsapp_number;

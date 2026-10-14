@@ -629,10 +629,10 @@ export const SubscriptionConfirmation: React.FC = () => {
           description={search ? 'No requests match your search criteria.' : `There are currently no ${filter} upgrade requests.`}
         />
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="px-5 py-3">Seller</th>
                   <th className="px-4 py-3 text-center">Plan</th>
@@ -643,7 +643,7 @@ export const SubscriptionConfirmation: React.FC = () => {
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border text-xs">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border text-xs">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-white/[0.02] transition">
                     <td className="px-5 py-3.5">
@@ -1594,10 +1594,10 @@ export const CommissionPaymentsManager: React.FC = () => {
           description={search ? 'No payments match your search criteria.' : `There are no ${filter.toLowerCase()} commission payments.`}
         />
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden !border-none !rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                 <tr>
                   <th className="px-5 py-3">Seller & Invoice</th>
                   <th className="px-4 py-3">Cycle Sales</th>
@@ -1608,7 +1608,7 @@ export const CommissionPaymentsManager: React.FC = () => {
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border text-xs">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border text-xs">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-white/[0.02] transition">
                     <td className="px-5 py-3.5">
