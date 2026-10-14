@@ -1412,7 +1412,7 @@ const CartContent = ({
       </div>
 
       {/* 3. Discount / Promo Code Section */}
-      <div className="px-4 py-2.5 bg-gray-50/50 dark:bg-[#111111] border-t border-b border-surface-border/40 dark:border-neutral-800/60 shrink-0">
+      <div className="px-4 py-2.5 bg-gray-50/50 dark:bg-[#111111] shrink-0">
         <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
           <button
             type="button"
@@ -1557,7 +1557,7 @@ const CartContent = ({
               </div>
             </>
           )}
-          <div className="flex justify-between items-baseline pt-1 border-t border-surface-border/30 dark:border-neutral-800/50">
+          <div className="flex justify-between items-baseline pt-1">
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{t('total_due', 'Total Due')}</span>
             <div className="flex items-baseline gap-1 text-right">
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 select-none">TSh</span>
