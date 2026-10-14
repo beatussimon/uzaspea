@@ -1043,9 +1043,9 @@ const DashboardPOS: React.FC = () => {
               <div className="fixed inset-0 z-50 flex flex-col justify-end">
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setIsMobileCartOpen(false)} />
                 <div className="relative bg-white dark:bg-[#121212] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
-                  <div className="p-4 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
-                    <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <ShoppingCart size={16} className="text-brand-500" /> {t('current_sale', 'Current Sale')}
+                  <div className="p-4 flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-white">
+                      {t('current_sale', 'Current Sale')}
                     </h2>
                     <button onClick={() => setIsMobileCartOpen(false)} className="p-1 rounded-btn text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                       <X size={18} />
@@ -1400,10 +1400,10 @@ const CartContent = ({
                 <button 
                   type="button"
                   onClick={() => removeFromCart(item.id)} 
-                  className="text-gray-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 p-1 transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                  className="text-gray-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 p-1 transition cursor-pointer shrink-0"
                   title={t('remove', 'Remove')}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
