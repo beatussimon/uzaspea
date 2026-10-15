@@ -808,67 +808,72 @@ const DashboardPOS: React.FC = () => {
   return (
     <div className="space-y-6 pb-24 lg:pb-0 relative">
       {/* Header & Tab Switcher */}
-      <header className="space-y-1">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('point_of_sale', 'Point of Sale (POS)')}
-          </h1>
+      <header className="space-y-1.5 sm:space-y-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              {t('point_of_sale', 'Point of Sale (POS)')}
+            </h1>
+            <p 
+              className="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm truncate mt-0.5"
+              title={t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
+            >
+              {t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
+            </p>
+          </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap shrink-0">
+          <div className="flex items-center justify-end md:justify-start gap-1.5 sm:gap-2 w-full md:w-auto shrink-0">
             {activeTab === 'sale' && (
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <div className="relative flex-1 min-w-0 md:w-60 lg:w-64 md:flex-initial">
+                <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
                 <input
                   type="text"
-                  placeholder={t('search_products', 'Search products...')}
+                  placeholder={t('search_pos_input', 'Search products...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-full pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
+                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-full pl-7 sm:pl-8 pr-6 sm:pr-7 py-1 sm:py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                     aria-label="Clear search"
                   >
-                    <X size={12} />
+                    <X size={11} />
                   </button>
                 )}
               </div>
             )}
 
-            <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button 
                 type="button"
                 onClick={() => setActiveTab('sale')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'sale'
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
                     : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
                 }`}
               >
-                <Receipt size={13} />
+                <Receipt size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
                 <span>{t('new_sale', 'New Sale')}</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTab('history')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'history'
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
                     : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
                 }`}
               >
-                <History size={13} />
+                <History size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
                 <span>{t('sales_history', 'Sales History')}</span>
               </button>
             </div>
           </div>
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
-        </p>
       </header>
 
       {activeTab === 'sale' ? (
