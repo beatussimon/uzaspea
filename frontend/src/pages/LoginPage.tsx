@@ -158,17 +158,9 @@ const LoginPage: React.FC = () => {
           />
 
           <div className="flex flex-col gap-1.5 w-full">
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                {t('password')}
-              </label>
-              <Link
-                to="/forgot-password"
-                className="text-xs font-semibold text-brand-500 hover:underline"
-              >
-                {t('forgot_password', 'Forgot password?')}
-              </Link>
-            </div>
+            <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+              {t('password')}
+            </label>
             <div className="relative w-full">
               <input
                 id="password"
@@ -198,17 +190,21 @@ const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          {t('dont_have_account')}{' '}
-          <Link to="/register" className="font-bold text-brand-500 hover:text-brand-500 dark:text-brand-500 hover:underline">
+        <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400 mt-5">
+          <span className="hidden sm:inline">{t('dont_have_account')}</span>
+          <Link to="/register" className="font-bold text-gray-900 dark:text-white hover:underline">
             {t('create_account_link')}
           </Link>
-        </p>
+          <span className="text-gray-300 dark:text-neutral-600 px-0.5">|</span>
+          <Link to="/forgot-password" className="hover:underline hover:text-gray-700 dark:hover:text-gray-300">
+            {t('forgot_password', 'Forgot password?')}
+          </Link>
+        </div>
 
         <div className="mt-6 pt-4 border-t border-gray-100 dark:border-neutral-800 text-center">
           <p className="text-xs text-gray-400 dark:text-neutral-500">
             {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
-            <Link to="/help" className="text-gray-600 dark:text-neutral-300 font-medium hover:underline">
+            <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
               {t('contact_support', 'Visit Help & Support')}
             </Link>
           </p>
