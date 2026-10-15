@@ -814,48 +814,8 @@ const DashboardPOS: React.FC = () => {
             {t('point_of_sale', 'Point of Sale (POS)')}
           </h1>
 
-          <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
-            <button 
-              type="button"
-              onClick={() => setActiveTab('sale')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                activeTab === 'sale'
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-              }`}
-            >
-              <Receipt size={13} />
-              <span>{t('new_sale', 'New Sale')}</span>
-            </button>
-            <button 
-              type="button"
-              onClick={() => setActiveTab('history')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                activeTab === 'history'
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-              }`}
-            >
-              <History size={13} />
-              <span>{t('sales_history', 'Sales History')}</span>
-            </button>
-          </div>
-        </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {t('pos_subtitle', 'Process walk-in customer sales, print physical receipts, and manage direct orders.')}
-        </p>
-      </header>
-
-      {activeTab === 'sale' ? (
-        <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch items-start lg:h-[calc(100vh-210px)] lg:min-h-[580px]">
-          {/* Products Section */}
-          <div className="flex-1 w-full card overflow-hidden flex flex-col h-full">
-            {/* Search Header */}
-            <div className="p-4 pb-2 flex flex-col sm:flex-row justify-between sm:items-center gap-3 shrink-0">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('store_catalog', 'Store Catalog')}</h2>
-                <p className="text-2xs text-gray-500 dark:text-gray-400">{t('store_catalog_desc', 'Click any product to add to the active register cart')}</p>
-              </div>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap shrink-0">
+            {activeTab === 'sale' && (
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                 <input
@@ -863,11 +823,58 @@ const DashboardPOS: React.FC = () => {
                   placeholder={t('search_products', 'Search products...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-xl pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
+                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-full pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-            </div>
+            )}
 
+            <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
+              <button 
+                type="button"
+                onClick={() => setActiveTab('sale')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'sale'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                <Receipt size={13} />
+                <span>{t('new_sale', 'New Sale')}</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'history'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                <History size={13} />
+                <span>{t('sales_history', 'Sales History')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          {t('pos_subtitle', 'Process walk-in customer sales, print physical receipts, and manage direct orders. Click to add.')}
+        </p>
+      </header>
+
+      {activeTab === 'sale' ? (
+        <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch items-start lg:h-[calc(100vh-210px)] lg:min-h-[580px]">
+          {/* Products Section */}
+          <div className="flex-1 w-full card overflow-hidden flex flex-col h-full">
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto flex-1 min-h-0">
               {loading ? (
