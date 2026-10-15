@@ -162,22 +162,24 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
 
         {/* Right Header Controls: Mobile Collapsible Toggle or Desktop Carousel Arrows */}
         {!isDesktop ? (
-          <button
-            type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className="flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800"
-            aria-expanded={!isCollapsed}
-            aria-label="Toggle You Might Also Like section"
-          >
-            <span>{isCollapsed ? t('expand', 'Show') : t('collapse', 'Hide')}</span>
-            {isCollapsed ? (
-              <ChevronDown className="w-4 h-4 transition-transform duration-200" />
-            ) : (
-              <ChevronUp className="w-4 h-4 transition-transform duration-200" />
-            )}
-          </button>
+          <div className="flex items-center pb-2">
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((prev) => !prev)}
+              className="flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800"
+              aria-expanded={!isCollapsed}
+              aria-label="Toggle You Might Also Like section"
+            >
+              <span>{isCollapsed ? t('expand', 'Show') : t('collapse', 'Hide')}</span>
+              {isCollapsed ? (
+                <ChevronDown className="w-4 h-4 transition-transform duration-200" />
+              ) : (
+                <ChevronUp className="w-4 h-4 transition-transform duration-200" />
+              )}
+            </button>
+          </div>
         ) : (
-          <div className="flex items-center gap-1.5 mr-1">
+          <div className="flex items-center gap-1.5 mr-1 pb-2">
             {canScrollLeft ? (
               <div className="relative inline-flex items-center justify-center p-[2.5px] rounded-full">
                 {/* Glowing spectrum rainbow gradient ring */}
@@ -193,7 +195,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                   onClick={handleScrollPrev}
                   disabled={!canScrollLeft}
                   aria-label="Previous recommendations"
-                  className="relative p-1.5 rounded-full bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
+                  className="relative flex items-center justify-center p-1.5 rounded-full bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
                 >
                   <ChevronLeft size={14} className="stroke-[2.5]" />
                 </button>
@@ -203,7 +205,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                 type="button"
                 disabled
                 aria-label="Previous recommendations"
-                className="p-1.5 rounded-full border transition-all duration-200 opacity-30 cursor-not-allowed text-neutral-400 border-transparent bg-neutral-100 dark:bg-neutral-900"
+                className="flex items-center justify-center p-1.5 rounded-full border transition-all duration-200 opacity-30 cursor-not-allowed text-neutral-400 border-transparent bg-neutral-100 dark:bg-neutral-900"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -224,7 +226,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                   onClick={handleScrollNext}
                   disabled={!canScrollRight}
                   aria-label="Next recommendations"
-                  className="relative p-1.5 rounded-full bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
+                  className="relative flex items-center justify-center p-1.5 rounded-full bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
                 >
                   <ChevronRight size={14} className="stroke-[2.5]" />
                 </button>
@@ -234,7 +236,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                 type="button"
                 disabled
                 aria-label="Next recommendations"
-                className="p-1.5 rounded-full border transition-all duration-200 opacity-30 cursor-not-allowed text-neutral-400 border-transparent bg-neutral-100 dark:bg-neutral-900"
+                className="flex items-center justify-center p-1.5 rounded-full border transition-all duration-200 opacity-30 cursor-not-allowed text-neutral-400 border-transparent bg-neutral-100 dark:bg-neutral-900"
               >
                 <ChevronRight size={14} />
               </button>
