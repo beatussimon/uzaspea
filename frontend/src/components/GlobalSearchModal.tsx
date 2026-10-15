@@ -496,24 +496,42 @@ const GlobalSearchModal: React.FC = () => {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="relative w-full h-full h-[100dvh] max-h-[100dvh] bg-white dark:bg-[#0a0a0a] flex flex-col overflow-hidden pointer-events-auto min-h-0 z-10"
           >
-            {/* Top Search Area: Single-row layout, centered brand-colored bottom line, X on the left, filter toggle on right */}
+            {/* Top Search Area: Single-row layout, centered brand-colored bottom line, X & OKO logo on the left, filter toggle on right */}
             <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-[max(12px,env(safe-area-inset-top))] pb-3 flex items-center justify-center">
-              {/* Close button on the far left */}
-              <button
-                type="button"
-                onClick={closeSearch}
-                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 p-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors z-20 flex items-center justify-center cursor-pointer select-none focus:outline-none"
-                title="Close search"
-                aria-label="Close search"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              {/* Close button and OKO Logo on the left */}
+              <div className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-20">
+                <button
+                  type="button"
+                  onClick={closeSearch}
+                  className="p-1.5 sm:p-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors flex items-center justify-center cursor-pointer select-none focus:outline-none"
+                  title="Close search"
+                  aria-label="Close search"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+
+                <Link
+                  to="/"
+                  onClick={closeSearch}
+                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md p-1.5 sm:p-2 shrink-0 select-none focus:outline-none"
+                  title="OKO Home"
+                >
+                  <img
+                    src="/logo.png"
+                    alt="OKO"
+                    className="w-full h-full object-contain drop-shadow-sm select-none"
+                  />
+                </Link>
+              </div>
 
               <form 
                 onSubmit={handleSubmit} 
-                className="w-full max-w-2xl mx-auto relative flex items-center justify-center border-b-2 border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
+                className="w-full max-w-2xl mx-auto relative flex items-center justify-center sm:border-b-2 sm:border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
                 style={{ outline: 'none', boxShadow: 'none' }}
               >
+                {/* Mobile-only centered search underline between left icons and right filter icon */}
+                <div className="sm:hidden absolute bottom-0 left-[72px] right-[40px] h-[2px] bg-brand-500 pointer-events-none" />
+
                 <input
                   ref={inputRef}
                   type="text"
@@ -521,7 +539,7 @@ const GlobalSearchModal: React.FC = () => {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, part numbers, brands...')}
-                  className="w-full h-12 sm:h-16 px-10 text-center bg-transparent text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
+                  className="w-full h-12 sm:h-16 pl-20 pr-12 sm:px-10 text-center bg-transparent text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
                   style={{ outline: 'none', boxShadow: 'none' }}
                 />
 
@@ -941,7 +959,7 @@ const GlobalSearchModal: React.FC = () => {
                           <button
                             key={cat.slug}
                             onClick={() => { setCategory(cat.slug); setSubcategory(''); handleSubmit(undefined, { category: cat.slug, subcategory: '' }); }}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800/60 text-neutral-700 dark:text-neutral-300 hover:text-brand-600 dark:hover:text-brand-500 text-sm font-medium transition-colors border border-transparent hover:border-brand-500/30"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800/60 text-neutral-700 dark:text-neutral-300 hover:text-brand-600 dark:hover:text-brand-500 text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-0 focus:border-transparent outline-none ring-0 select-none"
                           >
                             <Tag className="w-3.5 h-3.5 opacity-50" />
                             {cat.name}
