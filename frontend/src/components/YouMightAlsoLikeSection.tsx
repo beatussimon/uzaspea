@@ -148,7 +148,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
   return (
     <section className={`w-full mb-4 sm:mb-5 ${className}`}>
       {/* Header Bar */}
-      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] flex items-center justify-between pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 lg:px-6">
+      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] flex items-center justify-between pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 lg:px-6 h-[52px] sm:h-[56px] lg:h-[60px] box-border shrink-0">
         <div className="flex items-center gap-2 min-w-0 pb-2">
           <h2 className="text-base sm:text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-none truncate">
             {t('you_might_also_like', 'You Might Also Like')}

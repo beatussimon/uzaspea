@@ -386,7 +386,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
   return (
     <div ref={sectionRef} className="w-full">
       {/* Standardized Tabs Navigation - Sticky */}
-      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8">
+      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8 h-[52px] sm:h-[56px] lg:h-[60px] box-border shrink-0">
         <button
           type="button"
           className={`pb-2 tracking-tight transition-colors duration-150 relative flex items-center gap-2 cursor-pointer text-sm sm:text-base font-medium ${
