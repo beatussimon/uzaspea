@@ -761,18 +761,19 @@ const ProductList = () => {
                     >
                       {urlQuery ? (
                         <div className="flex items-center gap-1.5 mr-1 shrink-0">
-                          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 shrink-0">Search:</span>
-                          <h1 className="text-xs sm:text-base md:text-lg font-black text-gray-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-none">
-                            Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
+                          <h1 className="text-xs sm:text-base md:text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate max-w-[160px] sm:max-w-xs md:max-w-none">
+                            Results for <span className="text-brand-600 dark:text-brand-400 font-bold">"{urlQuery}"</span>
                           </h1>
                         </div>
                       ) : activePills.length > 0 ? (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-0.5 shrink-0 whitespace-nowrap">
+                        <span className="text-xs sm:text-sm font-semibold text-neutral-500 dark:text-neutral-400 mr-0.5 shrink-0 whitespace-nowrap">
                           Active Filters:
                         </span>
                       ) : null}
 
-                      {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline shrink-0">|</span>}
+                      {urlQuery && activePills.length > 0 && (
+                        <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline shrink-0">|</span>
+                      )}
 
                       {/* Filter Pills */}
                       {activePills.length > 0 && (
@@ -812,10 +813,10 @@ const ProductList = () => {
                             return newParams;
                           });
                         }}
-                        className="text-[11px] sm:text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight shrink-0 whitespace-nowrap"
+                        className="text-xs font-semibold text-neutral-400 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors shrink-0 whitespace-nowrap select-none hover:underline"
                         title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
                       >
-                        <X size={12} className="sm:w-[13px] sm:h-[13px]" />
+                        <X size={13} />
                         <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
                       </button>
                     </div>
