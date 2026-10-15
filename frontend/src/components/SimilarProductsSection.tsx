@@ -356,7 +356,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
       {/* Sticky pinned header with proximity-aware smooth underlay */}
       <div
         ref={headerRef}
-        className={`lg:sticky lg:top-0 z-20 lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8 transition-colors duration-300 ease-in-out ${
+        className={`lg:sticky lg:top-0 z-20 lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8 transition-colors duration-300 ease-in-out h-[52px] sm:h-[56px] lg:h-[60px] box-border shrink-0 ${
           isNearTop ? 'bg-white dark:bg-[#18191a]' : 'bg-transparent'
         }`}
       >
