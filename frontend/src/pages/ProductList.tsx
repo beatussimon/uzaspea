@@ -498,7 +498,7 @@ const ProductList = () => {
   if (saved) {
     activePills.push({
       id: 'saved',
-      label: 'Filter',
+      label: '',
       value: 'Saved Items',
       onRemove: () => { updateFilters({ saved: '' }); },
     });
@@ -781,9 +781,11 @@ const ProductList = () => {
                           {activePills.map((pill) => (
                             <div
                               key={pill.id}
-                              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200"
+                              className="flex items-center gap-1 sm:gap-1.5 py-0.5 text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 text-gray-800 dark:text-gray-200"
                             >
-                              <span className="opacity-60 font-medium">{pill.label}:</span>
+                              {pill.label && (
+                                <span className="opacity-60 font-medium">{pill.label}:</span>
+                              )}
                               <span>{pill.value}</span>
                               <button
                                 onClick={pill.onRemove}
