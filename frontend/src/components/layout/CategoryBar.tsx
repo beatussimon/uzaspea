@@ -50,7 +50,6 @@ export const prefetchCategoryProducts = (slug: string) => {
 };
 
 const CAT_STORAGE_KEY = 'uzaspea_categories_cache';
-const SETTINGS_STORAGE_KEY = 'uzaspea_sitesettings_cache';
 
 let categoriesCache: any[] | null = (() => {
   try {
@@ -61,27 +60,7 @@ let categoriesCache: any[] | null = (() => {
 })();
 let categoriesPromise: Promise<any> | null = null;
 
-let siteSettingsCache: any = (() => {
-  try {
-    const saved = sessionStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return null;
-})();
-let siteSettingsPromise: Promise<any> | null = null;
-
-const fetchSiteSettingsCached = () => {
-  if (siteSettingsCache) return Promise.resolve(siteSettingsCache);
-  if (siteSettingsPromise !== null) return siteSettingsPromise;
-  siteSettingsPromise = api.get('/api/site-settings/')
-    .then(res => {
-      siteSettingsCache = res.data;
-      try { sessionStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(res.data)); } catch {}
-      return siteSettingsCache;
-    })
-    .catch(() => null);
-  return siteSettingsPromise;
-};
+import { useSiteSettings } from '../../utils/siteSettings';
 
 import {
   productCache,
@@ -109,18 +88,11 @@ const CategoryBar: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  const siteSettings = useSiteSettings();
   const [categories, setCategories] = useState<any[]>(() => categoriesCache ? ensureArray(categoriesCache) : []);
   const [loading, setLoading] = useState(!categoriesCache || categoriesCache.length === 0);
   const [product, setProduct] = useState<any>(null);
-  const [forYouImage, setForYouImage] = useState<string | null>(() => siteSettingsCache?.for_you_image || null);
-
-  useEffect(() => {
-    fetchSiteSettingsCached().then(data => {
-      if (data?.for_you_image) {
-        setForYouImage(data.for_you_image);
-      }
-    });
-  }, []);
+  const forYouImage = siteSettings?.for_you_image || null;
 
   const isProductsPage = location.pathname === '/products' || location.pathname === '/browse_products' || location.pathname === '/browse';
   const isProductDetailPage = location.pathname.startsWith('/product/');

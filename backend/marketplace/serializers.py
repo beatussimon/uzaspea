@@ -2076,7 +2076,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
         fields = ['company_name', 'tagline', 'support_email', 'support_phone',
                   'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
                   'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url',
-                  'working_hours', 'for_you_image']
+                  'working_hours', 'for_you_image', 'home_light_bg_image', 'home_dark_bg_image']
 
     def to_internal_value(self, data):
         data = data.copy() if hasattr(data, 'copy') else dict(data)

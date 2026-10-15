@@ -1444,6 +1444,20 @@ class SiteSettings(models.Model):
         null=True,
         help_text="Custom image shown inside the rotating 'For You' circle in the category bar."
     )
+    home_light_bg_image = models.ImageField(
+        upload_to='site_settings/',
+        blank=True,
+        null=True,
+        verbose_name="Home White (Light) Mode Background Image",
+        help_text="Custom background image for homepage in white/light mode. Defaults to daytime city background if unset."
+    )
+    home_dark_bg_image = models.ImageField(
+        upload_to='site_settings/',
+        blank=True,
+        null=True,
+        verbose_name="Home Black (Dark) Mode Background Image",
+        help_text="Custom background image for homepage in black/dark mode. Defaults to nightscape city background if unset."
+    )
 
     class Meta:
         verbose_name = 'Site Settings'
