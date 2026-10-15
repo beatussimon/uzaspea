@@ -293,14 +293,14 @@ const CategoryBar: React.FC = () => {
                   }}
                 />
                 {/* Inner circle matching exactly w-14 h-14 md:w-28 md:h-28 of category circles */}
-                <div className="relative z-10 w-14 h-14 md:w-28 md:h-28 rounded-full bg-white dark:bg-neutral-900 flex items-center justify-center overflow-hidden shadow-sm p-1.5 md:p-3">
+                <div className="relative z-10 w-14 h-14 md:w-28 md:h-28 rounded-full bg-white dark:bg-neutral-900 flex items-center justify-center overflow-hidden shadow-sm">
                   <SafeImage
                     src={forYouImage || '/logo.png'}
                     alt={t('for_you', 'For You')}
                     category="For You"
                     fallback="/logo.png"
-                    containMode="contain"
-                    className="w-full h-full object-contain rounded-full"
+                    containMode="cover"
+                    className="w-full h-full object-cover rounded-full scale-110"
                     loading="lazy"
                     decoding="async"
                   />
