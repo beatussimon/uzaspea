@@ -813,7 +813,7 @@ const ProductList = () => {
                             return newParams;
                           });
                         }}
-                        className="text-xs font-semibold text-neutral-400 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors shrink-0 whitespace-nowrap select-none hover:underline"
+                        className="text-xs font-semibold text-neutral-400 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors shrink-0 whitespace-nowrap select-none"
                         title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
                       >
                         <X size={13} />
