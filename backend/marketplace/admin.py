@@ -247,7 +247,10 @@ class LipaNumberAdmin(admin.ModelAdmin):
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
     fieldsets = [
-        ('Platform Identity', {'fields': ['company_name', 'tagline', 'for_you_image']}),
+        ('Platform Identity & Media', {
+            'fields': ['company_name', 'tagline', 'for_you_image', 'home_light_bg_image', 'home_dark_bg_image'],
+            'description': 'Configure brand identity, "For You" rotating circle image, and homepage background images for Light (white) and Dark (black) modes.'
+        }),
         ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
         ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url']}),
         ('Business Rules', {'fields': ['commission_rate']}),

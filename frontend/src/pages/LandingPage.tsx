@@ -8,6 +8,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { useTheme } from '../context/ThemeContext';
 import { apiCache } from '../utils/apiCache';
 import { useSearch } from '../context/SearchContext';
+import { useSiteSettings } from '../utils/siteSettings';
 
 // Snap Sections
 import SnapScrollContainer from '../components/landing/SnapScrollContainer';
@@ -19,6 +20,7 @@ const LandingPage = () => {
   const { isDark } = useTheme();
   const { t } = useTranslation();
   const { openSearch } = useSearch();
+  const siteSettings = useSiteSettings();
   
   const [stats, setStats] = useState<any>(null);
 
@@ -30,16 +32,21 @@ const LandingPage = () => {
   const rotateForm = useTransform(smoothVelocity, [-1000, 0, 1000], [-1, 0, 1]);
   const skewForm = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
 
-  const lightHero = '/kariakoo_daytime.webp?v=3';
-  const darkHero = '/kariakoo_nightscape.webp?v=3';
+  const lightHero = siteSettings?.home_light_bg_image || '/kariakoo_daytime.webp?v=3';
+  const darkHero = siteSettings?.home_dark_bg_image || '/kariakoo_nightscape.webp?v=3';
   const currentHero = isDark ? darkHero : lightHero;
 
+  // Preload hero images when urls change
   useEffect(() => {
-    // Preload hero images
     [lightHero, darkHero].forEach(src => {
-      const img = new Image();
-      img.src = src;
+      if (src) {
+        const img = new Image();
+        img.src = src;
+      }
     });
+  }, [lightHero, darkHero]);
+
+  useEffect(() => {
 
     // Fetch stats for the hero
     api.get('/api/analytics/trending/')

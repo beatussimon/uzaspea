@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Car, Home, Wrench, Laptop, Smartphone, Shirt, Sofa, Briefcase, Book, ShoppingBag, Cog } from 'lucide-react';
 
+import { normalizeMediaUrl } from '../utils/siteSettings';
+
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   category?: string;
@@ -30,7 +32,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   onLoad,
   ...props
 }) => {
-  let safeSrc = src;
+  let safeSrc = normalizeMediaUrl(src) || undefined;
   if (typeof safeSrc === 'string' && safeSrc.startsWith('http://') && window.location.protocol === 'https:') {
     safeSrc = safeSrc.replace('http://', 'https://');
   }
@@ -44,9 +46,12 @@ const SafeImage: React.FC<SafeImageProps> = ({
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    setErrored(false);
     if (imageRef.current && imageRef.current.complete) {
       if (safeSrc) loadedImageUrls.add(safeSrc);
       setIsLoaded(true);
+    } else {
+      setIsLoaded(Boolean(safeSrc && loadedImageUrls.has(safeSrc)));
     }
   }, [safeSrc]);
 
