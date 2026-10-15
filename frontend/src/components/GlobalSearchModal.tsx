@@ -513,13 +513,13 @@ const GlobalSearchModal: React.FC = () => {
                 <Link
                   to="/"
                   onClick={closeSearch}
-                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md p-1.5 sm:p-2 shrink-0 select-none focus:outline-none"
+                  className="flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 select-none focus:outline-none"
                   title="OKO Home"
                 >
                   <img
                     src="/logo.png"
                     alt="OKO"
-                    className="w-full h-full object-contain drop-shadow-sm select-none"
+                    className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 object-contain drop-shadow-sm select-none"
                   />
                 </Link>
               </div>
@@ -530,7 +530,7 @@ const GlobalSearchModal: React.FC = () => {
                 style={{ outline: 'none', boxShadow: 'none' }}
               >
                 {/* Mobile-only centered search underline between left icons and right filter icon */}
-                <div className="sm:hidden absolute bottom-0 left-[72px] right-[40px] h-[2px] bg-brand-500 pointer-events-none" />
+                <div className="sm:hidden absolute bottom-0 left-[68px] right-[40px] h-[2px] bg-brand-500 pointer-events-none" />
 
                 <input
                   ref={inputRef}
@@ -558,10 +558,10 @@ const GlobalSearchModal: React.FC = () => {
                   <button 
                     type="button" 
                     onClick={() => setShowMobileFilters(!showMobileFilters)} 
-                    className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 focus-visible:ring-0"
+                    className="md:hidden flex items-center gap-1 p-1.5 sm:p-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0 cursor-pointer select-none"
                     title="Filters"
                   >
-                    <SlidersHorizontal className="w-4 h-4" />
+                    <SlidersHorizontal className="w-5 h-5" />
                     {activeFilterCount > 0 && <span className="w-2 h-2 bg-brand-500 rounded-full"></span>}
                   </button>
                 </div>
