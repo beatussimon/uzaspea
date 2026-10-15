@@ -170,7 +170,7 @@ const CartPage: React.FC = () => {
         }
       />
 
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-5">
         {Object.entries(groupedItems).map(([merchant, storeItems]) => {
           const storeSubtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
           const isBulkMode = !!invoicingModes[merchant];
@@ -178,11 +178,10 @@ const CartPage: React.FC = () => {
           const hasQuoteItem = storeItems.some(i => i.requires_quote);
 
           return (
-            <div key={merchant} className="card overflow-hidden border border-surface-border dark:border-surface-dark-border">
+            <div key={merchant} className="card overflow-hidden border-0 border-none hover:border-transparent dark:hover:border-transparent">
               {/* Header with Merchant Info and Bulk Mode Toggle (No bottom divider) */}
-              <div className="p-4 bg-surface-muted dark:bg-[#111]/60 flex items-center justify-between gap-3 flex-wrap">
+              <div className="px-4 py-3 bg-surface-muted dark:bg-[#111]/60 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag size={16} className="text-brand-500 dark:text-brand-500 shrink-0" />
                   <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
                     {t('seller')}: <span className="text-brand-500 dark:text-brand-500 font-extrabold">@{merchant}</span>
                   </h3>
@@ -217,7 +216,7 @@ const CartPage: React.FC = () => {
               </div>
 
               {/* Items List (No item dividers, fully responsive and mobile-optimized) */}
-              <div className="p-4 space-y-5">
+              <div className="px-4 py-3 space-y-3.5">
                 {storeItems.map((item) => (
                   <div
                     key={item.productId}
@@ -310,7 +309,7 @@ const CartPage: React.FC = () => {
               </div>
 
               {/* Bottom Footer Actions (No top divider) */}
-              <div className="bg-surface-muted/60 dark:bg-[#111]/45 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="bg-surface-muted/60 dark:bg-[#111]/45 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {isBulkMode && activeInvoice ? (
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Clock size={16} className="text-brand-500 shrink-0" />
