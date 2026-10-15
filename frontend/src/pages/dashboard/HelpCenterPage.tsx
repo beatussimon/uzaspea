@@ -571,10 +571,10 @@ const HelpCenterPage: React.FC = () => {
                                     key={cat.id}
                                     type="button"
                                     onClick={() => setSelectedFaqCategory(cat.id)}
-                                    className={`w-full text-left py-2 px-3 text-xs sm:text-sm transition cursor-pointer flex items-center rounded-md ${
+                                    className={`w-full text-left py-2 px-3 text-xs sm:text-sm transition cursor-pointer flex items-center ${
                                         isActive
-                                            ? 'text-gray-900 dark:text-white font-bold bg-gray-100/80 dark:bg-neutral-800/60'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium hover:bg-gray-50 dark:hover:bg-neutral-900/40'
+                                            ? 'text-gray-900 dark:text-white font-bold'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium'
                                     }`}
                                 >
                                     <span>{cat.label}</span>
@@ -583,11 +583,11 @@ const HelpCenterPage: React.FC = () => {
                         })}
 
                         {/* Send us your feedback link below topics */}
-                        <div className="pt-2 border-t border-surface-border dark:border-surface-dark-border mt-2">
+                        <div className="pt-2 mt-2">
                             <button
                                 type="button"
                                 onClick={() => openFeedbackModal('new')}
-                                className="w-full text-left py-2 px-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium hover:bg-gray-50 dark:hover:bg-neutral-900/40 transition cursor-pointer flex items-center justify-between rounded-md"
+                                className="w-full text-left py-2 px-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium transition cursor-pointer flex items-center justify-between"
                             >
                                 <span>{t('send_us_feedback', 'Send us your feedback')}</span>
                             </button>
@@ -670,9 +670,9 @@ const HelpCenterPage: React.FC = () => {
                             </div>
                         )}
 
-                        {/* FAQ Accordion List with Soft Dividers */}
+                        {/* FAQ Accordion List */}
                         <div className="space-y-0.5">
-                            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                            <div className="space-y-1">
                                 {filteredFaqs.map((faq, index) => {
                                     const isOpen = expandedFaq === faq.id || (expandedFaq === null && index === 0);
                                     return (
