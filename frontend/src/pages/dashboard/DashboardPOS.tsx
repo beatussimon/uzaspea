@@ -867,7 +867,7 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {t('pos_subtitle', 'Process walk-in customer sales, print physical receipts, and manage direct orders. Click to add.')}
+          {t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
         </p>
       </header>
 
