@@ -49,8 +49,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       {/* Main Title and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-0.5">
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
+        <div className="space-y-0.5 min-w-0">
           <h1 className="text-heading-md font-black tracking-tight text-gray-900 dark:text-white">
             {title}
           </h1>

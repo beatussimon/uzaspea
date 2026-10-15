@@ -162,8 +162,9 @@ const CartPage: React.FC = () => {
         actions={
           <Button
             variant="ghost"
+            size="sm"
             onClick={handleClearCart}
-            className="text-red-500 hover:text-red-500 font-bold"
+            className="text-red-500 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/10 font-bold"
           >
             {t('clear_all')}
           </Button>
@@ -254,7 +255,7 @@ const CartPage: React.FC = () => {
                         </div>
 
                         <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
-                          <span className="text-brand-500 dark:text-brand-500 font-extrabold text-sm whitespace-nowrap">
+                          <span className="font-extrabold text-gray-900 dark:text-white text-sm whitespace-nowrap">
                             {item.requires_quote ? t('price_on_request', 'Price on Request') : `TSh ${item.price.toLocaleString()}`}
                           </span>
                           <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wide">
@@ -289,9 +290,6 @@ const CartPage: React.FC = () => {
                           </button>
                         </div>
 
-                        <p className="font-extrabold text-gray-900 dark:text-white text-sm sm:w-28 text-right">
-                          {item.requires_quote ? '--' : `TSh ${(item.price * item.quantity).toLocaleString()}`}
-                        </p>
 
                         {/* Desktop Trash Button */}
                         <button
