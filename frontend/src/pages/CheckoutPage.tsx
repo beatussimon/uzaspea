@@ -1119,7 +1119,7 @@ export const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="container-page max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
+    <div className="container-page max-w-4xl pb-12">
       {/* Checkout Title */}
       <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <div>
@@ -1138,7 +1138,7 @@ export const CheckoutPage: React.FC = () => {
       </div>
 
       {/* Mobile Collapsible Order Summary Accordion (hidden on lg) */}
-      <div className="lg:hidden mb-6 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
+      <div className="lg:hidden mb-6 card overflow-hidden border-0 border-none hover:border-transparent dark:hover:border-transparent bg-white dark:bg-[#0A0A0A]">
         <button
           type="button"
           onClick={() => setShowMobileSummary(prev => !prev)}
@@ -1257,8 +1257,8 @@ export const CheckoutPage: React.FC = () => {
         {/* Main Flow Form */}
         <form onSubmit={handleSubmit} className="lg:col-span-7 space-y-8">
           
-          {/* SECTION 1: Delivery Address & Contact Details (Zero nested card boxes) */}
-          <div className="space-y-5">
+          {/* SECTION 1: Delivery Address & Contact Details */}
+          <div className="card p-4 sm:p-6 space-y-5 border-0 border-none hover:border-transparent dark:hover:border-transparent bg-white dark:bg-[#0A0A0A]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-white">
                 1. {t('delivery_destination', 'Delivery Destination & Contact')}
@@ -1646,7 +1646,7 @@ export const CheckoutPage: React.FC = () => {
           </div>
 
           {/* SECTION 2: Fulfillment & Shipping Method */}
-          <div className="space-y-4">
+          <div className="card p-4 sm:p-6 space-y-4 border-0 border-none hover:border-transparent dark:hover:border-transparent bg-white dark:bg-[#0A0A0A]">
             <h2 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-white">
               2. {t('fulfillment_method', 'Fulfillment Method')}
             </h2>
@@ -1809,7 +1809,7 @@ export const CheckoutPage: React.FC = () => {
 
         {/* SECTION 3: Order Summary Sidebar (Desktop sticky, clean boundaries) */}
         <div className="hidden lg:block lg:col-span-5 w-full">
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 sticky top-24 space-y-5">
+          <div className="card p-6 border-0 border-none hover:border-transparent dark:hover:border-transparent bg-white dark:bg-[#0A0A0A] sticky top-24 space-y-5">
             <h2 className="text-base font-semibold text-neutral-900 dark:text-white">
               {t('order_summary', 'Order Summary')}
             </h2>
