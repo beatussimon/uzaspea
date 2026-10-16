@@ -1684,7 +1684,7 @@ export const CheckoutPage: React.FC = () => {
               }
               return (
                 /* Single crisp divided stack: ZERO boundaries within boundaries */
-                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
+                <div className="rounded-xl border-0 divide-y divide-neutral-200 dark:divide-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
                   {availableOptions.map(opt => {
                     const isSelected = fulfillmentType === opt.fulfillment_type;
                     return (
