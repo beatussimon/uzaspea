@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
@@ -478,6 +479,18 @@ const ProductDetailPage: React.FC = () => {
   const reviewsColRef = useRef<HTMLDivElement>(null);
   const hasSyncedInitialVariant = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [desktopSlot, setDesktopSlot] = useState<HTMLElement | null>(() => {
+    if (typeof document !== 'undefined') {
+      return document.getElementById('desktop-floating-actions-slot');
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!desktopSlot && typeof document !== 'undefined') {
+      setDesktopSlot(document.getElementById('desktop-floating-actions-slot'));
+    }
+  }, [desktopSlot]);
 
   // Monitor scroll for back-to-top button
   useEffect(() => {
@@ -508,28 +521,44 @@ const ProductDetailPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRow2Wheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!isDesktop || !scrollContainerRef.current) return;
-    const container = scrollContainerRef.current;
-    const maxScroll = container.scrollHeight - container.clientHeight;
+  // Desktop smooth synchronized wheel scrolling for Row 2 columns
+  useEffect(() => {
+    if (!isDesktop) return;
 
-    // 1. If scrolling DOWN, but the outer container hasn't reached Row 2 yet:
-    // Scroll outer container so Row 2 locks cleanly to the top of the viewport.
-    if (e.deltaY > 0 && container.scrollTop < maxScroll - 2) {
-      container.scrollTop = Math.min(maxScroll, container.scrollTop + e.deltaY);
-      e.preventDefault();
-      return;
-    }
+    const handleWheel = (e: WheelEvent) => {
+      if (!scrollContainerRef.current) return;
+      const container = scrollContainerRef.current;
+      const maxScroll = container.scrollHeight - container.clientHeight;
 
-    // 2. If scrolling UP and the current column is at its top:
-    // Scroll the outer container back up into Row 1.
-    const col = e.currentTarget;
-    if (e.deltaY < 0 && col.scrollTop <= 0 && container.scrollTop > 0) {
-      container.scrollTop = Math.max(0, container.scrollTop + e.deltaY);
-      e.preventDefault();
-      return;
-    }
-  };
+      // 1. If scrolling DOWN, but the outer container hasn't reached Row 2 yet:
+      // Scroll outer container so Row 2 locks cleanly to the top of the viewport.
+      if (e.deltaY > 0 && container.scrollTop < maxScroll - 2) {
+        container.scrollTop = Math.min(maxScroll, container.scrollTop + e.deltaY);
+        e.preventDefault();
+        return;
+      }
+
+      // 2. If scrolling UP and the current column is at its top:
+      // Scroll the outer container back up into Row 1.
+      const col = e.currentTarget as HTMLElement | null;
+      if (e.deltaY < 0 && col && col.scrollTop <= 0 && container.scrollTop > 0) {
+        container.scrollTop = Math.max(0, container.scrollTop + e.deltaY);
+        e.preventDefault();
+        return;
+      }
+    };
+
+    const col1 = similarProductsColRef.current;
+    const col2 = reviewsColRef.current;
+
+    if (col1) col1.addEventListener('wheel', handleWheel, { passive: false });
+    if (col2) col2.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      if (col1) col1.removeEventListener('wheel', handleWheel);
+      if (col2) col2.removeEventListener('wheel', handleWheel);
+    };
+  }, [isDesktop, loading]);
 
   // Close product detail view on Escape key
   useEffect(() => {
@@ -2643,7 +2672,6 @@ const ProductDetailPage: React.FC = () => {
         {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Recommendations & Similar Products ═══ */}
         <div 
           ref={similarProductsColRef}
-          onWheel={handleRow2Wheel}
           className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
         >
           {/* Section 1: You Might Also Like */}
@@ -2668,7 +2696,6 @@ const ProductDetailPage: React.FC = () => {
         {/* ═══ ROW 2 COL 2 (Desktop) / AT THE VERY END (Mobile): Product Reviews & Comments ═══ */}
         <div 
           ref={reviewsColRef}
-          onWheel={handleRow2Wheel}
           className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
         >
           <ProductTabs 
@@ -2680,55 +2707,150 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* Floating Action Buttons: Cart FAB with Count & Back to Top */}
-      <AnimatePresence>
-        {cartCount > 0 && (
-          <motion.button
-            key="floating-cart"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ 
-              scale: 1, 
-              opacity: 1, 
-              y: showBackToTop ? -56 : 0 
-            }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-            type="button"
-            onClick={() => navigate('/cart')}
-            className="fixed bottom-6 right-5 z-[111] w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
-            aria-label={`Shopping cart with ${cartCount} items`}
-            title={`Cart (${cartCount})`}
-          >
-            <ShoppingCart size={20} className="group-hover:scale-105 transition-transform" />
-            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
-              {cartCount > 99 ? '99+' : cartCount}
-            </span>
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {desktopSlot && (cartCount > 0 || showBackToTop) ? (
+        createPortal(
+          <AnimatePresence>
+            {cartCount > 0 && (
+              <motion.button
+                key="floating-cart-desktop"
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                type="button"
+                onClick={() => navigate('/cart')}
+                className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+                aria-label={`Shopping cart with ${cartCount} items`}
+                title={`Cart (${cartCount})`}
+              >
+                <ShoppingCart size={20} className="group-hover:scale-105 transition-transform" />
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              </motion.button>
+            )}
 
-      {/* Floating Back to Top Button */}
-      <AnimatePresence>
-        {showBackToTop && (
-          <motion.button
-            key="floating-back-to-top"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ duration: 0.2 }}
-            type="button"
-            onClick={scrollToTop}
-            className="fixed bottom-6 right-5 z-[110] w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
-            aria-label="Back to top"
-            title="Back to top"
-          >
-            <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+            {showBackToTop && (
+              <motion.button
+                key="floating-back-to-top-desktop"
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ duration: 0.2 }}
+                type="button"
+                onClick={scrollToTop}
+                className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+                aria-label="Back to top"
+                title="Back to top"
+              >
+                <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+              </motion.button>
+            )}
+          </AnimatePresence>,
+          desktopSlot
+        )
+      ) : (!desktopSlot && (cartCount > 0 || showBackToTop)) ? (
+        <div className="hidden md:flex fixed bottom-6 right-6 z-[110] flex-col items-center gap-3 pointer-events-auto">
+          <AnimatePresence>
+            {cartCount > 0 && (
+              <motion.button
+                key="floating-cart-desktop-fallback"
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                type="button"
+                onClick={() => navigate('/cart')}
+                className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+                aria-label={`Shopping cart with ${cartCount} items`}
+                title={`Cart (${cartCount})`}
+              >
+                <ShoppingCart size={20} className="group-hover:scale-105 transition-transform" />
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              </motion.button>
+            )}
+
+            {showBackToTop && (
+              <motion.button
+                key="floating-back-to-top-desktop-fallback"
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ duration: 0.2 }}
+                type="button"
+                onClick={scrollToTop}
+                className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+                aria-label="Back to top"
+                title="Back to top"
+              >
+                <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : null}
+
+      {/* Mobile Floating Action Buttons (Positioned above MobileBottomNav) */}
+      <div className="md:hidden fixed bottom-20 right-4 z-[110] flex flex-col items-center gap-3 pointer-events-auto">
+        <AnimatePresence>
+          {cartCount > 0 && (
+            <motion.button
+              key="floating-cart-mobile"
+              layout
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+              type="button"
+              onClick={() => navigate('/cart')}
+              className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+              aria-label={`Shopping cart with ${cartCount} items`}
+              title={`Cart (${cartCount})`}
+            >
+              <ShoppingCart size={20} className="group-hover:scale-105 transition-transform" />
+              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            </motion.button>
+          )}
+
+          {showBackToTop && (
+            <motion.button
+              key="floating-back-to-top-mobile"
+              layout
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ duration: 0.2 }}
+              type="button"
+              onClick={scrollToTop}
+              className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+              aria-label="Back to top"
+              title="Back to top"
+            >
+              <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
 
       {product.latitude && product.longitude && (
         <MapAppModal
