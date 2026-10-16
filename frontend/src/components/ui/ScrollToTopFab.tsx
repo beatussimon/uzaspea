@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 
 export const ScrollToTopFab: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     let ticking = false;
@@ -41,6 +43,10 @@ export const ScrollToTopFab: React.FC = () => {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (location.pathname.startsWith('/product/')) {
+    return null;
+  }
 
   return (
     <button

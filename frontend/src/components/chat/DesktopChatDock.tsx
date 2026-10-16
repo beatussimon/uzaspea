@@ -4,12 +4,27 @@ import { FloatingChatWindow } from './FloatingChatWindow';
 import { FloatingBubble } from './FloatingBubble';
 import { MessengerListWidget } from './MessengerListWidget';
 
+import { AnimatePresence } from 'framer-motion';
+
 export const DesktopChatDock: React.FC = () => {
   const {
     conversations,
     openChatWindows,
     minimizedChatWindows,
   } = useMessages();
+
+  const [hasPageActions, setHasPageActions] = React.useState(false);
+
+  React.useEffect(() => {
+    const slot = document.getElementById('desktop-floating-actions-slot');
+    if (!slot) return;
+    const observer = new MutationObserver(() => {
+      setHasPageActions(slot.children.length > 0);
+    });
+    observer.observe(slot, { childList: true });
+    setHasPageActions(slot.children.length > 0);
+    return () => observer.disconnect();
+  }, []);
 
   // Active open chat windows (not minimized)
   const activeWindows = openChatWindows.filter(id => !minimizedChatWindows.includes(id));
@@ -18,13 +33,21 @@ export const DesktopChatDock: React.FC = () => {
   const minimizedConversations = conversations.filter(c => minimizedChatWindows.includes(c.id));
 
   return (
-    <div className="fixed bottom-5 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
       {/* --- Minimized Person-Specific Bubbles Stack --- */}
-      <div className="flex items-center gap-2 pointer-events-auto">
-        {minimizedConversations.map(conv => (
-          <FloatingBubble key={conv.id} conv={conv} />
-        ))}
+      <div className="flex items-center gap-3 pointer-events-auto">
+        <AnimatePresence>
+          {minimizedConversations.map(conv => (
+            <FloatingBubble key={conv.id} conv={conv} />
+          ))}
+        </AnimatePresence>
       </div>
+
+      {/* --- Page Floating Action Buttons Slot (Cart, Back-to-Top, etc.) --- */}
+      <div 
+        id="desktop-floating-actions-slot" 
+        className={`flex flex-col items-center gap-3 pointer-events-auto ${hasPageActions ? '' : 'hidden'}`} 
+      />
 
       {/* --- Concurrent Open Floating Chat Windows --- */}
       <div className="pointer-events-auto">
