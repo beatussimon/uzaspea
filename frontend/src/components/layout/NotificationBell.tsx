@@ -246,10 +246,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
           >
             <div ref={panelRef} className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
               <div className="px-4 py-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base leading-none text-gray-900 dark:text-white">Notifications</h3>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-bold text-base text-gray-900 dark:text-white">Notifications</h3>
                   {count > 0 && (
-                    <span className="text-xs font-medium leading-none text-gray-500 dark:text-gray-400">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       {count} new
                     </span>
                   )}
