@@ -1665,7 +1665,7 @@ class OrderSerializer(serializers.ModelSerializer):
                         'order_status',
                         '🛍️ New Order!',
                         f'Order #{order.id} — {item.product.name} × {item.quantity} — TSh {int(item.subtotal()):,}',
-                        '/dashboard/orders'
+                        f'/dashboard/orders?highlight={order.id}'
                     )
         except Exception:
             pass  # never block order creation for notification failure

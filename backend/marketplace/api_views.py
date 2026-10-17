@@ -4134,6 +4134,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
         Notification.objects.filter(user=request.user).delete()
         return Response({'status': 'all cleared'})
 
+    @decorators.action(detail=True, methods=['post', 'patch'])
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+        return Response({'status': 'marked read'})
+
 
 class MobileNetworkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MobileNetwork.objects.all()

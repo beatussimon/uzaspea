@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ShoppingBag, MessageSquare, Star, Info, Check, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api';
 import { timeAgo } from '../../utils/timeAgo';
-
 
 interface NotificationBellProps {
   className?: string;
@@ -11,7 +11,7 @@ interface NotificationBellProps {
 }
 
 const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeClassName }) => {
-
+  const navigate = useNavigate();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -144,18 +144,75 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
     }
   });
 
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case 'order_status':
-      case 'payment_verified':
-        return <ShoppingBag size={18} className="text-blue-500" />;
+  const resolveDestination = (n: any): string => {
+    let target = (n.link || '').trim();
+
+    // Check for order ID in title, message, or link
+    const orderMatch = (n.title + ' ' + n.message).match(/(?:order\s*#?|#)\s*(\d+)/i);
+    const orderId = orderMatch ? orderMatch[1] : null;
+
+    if (target) {
+      if (orderId) {
+        if (target === '/dashboard/orders' || target === '/dashboard/orders/') {
+          return `/dashboard/orders?highlight=${orderId}`;
+        }
+        if (target === '/orders' || target === '/orders/') {
+          return `/orders?highlight=${orderId}`;
+        }
+      }
+      return target;
+    }
+
+    if (orderId) {
+      const isSellerContext = /new order|customer|placed a new order|accepted invoice|counter-offer|incoming/i.test(
+        n.title + ' ' + n.message
+      );
+      return isSellerContext 
+        ? `/dashboard/orders?highlight=${orderId}` 
+        : `/orders?highlight=${orderId}`;
+    }
+
+    switch (n.notification_type) {
       case 'new_message':
-        return <MessageSquare size={18} className="text-brand-500" />;
+        return '/messages';
       case 'new_review':
       case 'review_approved':
-        return <Star size={18} className="text-yellow-500" />;
+        return '/dashboard/products';
+      case 'subscription_approved':
+      case 'subscription_rejected':
+        return '/upgrade';
+      case 'site_visit_approved':
+        return '/upgrade';
+      case 'site_visit_rejected':
+        return '/help';
       default:
-        return <Info size={18} className="text-gray-500" />;
+        return '';
+    }
+  };
+
+  const handleNotificationClick = async (n: any) => {
+    setOpen(false);
+
+    // Mark as read immediately in local state
+    if (!n.is_read) {
+      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
+      setCount(prev => Math.max(0, prev - 1));
+      try {
+        await api.patch(`/api/notifications/${n.id}/`, { is_read: true });
+      } catch {
+        try {
+          await api.post(`/api/notifications/${n.id}/mark_read/`);
+        } catch {}
+      }
+    }
+
+    const dest = resolveDestination(n);
+    if (!dest) return;
+
+    if (dest.startsWith('http://') || dest.startsWith('https://')) {
+      window.location.href = dest;
+    } else {
+      navigate(dest);
     }
   };
 
@@ -185,78 +242,95 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute right-0 top-12 w-80 sm:w-96 z-50"
+            className="absolute right-0 top-12 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] z-50"
           >
             <div ref={panelRef} className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
-              <div className="p-4 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between bg-gray-50/50 dark:bg-neutral-900/50">
-              <h3 className="font-bold text-gray-900 dark:text-white">Notifications</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={markAllRead} className="p-1.5   text-brand-500 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Mark all read">
-                  <Check size={16} />
-                </button>
-                <button onClick={clearAll} className="p-1.5   text-red-500 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Clear all">
-                  <Trash2 size={16} />
-                </button>
+              <div className="px-4 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-base text-gray-900 dark:text-white">Notifications</h3>
+                  {count > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                      {count} new
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={markAllRead} 
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors tooltip tooltip-bottom" 
+                    data-tip="Mark all read"
+                    aria-label="Mark all read"
+                  >
+                    <Check size={16} />
+                  </button>
+                  <button 
+                    onClick={clearAll} 
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors tooltip tooltip-bottom" 
+                    data-tip="Clear all"
+                    aria-label="Clear all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-2 pt-0">
+                {notifications.length === 0 ? (
+                  <div className="p-8 flex flex-col items-center justify-center text-center">
+                    <Bell size={32} className="text-gray-300 dark:text-neutral-700 mb-3" />
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">All caught up!</p>
+                    <p className="text-xs text-gray-500 mt-1">You have no new notifications.</p>
+                  </div>
+                ) : (
+                  ['Today', 'Yesterday', 'Earlier'].map((groupName) => {
+                    const group = groups[groupName];
+                    if (group.length === 0) return null;
+
+                    return (
+                      <div key={groupName} className="mb-3 last:mb-0">
+                        <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-neutral-500">
+                          {groupName}
+                        </div>
+                        <div className="space-y-1">
+                          {group.map(n => (
+                            <div 
+                              key={n.id} 
+                              className={`group relative p-3 rounded-xl cursor-pointer transition-colors ${
+                                !n.is_read 
+                                  ? 'bg-gray-50/80 hover:bg-gray-100 dark:bg-neutral-800/40 dark:hover:bg-neutral-800/70' 
+                                  : 'hover:bg-gray-50 dark:hover:bg-neutral-800/30'
+                              }`}
+                              onClick={() => handleNotificationClick(n)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm leading-snug ${
+                                    !n.is_read 
+                                      ? 'font-bold text-gray-900 dark:text-white' 
+                                      : 'font-medium text-gray-700 dark:text-gray-300'
+                                  }`}>
+                                    {n.title}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed line-clamp-2">
+                                    {n.message}
+                                  </p>
+                                  <p className="text-[10px] font-medium text-gray-400 dark:text-neutral-500 mt-1.5">
+                                    {timeAgo(n.created_at)}
+                                  </p>
+                                </div>
+                                {!n.is_read && (
+                                  <span className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
-
-            <div className="overflow-y-auto flex-1 p-2">
-              {notifications.length === 0 ? (
-                <div className="p-8 flex flex-col items-center justify-center text-center">
-                  <Bell size={32} className="text-gray-300 dark:text-neutral-700 mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">All caught up!</p>
-                  <p className="text-xs text-gray-500 mt-1">You have no new notifications.</p>
-                </div>
-              ) : (
-                ['Today', 'Yesterday', 'Earlier'].map((groupName) => {
-                  const group = groups[groupName];
-                  if (group.length === 0) return null;
-
-                  return (
-                    <div key={groupName} className="mb-4 last:mb-0">
-                      <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-neutral-500">
-                        {groupName}
-                      </div>
-                      <div className="space-y-1">
-                        {group.map(n => (
-                          <div 
-                            key={n.id} 
-                            className={`flex gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
-                              !n.is_read 
-                                ? '   ' 
-                                : 'hover:bg-gray-50 dark:hover:bg-neutral-800'
-                            }`}
-                            onClick={() => { 
-                              setOpen(false); 
-                              if (n.link) window.location.href = n.link; 
-                            }}
-                          >
-                            <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!n.is_read ? 'bg-white dark:bg-black shadow-sm' : 'bg-gray-100 dark:bg-neutral-800'}`}>
-                              {getIconForType(n.notification_type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className={`text-sm ${!n.is_read ? 'font-bold text-brand-500 dark:text-brand-500' : 'font-medium text-gray-900 dark:text-white'}`}>
-                                  {n.title}
-                                </p>
-                                {!n.is_read && <span className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />}
-                              </div>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
-                                {n.message}
-                              </p>
-                              <p className="text-[10px] font-medium text-gray-400 mt-1.5">
-                                {timeAgo(n.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
           </motion.div>
         )}
       </AnimatePresence>
