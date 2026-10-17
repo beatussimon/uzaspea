@@ -101,8 +101,8 @@ const PublicVerifyPage: React.FC = () => {
 
           <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-12' : ''} gap-7 items-start`}>
             {/* Left Column: Core Verification Metadata */}
-            <div className="space-y-2.5 text-xs sm:text-[13px]">
-              <div className="flex items-baseline justify-between gap-4">
+            <div className="space-y-3 text-xs sm:text-[13px]">
+              <div className="flex items-baseline justify-between gap-4 leading-none">
                 <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('id', 'ID')}</span>
                 <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">
                   {result.inspection_id}
@@ -128,15 +128,6 @@ const PublicVerifyPage: React.FC = () => {
                   <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('verdict', 'Inspection Verdict')}</span>
                   <span className={`font-bold uppercase tracking-wider text-right ${VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'}`}>
                     {result.verdict.toUpperCase()}
-                  </span>
-                </div>
-              )}
-
-              {result.report_hash && (
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('report_hash', 'Report Hash')}</span>
-                  <span className="font-mono text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 text-right">
-                    {result.report_hash.slice(0, 20)}…
                   </span>
                 </div>
               )}
@@ -167,27 +158,27 @@ const PublicVerifyPage: React.FC = () => {
                 {result.is_verified && (result.quality_score || result.grade || result.summary) && (
                   <div className="space-y-3">
                     {(result.quality_score || result.grade) && (
-                      <div className="flex items-baseline gap-6">
+                      <div className="flex items-start gap-6">
                         {result.quality_score && (
                           <div>
-                            <div className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white leading-none">
+                            <div className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white leading-[0.75]">
                               {parseFloat(result.quality_score).toFixed(1)}%
                             </div>
-                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-1">
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-2">
                               {t('score', 'Score')}
                             </div>
                           </div>
                         )}
                         {result.grade && (
                           <div>
-                            <div className={`text-2xl sm:text-3xl font-black tracking-tight leading-none ${
+                            <div className={`text-2xl sm:text-3xl font-black tracking-tight leading-[0.75] ${
                               result.grade.startsWith('A') ? 'text-green-500 dark:text-green-400' :
                               result.grade.startsWith('B') ? 'text-blue-500 dark:text-blue-400' :
                               result.grade.startsWith('C') ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400'
                             }`}>
                               {result.grade}
                             </div>
-                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-1">
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-2">
                               {t('grade', 'Grade')}
                             </div>
                           </div>
