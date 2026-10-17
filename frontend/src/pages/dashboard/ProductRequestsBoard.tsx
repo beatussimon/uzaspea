@@ -490,7 +490,7 @@ const ProductRequestsBoard: React.FC = () => {
   const topProfitableProduct = productProfits.length > 0 ? productProfits[0] : null;
   const maxProjectedProfit = topProfitableProduct ? topProfitableProduct.projectedProfit : 0;
 
-  const PRODUCT_COLORS = ['#10b981', '#059669', '#0d9488', '#0284c7', '#64748b'];
+  const PRODUCT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
   const productProfitDonutData = useMemo(() => {
     // Only display top 5 products in pie chart so legend fits comfortably without clipping
@@ -511,13 +511,13 @@ const ProductRequestsBoard: React.FC = () => {
       return (
         <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 text-xs">
           <p className="font-bold text-gray-900 dark:text-white mb-1">{data.fullName}</p>
-          <p className="text-emerald-500 font-extrabold mb-1">
+          <p className="text-blue-500 dark:text-blue-400 font-extrabold mb-1">
             Proj. Profit: TZS {Number(data.value || 0).toLocaleString()}
           </p>
           <div className="text-[11px] text-gray-500 dark:text-gray-400 space-y-0.5">
             <p>Demand: <span className="font-semibold text-gray-900 dark:text-white">{data.votes} votes</span></p>
             <p>Unit Profit: <span className="font-semibold text-gray-900 dark:text-white">TZS {Number(data.unitProfit || 0).toLocaleString()}</span></p>
-            <p>Margin: <span className="font-semibold text-emerald-500">{data.margin}%</span></p>
+            <p>Margin: <span className="font-semibold text-blue-500 dark:text-blue-400">{data.margin}%</span></p>
           </div>
         </div>
       );
@@ -544,7 +544,7 @@ const ProductRequestsBoard: React.FC = () => {
       return (
         <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
           <p className="font-bold text-gray-900 dark:text-white mb-1">{payload[0].payload.fullName}</p>
-          <p className="text-emerald-500 dark:text-emerald-400 font-semibold">{payload[0].value} Votes</p>
+          <p className="text-blue-500 dark:text-blue-400 font-semibold">{payload[0].value} Votes</p>
         </div>
       );
     }
@@ -646,15 +646,15 @@ const ProductRequestsBoard: React.FC = () => {
                         <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
                           <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
-                          <Area type="monotone" dataKey="votes" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
+                          <Area type="monotone" dataKey="votes" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
                             <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
                           </Area>
                         </AreaChart>
@@ -718,7 +718,7 @@ const ProductRequestsBoard: React.FC = () => {
                               <div key={item.id} className="space-y-1">
                                 <div className="flex items-center justify-between text-xs gap-2">
                                   <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`text-[11px] font-bold w-4 shrink-0 ${isTop ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                    <span className={`text-[11px] font-bold w-4 shrink-0 ${isTop ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500'}`}>
                                       #{index + 1}
                                     </span>
                                     <span className="font-medium text-gray-900 dark:text-gray-200 truncate" title={item.name}>
@@ -726,7 +726,7 @@ const ProductRequestsBoard: React.FC = () => {
                                     </span>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <span className={`text-xs ${isTop ? 'font-extrabold text-emerald-400' : 'font-semibold text-gray-700 dark:text-gray-300'}`}>
+                                    <span className={`text-xs ${isTop ? 'font-extrabold text-blue-500 dark:text-blue-400' : 'font-semibold text-gray-700 dark:text-gray-300'}`}>
                                       {formatCompactCurrency(item.projectedProfit)}
                                     </span>
                                   </div>
@@ -734,7 +734,7 @@ const ProductRequestsBoard: React.FC = () => {
                                 <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      isTop ? 'bg-emerald-500' : 'bg-emerald-500/40 dark:bg-emerald-500/35'
+                                      isTop ? 'bg-blue-500' : 'bg-blue-500/40 dark:bg-blue-500/35'
                                     }`}
                                     style={{ width: `${percentOfMax}%` }}
                                   />
@@ -783,7 +783,7 @@ const ProductRequestsBoard: React.FC = () => {
                     </div>
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-                      <DollarSign size={36} className="mb-2 opacity-30 text-emerald-500" />
+                      <DollarSign size={36} className="mb-2 opacity-30 text-blue-500" />
                       <p className="text-xs font-semibold">No price or cost data available</p>
                       <p className="text-3xs text-gray-500 mt-1">Set selling and buying prices on requests to view profitability ranking</p>
                     </div>
