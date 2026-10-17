@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Loader2, MapPin } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUserLocation } from '../../context/LocationContext';
 
@@ -12,19 +12,13 @@ export const LocationPromptBanner: React.FC = () => {
   return (
     <aside
       aria-label="Location notice"
-      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up flex items-start gap-3.5 text-left"
+      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
     >
-      <div className="shrink-0">
-        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-black flex items-center justify-center shrink-0 shadow-inner border border-gray-200/60 dark:border-neutral-800 text-brand-500">
-          <MapPin size={22} className="text-brand-500" />
-        </div>
-      </div>
-
-      <div className="flex-1 min-w-0 pt-0.5">
-        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+      <div className="pr-6">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 leading-snug">
           {t('set_location_title', 'Set Delivery Location')}
         </h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed pr-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3.5 leading-relaxed">
           {t('set_location_desc', 'Get accurate delivery fees, discover nearby pickup hubs, and enjoy faster checkout in Tanzania.')}
         </p>
 
@@ -41,7 +35,7 @@ export const LocationPromptBanner: React.FC = () => {
           <button
             type="button"
             onClick={dismissPrompt}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white px-2.5 py-2 rounded-btn hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+            className="text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white px-3 py-2 rounded-btn hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
           >
             {t('not_now', 'Not now')}
           </button>

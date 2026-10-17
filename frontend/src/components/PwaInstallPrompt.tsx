@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Define the interface for the BeforeInstallPromptEvent
@@ -80,19 +80,13 @@ export const PwaInstallPrompt = () => {
   return (
     <aside
       aria-label="App installation notice"
-      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up flex items-start gap-3.5 text-left"
+      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
     >
-      <div className="shrink-0">
-        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-black flex items-center justify-center p-2 shrink-0 shadow-inner border border-gray-200/60 dark:border-neutral-800">
-          <img src="/logo.png" alt="SokoniMax Logo" className="w-full h-full object-contain" />
-        </div>
-      </div>
-
-      <div className="flex-1 min-w-0 pt-0.5">
-        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+      <div className="pr-6">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 leading-snug">
           {t('install_app_title', 'Install SokoniMax App')}
         </h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed pr-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3.5 leading-relaxed">
           {t('install_app_desc', 'Install SokoniMax to receive instant message notifications even when your phone is locked.')}
         </p>
 
@@ -100,10 +94,16 @@ export const PwaInstallPrompt = () => {
           <button
             type="button"
             onClick={handleInstallClick}
-            className="btn-primary text-xs font-bold py-2 px-4 rounded-btn flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95"
+            className="btn-primary text-xs font-bold py-2 px-4 rounded-btn flex items-center justify-center shadow-xs transition-all active:scale-95"
           >
-            <Download size={14} />
-            <span>{t('install_now', 'Install Now')}</span>
+            {t('install_now', 'Install Now')}
+          </button>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white px-3 py-2 rounded-btn hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+          >
+            {t('not_now', 'Not now')}
           </button>
         </div>
       </div>
