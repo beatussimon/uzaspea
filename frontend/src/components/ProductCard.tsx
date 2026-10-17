@@ -351,7 +351,7 @@ const ProductCard = memo(({
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'ring-2 ring-yellow-500/60 dark:ring-yellow-500/40' : ''} ${className}`}>
+      <div className={`group relative card border-0 overflow-hidden flex flex-row items-center p-2 gap-4 hover:shadow-card-hover transition-all ${className}`}>
         <Link 
           to={`/product/${product.slug}`} 
           {...bgState} 
@@ -432,7 +432,7 @@ const ProductCard = memo(({
   const sizingClasses = className ? className : 'min-h-[320px]';
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'border-yellow-500/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${sizingClasses}`}>
+    <div className={`group relative card border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${sizingClasses}`}>
       <Link 
         to={`/product/${product.slug}`} 
         {...bgState} 
