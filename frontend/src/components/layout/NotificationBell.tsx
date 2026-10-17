@@ -247,9 +247,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
             <div ref={panelRef} className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
               <div className="px-4 py-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base text-gray-900 dark:text-white">Notifications</h3>
+                  <h3 className="font-bold text-base leading-none text-gray-900 dark:text-white">Notifications</h3>
                   {count > 0 && (
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <span className="text-xs font-medium leading-none text-gray-500 dark:text-gray-400">
                       {count} new
                     </span>
                   )}
@@ -257,19 +257,19 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={markAllRead} 
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors tooltip tooltip-bottom" 
-                    data-tip="Mark all read"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors" 
+                    title="Mark all read"
                     aria-label="Mark all read"
                   >
-                    <Check size={16} />
+                    <Check size={16} className="shrink-0" />
                   </button>
                   <button 
                     onClick={clearAll} 
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors tooltip tooltip-bottom" 
-                    data-tip="Clear all"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" 
+                    title="Clear all"
                     aria-label="Clear all"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={16} className="shrink-0" />
                   </button>
                 </div>
               </div>
