@@ -3,14 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import inspectionApi from '../../api/inspectionApi';
-import { STATUS_COLORS, VERDICT_COLORS, fmtDate } from '../../types/inspection';
+import { STATUS_LABELS, VERDICT_COLORS, fmtDate } from '../../types/inspection';
 import { CardListSkeleton } from '../../components/Skeleton';
-
-const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
-  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
-    {text}
-  </span>
-);
 
 const PublicVerifyPage: React.FC = () => {
   const { t } = useTranslation();
@@ -52,181 +46,227 @@ const PublicVerifyPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto py-8 sm:py-10 px-4">
-      <div className="text-center">
-        <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {t('verify_inspection', 'Verify Inspection')}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            {t('enter_inspection_id_desc', 'Enter an Inspection ID to verify its authenticity')}
-          </p>
+    <div className="max-w-lg md:max-w-3xl mx-auto py-8 sm:py-12 px-4 sm:px-6">
+      {/* Header & Search */}
+      <div className="max-w-md mx-auto text-center">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+          {t('verify_inspection', 'Verify Inspection')}
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1.5">
+          {t('enter_inspection_id_desc', 'Enter an Inspection ID to verify its authenticity')}
+        </p>
 
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              className="input"
-              placeholder={t('inspection_id_placeholder', 'e.g. OKO-AUT-20240424-00001')}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button type="submit" className="btn-primary px-4 py-2 shrink-0">
-              <Search size={16} />
-            </button>
-          </form>
+        <form onSubmit={handleSearch} className="mt-5 flex items-center gap-2">
+          <input
+            className="input h-10 text-xs sm:text-sm font-mono tracking-wide"
+            placeholder={t('inspection_id_placeholder', 'e.g. OKO-AUT-20240424-00001')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button type="submit" className="btn-primary h-10 w-10 p-0 shrink-0 flex items-center justify-center">
+            <Search size={16} />
+          </button>
+        </form>
+      </div>
+
+      {loading && (
+        <div className="mt-8 text-left">
+          <CardListSkeleton count={1} />
         </div>
+      )}
 
-        {loading && <div className="mt-6 text-left"><CardListSkeleton count={1} /></div>}
+      {searched && !loading && !result && (
+        <div className="mt-8 text-center text-red-500 dark:text-red-400 text-xs sm:text-sm font-medium">
+          {t('no_inspection_found_id', 'No inspection found with this ID.')}
+        </div>
+      )}
 
-        {searched && !loading && !result && (
-          <div className="mt-6 p-4 rounded-lg text-red-500 dark:text-red-500 text-sm">
-            {t('no_inspection_found_id', 'No inspection found with this ID.')}
-          </div>
-        )}
-
-        {result && (
-          <div className="mt-6 p-5 sm:p-6 rounded-xl text-left">
-            <div className="flex items-center gap-2 mb-4">
+      {result && (
+        <div className="mt-8 sm:mt-10 text-left">
+          {/* Status Header */}
+          <div className="flex items-center gap-2 mb-5">
+            {result.is_verified ? (
+              <CheckCircle size={18} className="text-green-500 shrink-0" />
+            ) : (
+              <Clock size={18} className="text-amber-500 shrink-0" />
+            )}
+            <span className={`text-sm sm:text-base font-bold tracking-tight ${
+              result.is_verified ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'
+            }`}>
               {result.is_verified
-                ? <CheckCircle size={20} className="text-green-500 shrink-0" />
-                : <Clock size={20} className="text-yellow-500 shrink-0" />}
-              <span className={`font-bold ${result.is_verified ? 'text-green-500 dark:text-green-500' : 'text-yellow-500 dark:text-yellow-500'}`}>
-                {result.is_verified ? t('verified_inspection', 'Verified Inspection') : t('inspection_in_progress', 'Inspection In Progress')}
-              </span>
-            </div>
+                ? t('verified_inspection', 'Verified Inspection')
+                : t('inspection_in_progress', 'Inspection In Progress')}
+            </span>
+          </div>
 
-            <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-8' : ''} gap-5 items-start`}>
-              {/* Left Column: Core Verification Details */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500 shrink-0">{t('id', 'ID')}</span>
-                  <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">{result.inspection_id}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500 shrink-0">{t('category', 'Category')}</span>
-                  <span className="text-gray-700 dark:text-gray-300 text-right">{result.category}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500 shrink-0">{t('status', 'Status')}</span>
-                  <Badge text={result.status} className={STATUS_COLORS[result.status] || 'text-gray-500 dark:text-gray-400'} />
-                </div>
-                {result.verdict && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500 shrink-0">{t('verdict', 'Verdict')}</span>
-                    <Badge text={result.verdict.toUpperCase()} className={VERDICT_COLORS[result.verdict]} />
-                  </div>
-                )}
-                {result.report_hash && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500 shrink-0">{t('report_hash', 'Report Hash')}</span>
-                    <span className="font-mono text-xs text-gray-400 text-right">{result.report_hash.slice(0, 20)}…</span>
-                  </div>
-                )}
-                {result.inspected_stock !== null && result.inspected_stock !== undefined && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500 shrink-0">{t('inspected_stock', 'Inspected Stock')}</span>
-                    <span className="font-bold text-gray-900 dark:text-white text-right">{result.inspected_stock} {t('units', 'units')}</span>
-                  </div>
-                )}
-                {result.inspected_at && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500 shrink-0">{t('inspected', 'Inspected')}</span>
-                    <span className="text-gray-700 dark:text-gray-300 text-right">{fmtDate(result.inspected_at)}</span>
-                  </div>
-                )}
+          <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-12' : ''} gap-7 items-start`}>
+            {/* Left Column: Core Verification Metadata */}
+            <div className="space-y-2.5 text-xs sm:text-[13px]">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('id', 'ID')}</span>
+                <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">
+                  {result.inspection_id}
+                </span>
               </div>
 
-              {/* Right Column: Post-Inspection Activity & Quality Report Summary */}
-              {hasSecondaryColumn && (
-                <div className="space-y-5">
-                  {/* Post-Inspection Activity Notice */}
-                  {result.has_post_inspection_changes && result.post_inspection_events && result.post_inspection_events.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        {t('activity_after_inspection', 'Activity Recorded After Inspection ({{count}})', { count: result.post_inspection_events.length })}
-                      </div>
-                      <p className="text-2xs text-gray-500 dark:text-gray-400">
-                        {t('stock_updated_after_cert', 'Stock or details were updated after this inspection certificate was issued:')}
-                      </p>
-                      <div className="space-y-1.5">
-                        {result.post_inspection_events.map((ev: any, idx: number) => (
-                          <div key={idx} className="p-2.5 rounded-lg bg-gray-50 dark:bg-neutral-800/50 text-xs">
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <span className="font-medium text-gray-900 dark:text-gray-100">{ev.title}</span>
-                              <span className="text-2xs text-gray-400">
-                                {fmtDate(ev.created_at)}
-                              </span>
-                            </div>
-                            {ev.description && (
-                              <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">{ev.description}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('category', 'Category')}</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200 text-right">
+                  {result.category}
+                </span>
+              </div>
 
-                  {/* Render full report if verified */}
-                  {result.is_verified && result.summary && (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 flex-wrap">
-                        {result.quality_score && (
-                          <div className="text-center shrink-0">
-                            <div className="text-2xl font-black text-gray-900 dark:text-white">{parseFloat(result.quality_score).toFixed(1)}%</div>
-                            <div className="text-[10px] uppercase font-bold text-gray-500">{t('score', 'Score')}</div>
-                          </div>
-                        )}
-                        {result.grade && (
-                          <div className="text-center shrink-0">
-                            <div className={`text-2xl font-black ${
-                              result.grade.startsWith('A') ? 'text-green-500' :
-                              result.grade.startsWith('B') ? 'text-blue-500' :
-                              result.grade.startsWith('C') ? 'text-amber-500' : 'text-red-500'
-                            }`}>{result.grade}</div>
-                            <div className="text-[10px] uppercase font-bold text-gray-500">{t('grade', 'Grade')}</div>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-[160px]">
-                          <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{result.summary}"</p>
-                        </div>
-                      </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('status', 'Status')}</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200 capitalize text-right">
+                  {STATUS_LABELS[result.status] || result.status?.replace(/_/g, ' ')}
+                </span>
+              </div>
 
-                      {result.flagged_items && result.flagged_items.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            {t('flagged_issues', 'Flagged Issues ({{count}})', { count: result.flagged_items.length })}
-                          </p>
-                          <div className="space-y-2">
-                            {result.flagged_items.map((fi: any, idx: number) => (
-                              <div key={idx} className="py-1.5 flex items-start gap-3">
-                                <AlertTriangle size={14} className={
-                                  fi.severity === 'critical' ? 'text-red-500 mt-0.5 shrink-0' :
-                                  fi.severity === 'major' ? 'text-amber-500 mt-0.5 shrink-0' : 'text-blue-500 mt-0.5 shrink-0'
-                                } />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-sm text-gray-900 dark:text-white">{fi.label}</span>
-                                    <span className="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500">
-                                      {fi.severity}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                    {t('found', 'Found:')} <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span>
-                                  </p>
-                                  {fi.notes && <p className="text-xs text-gray-500 mt-0.5 italic">{fi.notes}</p>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {result.verdict && (
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('verdict', 'Inspection Verdict')}</span>
+                  <span className={`font-bold uppercase tracking-wider text-right ${VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'}`}>
+                    {result.verdict.toUpperCase()}
+                  </span>
+                </div>
+              )}
+
+              {result.report_hash && (
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('report_hash', 'Report Hash')}</span>
+                  <span className="font-mono text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 text-right">
+                    {result.report_hash.slice(0, 20)}…
+                  </span>
+                </div>
+              )}
+
+              {result.inspected_stock !== null && result.inspected_stock !== undefined && (
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected_stock', 'Inspected Stock')}</span>
+                  <span className="font-bold text-gray-900 dark:text-white text-right">
+                    {result.inspected_stock} {t('units', 'units')}
+                  </span>
+                </div>
+              )}
+
+              {result.inspected_at && (
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected', 'Inspected')}</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300 text-right">
+                    {fmtDate(result.inspected_at)}
+                  </span>
                 </div>
               )}
             </div>
+
+            {/* Right Column: Quality Assessment & Post-Inspection Activity */}
+            {hasSecondaryColumn && (
+              <div className="space-y-6">
+                {/* Quality Score, Grade & Summary */}
+                {result.is_verified && (result.quality_score || result.grade || result.summary) && (
+                  <div className="space-y-3">
+                    {(result.quality_score || result.grade) && (
+                      <div className="flex items-baseline gap-6">
+                        {result.quality_score && (
+                          <div>
+                            <div className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white leading-none">
+                              {parseFloat(result.quality_score).toFixed(1)}%
+                            </div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-1">
+                              {t('score', 'Score')}
+                            </div>
+                          </div>
+                        )}
+                        {result.grade && (
+                          <div>
+                            <div className={`text-2xl sm:text-3xl font-black tracking-tight leading-none ${
+                              result.grade.startsWith('A') ? 'text-green-500 dark:text-green-400' :
+                              result.grade.startsWith('B') ? 'text-blue-500 dark:text-blue-400' :
+                              result.grade.startsWith('C') ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400'
+                            }`}>
+                              {result.grade}
+                            </div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-1">
+                              {t('grade', 'Grade')}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {result.summary && (
+                      <p className="text-xs sm:text-[13px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                        {result.summary}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Flagged Issues */}
+                {result.flagged_items && result.flagged_items.length > 0 && (
+                  <div className="space-y-2.5">
+                    <div className="text-xs font-semibold text-gray-900 dark:text-white">
+                      {t('flagged_issues', 'Flagged Issues ({{count}})', { count: result.flagged_items.length })}
+                    </div>
+                    <div className="space-y-2">
+                      {result.flagged_items.map((fi: any, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2.5 text-xs">
+                          <AlertTriangle size={14} className={
+                            fi.severity === 'critical' ? 'text-red-500 mt-0.5 shrink-0' :
+                            fi.severity === 'major' ? 'text-amber-500 mt-0.5 shrink-0' : 'text-gray-400 mt-0.5 shrink-0'
+                          } />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-semibold text-gray-900 dark:text-white">{fi.label}</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 shrink-0">
+                                {fi.severity}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 dark:text-gray-400 mt-0.5">
+                              {t('found', 'Found:')} <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span>
+                            </p>
+                            {fi.notes && <p className="text-gray-500 dark:text-gray-400 mt-0.5">{fi.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Post-Inspection Activity Notice */}
+                {result.has_post_inspection_changes && result.post_inspection_events && result.post_inspection_events.length > 0 ? (
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-xs sm:text-[13px] font-semibold text-gray-900 dark:text-white">
+                        {t('activity_after_inspection', 'Activity Recorded After Inspection ({{count}})', { count: result.post_inspection_events.length })}
+                      </div>
+                      <p className="text-2xs sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {t('stock_updated_after_cert', 'Stock or details were updated after this inspection certificate was issued:')}
+                      </p>
+                    </div>
+                    <div className="space-y-2 pt-0.5">
+                      {result.post_inspection_events.map((ev: any, idx: number) => (
+                        <div key={idx} className="text-xs sm:text-[13px]">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-semibold text-gray-900 dark:text-gray-100">{ev.title}</span>
+                            <span className="text-2xs sm:text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                              {fmtDate(ev.created_at)}
+                            </span>
+                          </div>
+                          {ev.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{ev.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
