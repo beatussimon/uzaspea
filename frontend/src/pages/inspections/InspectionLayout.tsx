@@ -954,7 +954,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
 
   return (
     <div className="space-y-4">
-      <div className="card p-4">
+      <div className="card border-0 p-4 bg-white dark:bg-gray-800">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
           Inspection Bill
         </h3>
@@ -973,18 +973,18 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
               <span className="text-gray-900 dark:text-white">{fmtMoney(bill.total_amount, bill.currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className={depositApproved ? "text-green-500 font-medium" : "text-gray-500 dark:text-gray-400"}>
-                Deposit (30%) {depositApproved ? '✓ Paid' : ''}
+              <span className="text-gray-500 dark:text-gray-400">
+                Deposit (30%) {depositApproved ? '• Paid' : ''}
               </span>
-              <span className={depositApproved ? "text-green-500 font-semibold" : "text-gray-900 dark:text-white font-semibold"}>
+              <span className="text-gray-900 dark:text-white font-medium">
                 {fmtMoney(bill.deposit_amount, bill.currency)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className={allPaid ? "text-green-500 font-medium" : "text-gray-500 dark:text-gray-400"}>
-                Remaining Balance {allPaid ? '✓ Paid' : ''}
+              <span className="text-gray-500 dark:text-gray-400">
+                Remaining Balance {allPaid ? '• Paid' : ''}
               </span>
-              <span className={allPaid ? "text-green-500 font-semibold" : "text-gray-700 dark:text-gray-300"}>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">
                 {fmtMoney(bill.remaining_balance, bill.currency)}
               </span>
             </div>
@@ -1011,7 +1011,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
       {showPaymentForm && !allPaid && <PaymentUpload request={request} onPaid={onPaid} />}
       
       {depositApproved && !allPaid && !isReportReady && (
-        <div className="py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs flex items-center justify-between">
+        <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-green-500 font-medium">
             <CheckCircle size={14} /> 30% Deposit confirmed
           </span>
@@ -1019,7 +1019,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
         </div>
       )}
       {depositApproved && !allPaid && isReportReady && (
-        <div className="py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs flex items-center justify-between">
+        <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-amber-500 font-medium">
             <Clock size={14} /> Report Ready — Pay 70% Balance to Unlock
           </span>
@@ -1027,7 +1027,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
         </div>
       )}
       {allPaid && (
-        <div className="py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-green-500 flex items-center gap-2 font-medium">
+        <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs text-green-500 flex items-center gap-2 font-medium">
           <CheckCircle size={14} /> Fully paid
         </div>
       )}
@@ -1041,7 +1041,7 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
   // Handle terminal/special statuses outside main flow
   if (status === 'cancelled') {
     return (
-      <div className="p-4 rounded-xl   border border-red-500 dark:border-red-500 flex items-center gap-3">
+      <div className="p-4 rounded-xl flex items-center gap-3">
         <X size={18} className="text-red-500 shrink-0" />
         <div>
           <p className="font-semibold text-red-500 dark:text-red-500">{t('inspection_cancelled', 'Inspection Cancelled')}</p>
@@ -1052,7 +1052,7 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
   }
   if (status === 'blocked') {
     return (
-      <div className="p-4 rounded-xl   border border-orange-500 dark:border-orange-500 flex items-center gap-3">
+      <div className="p-4 rounded-xl flex items-center gap-3">
         <AlertTriangle size={18} className="text-orange-500 shrink-0" />
         <div>
           <p className="font-semibold text-orange-500 dark:text-orange-500">{t('on_hold', 'On Hold')}</p>
@@ -1063,7 +1063,7 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
   }
   if (status === 'rescheduled') {
     return (
-      <div className="p-4 rounded-xl   border border-blue-500 dark:border-blue-500 flex items-center gap-3">
+      <div className="p-4 rounded-xl flex items-center gap-3">
         <RefreshCw size={18} className="text-blue-500 shrink-0" />
         <div>
           <p className="font-semibold text-blue-500 dark:text-blue-500">{t('rescheduled', 'Rescheduled')}</p>
@@ -1094,22 +1094,30 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
       <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
       <div className="space-y-4">
         {steps.map((step, i) => {
-          const done = i <= currentIdx;
+          const completed = i < currentIdx;
           const active = i === currentIdx;
           return (
             <div key={step.key} className="flex items-center gap-4 relative">
               <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                done ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700'
-              } ${active ? 'ring-4 ring-brand-500 dark:ring-brand-500' : ''}`}>
-                {done ? (
+                active
+                  ? 'bg-brand-500'
+                  : completed
+                  ? 'bg-gray-200 dark:bg-gray-700'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}>
+                {active ? (
                   <CheckCircle size={14} className="text-white" />
+                ) : completed ? (
+                  <CheckCircle size={14} className="text-gray-400 dark:text-gray-500" />
                 ) : (
-                  <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500" />
+                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
                 )}
               </div>
               <span className={`text-sm transition ${
-                active ? 'font-semibold text-brand-500 dark:text-brand-500'
-                  : done ? 'text-gray-700 dark:text-gray-300'
+                active
+                  ? 'font-semibold text-brand-500 dark:text-brand-400'
+                  : completed
+                  ? 'text-gray-400 dark:text-gray-500'
                   : 'text-gray-400 dark:text-gray-600'
               }`}>
                 {step.label}
@@ -1126,7 +1134,7 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
 const RequestDetailSkeleton = () => (
   <div className="space-y-6 animate-pulse">
     {/* Header Skeleton */}
-    <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+    <div className="card border-0 p-5 bg-white dark:bg-gray-800">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="space-y-2.5 flex-1">
           <div className="flex gap-2">
@@ -1147,7 +1155,7 @@ const RequestDetailSkeleton = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left Column Skeletons */}
       <div className="lg:col-span-1 space-y-5">
-        <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3">
+        <div className="card border-0 p-5 bg-white dark:bg-gray-800 space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
           <div className="space-y-4 pt-2">
             {[1, 2, 3, 4].map((i) => (
@@ -1158,7 +1166,7 @@ const RequestDetailSkeleton = () => (
             ))}
           </div>
         </div>
-        <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3">
+        <div className="card border-0 p-5 bg-white dark:bg-gray-800 space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
           <div className="h-3 bg-gray-100 dark:bg-gray-700/60 rounded w-full" />
           <div className="h-3 bg-gray-100 dark:bg-gray-700/60 rounded w-5/6" />
@@ -1167,7 +1175,7 @@ const RequestDetailSkeleton = () => (
 
       {/* Right Column Skeletons */}
       <div className="lg:col-span-2 space-y-5">
-        <div className="card p-6 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-4">
+        <div className="card border-0 p-6 bg-white dark:bg-gray-800 space-y-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
             <div className="flex-1 space-y-2">
@@ -1176,7 +1184,7 @@ const RequestDetailSkeleton = () => (
             </div>
           </div>
         </div>
-        <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3">
+        <div className="card border-0 p-5 bg-white dark:bg-gray-800 space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
           <div className="h-10 bg-gray-100 dark:bg-gray-700/40 rounded-lg w-full" />
           <div className="h-10 bg-gray-100 dark:bg-gray-700/40 rounded-lg w-full" />
@@ -1232,14 +1240,14 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
   return (
     <div className="space-y-4">
       {/* Top Action & Verdict Bar */}
-      <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs flex items-center justify-between flex-wrap gap-3">
+      <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl shadow-xs flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 bg-transparent ${
+          <div className={`px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 bg-transparent ${
             verdict === 'pass'
-              ? 'text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+              ? 'text-emerald-700 dark:text-emerald-400'
               : verdict === 'conditional'
-              ? 'text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
-              : 'text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60'
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-red-700 dark:text-red-400'
           }`}>
             {verdict === 'pass' ? <BadgeCheck size={14} className="text-emerald-600 dark:text-emerald-400" /> : verdict === 'conditional' ? <AlertTriangle size={14} className="text-amber-500" /> : <ShieldAlert size={14} className="text-red-500" />}
             <span>{verdict} • Grade {report.grade || 'A'} ({score}%)</span>
@@ -1269,19 +1277,19 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
 
       {/* Defect Summary Strip */}
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-2.5 rounded-xl shadow-xs">
+        <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
           <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Critical Issues</p>
           <p className={`text-base font-black mt-0.5 ${criticalDefects > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {criticalDefects}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-2.5 rounded-xl shadow-xs">
+        <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
           <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Major Issues</p>
           <p className={`text-base font-black mt-0.5 ${majorDefects > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {majorDefects}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-2.5 rounded-xl shadow-xs">
+        <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
           <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Advisory Items</p>
           <p className={`text-base font-black mt-0.5 ${advisoryDefects > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {advisoryDefects}
@@ -1304,7 +1312,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
           const isOpen = openSections[section] ?? true;
           const flaggedCount = items.filter(i => i.flagged).length;
           return (
-            <div key={section} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden shadow-xs">
+            <div key={section} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-xs">
               <button
                 onClick={() => toggleSection(section)}
                 className="w-full flex items-center justify-between p-3 bg-gray-50/70 dark:bg-gray-700/30 text-left cursor-pointer"
@@ -1317,7 +1325,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                     ({items.length})
                   </span>
                   {flaggedCount > 0 && (
-                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold text-red-600 dark:text-red-400 bg-transparent border border-red-200 dark:border-red-800/60">
+                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold text-red-600 dark:text-red-400 bg-transparent">
                       {flaggedCount} issues
                     </span>
                   )}
@@ -1336,11 +1344,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                             {r.item_label}
                           </span>
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className={`text-[10px] font-black uppercase tracking-wider text-right w-16 ${
-                              r.severity === 'critical' ? 'text-red-600 dark:text-red-400'
-                                : r.severity === 'major' ? 'text-orange-600 dark:text-orange-400'
-                                : 'text-yellow-600 dark:text-yellow-400'
-                            }`}>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-right w-16 text-gray-400 dark:text-gray-500">
                               {r.severity}
                             </span>
                             <div className="min-w-[50px] flex justify-end">
@@ -1349,8 +1353,8 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                                   <X size={10} strokeWidth={3} /> {r.response_value || 'FAIL'}
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-2xs font-black uppercase">
-                                  <Check size={10} strokeWidth={3} /> {r.response_value || 'PASS'}
+                                <span className="flex items-center gap-1 text-gray-700 dark:text-gray-200 text-2xs font-bold uppercase">
+                                  <Check size={10} strokeWidth={3} className="text-emerald-500" /> {r.response_value || 'PASS'}
                                 </span>
                               )}
                             </div>
@@ -1396,7 +1400,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
 
       {/* Photo Documentation - Clean Thumbnails Without Inner Boundaries */}
       {request.evidence && request.evidence.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4 shadow-xs">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xs">
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-3">
             Photo Documentation ({request.evidence.length} photos)
           </h3>
@@ -1563,19 +1567,19 @@ const RequestDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="card p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3">
+      <div className="card border-0 p-4 sm:p-5 bg-white dark:bg-gray-800 space-y-3">
         {/* Top bar: Back & Status + Meta */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => navigate('/inspections')}
-              className="inline-flex items-center gap-1 text-2xs font-bold text-gray-500 hover:text-brand-500 transition-colors uppercase tracking-wider mr-1"
+              className="inline-flex items-center gap-1 text-2xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors uppercase tracking-wider mr-1"
             >
               <ArrowLeft size={12} /> {t('back', 'Back')}
             </button>
             <Badge
               text={STATUS_LABELS[request.status] || request.status}
-              className={STATUS_COLORS[request.status] || 'badge-gray'}
+              className={STATUS_COLORS[request.status] || 'text-gray-500 dark:text-gray-400'}
             />
             {request.report?.is_locked && (request.report.verdict as string) !== 'LOCKED' && allPaid && (
               <Badge
@@ -1583,7 +1587,7 @@ const RequestDetail: React.FC = () => {
                 className={VERDICT_COLORS[request.report.verdict]}
               />
             )}
-            <span className="text-2xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded font-bold">
+            <span className="text-2xs font-mono text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-bold">
               {request.inspection_id}
             </span>
           </div>
@@ -1608,7 +1612,7 @@ const RequestDetail: React.FC = () => {
             <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Marketplace Item:</span>
             <Link
               to={`/product/${request.product_snapshot.id}`}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:underline"
             >
               {request.product_snapshot.image_url && (
                 <img
@@ -1619,7 +1623,7 @@ const RequestDetail: React.FC = () => {
               )}
               <span>{request.product_snapshot.name}</span>
               <span className="text-gray-500 font-normal">({fmtMoney(request.product_snapshot.price)})</span>
-              <ChevronRight size={12} className="text-brand-500" />
+              <ChevronRight size={12} className="text-gray-400" />
             </Link>
           </div>
         )}
@@ -1635,21 +1639,23 @@ const RequestDetail: React.FC = () => {
         {/* Left Sidebar Column */}
         <div className="lg:col-span-1 space-y-5">
           {/* Progress Timeline */}
-          <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+          <div className="card border-0 p-5 bg-white dark:bg-gray-800">
             <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4">
               Inspection Progress
             </h3>
             <Timeline status={request.status} />
 
             {request.assignment && (
-              <div className="mt-5 space-y-1.5">
+              <div className="mt-5 space-y-1">
                 <p className="text-2xs font-bold uppercase tracking-wider text-gray-400">Assigned Inspector</p>
                 <p className="text-sm font-black text-gray-900 dark:text-white">
                   {request.assignment.inspector_name}
                 </p>
-                <Badge text={request.assignment.inspector_level} className="badge-blue capitalize" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium">
+                  {request.assignment.inspector_level}
+                </p>
                 {request.assignment.sla_deadline && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Expected by {fmtDate(request.assignment.sla_deadline)}
                   </p>
                 )}
@@ -1658,7 +1664,7 @@ const RequestDetail: React.FC = () => {
           </div>
 
           {/* Item & Location Specs */}
-          <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-2.5">
+          <div className="card border-0 p-5 bg-white dark:bg-gray-800 space-y-2.5">
             <h3 className="font-bold text-sm text-gray-900 dark:text-white">
               Location & Specs
             </h3>
@@ -1681,14 +1687,11 @@ const RequestDetail: React.FC = () => {
           </div>
 
           {/* QR Code & Authenticity Verification Card */}
-          <div className="card p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 space-y-3 shadow-xs">
+          <div className="card border-0 p-4 bg-white dark:bg-gray-800 space-y-3 shadow-xs">
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
                 Verified Certificate
               </h4>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                ✓ Authenticity Guaranteed
-              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -1698,7 +1701,7 @@ const RequestDetail: React.FC = () => {
               <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-1">
                 <p className="font-bold text-gray-900 dark:text-white">Scan with Phone</p>
                 <p className="leading-tight">Scan this QR code to view and verify this official inspection record online.</p>
-                <a href={verifyUrl} target="_blank" rel="noreferrer" className="text-brand-500 hover:underline font-bold inline-flex items-center gap-1 pt-0.5">
+                <a href={verifyUrl} target="_blank" rel="noreferrer" className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:underline font-bold inline-flex items-center gap-1 pt-0.5">
                   Verify Record <ExternalLink size={10} />
                 </a>
               </div>
@@ -1728,7 +1731,7 @@ const RequestDetail: React.FC = () => {
         <div className="lg:col-span-2 space-y-5">
           {/* Awaiting Bill / Staff Review */}
           {request.status === 'requested' && !request.bill && (
-            <div className="card p-4 flex items-center justify-between text-xs">
+            <div className="card border-0 p-4 bg-white dark:bg-gray-800 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2.5">
                 <Clock size={15} className="text-amber-500 shrink-0" />
                 <div>
@@ -1748,7 +1751,7 @@ const RequestDetail: React.FC = () => {
             allPaid ? (
               <ReportView request={request} onReInspect={() => setShowReInspect(true)} />
             ) : (
-              <div className="card p-5 border border-amber-500/30 text-center space-y-3">
+              <div className="card border-0 p-5 bg-white dark:bg-gray-800 text-center space-y-3">
                 <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center">
                   <Lock size={22} />
                 </div>
@@ -1765,7 +1768,7 @@ const RequestDetail: React.FC = () => {
 
           {/* Re-inspection modal */}
           {showReInspect && (
-            <div className="card p-5 border-2 border-brand-500 dark:border-brand-500 bg-white dark:bg-gray-800">
+            <div className="card border-0 p-5 bg-white dark:bg-gray-800">
               <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1">Request Re-Inspection</h4>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                 A different inspector will be assigned. Only use if inspection conditions were compromised.
@@ -2012,7 +2015,7 @@ const MyInspections: React.FC = () => {
       {loading ? (
         <div className="space-y-3.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-[#181818] rounded-xl border border-gray-100 dark:border-neutral-800 p-4 sm:p-5 animate-pulse">
+            <div key={i} className="bg-white dark:bg-[#181818] rounded-xl p-4 sm:p-5 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gray-200 dark:bg-neutral-800 shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -2072,12 +2075,12 @@ const MyInspections: React.FC = () => {
                     navigate(`/inspections/${req.id}`);
                   }
                 }}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-all cursor-pointer p-3.5 sm:p-5 group focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
+                className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden animate-fade-in hover:shadow-md transition-all cursor-pointer p-3.5 sm:p-5 group focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
               >
                 <div className="flex items-start gap-3 sm:gap-4 w-full">
                   {/* Left: Thumbnail */}
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 mt-0.5">
-                    <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+                    <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
                       {imageUrl ? (
                         <img src={imageUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -2091,10 +2094,10 @@ const MyInspections: React.FC = () => {
                     {/* Top Row: Tracking ID & Scope + Status Badge & Chevron */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                        <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest bg-transparent border border-brand-200/50 dark:border-brand-800/50 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest shrink-0">
                           {req.inspection_id || `REQ #${req.id}`}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-transparent border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0">
                           {req.scope} scope
                         </span>
                         <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap shrink-0 hidden sm:inline">
@@ -2106,10 +2109,10 @@ const MyInspections: React.FC = () => {
                       <div className="flex items-center gap-1.5 shrink-0 pl-1">
                         <Badge
                           text={STATUS_LABELS[req.status] || req.status}
-                          className={STATUS_COLORS[req.status] || 'badge-gray'}
+                          className={STATUS_COLORS[req.status] || 'text-gray-500 dark:text-gray-400'}
                         />
                         {req.has_report && req.status !== 'report_ready' && (
-                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 hidden sm:inline-block">
+                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded hidden sm:inline-block">
                             Report ready
                           </span>
                         )}
@@ -2138,7 +2141,7 @@ const MyInspections: React.FC = () => {
                     {/* Secondary Report indicator if not report_ready and mobile */}
                     {req.has_report && req.status !== 'report_ready' && (
                       <div className="mt-1.5 sm:hidden">
-                        <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 inline-block">
+                        <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded inline-block">
                           Report ready
                         </span>
                       </div>

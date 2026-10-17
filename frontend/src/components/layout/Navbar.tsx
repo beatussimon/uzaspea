@@ -188,12 +188,12 @@ const Navbar = () => {
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
         {/* ---- Left Navigation Links ---- */}
-        <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
+        <div className="flex-1 max-w-[calc(50%-70px)] md:max-w-[calc(50%-80px)] flex items-center justify-start pl-2 md:pl-4 lg:pl-8 gap-3.5 lg:gap-5">
           {/* Sell button: Visible to active sellers as "Sell", and to expired sellers as "Renew Plan" */}
           {isAuthenticated && (roles.isActiveSeller || roles.isExpiredSeller) && (
             <Link 
               to={roles.isExpiredSeller ? "/dashboard" : "/dashboard/products#new"} 
-              className={`hidden md:flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm ${
+              className={`hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full whitespace-nowrap shrink-0 transition-all active:scale-95 shadow-sm ${
                 useLightStyle
                   ? 'bg-white text-gray-900 hover:bg-gray-100'
                   : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
@@ -202,12 +202,12 @@ const Navbar = () => {
               {roles.isExpiredSeller ? (
                 <>
                   <RefreshCw size={12} className="shrink-0" />
-                  <span>{t('renew_plan', 'Renew Plan')}</span>
+                  <span className="whitespace-nowrap">{t('renew_plan', 'Renew Plan')}</span>
                 </>
               ) : (
                 <>
                   <PlusCircle size={14} className="shrink-0" />
-                  <span>{t('sell')}</span>
+                  <span className="whitespace-nowrap">{t('sell')}</span>
                 </>
               )}
             </Link>
@@ -222,7 +222,7 @@ const Navbar = () => {
               <Link 
                 key={link.path}
                 to={link.path} 
-                className={`relative hidden md:inline-flex items-center py-1 text-sm font-semibold transition-colors ${
+                className={`relative hidden md:inline-flex items-center py-1 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors ${
                   isActive
                     ? (useLightStyle ? 'text-white' : 'text-gray-900 dark:text-white')
                     : (useLightStyle ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white')
