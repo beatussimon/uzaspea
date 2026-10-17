@@ -46,7 +46,7 @@ const PublicVerifyPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-lg md:max-w-3xl mx-auto py-8 sm:py-12 px-4 sm:px-6">
+    <div className="max-w-lg md:max-w-4xl mx-auto py-8 sm:py-12 px-4 sm:px-6">
       {/* Header & Search */}
       <div className="max-w-md mx-auto text-center">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -70,7 +70,7 @@ const PublicVerifyPage: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="mt-8 text-left">
+        <div className="mt-8 max-w-md mx-auto text-left">
           <CardListSkeleton count={1} />
         </div>
       )}
@@ -82,10 +82,10 @@ const PublicVerifyPage: React.FC = () => {
       )}
 
       {result && (
-        <div className="mt-8 sm:mt-10 text-left">
-          <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-12' : ''} gap-7 items-start`}>
+        <div className="mt-8 sm:mt-10 w-full md:w-fit mx-auto text-left">
+          <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-[minmax(360px,auto)_minmax(280px,340px)] md:gap-14 lg:gap-16' : 'max-w-md mx-auto'} gap-7 items-start`}>
             {/* Left Column: Status Header + Core Verification Metadata */}
-            <div>
+            <div className="md:min-w-[370px] lg:min-w-[400px]">
               <div className="flex items-center gap-2 mb-5">
                 {result.is_verified ? (
                   <CheckCircle size={18} className="text-green-500 shrink-0" />
@@ -102,53 +102,53 @@ const PublicVerifyPage: React.FC = () => {
               </div>
 
               <div className="space-y-3 text-xs sm:text-[13px]">
-                <div className="flex items-baseline justify-between gap-4 leading-none">
+                <div className="flex items-baseline justify-between gap-8 sm:gap-12 leading-none">
                   <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('id', 'ID')}</span>
                   <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">
                     {result.inspection_id}
                   </span>
                 </div>
 
-              <div className="flex items-baseline justify-between gap-4">
-                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('category', 'Category')}</span>
-                <span className="font-medium text-gray-800 dark:text-gray-200 text-right">
-                  {result.category}
-                </span>
-              </div>
-
-              <div className="flex items-baseline justify-between gap-4">
-                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('status', 'Status')}</span>
-                <span className="font-medium text-gray-800 dark:text-gray-200 capitalize text-right">
-                  {STATUS_LABELS[result.status] || result.status?.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              {result.verdict && (
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('verdict', 'Inspection Verdict')}</span>
-                  <span className={`font-bold uppercase tracking-wider text-right ${VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'}`}>
-                    {result.verdict.toUpperCase()}
+                <div className="flex items-baseline justify-between gap-8 sm:gap-12">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('category', 'Category')}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 text-right">
+                    {result.category}
                   </span>
                 </div>
-              )}
 
-              {result.inspected_stock !== null && result.inspected_stock !== undefined && (
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected_stock', 'Inspected Stock')}</span>
-                  <span className="font-bold text-gray-900 dark:text-white text-right">
-                    {result.inspected_stock} {t('units', 'units')}
+                <div className="flex items-baseline justify-between gap-8 sm:gap-12">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('status', 'Status')}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 capitalize text-right">
+                    {STATUS_LABELS[result.status] || result.status?.replace(/_/g, ' ')}
                   </span>
                 </div>
-              )}
 
-              {result.inspected_at && (
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected', 'Inspected')}</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300 text-right">
-                    {fmtDate(result.inspected_at)}
-                  </span>
-                </div>
-              )}
+                {result.verdict && (
+                  <div className="flex items-baseline justify-between gap-8 sm:gap-12">
+                    <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('verdict', 'Inspection Verdict')}</span>
+                    <span className={`font-bold uppercase tracking-wider text-right ${VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'}`}>
+                      {result.verdict.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+
+                {result.inspected_stock !== null && result.inspected_stock !== undefined && (
+                  <div className="flex items-baseline justify-between gap-8 sm:gap-12">
+                    <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected_stock', 'Inspected Stock')}</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-right">
+                      {result.inspected_stock} {t('units', 'units')}
+                    </span>
+                  </div>
+                )}
+
+                {result.inspected_at && (
+                  <div className="flex items-baseline justify-between gap-8 sm:gap-12">
+                    <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('inspected', 'Inspected')}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300 text-right">
+                      {fmtDate(result.inspected_at)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
