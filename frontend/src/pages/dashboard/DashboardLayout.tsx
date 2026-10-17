@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, ArrowDownToLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -42,11 +42,29 @@ const DashboardLayout: React.FC = () => {
   const hasDraggedRef = useRef(false);
   const closeTimerRef = useRef<any>(null);
 
-  // Auto-close mobile menu on route change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
+    if (isMobileMenuOpen || isClosing || hasEntered) {
+      setIsMobileMenuOpen(false);
+      setIsClosing(false);
+      setHasEntered(false);
+    }
+  }
+
+  const closeMobileMenuInstant = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     setIsMobileMenuOpen(false);
     setIsClosing(false);
     setHasEntered(false);
+  };
+
+  // Auto-close mobile menu synchronously before paint on route change
+  useLayoutEffect(() => {
+    closeMobileMenuInstant();
   }, [location.pathname]);
 
   // Clean up close timer on unmount
@@ -140,13 +158,13 @@ const DashboardLayout: React.FC = () => {
     const diffX = touchX - touchStartXRef.current;
     const diffY = touchY - touchStartYRef.current;
 
-    // Detect gesture direction after small movement threshold (6px)
+    // Detect gesture direction after movement threshold (12px) so taps on links aren't mistaken for swipes
     if (isSwipeGestureRef.current === null) {
       const absX = Math.abs(diffX);
       const absY = Math.abs(diffY);
-      if (absX > 6 || absY > 6) {
+      if (absX > 12 || absY > 12) {
         // Horizontal left swipe
-        if (absX > absY && diffX < -3) {
+        if (absX > absY && diffX < -10) {
           isSwipeGestureRef.current = true;
           hasDraggedRef.current = true;
           setHasEntered(true);
@@ -466,7 +484,7 @@ const DashboardLayout: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      onClick={closeMobileMenuAnimated}
+                      onClick={closeMobileMenuInstant}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                         isActive
                           ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -482,7 +500,7 @@ const DashboardLayout: React.FC = () => {
                 {isSuperuser && (
                   <Link
                     to="/staff-admin"
-                    onClick={closeMobileMenuAnimated}
+                    onClick={closeMobileMenuInstant}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
                   >
                     <Shield size={18} className="shrink-0" />
@@ -492,7 +510,7 @@ const DashboardLayout: React.FC = () => {
 
                 <Link
                   to="/dashboard/settings"
-                  onClick={closeMobileMenuAnimated}
+                  onClick={closeMobileMenuInstant}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/settings')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -504,7 +522,7 @@ const DashboardLayout: React.FC = () => {
                 </Link>
                 <Link
                   to="/dashboard/help-center"
-                  onClick={closeMobileMenuAnimated}
+                  onClick={closeMobileMenuInstant}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/help-center')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -549,7 +567,7 @@ const DashboardLayout: React.FC = () => {
                   </button>
                   <Link
                     to={`/${user.username}`}
-                    onClick={closeMobileMenuAnimated}
+                    onClick={closeMobileMenuInstant}
                     className="block text-2xs text-gray-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400 hover:underline transition truncate"
                   >
                     View Storefront &rarr;
@@ -567,7 +585,7 @@ const DashboardLayout: React.FC = () => {
             <div ref={logoRef} className={`origin-bottom flex items-center justify-center ${
               isClosing ? 'animate-logo-recoil' : !hasEntered ? 'animate-logo-shake' : ''
             }`} style={{ willChange: 'transform' }}>
-              <Link to="/" onClick={closeMobileMenuAnimated} className="flex items-center group">
+              <Link to="/" onClick={closeMobileMenuInstant} className="flex items-center group">
                 <img 
                   src="/logo_dark.png"
                   alt="OKO Logo" 
