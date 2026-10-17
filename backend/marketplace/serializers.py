@@ -1608,7 +1608,7 @@ class OrderSerializer(serializers.ModelSerializer):
                     user_match = Q(user=buyer) if buyer else Q()
                     combined_query = Q(promo_code=promo_obj) & (user_match | phone_match if (buyer or delivery_phone) else Q())
 
-                    prior_uses = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED', 'CART']).exclude(pk=order.pk).count()
+                    prior_uses = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).exclude(pk=order.pk).count()
                     if prior_uses >= promo_obj.max_uses_per_user:
                         raise serializers.ValidationError(
                             f"You have already redeemed promo code '{promo_obj.code}'. It can only be used once per customer."
