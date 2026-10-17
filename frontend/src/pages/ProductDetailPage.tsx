@@ -1440,10 +1440,10 @@ const ProductDetailPage: React.FC = () => {
                 </button>
                 <button 
                   onClick={() => navigate('/')} 
-                  className="w-10 h-10 flex items-center justify-center bg-[#242526] hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md p-2" 
+                  className="flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 select-none focus:outline-none" 
                   title="Go to Homepage"
                 >
-                  <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-sm" />
+                  <img src="/logo.png" alt="OKO" className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-sm select-none" />
                 </button>
               </div>
 
@@ -1568,7 +1568,7 @@ const ProductDetailPage: React.FC = () => {
       <div className="hidden lg:block lg:col-start-1 lg:row-start-1 relative w-full bg-neutral-950">
         <div className="sticky top-0 h-screen w-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage">
         
-        {/* Top Floating Overlay: Left (X, Logo, Search) & Right (Messages, Save, Share, 3-dots) */}
+        {/* Top Floating Overlay: Left (X, Logo) & Right (Search, Messages, Save, Share, 3-dots) */}
         <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
           {/* Left Group */}
           <div className="flex items-center gap-2.5 pointer-events-auto">
@@ -1581,11 +1581,15 @@ const ProductDetailPage: React.FC = () => {
             </button>
             <button 
               onClick={() => navigate('/')} 
-              className="w-11 h-11 xl:w-12 xl:h-12 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md p-2.5" 
+              className="flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 select-none focus:outline-none" 
               title="Go to Homepage"
             >
-              <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
+              <img src="/logo.png" alt="OKO" className="w-9 h-9 xl:w-10 xl:h-10 object-contain drop-shadow-md select-none" />
             </button>
+          </div>
+
+          {/* Right Group */}
+          <div className="flex items-center gap-2.5 pointer-events-auto">
             <button
               onClick={openSearch}
               className="w-11 h-11 xl:w-12 xl:h-12 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
@@ -1594,10 +1598,7 @@ const ProductDetailPage: React.FC = () => {
             >
               <Search size={19} />
             </button>
-          </div>
 
-          {/* Right Group */}
-          <div className="flex items-center gap-2.5 pointer-events-auto">
             {/* Messages with IG Story Ring Loading */}
             <div className="relative flex items-center justify-center">
               {isSendingMessage && (

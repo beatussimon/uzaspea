@@ -779,7 +779,7 @@ const ProfilePage: React.FC = () => {
                     return (
                       <div 
                         key={req.id} 
-                        className="group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all rounded-card"
+                        className="group relative card border-0 overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all rounded-card"
                       >
                         {/* Background Image */}
                         <div className="absolute inset-0 w-full h-full bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
