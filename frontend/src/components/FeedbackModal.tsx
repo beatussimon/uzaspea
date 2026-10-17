@@ -97,12 +97,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     e.preventDefault();
     
     if (!isAuthenticated && (!ticketForm.name.trim() || !ticketForm.email.trim())) {
-      toast.error('Please provide your name and email so we can contact you.');
+      toast.error(t('provide_name_email_error', 'Please provide your name and email so we can contact you.'));
       return;
     }
 
     if (!ticketForm.message.trim()) {
-      toast.error('Please enter a message.');
+      toast.error(t('enter_message_error', 'Please enter a message.'));
       return;
     }
 
@@ -147,9 +147,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       await api.post(`/api/support-tickets/${ticketId}/reply/`, { message: replyMessage.trim() });
       setReplyMessage('');
       await fetchTickets();
-      toast.success('Reply sent.');
+      toast.success(t('reply_sent', 'Reply sent.'));
     } catch (error) {
-      toast.error('Failed to send reply.');
+      toast.error(t('failed_send_reply', 'Failed to send reply.'));
     } finally {
       setReplying(false);
     }
@@ -199,12 +199,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-                Support & Feedback
+                {t('support_and_feedback', 'Support & Feedback')}
               </h3>
               <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
                 {activeTab === 'new' 
-                  ? 'Send a question or feedback directly to our team' 
-                  : 'Track your inquiries and responses'}
+                  ? t('send_question_feedback_desc', 'Send a question or feedback directly to our team') 
+                  : t('inquiry_history_desc', 'Track your inquiries and responses')}
               </p>
             </div>
             
@@ -212,7 +212,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
-              aria-label="Close dialog"
+              aria-label={t('close_dialog', 'Close dialog')}
             >
               <X size={18} />
             </button>
@@ -233,7 +233,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     : 'text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <span>Send Feedback</span>
+                <span>{t('send_feedback_tab', 'Send Feedback')}</span>
               </button>
 
               <button
@@ -245,7 +245,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     : 'text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <span>Inquiry History</span>
+                <span>{t('inquiry_history_tab', 'Inquiry History')}</span>
                 {isAuthenticated && userTickets.length > 0 && (
                   <span className={`px-1.5 py-0.2 rounded-full text-3xs font-black ${
                     activeTab === 'history'
@@ -274,10 +274,10 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
                     <div className="space-y-1.5 max-w-sm mx-auto">
                       <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                        Inquiry Received
+                        {t('inquiry_received', 'Inquiry Received')}
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-neutral-400 leading-relaxed">
-                        Registered under ticket reference <strong className="font-mono text-gray-900 dark:text-white font-semibold">#{submittedTicket.id}</strong>. Our team will review and reply shortly.
+                        {t('ticket_ref_text', 'Registered under ticket reference #{{id}}. Our team will review and reply shortly.', { id: submittedTicket.id })}
                       </p>
                     </div>
 
@@ -292,7 +292,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                           }}
                           className="text-xs font-semibold py-2 px-3.5"
                         >
-                          View in History
+                          {t('view_in_history', 'View in History')}
                         </Button>
                       )}
                       <button
@@ -301,14 +301,14 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         className="btn-secondary text-xs py-2 px-3.5 font-medium inline-flex items-center gap-1.5"
                       >
                         <RotateCcw size={12} />
-                        <span>Submit Another</span>
+                        <span>{t('submit_another', 'Submit Another')}</span>
                       </button>
                       <button
                         type="button"
                         onClick={onClose}
                         className="btn-ghost text-xs py-2 px-3.5"
                       >
-                        Close
+                        {t('close', 'Close')}
                       </button>
                     </div>
                   </div>
@@ -320,10 +320,10 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     {isAuthenticated && user && (
                       <div className="flex items-center justify-between text-xs py-1 text-gray-500 dark:text-neutral-400">
                         <span>
-                          Submitting as <strong className="text-gray-900 dark:text-white font-semibold">{user.username}</strong>
+                          {t('submitting_as', 'Submitting as')} <strong className="text-gray-900 dark:text-white font-semibold">{user.username}</strong>
                         </span>
                         <span className="flex items-center gap-1 text-3xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          <ShieldCheck size={11} /> Verified
+                          <ShieldCheck size={11} /> {t('verified', 'Verified')}
                         </span>
                       </div>
                     )}
@@ -331,7 +331,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     {/* Topic Selector */}
                     <div className="space-y-1">
                       <label className="block text-2xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Topic
+                        {t('topic', 'Topic')}
                       </label>
                       <select
                         value={selectedCategory}
@@ -351,7 +351,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="block text-2xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
-                            Name *
+                            {t('name_required', 'Name *')}
                           </label>
                           <input
                             required
@@ -359,12 +359,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                             value={ticketForm.name}
                             onChange={e => setTicketForm({...ticketForm, name: e.target.value})}
                             className="w-full px-3.5 py-2 text-xs bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                            placeholder="Your full name"
+                            placeholder={t('your_name', 'Your full name')}
                           />
                         </div>
                         <div className="space-y-1">
                           <label className="block text-2xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
-                            Email *
+                            {t('email_required', 'Email *')}
                           </label>
                           <input
                             required
@@ -381,7 +381,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     {/* Subject */}
                     <div className="space-y-1">
                       <label className="block text-2xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Subject *
+                        {t('subject_required', 'Subject *')}
                       </label>
                       <input
                         required
@@ -389,21 +389,21 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         value={ticketForm.subject}
                         onChange={e => setTicketForm({...ticketForm, subject: e.target.value})}
                         className="w-full px-3.5 py-2 text-xs bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                        placeholder="Brief summary..."
+                        placeholder={t('brief_summary', 'Brief summary...')}
                       />
                     </div>
 
                     {/* Detailed Message */}
                     <div className="space-y-1">
                       <label className="block text-2xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Message *
+                        {t('message_required', 'Message *')}
                       </label>
                       <textarea
                         required
                         value={ticketForm.message}
                         onChange={e => setTicketForm({...ticketForm, message: e.target.value})}
                         className="w-full px-3.5 py-2 text-xs bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none focus:border-gray-400 dark:focus:border-neutral-600 transition resize-none h-28 leading-relaxed"
-                        placeholder="Provide any details, order numbers, or questions..."
+                        placeholder={t('provide_details_placeholder', 'Provide any details, order numbers, or questions...')}
                       />
                     </div>
 
@@ -415,7 +415,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5"
                       >
                         <Send size={13} />
-                        {submitting ? 'Sending...' : 'Submit Message'}
+                        {submitting ? t('sending', 'Sending...') : t('submit_message', 'Submit Message')}
                       </Button>
                     </div>
                   </form>
@@ -433,9 +433,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                       <Lock size={16} />
                     </div>
                     <div className="space-y-1 max-w-xs mx-auto">
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">Sign In to View Inquiries</h4>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">{t('sign_in_to_view_inquiries', 'Sign In to View Inquiries')}</h4>
                       <p className="text-xs text-gray-500 dark:text-neutral-400">
-                        Log in to your account to review support conversations and reply to our team.
+                        {t('sign_in_to_view_inquiries_desc', 'Log in to your account to review support conversations and reply to our team.')}
                       </p>
                     </div>
                     <div className="pt-1">
@@ -444,7 +444,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         onClick={onClose}
                         className="btn-primary inline-flex items-center gap-1.5 text-xs font-bold py-2 px-4"
                       >
-                        Sign In
+                        {t('login', 'Sign In')}
                       </Link>
                     </div>
                   </div>
@@ -458,7 +458,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         onClick={() => setActiveTicket(null)}
                         className="text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1 font-medium transition"
                       >
-                        <ArrowLeft size={13} /> Back
+                        <ArrowLeft size={13} /> {t('back', 'Back')}
                       </button>
                       
                       <span className={`text-3xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 bg-transparent border ${
@@ -469,7 +469,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                           : 'text-blue-600 dark:text-blue-400 border-blue-500/40'
                       }`}>
                         {activeTicket.status === 'resolved' || activeTicket.status === 'closed' ? <CheckCircle size={10} /> : <Clock size={10} />}
-                        <span className="capitalize">{activeTicket.status?.replace(/_/g, ' ') || 'Received'}</span>
+                        <span className="capitalize">{String(t(activeTicket.status, activeTicket.status?.replace(/_/g, ' ') || 'Received'))}</span>
                       </span>
                     </div>
 
@@ -486,7 +486,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 py-1">
                       {(!activeTicket.messages || activeTicket.messages.length === 0) && activeTicket.message && (
                         <div className="flex flex-col items-end">
-                          <span className="text-3xs text-gray-400 mb-0.5">You</span>
+                          <span className="text-3xs text-gray-400 mb-0.5">{t('you', 'You')}</span>
                           <div className="p-2.5 rounded-xl text-xs max-w-[88%] leading-relaxed bg-gray-100 dark:bg-neutral-900 text-gray-800 dark:text-neutral-200">
                             {activeTicket.message}
                           </div>
@@ -498,7 +498,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         return (
                           <div key={msg.id} className={`flex flex-col ${isStaff ? 'items-start' : 'items-end'}`}>
                             <span className="text-3xs text-gray-400 mb-0.5">
-                              {isStaff ? 'Support Team' : 'You'}
+                              {isStaff ? t('support_team', 'Support Team') : t('you', 'You')}
                             </span>
                             <div className={`p-2.5 rounded-xl text-xs max-w-[88%] leading-relaxed ${
                               isStaff 
@@ -518,7 +518,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         <input 
                           type="text" 
                           className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none focus:border-gray-400 dark:focus:border-neutral-600 transition" 
-                          placeholder="Type your response..." 
+                          placeholder={t('type_response_placeholder', 'Type your response...')} 
                           value={replyMessage}
                           onChange={e => setReplyMessage(e.target.value)}
                           required
@@ -529,7 +529,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                       </form>
                     ) : (
                       <p className="text-3xs text-center text-gray-400 py-1 border-t border-gray-100 dark:border-neutral-800">
-                        This inquiry has been resolved.
+                        {t('inquiry_resolved_notice', 'This inquiry has been resolved.')}
                       </p>
                     )}
                   </div>
@@ -540,7 +540,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                       <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Search inquiries..."
+                        placeholder={t('search_inquiries', 'Search inquiries...')}
                         value={ticketSearch}
                         onChange={(e) => setTicketSearch(e.target.value)}
                         className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none focus:border-gray-400 dark:focus:border-neutral-600 transition"
@@ -572,18 +572,18 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                                   ? 'text-amber-600 dark:text-amber-400 border-amber-500/40'
                                   : 'text-blue-600 dark:text-blue-400 border-blue-500/40'
                               }`}>
-                                {isResolved ? 'Resolved' : isInProgress ? 'In Review' : 'Received'}
+                                {isResolved ? t('resolved', 'Resolved') : isInProgress ? t('in_review', 'In Review') : t('received', 'Received')}
                               </span>
                             </div>
 
                             <p className="text-2xs text-gray-500 dark:text-neutral-400 line-clamp-1">
-                              {latestMsg || 'No message preview'}
+                              {latestMsg || t('no_message_preview', 'No message preview')}
                             </p>
 
                             <div className="flex items-center justify-between text-3xs text-gray-400 pt-0.5">
                               <span>Ticket #{ticket.id}</span>
                               <span className="flex items-center gap-0.5">
-                                View <ChevronRight size={10} />
+                                {t('view', 'View')} <ChevronRight size={10} />
                               </span>
                             </div>
                           </div>
@@ -592,13 +592,13 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
                       {filteredTickets.length === 0 && !loadingTickets && (
                         <div className="py-8 text-center text-xs text-gray-400 space-y-2">
-                          <p>{ticketSearch ? 'No inquiries matching your search.' : 'No submitted inquiries yet.'}</p>
+                          <p>{ticketSearch ? t('no_inquiries_found', 'No inquiries matching your search.') : t('no_inquiries_yet', 'No submitted inquiries yet.')}</p>
                           <button
                             type="button"
                             onClick={() => setActiveTab('new')}
                             className="text-brand-500 hover:underline font-semibold text-xs"
                           >
-                            Submit a message
+                            {t('submit_a_message', 'Submit a message')}
                           </button>
                         </div>
                       )}

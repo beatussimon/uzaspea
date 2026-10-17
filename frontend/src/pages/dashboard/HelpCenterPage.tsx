@@ -160,8 +160,8 @@ const HelpCenterPage: React.FC = () => {
             const raw = siteSettings.support_phone.trim();
             items.push({
                 key: 'phone',
-                label: 'Call',
-                tooltip: 'Call',
+                label: t('call', 'Call'),
+                tooltip: t('call', 'Call'),
                 href: `tel:${raw.replace(/\s+/g, '')}`,
                 icon: <Phone size={22} className="text-gray-700 dark:text-gray-200" />,
                 hoverColor: 'hover:border-brand-500 hover:text-brand-500',
@@ -172,8 +172,8 @@ const HelpCenterPage: React.FC = () => {
             const raw = siteSettings.whatsapp_number.trim();
             items.push({
                 key: 'whatsapp',
-                label: 'WhatsApp',
-                tooltip: 'WhatsApp',
+                label: t('whatsapp', 'WhatsApp'),
+                tooltip: t('whatsapp', 'WhatsApp'),
                 href: resolveWhatsAppUrl(raw),
                 target: '_blank',
                 icon: <SiWhatsapp size={24} className="text-[#25D366]" />,
@@ -260,7 +260,7 @@ const HelpCenterPage: React.FC = () => {
         }
 
         return items;
-    }, [siteSettings]);
+    }, [siteSettings, t]);
 
     useEffect(() => {
         const fetchFaqs = async () => {
@@ -282,49 +282,49 @@ const HelpCenterPage: React.FC = () => {
         {
             id: 9001,
             category: 'site-verification',
-            question: "Why does SokoniMax require an in-person physical store visit before I can sell?",
-            answer: "To prevent spam accounts, counterfeit listings, and delivery disputes, SokoniMax requires every merchant to undergo an in-person physical premises inspection. A certified staff member visits your store, verifies your physical inventory and presence, and logs official coordinates and storefront photographs before your account can be approved for selling."
+            question: t('faq_site_visit_why_q', "Why does SokoniMax require an in-person physical store visit before I can sell?"),
+            answer: t('faq_site_visit_why_a', "To prevent spam accounts, counterfeit listings, and delivery disputes, SokoniMax requires every merchant to undergo an in-person physical premises inspection. A certified staff member visits your store, verifies your physical inventory and presence, and logs official coordinates and storefront photographs before your account can be approved for selling.")
         },
         {
             id: 9002,
             category: 'site-verification',
-            question: "How do I request a site verification visit?",
-            answer: "Call or message our official verification hotline directly using the buttons provided above. Provide our staff with your shop name, physical street address or landmark, and preferred inspection hours. Our verification field team will schedule and execute the visit."
+            question: t('faq_site_visit_request_q', "How do I request a site verification visit?"),
+            answer: t('faq_site_visit_request_a', "Call or message our official verification hotline directly using the buttons provided above. Provide our staff with your shop name, physical street address or landmark, and preferred inspection hours. Our verification field team will schedule and execute the visit.")
         },
         {
             id: 9003,
             category: 'site-verification',
-            question: "What happens during the physical site visit?",
-            answer: "A certified SokoniMax staff member visits your physical shop. They will: 1) Verify that your shop exists and is open for business; 2) Take storefront and interior stock photos; 3) Note precise GPS coordinates; and 4) Submit the official inspection report to the SokoniMax administration for review."
+            question: t('faq_site_visit_what_happens_q', "What happens during the physical site visit?"),
+            answer: t('faq_site_visit_what_happens_a', "A certified SokoniMax staff member visits your physical shop. They will: 1) Verify that your shop exists and is open for business; 2) Take storefront and interior stock photos; 3) Note precise GPS coordinates; and 4) Submit the official inspection report to the SokoniMax administration for review.")
         },
         {
             id: 9004,
             category: 'site-verification',
-            question: "How long does admin review take, and how will I know I'm approved?",
-            answer: "Once our staff submits your physical visit report, our administration reviews the evidence within 24–48 hours. When approved, you will receive an instant notification in your account, and your store status in Settings will show 'Site Verified ✓'. You can then proceed immediately to choose your subscription tier and launch your store."
+            question: t('faq_site_visit_review_time_q', "How long does admin review take, and how will I know I'm approved?"),
+            answer: t('faq_site_visit_review_time_a', "Once our staff submits your physical visit report, our administration reviews the evidence within 24–48 hours. When approved, you will receive an instant notification in your account, and your store status in Settings will show 'Site Verified ✓'. You can then proceed immediately to choose your subscription tier and launch your store.")
         },
         {
             id: 9005,
             category: 'site-verification',
-            question: "Can I sell without a physical shop or inventory?",
-            answer: "Currently, SokoniMax requires all verified merchants to operate an active, verifiable business or physical workshop/store in Tanzania. This ensures accurate pickup hub logistics, verified seller ratings, and 100% buyer trust."
+            question: t('faq_site_visit_no_shop_q', "Can I sell without a physical shop or inventory?"),
+            answer: t('faq_site_visit_no_shop_a', "Currently, SokoniMax requires all verified merchants to operate an active, verifiable business or physical workshop/store in Tanzania. This ensures accurate pickup hub logistics, verified seller ratings, and 100% buyer trust.")
         }
-    ], []);
+    ], [t]);
 
     const AD_AND_PROMOTION_FAQS = useMemo(() => [
         {
             id: 9101,
             category: 'general',
-            question: "What does the 'AD' (Sponsored) badge on a product mean?",
-            answer: "Products displaying the 'AD' (Sponsored) badge are promoted listings. Sellers pay an advertising fee to boost their product's visibility across search results and category feeds. All sponsored items must comply with SokoniMax seller verification standards, accurate product conditions (New, Used, Refurbished), and merchant policies."
+            question: t('faq_ad_badge_q', "What does the 'AD' (Sponsored) badge on a product mean?"),
+            answer: t('faq_ad_badge_a', "Products displaying the 'AD' (Sponsored) badge are promoted listings. Sellers pay an advertising fee to boost their product's visibility across search results and category feeds. All sponsored items must comply with SokoniMax seller verification standards, accurate product conditions (New, Used, Refurbished), and merchant policies.")
         },
         {
             id: 9102,
             category: 'general',
-            question: "How do sponsored ads affect search rankings and pricing?",
-            answer: "Sponsored ads give items prominent placement in product carousels and feeds, but prices and product details remain set directly by the merchant without any hidden buyer fees. Sponsored products are clearly marked with the 'AD' badge for complete transparency."
+            question: t('faq_ad_rankings_q', "How do sponsored ads affect search rankings and pricing?"),
+            answer: t('faq_ad_rankings_a', "Sponsored ads give items prominent placement in product carousels and feeds, but prices and product details remain set directly by the merchant without any hidden buyer fees. Sponsored products are clearly marked with the 'AD' badge for complete transparency.")
         }
-    ], []);
+    ], [t]);
 
     // Filter FAQs by category and search query
     const filteredFaqs = useMemo(() => {
@@ -332,10 +332,12 @@ const HelpCenterPage: React.FC = () => {
 
         const matchesQuery = (faq: any) => {
             if (!q) return true;
-            const question = (faq.question || '').toLowerCase();
-            const answer = (faq.answer || '').toLowerCase();
+            const question = String(t(`faq_q_${faq.id}`, faq.question) || '').toLowerCase();
+            const rawQuestion = (faq.question || '').toLowerCase();
+            const answer = String(t(`faq_a_${faq.id}`, faq.answer) || '').toLowerCase();
+            const rawAnswer = (faq.answer || '').toLowerCase();
             const category = (faq.category || '').toLowerCase();
-            return question.includes(q) || answer.includes(q) || category.includes(q);
+            return question.includes(q) || rawQuestion.includes(q) || answer.includes(q) || rawAnswer.includes(q) || category.includes(q);
         };
 
         // All topics
@@ -356,7 +358,7 @@ const HelpCenterPage: React.FC = () => {
         const catStaticMatches = AD_AND_PROMOTION_FAQS.filter(faq => faq.category.toLowerCase() === selectedFaqCategory.toLowerCase());
         const catItems = [...catApiMatches, ...catStaticMatches];
         return catItems.filter(matchesQuery);
-    }, [faqs, selectedFaqCategory, searchQuery, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS]);
+    }, [faqs, selectedFaqCategory, searchQuery, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS, t]);
 
     // Count of all matches across all categories for the current search query
     const globalMatchesCount = useMemo(() => {
@@ -364,12 +366,14 @@ const HelpCenterPage: React.FC = () => {
         if (!q) return 0;
         const allItems = [...faqs, ...SITE_VERIFICATION_FAQS, ...AD_AND_PROMOTION_FAQS];
         return allItems.filter(faq => {
-            const question = (faq.question || '').toLowerCase();
-            const answer = (faq.answer || '').toLowerCase();
+            const question = String(t(`faq_q_${faq.id}`, faq.question) || '').toLowerCase();
+            const rawQuestion = (faq.question || '').toLowerCase();
+            const answer = String(t(`faq_a_${faq.id}`, faq.answer) || '').toLowerCase();
+            const rawAnswer = (faq.answer || '').toLowerCase();
             const category = (faq.category || '').toLowerCase();
-            return question.includes(q) || answer.includes(q) || category.includes(q);
+            return question.includes(q) || rawQuestion.includes(q) || answer.includes(q) || rawAnswer.includes(q) || category.includes(q);
         }).length;
-    }, [faqs, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS, searchQuery]);
+    }, [faqs, SITE_VERIFICATION_FAQS, AD_AND_PROMOTION_FAQS, searchQuery, t]);
 
     const openFeedbackModal = (tab: 'new' | 'history' = 'new', category: string = 'other') => {
         setModalTab(tab);
@@ -513,7 +517,7 @@ const HelpCenterPage: React.FC = () => {
                                 className="flex items-center gap-2 group cursor-pointer"
                             >
                                 <span className="px-2.5 py-1 rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold shadow-md whitespace-nowrap">
-                                    Learn More
+                                    {t('learn_more', 'Learn More')}
                                 </span>
                                 <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-lg active:scale-95 transition-transform hover:border-brand-500 text-gray-700 dark:text-gray-200 hover:text-brand-500">
                                     <BookOpen size={21} />
@@ -528,7 +532,7 @@ const HelpCenterPage: React.FC = () => {
                     type="button"
                     onClick={() => setIsMobileFabOpen(!isMobileFabOpen)}
                     className="w-12 h-12 rounded-full shadow-2xl bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
-                    aria-label="Direct contacts and resources"
+                    aria-label={t('direct_contacts_resources', 'Direct contacts and resources')}
                 >
                     {isMobileFabOpen ? <X size={20} /> : <MessageCircle size={22} className="text-brand-500" />}
                 </button>
@@ -643,7 +647,7 @@ const HelpCenterPage: React.FC = () => {
                                 ) : (
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-surface-border dark:border-surface-dark-border">
                                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                                            Contact our team to schedule your physical store visit:
+                                            {t('contact_schedule_visit', 'Contact our team to schedule your physical store visit:')}
                                         </p>
                                         <div className="flex items-center gap-2">
                                             {siteSettings.support_phone && (
@@ -651,7 +655,7 @@ const HelpCenterPage: React.FC = () => {
                                                     href={`tel:${siteSettings.support_phone}`}
                                                     className="px-3 py-1.5 rounded-btn bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-xs font-semibold hover:opacity-90 transition"
                                                 >
-                                                    Call {siteSettings.support_phone}
+                                                    {t('call_number', 'Call {{phone}}', { phone: siteSettings.support_phone })}
                                                 </a>
                                             )}
                                             {siteSettings.whatsapp_number && (
@@ -661,7 +665,7 @@ const HelpCenterPage: React.FC = () => {
                                                     rel="noopener noreferrer"
                                                     className="px-3 py-1.5 rounded-btn border border-surface-border dark:border-surface-dark-border text-xs font-semibold hover:bg-surface-muted dark:hover:bg-neutral-800 transition"
                                                 >
-                                                    WhatsApp
+                                                    {t('whatsapp', 'WhatsApp')}
                                                 </a>
                                             )}
                                         </div>
@@ -686,7 +690,7 @@ const HelpCenterPage: React.FC = () => {
                                                         ? 'text-black dark:text-white font-bold' 
                                                         : 'text-gray-900 dark:text-gray-100 group-hover:text-black dark:group-hover:text-white font-medium'
                                                 }`}>
-                                                    {faq.question}
+                                                    {String(t(`faq_q_${faq.id}`, faq.question))}
                                                 </span>
                                                 <ChevronDown 
                                                     size={15} 
@@ -697,7 +701,7 @@ const HelpCenterPage: React.FC = () => {
                                             </button>
                                             {isOpen && (
                                                 <div className="px-2 pt-0.5 pb-3 text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed animate-fade-in">
-                                                    {faq.answer}
+                                                    {String(t(`faq_a_${faq.id}`, faq.answer))}
                                                 </div>
                                             )}
                                         </div>
@@ -711,12 +715,12 @@ const HelpCenterPage: React.FC = () => {
                                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                                         {searchQuery ? (
                                             selectedFaqCategory !== 'all' ? (
-                                                <>No questions found for <span className="font-semibold text-black dark:text-white">"{searchQuery}"</span> in this topic.</>
+                                                t('no_faqs_found_topic', 'No questions found for "{{query}}" in this topic.', { query: searchQuery })
                                             ) : (
-                                                <>No questions found matching <span className="font-semibold text-black dark:text-white">"{searchQuery}"</span>.</>
+                                                t('no_faqs_matching', 'No questions found matching "{{query}}".', { query: searchQuery })
                                             )
                                         ) : (
-                                            'No questions found in this topic.'
+                                            t('no_faqs_in_topic', 'No questions found in this topic.')
                                         )}
                                     </p>
                                     <div className="flex flex-wrap items-center justify-center gap-3 text-xs pt-1">
@@ -726,7 +730,12 @@ const HelpCenterPage: React.FC = () => {
                                                 onClick={() => setSelectedFaqCategory('all')}
                                                 className="font-semibold text-black dark:text-white underline cursor-pointer inline-flex items-center gap-1"
                                             >
-                                                <span>Search all topics ({globalMatchesCount} {globalMatchesCount === 1 ? 'match' : 'matches'}) &rarr;</span>
+                                                <span>
+                                                    {globalMatchesCount === 1
+                                                        ? t('search_all_topics_count', 'Search all topics ({{count}} match)', { count: globalMatchesCount })
+                                                        : t('search_all_topics_count_plural', 'Search all topics ({{count}} matches)', { count: globalMatchesCount })
+                                                    } &rarr;
+                                                </span>
                                             </button>
                                         )}
                                         <button
@@ -734,7 +743,7 @@ const HelpCenterPage: React.FC = () => {
                                             onClick={() => openFeedbackModal('new')}
                                             className="font-bold text-black dark:text-white underline inline-flex items-center gap-1 cursor-pointer"
                                         >
-                                            <span>Send us your feedback &rarr;</span>
+                                            <span>{t('send_feedback_action', 'Send us your feedback →')}</span>
                                         </button>
                                         {searchQuery && (
                                             <button
@@ -742,7 +751,7 @@ const HelpCenterPage: React.FC = () => {
                                                 onClick={() => setSearchQuery('')}
                                                 className="text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white cursor-pointer"
                                             >
-                                                Clear search
+                                                {t('clear_search', 'Clear search')}
                                             </button>
                                         )}
                                     </div>
@@ -754,13 +763,13 @@ const HelpCenterPage: React.FC = () => {
                     {/* Minimalist Human Footer Strip (Inside middle column stream, pinned to bottom) */}
                     <div className="pt-6 mt-auto border-t border-surface-border dark:border-surface-dark-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
                         <p className="text-center sm:text-left">
-                            Can't find what you need?{' '}
+                            {t('cant_find_what_you_need', "Can't find what you need?")}{' '}
                             <button
                                 type="button"
                                 onClick={() => openFeedbackModal('new')}
                                 className="text-black dark:text-white font-semibold underline underline-offset-4 cursor-pointer"
                             >
-                                Send us your feedback
+                                {t('send_us_feedback', 'Send us your feedback')}
                             </button>
                         </p>
 
@@ -781,7 +790,7 @@ const HelpCenterPage: React.FC = () => {
 
                 {/* Right Column: Desktop Contact Channels & Learn More (Strictly single vertical line, stationary, responsive) */}
                 <aside
-                    aria-label="Direct contacts and resources"
+                    aria-label={t('direct_contacts_resources', 'Direct contacts and resources')}
                     className="hidden md:flex flex-col items-center w-48 lg:w-52 shrink-0 select-none sticky top-20 h-fit"
                 >
                     <div className="flex flex-col items-center gap-2.5 w-full pt-1">
@@ -815,13 +824,13 @@ const HelpCenterPage: React.FC = () => {
                             {/* Learn More */}
                             <div className="relative group flex items-center">
                                 <span className="pointer-events-none absolute right-full mr-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150 z-40">
-                                    Learn More
+                                    {t('learn_more', 'Learn More')}
                                     <span className="absolute top-1/2 -translate-y-1/2 -right-1 border-4 border-transparent border-l-gray-900 dark:border-l-white" />
                                 </span>
 
                                 <Link
                                     to="/blog"
-                                    aria-label="Learn More"
+                                    aria-label={t('learn_more', 'Learn More')}
                                     className="w-11 h-11 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:border-brand-500 text-gray-700 dark:text-gray-200 hover:text-brand-500"
                                 >
                                     <BookOpen size={20} />

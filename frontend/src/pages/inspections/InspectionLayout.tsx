@@ -33,6 +33,7 @@ const CategoryDropdownSelector: React.FC<{
   selected: InspectionCategory | null;
   onSelect: (c: InspectionCategory | null) => void;
 }> = ({ categories, selected, onSelect }) => {
+  const { t } = useTranslation();
   const [level1Id, setLevel1Id] = useState<number | ''>('');
   const [level2Id, setLevel2Id] = useState<number | ''>('');
   const [level3Id, setLevel3Id] = useState<number | ''>('');
@@ -119,7 +120,7 @@ const CategoryDropdownSelector: React.FC<{
     <div className="space-y-3">
       <div>
         <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-          Category <span className="text-red-500">*</span>
+          {t('category_title', 'Category')} <span className="text-red-500">*</span>
         </label>
         <select
           value={level1Id}
@@ -127,7 +128,7 @@ const CategoryDropdownSelector: React.FC<{
           className="input w-full cursor-pointer text-xs"
           required
         >
-          <option value="">Select Category...</option>
+          <option value="">{t('select_category_dropdown', 'Select Category...')}</option>
           {topCategories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -139,7 +140,7 @@ const CategoryDropdownSelector: React.FC<{
       {level2Options.length > 0 && (
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-            Subcategory <span className="text-red-500">*</span>
+            {t('subcategory_title', 'Subcategory')} <span className="text-red-500">*</span>
           </label>
           <select
             value={level2Id}
@@ -147,7 +148,7 @@ const CategoryDropdownSelector: React.FC<{
             className="input w-full cursor-pointer text-xs"
             required
           >
-            <option value="">Select Subcategory...</option>
+            <option value="">{t('select_subcategory_dropdown', 'Select Subcategory...')}</option>
             {level2Options.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -160,7 +161,7 @@ const CategoryDropdownSelector: React.FC<{
       {level3Options.length > 0 && (
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-            Specific Type <span className="text-red-500">*</span>
+            {t('specific_type_title', 'Specific Type')} <span className="text-red-500">*</span>
           </label>
           <select
             value={level3Id}
@@ -168,7 +169,7 @@ const CategoryDropdownSelector: React.FC<{
             className="input w-full cursor-pointer text-xs"
             required
           >
-            <option value="">Select Type...</option>
+            <option value="">{t('select_type_dropdown', 'Select Type...')}</option>
             {level3Options.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -181,10 +182,10 @@ const CategoryDropdownSelector: React.FC<{
       {selected && (
         <div className="p-2.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg text-xs flex items-center justify-between">
           <span className="text-gray-500">
-            Selected: <strong className="text-gray-900 dark:text-white">{selected.full_path || selected.name}</strong>
+            {t('selected_label', 'Selected:')} <strong className="text-gray-900 dark:text-white">{selected.full_path || selected.name}</strong>
           </span>
           {selected.base_price && (
-            <span className="text-brand-500 font-bold">Base: {fmtMoney(selected.base_price)}</span>
+            <span className="text-brand-500 font-bold">{t('base_label', 'Base:')} {fmtMoney(selected.base_price)}</span>
           )}
         </div>
       )}
@@ -347,28 +348,28 @@ const RequestForm: React.FC = () => {
   const scopeOptions = [
     {
       value: 'basic',
-      title: 'Basic Check',
-      desc: 'Exterior condition & core functionality check',
+      title: t('scope_basic_title', 'Basic Check'),
+      desc: t('scope_basic_desc', 'Exterior condition & core functionality check'),
       badge: '-20%',
     },
     {
       value: 'standard',
-      title: 'Standard Audit',
-      desc: 'Multi-point checklist & diagnostic inspection',
-      badge: 'Recommended',
+      title: t('scope_standard_title', 'Standard Audit'),
+      desc: t('scope_standard_desc', 'Multi-point checklist & diagnostic inspection'),
+      badge: t('recommended', 'Recommended'),
     },
     {
       value: 'deep',
-      title: 'Specialist Diagnostic',
-      desc: 'In-depth technical & component-level testing',
+      title: t('scope_deep_title', 'Specialist Diagnostic'),
+      desc: t('scope_deep_desc', 'In-depth technical & component-level testing'),
       badge: '+40%',
     },
   ];
 
   const turnaroundOptions = [
-    { value: 'standard', title: 'Standard', time: '24–48 hours', surcharge: 'Included' },
-    { value: 'express', title: 'Express', time: 'Same day', surcharge: '+30%' },
-    { value: 'instant', title: 'Urgent', time: 'Within hours', surcharge: '+60%' },
+    { value: 'standard', title: t('turnaround_standard', 'Standard'), time: t('turnaround_standard_time', '24–48 hours'), surcharge: t('included_label', 'Included') },
+    { value: 'express', title: t('turnaround_express', 'Express'), time: t('turnaround_express_time', 'Same day'), surcharge: '+30%' },
+    { value: 'instant', title: t('turnaround_urgent', 'Urgent'), time: t('turnaround_urgent_time', 'Within hours'), surcharge: '+60%' },
   ];
 
   // Progressive reveal steps for custom item form (mobile-only)
@@ -385,13 +386,13 @@ const RequestForm: React.FC = () => {
           to="/inspections"
           className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white font-medium mb-2.5 transition-colors"
         >
-          <ArrowLeft size={14} /> Back to Inspections
+          <ArrowLeft size={14} /> {t('back_to_inspections', 'Back to Inspections')}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-          Schedule Physical Inspection
+          {t('schedule_physical_inspection', 'Schedule Physical Inspection')}
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Have an independent specialist inspect, test, and verify this item on-site.
+          {t('schedule_inspection_subtitle', 'Have an independent specialist inspect, test, and verify this item on-site.')}
         </p>
       </div>
 
@@ -402,15 +403,15 @@ const RequestForm: React.FC = () => {
           <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                1. Item Information
+                {t('section_item_info', '1. Item Information')}
               </h2>
               {!prefilledProduct && (
                 <span className="text-2xs text-brand-600 dark:text-brand-400 font-medium">
                   {isAddressFilled
-                    ? 'Step 1 Complete'
+                    ? t('step_1_complete', 'Step 1 Complete')
                     : isCategorySelected
-                    ? 'Filling details...'
-                    : 'Select category to start'}
+                    ? t('filling_details', 'Filling details...')
+                    : t('select_category_to_start', 'Select category to start')}
                 </span>
               )}
             </div>
@@ -435,7 +436,7 @@ const RequestForm: React.FC = () => {
                   )}
                   <div className="min-w-0">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
-                      Marketplace Item
+                      {t('marketplace_item', 'Marketplace Item')}
                     </span>
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 break-words leading-snug">
                       {prefilledProduct.name}
@@ -446,7 +447,7 @@ const RequestForm: React.FC = () => {
                       </p>
                     )}
                     <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      Seller: <strong className="text-gray-700 dark:text-gray-200">@{prefilledProduct.seller_username || 'seller'}</strong> • Category: <strong className="text-gray-700 dark:text-gray-200">{selectedCategory?.full_path || selectedCategory?.name || 'General'}</strong>
+                      {t('seller_prefix', 'Seller:')} <strong className="text-gray-700 dark:text-gray-200">@{prefilledProduct.seller_username || 'seller'}</strong> • {t('category_prefix', 'Category:')} <strong className="text-gray-700 dark:text-gray-200">{selectedCategory?.full_path || selectedCategory?.name || 'General'}</strong>
                     </p>
                   </div>
                 </div>
@@ -455,7 +456,7 @@ const RequestForm: React.FC = () => {
                   target="_blank"
                   className="btn-secondary text-2xs py-1 px-2.5 rounded-lg shrink-0 font-bold flex items-center gap-1"
                 >
-                  View Listing ↗
+                  {t('view_listing', 'View Listing ↗')}
                 </Link>
               </div>
             )}
@@ -481,12 +482,12 @@ const RequestForm: React.FC = () => {
                 >
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Item Name <span className="text-red-500">*</span>
+                      {t('item_name_label', 'Item Name')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       className="input text-xs"
                       required
-                      placeholder="e.g. Toyota Crown 2018, iPhone 15 Pro, Solar Inverter"
+                      placeholder={t('placeholder_item_name', 'e.g. Toyota Crown 2018, iPhone 15 Pro, Solar Inverter')}
                       value={form.item_name}
                       onChange={(e) => setForm({ ...form, item_name: e.target.value })}
                     />
@@ -497,13 +498,13 @@ const RequestForm: React.FC = () => {
               {/* Description & Known Condition */}
               <div className={prefilledProduct || isNameFilled ? 'block animate-fade-in' : 'hidden sm:block'}>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Description &amp; Specific Areas to Verify <span className="text-red-500">*</span>
+                  {t('item_description_verify_label', 'Description & Specific Areas to Verify')} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   className="input text-xs"
                   rows={3}
                   required
-                  placeholder="Describe item condition, key specifications, and any specific areas to examine..."
+                  placeholder={t('placeholder_item_desc', 'Describe item condition, key specifications, and any specific areas to examine...')}
                   value={form.item_description}
                   onChange={(e) => setForm({ ...form, item_description: e.target.value })}
                 />
@@ -517,12 +518,12 @@ const RequestForm: React.FC = () => {
               >
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Physical Inspection / Seller Address <span className="text-red-500">*</span>
+                    {t('inspection_address_label', 'Physical Inspection / Seller Address')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="input text-xs"
                     required
-                    placeholder="Street address or location where the item is available for inspection"
+                    placeholder={t('placeholder_item_address', 'Street address or location where the item is available for inspection')}
                     value={form.item_address}
                     onChange={(e) => setForm({ ...form, item_address: e.target.value })}
                   />
@@ -530,13 +531,13 @@ const RequestForm: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Item Age (years)
+                    {t('item_age_years_label', 'Item Age (years)')}
                   </label>
                   <input
                     className="input text-xs"
                     type="number"
                     min="0"
-                    placeholder="Optional"
+                    placeholder={t('optional', 'Optional')}
                     value={form.item_age_years}
                     onChange={(e) => setForm({ ...form, item_age_years: e.target.value })}
                   />
@@ -554,7 +555,7 @@ const RequestForm: React.FC = () => {
                     htmlFor="is_complex"
                     className="text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
                   >
-                    Complex / Industrial Item (+20%)
+                    {t('complex_item_option', 'Complex / Industrial Item (+20%)')}
                   </label>
                 </div>
               </div>
@@ -568,7 +569,7 @@ const RequestForm: React.FC = () => {
             }`}
           >
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              2. Additional Options & Notes
+              {t('section_additional_options', '2. Additional Options & Notes')}
             </h2>
 
             <div className="p-3 bg-gray-50 dark:bg-gray-700/20 border border-gray-200 dark:border-gray-700 rounded-xl flex items-start gap-3">
@@ -583,22 +584,21 @@ const RequestForm: React.FC = () => {
                 htmlFor="reinspection"
                 className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer"
               >
-                <span className="font-bold">Re-inspection Coverage (+10%)</span>
+                <span className="font-bold">{t('reinspection_coverage_option', 'Re-inspection Coverage (+10%)')}</span>
                 <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Provides a discounted follow-up inspection if repairs or seller condition fixes
-                  are made.
+                  {t('reinspection_coverage_desc', 'Provides a discounted follow-up inspection if repairs or seller condition fixes are made.')}
                 </p>
               </label>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Special Instructions for Inspector (Optional)
+                {t('special_instructions_optional', 'Special Instructions for Inspector (Optional)')}
               </label>
               <textarea
                 className="input text-xs"
                 rows={2}
-                placeholder="Mention any specific parts, functions, or defects you want the inspector to examine closely..."
+                placeholder={t('placeholder_special_instructions', 'Mention any specific parts, functions, or defects you want the inspector to examine closely...')}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
@@ -611,7 +611,7 @@ const RequestForm: React.FC = () => {
           {/* 1. Scope Selection (Cards on desktop, compact dropdown on mobile) */}
           <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-xs space-y-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Inspection Scope
+              {t('inspection_scope', 'Inspection Scope')}
             </h2>
 
             {/* Mobile Dropdown */}
@@ -676,7 +676,7 @@ const RequestForm: React.FC = () => {
           {/* 2. Turnaround Speed (Cards on desktop, compact dropdown on mobile) */}
           <div className="card p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-xs space-y-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Turnaround Speed
+              {t('turnaround_speed', 'Turnaround Speed')}
             </h2>
 
             {/* Mobile Dropdown */}
@@ -730,14 +730,14 @@ const RequestForm: React.FC = () => {
 
           {/* 3. Official Quote Assessment & Submit Action */}
           <div className="card p-5 space-y-3.5">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Official Quote Assessment</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('official_quote_assessment', 'Official Quote Assessment')}</h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              No payment is required right now. Staff will review the address, item complexity, and urgency to issue your official bill.
+              {t('quote_assessment_desc', 'No payment is required right now. Staff will review the address, item complexity, and urgency to issue your official bill.')}
             </p>
 
             {hasCategory && basePrice && (
               <div className="flex justify-between items-center text-xs py-2 border-t border-b border-gray-100 dark:border-gray-800">
-                <span className="text-gray-500">Indicative Baseline:</span>
+                <span className="text-gray-500">{t('indicative_baseline', 'Indicative Baseline:')}</span>
                 <span className="font-semibold text-gray-900 dark:text-white">~{fmtMoney(basePrice)}</span>
               </div>
             )}
@@ -748,10 +748,10 @@ const RequestForm: React.FC = () => {
               className="btn-primary w-full py-2.5 text-xs font-semibold rounded-lg disabled:opacity-50"
             >
               {loading
-                ? 'Submitting...'
+                ? t('submitting_ellipsis', 'Submitting...')
                 : !hasCategory
-                ? 'Select Category First'
-                : 'Submit Request for Official Bill'}
+                ? t('select_category_first', 'Select Category First')
+                : t('submit_request_official_bill', 'Submit Request for Official Bill')}
             </button>
           </div>
         </div>
@@ -762,6 +762,7 @@ const RequestForm: React.FC = () => {
 
 // ─── Payment Upload ─────────────────────────
 const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }> = ({ request, onPaid }) => {
+  const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [ref, setRef] = useState('');
   const [loading, setLoading] = useState(false);
@@ -807,10 +808,10 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
         <div className="flex items-center gap-2 min-w-0">
           <Clock size={14} className="text-amber-500 shrink-0" />
           <span className="text-gray-700 dark:text-gray-300 truncate">
-            {isDeposit ? '30% Deposit' : '70% Balance'} ({fmtMoney(pendingPayment.amount, bill?.currency)}) • Ref: <strong className="font-mono text-gray-900 dark:text-white">{pendingPayment.transaction_reference}</strong>
+            {isDeposit ? t('deposit_30_percent', '30% Deposit') : t('balance_70_percent', '70% Balance')} ({fmtMoney(pendingPayment.amount, bill?.currency)}) • Ref: <strong className="font-mono text-gray-900 dark:text-white">{pendingPayment.transaction_reference}</strong>
           </span>
         </div>
-        <span className="text-2xs text-amber-500 dark:text-amber-400 shrink-0 ml-2 font-medium">Awaiting confirmation</span>
+        <span className="text-2xs text-amber-500 dark:text-amber-400 shrink-0 ml-2 font-medium">{t('awaiting_confirmation', 'Awaiting confirmation')}</span>
       </div>
     );
   }
@@ -819,15 +820,15 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
     return (
       <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2">
         <CheckCircle size={14} className="text-emerald-500 shrink-0" />
-        <span>Paid in full • Report and certificate unlocked</span>
+        <span>{t('paid_in_full_unlocked', 'Paid in full • Report and certificate unlocked')}</span>
       </div>
     );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !ref) { toast.error('Please provide both transaction reference and receipt screenshot'); return; }
-    if (!amount) { toast.error('Bill amount not available'); return; }
+    if (!file || !ref) { toast.error(t('provide_ref_and_receipt', 'Please provide both transaction reference and receipt screenshot')); return; }
+    if (!amount) { toast.error(t('bill_amount_not_avail', 'Bill amount not available')); return; }
     setLoading(true);
     const fd = new FormData();
     fd.append('request', String(request.id));
@@ -839,12 +840,12 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
       await inspectionApi.payments.submit(fd);
       toast.success(
         stage === 'deposit'
-          ? '30% Deposit submitted! Waiting for accountant approval.'
-          : 'Final balance submitted! Waiting for accountant approval.'
+          ? t('deposit_submitted_success', '30% Deposit submitted! Waiting for accountant approval.')
+          : t('balance_submitted_success', 'Final balance submitted! Waiting for accountant approval.')
       );
       onPaid();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to submit payment proof');
+      toast.error(err.response?.data?.detail || t('failed_submit_proof', 'Failed to submit payment proof'));
     } finally {
       setLoading(false);
     }
@@ -855,10 +856,10 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
       <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
         <div>
           <p className="text-xs font-semibold text-gray-900 dark:text-white">
-            {stage === 'deposit' ? '30% Booking Deposit' : '70% Final Balance'}
+            {stage === 'deposit' ? t('deposit_booking_label', '30% Booking Deposit') : t('final_balance_label', '70% Final Balance')}
           </p>
           <p className="text-2xs text-gray-400">
-            {stage === 'deposit' ? 'Required to dispatch inspector' : 'Required to unlock full report'}
+            {stage === 'deposit' ? t('required_dispatch_inspector', 'Required to dispatch inspector') : t('required_unlock_report', 'Required to unlock full report')}
           </p>
         </div>
         <span className="text-sm font-bold text-gray-900 dark:text-white">
@@ -868,7 +869,7 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
 
       {lipaNumbers.length > 0 && (
         <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 space-y-2.5">
-          <p className="text-xs font-bold text-gray-700 dark:text-gray-300">Pay via Mobile Money (Lipa Namba):</p>
+          <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{t('pay_via_mobile_money', 'Pay via Mobile Money (Lipa Namba):')}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {lipaNumbers.map(l => (
               <div key={l.id} className="flex items-center gap-3 p-2.5 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-lg shadow-2xs">
@@ -891,24 +892,24 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
       <input 
         className="input text-xs" 
         required 
-        placeholder="Mobile money transaction reference / SMS code"
+        placeholder={t('placeholder_mobile_ref', 'Mobile money transaction reference / SMS code')}
         value={ref} 
         onChange={(e) => setRef(e.target.value)} 
       />
       <label className="flex flex-col items-center gap-2 p-5 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-pointer hover:border-brand-500 transition">
         <Upload size={20} className="text-gray-400" />
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {file ? file.name : 'Upload payment receipt screenshot'}
+          {file ? file.name : t('upload_receipt_screenshot', 'Upload payment receipt screenshot')}
         </span>
         <input type="file" accept="image/*" className="hidden"
           onChange={(e) => setFile(e.target.files?.[0] || null)} />
       </label>
       <button type="submit" disabled={loading} className="w-full btn-primary py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl">
         {loading 
-          ? 'Submitting Payment Proof...' 
+          ? t('submitting_payment_proof', 'Submitting Payment Proof...') 
           : stage === 'deposit' 
-          ? 'Submit 30% Deposit Proof to Dispatch Inspector' 
-          : 'Submit 70% Balance Proof to Unlock Report'}
+          ? t('submit_deposit_proof', 'Submit 30% Deposit Proof to Dispatch Inspector') 
+          : t('submit_balance_proof', 'Submit 70% Balance Proof to Unlock Report')}
       </button>
     </form>
   );
@@ -916,17 +917,18 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
 
 // ─── Bill Display ───────────────────────────
 const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> = ({ request, onPaid }) => {
+  const { t } = useTranslation();
   const [acking, setAcking] = useState(false);
   const bill = request.bill;
   if (!bill) return null;
 
   const lines = [
-    { label: 'Base Rate', amount: bill.base_rate },
-    { label: 'Turnaround Surcharge', amount: bill.turnaround_surcharge },
-    { label: 'Inspector Level', amount: bill.inspector_level_surcharge },
-    { label: 'Complexity / Age', amount: bill.complexity_surcharge },
-    { label: 'Travel', amount: bill.travel_surcharge },
-    { label: 'Re-inspection Coverage', amount: bill.reinspection_coverage_fee },
+    { label: t('bill_base_rate', 'Base Rate'), amount: bill.base_rate },
+    { label: t('bill_turnaround_surcharge', 'Turnaround Surcharge'), amount: bill.turnaround_surcharge },
+    { label: t('bill_inspector_level', 'Inspector Level'), amount: bill.inspector_level_surcharge },
+    { label: t('bill_complexity_age', 'Complexity / Age'), amount: bill.complexity_surcharge },
+    { label: t('bill_travel', 'Travel'), amount: bill.travel_surcharge },
+    { label: t('bill_reinspection_coverage', 'Re-inspection Coverage'), amount: bill.reinspection_coverage_fee },
   ].filter((l) => Number(l.amount) > 0);
 
   const allPaid = request.payments.some(
@@ -940,10 +942,10 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
      setAcking(true);
      try {
        await inspectionApi.requests.acknowledgeBill(request.id);
-       toast.success('Bill accepted. You can now proceed to payment.');
+       toast.success(t('bill_accepted_success', 'Bill accepted. You can now proceed to payment.'));
        onPaid(); // Reload request
      } catch {
-       toast.error('Failed to acknowledge bill');
+       toast.error(t('failed_acknowledge_bill', 'Failed to acknowledge bill'));
      } finally {
        setAcking(false);
      }
@@ -956,7 +958,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
     <div className="space-y-4">
       <div className="card border-0 p-4 bg-white dark:bg-gray-800">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-          Inspection Bill
+          {t('inspection_bill', 'Inspection Bill')}
         </h3>
         <div className="space-y-2">
           {lines.map((l) => (
@@ -969,12 +971,12 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
           ))}
           <div className="border-t border-surface-border dark:border-surface-dark-border pt-2 mt-2 space-y-1">
             <div className="flex justify-between text-sm font-bold">
-              <span className="text-gray-900 dark:text-white">Total</span>
+              <span className="text-gray-900 dark:text-white">{t('total', 'Total')}</span>
               <span className="text-gray-900 dark:text-white">{fmtMoney(bill.total_amount, bill.currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">
-                Deposit (30%) {depositApproved ? '• Paid' : ''}
+                {t('deposit_percentage', 'Deposit (30%)')} {depositApproved ? t('paid_indicator', '• Paid') : ''}
               </span>
               <span className="text-gray-900 dark:text-white font-medium">
                 {fmtMoney(bill.deposit_amount, bill.currency)}
@@ -982,7 +984,7 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">
-                Remaining Balance {allPaid ? '• Paid' : ''}
+                {t('remaining_balance', 'Remaining Balance')} {allPaid ? t('paid_indicator', '• Paid') : ''}
               </span>
               <span className="text-gray-700 dark:text-gray-300 font-medium">
                 {fmtMoney(bill.remaining_balance, bill.currency)}
@@ -999,10 +1001,10 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
               className="w-full btn-primary py-2.5 flex items-center justify-center gap-2"
             >
               {acking ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
-              Accept Bill & Proceed to Payment
+              {t('accept_bill_proceed', 'Accept Bill & Proceed to Payment')}
             </button>
             <p className="text-[10px] text-gray-500 text-center mt-2">
-              By clicking accept, you agree to the inspection terms and pricing.
+              {t('accept_bill_terms', 'By clicking accept, you agree to the inspection terms and pricing.')}
             </p>
           </div>
         )}
@@ -1013,22 +1015,22 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
       {depositApproved && !allPaid && !isReportReady && (
         <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-green-500 font-medium">
-            <CheckCircle size={14} /> 30% Deposit confirmed
+            <CheckCircle size={14} /> {t('deposit_confirmed_label', '30% Deposit confirmed')}
           </span>
-          <span className="text-2xs text-gray-400">70% Balance will be requested once report is ready</span>
+          <span className="text-2xs text-gray-400">{t('balance_requested_later_desc', '70% Balance will be requested once report is ready')}</span>
         </div>
       )}
       {depositApproved && !allPaid && isReportReady && (
         <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-amber-500 font-medium">
-            <Clock size={14} /> Report Ready — Pay 70% Balance to Unlock
+            <Clock size={14} /> {t('pay_balance_to_unlock', 'Report Ready — Pay 70% Balance to Unlock')}
           </span>
           <span className="text-2xs text-gray-400 font-medium">{fmtMoney(bill.remaining_balance, bill.currency)}</span>
         </div>
       )}
       {allPaid && (
         <div className="py-2 px-3 rounded-lg bg-white dark:bg-gray-800 text-xs text-green-500 flex items-center gap-2 font-medium">
-          <CheckCircle size={14} /> Fully paid
+          <CheckCircle size={14} /> {t('fully_paid', 'Fully paid')}
         </div>
       )}
     </div>
@@ -1096,11 +1098,14 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
         {steps.map((step, i) => {
           const completed = i < currentIdx;
           const active = i === currentIdx;
+          const isFinalStep = i === steps.length - 1;
           return (
             <div key={step.key} className="flex items-center gap-4 relative">
               <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
                 active
-                  ? 'bg-brand-500'
+                  ? isFinalStep
+                    ? 'bg-green-500'
+                    : 'bg-brand-500'
                   : completed
                   ? 'bg-gray-200 dark:bg-gray-700'
                   : 'bg-gray-100 dark:bg-gray-800'
@@ -1115,7 +1120,9 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
               </div>
               <span className={`text-sm transition ${
                 active
-                  ? 'font-semibold text-brand-500 dark:text-brand-400'
+                  ? isFinalStep
+                    ? 'font-semibold text-green-500 dark:text-green-400'
+                    : 'font-semibold text-brand-500 dark:text-brand-400'
                   : completed
                   ? 'text-gray-400 dark:text-gray-500'
                   : 'text-gray-400 dark:text-gray-600'
@@ -1196,6 +1203,7 @@ const RequestDetailSkeleton = () => (
 
 // ─── Report View ────────────────────────────
 const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void }> = ({ request, onReInspect }) => {
+  const { t } = useTranslation();
   const report = request.report;
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -1250,7 +1258,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
               : 'text-red-700 dark:text-red-400'
           }`}>
             {verdict === 'pass' ? <BadgeCheck size={14} className="text-emerald-600 dark:text-emerald-400" /> : verdict === 'conditional' ? <AlertTriangle size={14} className="text-amber-500" /> : <ShieldAlert size={14} className="text-red-500" />}
-            <span>{verdict} • Grade {report.grade || 'A'} ({score}%)</span>
+            <span>{t(`verdict_${verdict}`, verdict.toUpperCase())} • {t('grade', 'Grade')} {report.grade || 'A'} ({score}%)</span>
           </div>
           {report.summary && (
             <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
@@ -1264,13 +1272,13 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
             onClick={() => printInspectionReport(request)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold btn-primary transition-all shadow-xs"
           >
-            <Printer size={13} /> Print Official Report
+            <Printer size={13} /> {t('print_official_report', 'Print Official Report')}
           </button>
           <button
             onClick={onReInspect}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition-colors"
           >
-            <RefreshCw size={12} /> Re-inspect
+            <RefreshCw size={12} /> {t('reinspect', 'Re-inspect')}
           </button>
         </div>
       </div>
@@ -1278,19 +1286,19 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
       {/* Defect Summary Strip */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
-          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Critical Issues</p>
+          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">{t('critical_issues', 'Critical Issues')}</p>
           <p className={`text-base font-black mt-0.5 ${criticalDefects > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {criticalDefects}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
-          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Major Issues</p>
+          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">{t('major_issues', 'Major Issues')}</p>
           <p className={`text-base font-black mt-0.5 ${majorDefects > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {majorDefects}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-xs">
-          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">Advisory Items</p>
+          <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">{t('advisory_items', 'Advisory Items')}</p>
           <p className={`text-base font-black mt-0.5 ${advisoryDefects > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-700 dark:text-gray-200'}`}>
             {advisoryDefects}
           </p>
@@ -1301,7 +1309,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
       <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
-            Checklist Breakdown & Findings
+            {t('checklist_breakdown_findings', 'Checklist Breakdown & Findings')}
           </h3>
           <span className="text-2xs text-gray-400 font-semibold">
             {report.responses.length} checkpoints inspected
@@ -1402,7 +1410,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
       {request.evidence && request.evidence.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xs">
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-3">
-            Photo Documentation ({request.evidence.length} photos)
+            {t('photo_documentation_count', 'Photo Documentation ({{count}} photos)', { count: request.evidence.length })}
           </h3>
           <div className="flex flex-wrap gap-3">
             {request.evidence.map((ev) => (
@@ -1641,13 +1649,13 @@ const RequestDetail: React.FC = () => {
           {/* Progress Timeline */}
           <div className="card border-0 p-5 bg-white dark:bg-gray-800">
             <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4">
-              Inspection Progress
+              {t('inspection_progress', 'Inspection Progress')}
             </h3>
             <Timeline status={request.status} />
 
             {request.assignment && (
               <div className="mt-5 space-y-1">
-                <p className="text-2xs font-bold uppercase tracking-wider text-gray-400">Assigned Inspector</p>
+                <p className="text-2xs font-bold uppercase tracking-wider text-gray-400">{t('assigned_inspector_title', 'Assigned Inspector')}</p>
                 <p className="text-sm font-black text-gray-900 dark:text-white">
                   {request.assignment.inspector_name}
                 </p>
@@ -1666,20 +1674,20 @@ const RequestDetail: React.FC = () => {
           {/* Item & Location Specs */}
           <div className="card border-0 p-5 bg-white dark:bg-gray-800 space-y-2.5">
             <h3 className="font-bold text-sm text-gray-900 dark:text-white">
-              Location & Specs
+              {t('location_and_specs', 'Location & Specs')}
             </h3>
             <div className="space-y-2 text-xs">
               <div>
-                <span className="text-gray-400 block text-2xs font-bold uppercase">Item Location</span>
+                <span className="text-gray-400 block text-2xs font-bold uppercase">{t('item_location_label', 'Item Location')}</span>
                 <span className="text-gray-700 dark:text-gray-300 font-medium">{request.item_address}</span>
               </div>
               <div>
-                <span className="text-gray-400 block text-2xs font-bold uppercase">Description</span>
+                <span className="text-gray-400 block text-2xs font-bold uppercase">{t('description', 'Description')}</span>
                 <p className="text-gray-700 dark:text-gray-300 font-medium leading-relaxed">{request.item_description}</p>
               </div>
               {request.item_age_years && (
                 <div>
-                  <span className="text-gray-400 block text-2xs font-bold uppercase">Item Age</span>
+                  <span className="text-gray-400 block text-2xs font-bold uppercase">{t('item_age_label', 'Item Age')}</span>
                   <span className="text-gray-700 dark:text-gray-300 font-medium">{request.item_age_years} years</span>
                 </div>
               )}
@@ -1690,7 +1698,7 @@ const RequestDetail: React.FC = () => {
           <div className="card border-0 p-4 bg-white dark:bg-gray-800 space-y-3 shadow-xs">
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
-                Verified Certificate
+                {t('verified_certificate', 'Verified Certificate')}
               </h4>
             </div>
 
@@ -1699,10 +1707,10 @@ const RequestDetail: React.FC = () => {
                 <QRCodeSVG value={verifyUrl} size={64} level="M" />
               </div>
               <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-1">
-                <p className="font-bold text-gray-900 dark:text-white">Scan with Phone</p>
-                <p className="leading-tight">Scan this QR code to view and verify this official inspection record online.</p>
+                <p className="font-bold text-gray-900 dark:text-white">{t('scan_with_phone', 'Scan with Phone')}</p>
+                <p className="leading-tight">{t('scan_qr_verify_desc', 'Scan this QR code to view and verify this official inspection record online.')}</p>
                 <a href={verifyUrl} target="_blank" rel="noreferrer" className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:underline font-bold inline-flex items-center gap-1 pt-0.5">
-                  Verify Record <ExternalLink size={10} />
+                  {t('verify_record', 'Verify Record')} <ExternalLink size={10} />
                 </a>
               </div>
             </div>
@@ -1710,12 +1718,12 @@ const RequestDetail: React.FC = () => {
             {request.checkin?.checkin_at && (
               <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-1 pt-1">
                 <div className="flex justify-between">
-                  <span>On-Site Check-In:</span>
+                  <span>{t('onsite_checkin', 'On-Site Check-In:')}</span>
                   <span className="font-bold text-gray-700 dark:text-gray-300">{fmtDate(request.checkin.checkin_at)}</span>
                 </div>
                 {request.checkin?.checkin_lat && request.checkin?.checkin_lng && (
                   <div className="flex justify-between">
-                    <span>GPS Coordinates:</span>
+                    <span>{t('gps_coordinates', 'GPS Coordinates:')}</span>
                     <span className="font-mono text-gray-600 dark:text-gray-300">
                       {parseFloat(request.checkin.checkin_lat.toString()).toFixed(4)}, {parseFloat(request.checkin.checkin_lng.toString()).toFixed(4)}
                     </span>
@@ -1732,14 +1740,11 @@ const RequestDetail: React.FC = () => {
           {/* Awaiting Bill / Staff Review */}
           {request.status === 'requested' && !request.bill && (
             <div className="card border-0 p-4 bg-white dark:bg-gray-800 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2.5">
-                <Clock size={15} className="text-amber-500 shrink-0" />
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">Request Under Staff Review</p>
-                  <p className="text-2xs text-gray-500">Staff will evaluate requirements and location to issue your official bill.</p>
-                </div>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">{t('request_under_staff_review', 'Request Under Staff Review')}</p>
+                <p className="text-2xs text-gray-500">{t('staff_evaluating_bill_desc', 'Staff will evaluate requirements and location to issue your official bill.')}</p>
               </div>
-              <span className="text-2xs text-amber-500 dark:text-amber-400 font-medium">Pending Bill</span>
+              <span className="text-2xs text-amber-500 dark:text-amber-400 font-medium shrink-0">{t('pending_bill', 'Pending Bill')}</span>
             </div>
           )}
 
@@ -1756,10 +1761,9 @@ const RequestDetail: React.FC = () => {
                   <Lock size={22} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-gray-900 dark:text-white">Official Inspection Report Ready</h3>
+                  <h3 className="font-bold text-base text-gray-900 dark:text-white">{t('official_report_ready', 'Official Inspection Report Ready')}</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">
-                    The inspector has completed the checklist and QA has approved the assessment.
-                    Pay the remaining 70% balance above ({fmtMoney(request.bill?.remaining_balance, request.bill?.currency)}) to unlock full findings, defect breakdown, high-res photos, and printable certificate.
+                    {t('report_locked_balance_desc', 'The inspector has completed the checklist and QA has approved the assessment. Pay the remaining 70% balance above ({{balance}}) to unlock full findings, defect breakdown, high-res photos, and printable certificate.', { balance: fmtMoney(request.bill?.remaining_balance, request.bill?.currency) })}
                   </p>
                 </div>
               </div>
@@ -1769,23 +1773,23 @@ const RequestDetail: React.FC = () => {
           {/* Re-inspection modal */}
           {showReInspect && (
             <div className="card border-0 p-5 bg-white dark:bg-gray-800">
-              <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1">Request Re-Inspection</h4>
+              <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1">{t('request_reinspection', 'Request Re-Inspection')}</h4>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                A different inspector will be assigned. Only use if inspection conditions were compromised.
+                {t('reinspect_warning_desc', 'A different inspector will be assigned. Only use if inspection conditions were compromised.')}
               </p>
               <textarea
                 className="input mb-3 text-xs"
                 rows={3}
-                placeholder="Reason for re-inspection..."
+                placeholder={t('reinspect_reason_placeholder', 'Reason for re-inspection...')}
                 value={reInspectReason}
                 onChange={(e) => setReInspectReason(e.target.value)}
               />
               <div className="flex gap-2">
                 <button onClick={handleReInspect} className="btn-primary px-4 py-2 text-xs font-bold">
-                  Confirm Request
+                  {t('confirm_request', 'Confirm Request')}
                 </button>
                 <button onClick={() => setShowReInspect(false)} className="btn-secondary px-4 py-2 text-xs font-bold">
-                  Cancel
+                  {t('cancel', 'Cancel')}
                 </button>
               </div>
             </div>
