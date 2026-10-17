@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {  } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
@@ -72,6 +72,38 @@ const { showPrompt } = useDialog();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const id = parseInt(highlightId, 10);
+    if (isNaN(id)) return;
+
+    const existing = orders.find(o => o.id === id);
+    if (existing) {
+      setExpandedId(id);
+      setTimeout(() => {
+        document.getElementById(`order-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 350);
+    } else if (!loading) {
+      api.get(`/api/orders/${id}/`)
+        .then(res => {
+          if (res.data && res.data.id) {
+            setOrders(prev => {
+              if (prev.some(o => o.id === id)) return prev;
+              return [res.data, ...prev];
+            });
+            setExpandedId(id);
+            setTimeout(() => {
+              document.getElementById(`order-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 350);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [highlightId, orders, loading]);
   
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [shipModalOpen, setShipModalOpen] = useState<number | null>(null);
@@ -361,7 +393,11 @@ const { showPrompt } = useDialog();
             return (
               <div
                 key={order.id}
-                className="card overflow-hidden transition-all duration-200"
+                id={`order-${order.id}`}
+                className={cn(
+                  "card overflow-hidden transition-all duration-200",
+                  isExpanded && "ring-2 ring-brand-500/40 shadow-md"
+                )}
               >
                 {/* Collapsible Header */}
                 <div
