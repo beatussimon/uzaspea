@@ -552,12 +552,12 @@ const ProductRequestsBoard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 print:m-0 print:space-y-0">
-      <div className="print:hidden space-y-6">
+    <div className="space-y-6 w-full min-w-0 print:m-0 print:space-y-0">
+      <div className="print:hidden space-y-6 w-full min-w-0">
         {/* Header */}
-        <header className="space-y-1">
+        <header className="space-y-1 min-w-0">
           <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[40px]">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate min-w-0">
               {t('product_requests', 'Demand Analytics')}
             </h1>
 
@@ -606,7 +606,7 @@ const ProductRequestsBoard: React.FC = () => {
             description={t('no_requests_desc', 'Create a demand card to gauge interest on a "Product in Making".')}
           />
         ) : (
-          <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
+          <div className={cn("space-y-6 w-full min-w-0", loading && "opacity-75 transition-opacity")}>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
               <KpiCard
@@ -802,15 +802,15 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Active Data Table */}
-            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
-                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent min-w-0">
+              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">Active Demand Requests</h3>
+                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 shrink-0">
                     {sortedActiveRequests.length} active
                   </span>
                 </div>
-                <span className="text-2xs text-gray-400">
+                <span className="text-2xs text-gray-400 truncate">
                   {dateRange.startDate || dateRange.endDate ? `Filtered: ${dateRange.label}` : 'Products gathering customer interest'}
                 </span>
               </div>
@@ -1090,15 +1090,15 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             {/* Fulfilled Requests Table (In Inventory History) */}
-            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests / History</h3>
-                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+            <div className="card overflow-hidden !border-none !rounded-none !bg-transparent min-w-0">
+              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">Fulfilled Requests / History</h3>
+                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 shrink-0">
                     Converted & Cancelled
                   </span>
                 </div>
-                <span className="text-2xs text-gray-400">
+                <span className="text-2xs text-gray-400 shrink-0">
                   {dateRange.startDate || dateRange.endDate ? `${sortedFulfilledRequests.length} in ${dateRange.label}` : `${sortedFulfilledRequests.length} historical items`}
                 </span>
               </div>
