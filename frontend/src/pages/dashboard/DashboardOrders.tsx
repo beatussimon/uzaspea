@@ -394,10 +394,7 @@ const { showPrompt } = useDialog();
               <div
                 key={order.id}
                 id={`order-${order.id}`}
-                className={cn(
-                  "card overflow-hidden transition-all duration-200",
-                  isExpanded && "ring-2 ring-brand-500/40 shadow-md"
-                )}
+                className="card overflow-hidden transition-all duration-200"
               >
                 {/* Collapsible Header */}
                 <div
