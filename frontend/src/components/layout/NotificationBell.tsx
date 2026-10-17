@@ -246,14 +246,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
           >
             <div ref={panelRef} className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
               <div className="px-4 py-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base text-gray-900 dark:text-white">Notifications</h3>
-                  {count > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                      {count} new
-                    </span>
-                  )}
-                </div>
+                <h3 className="font-bold text-base text-gray-900 dark:text-white">Notifications</h3>
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={markAllRead} 
@@ -295,11 +288,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
                           {group.map(n => (
                             <div 
                               key={n.id} 
-                              className={`group relative p-3 rounded-xl cursor-pointer transition-colors ${
-                                !n.is_read 
-                                  ? 'bg-gray-50/80 hover:bg-gray-100 dark:bg-neutral-800/40 dark:hover:bg-neutral-800/70' 
-                                  : 'hover:bg-gray-50 dark:hover:bg-neutral-800/30'
-                              }`}
+                              className="group relative p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-neutral-800/50"
                               onClick={() => handleNotificationClick(n)}
                             >
                               <div className="flex items-start justify-between gap-3">
