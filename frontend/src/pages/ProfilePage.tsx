@@ -625,7 +625,6 @@ const ProfilePage: React.FC = () => {
                     : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
                 }`}
               >
-                <Clock size={15} className="shrink-0" />
                 <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
                 <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
                 {activeTab === 'demands' && (
