@@ -1385,10 +1385,15 @@ class APlusContentTests(TestCase):
     def test_upload_content_image(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         self.client.force_authenticate(user=self.seller)
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        img = Image.new('RGB', (10, 10), color='red')
+        img.save(buf, format='PNG')
         dummy_img = SimpleUploadedFile(
-            name='test_banner.jpg',
-            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
-            content_type='image/jpeg'
+            name='test_banner.png',
+            content=buf.getvalue(),
+            content_type='image/png'
         )
         res = self.client.post('/api/products/upload_content_image/', {'image': dummy_img}, format='multipart')
         self.assertEqual(res.status_code, 201)

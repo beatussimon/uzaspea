@@ -4986,7 +4986,7 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
                     prior_count = OrderModel.objects.filter(
                         promo_code=promo,
                         delivery_info__contact_phone=phone_clean
-                    ).exclude(status__in=['CANCELLED', 'EXPIRED', 'CART']).count()
+                    ).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
                     if prior_count >= promo.max_uses_per_user:
                         return Response({
                             'valid': False,
@@ -5007,7 +5007,7 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
                 combined_query = Q(promo_code=promo) & (user_match | phone_match if (buyer or user_phone) else Q())
 
                 if buyer or user_phone:
-                    prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED', 'CART']).count()
+                    prior_count = OrderModel.objects.filter(combined_query).exclude(status__in=['CANCELLED', 'EXPIRED']).count()
                     if prior_count >= promo.max_uses_per_user:
                         return Response({
                             'valid': False, 
