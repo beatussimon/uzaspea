@@ -556,13 +556,28 @@ const ProductRequestsBoard: React.FC = () => {
       <div className="print:hidden space-y-6">
         {/* Header */}
         <header className="space-y-1">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="flex items-center gap-x-2 gap-y-2.5 flex-wrap min-w-0 min-h-[40px]">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate order-1">
               {t('product_requests', 'Demand Analytics')}
             </h1>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0 shrink-0 flex-nowrap order-2 sm:order-3">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintDemand}
+                disabled={isPrintingDemand}
+                className="font-bold flex items-center justify-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 shrink-0 whitespace-nowrap"
+                title="Print Demand Report"
+                aria-label="Print Demand Report"
+              >
+                <Printer size={15} className="shrink-0" />
+                <span className="hidden sm:inline">{isPrintingDemand ? 'Printing...' : 'Print'}</span>
+              </Button>
+            </div>
+
+            <div className="w-full sm:w-auto sm:ml-auto shrink-0 order-3 sm:order-2">
               <Button
                 onClick={() => setIsModalOpen(true)}
                 size="sm"
@@ -571,15 +586,6 @@ const ProductRequestsBoard: React.FC = () => {
                 <Plus size={14} />
                 <span>{t('create_demand', 'Create Demand')}</span>
               </Button>
-              <button 
-                type="button"
-                onClick={handlePrintDemand}
-                disabled={isPrintingDemand}
-                className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
-                title="Print Demand Report"
-              >
-                <Printer size={14} /> <span>{isPrintingDemand ? 'Printing...' : 'Print'}</span>
-              </button>
             </div>
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
