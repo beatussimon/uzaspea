@@ -16,6 +16,8 @@ import { KpiCard } from '../../components/ui/KpiCard';
 import { DemandAnalyticsSkeleton } from '../../components/Skeleton';
 import { printElement } from '../../utils/printHelper';
 import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
+import NetworkErrorState from '../../components/common/NetworkErrorState';
+import { classifyApiError, type ClassifiedError } from '../../utils/errorUtils';
 
 const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TSh') => {
   if (rawNum === undefined || rawNum === null) return `${currency} 0`;
@@ -88,6 +90,7 @@ const ProductRequestsBoard: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -161,15 +164,30 @@ const ProductRequestsBoard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleOffline = () => {
+      if (loading && requests.length === 0) {
+        setFetchError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
+        setLoading(false);
+      }
+    };
+    window.addEventListener('offline', handleOffline);
+    return () => window.removeEventListener('offline', handleOffline);
+  }, [loading, requests.length]);
+
   const fetchRequests = async (showLoader = true) => {
     try {
+      setFetchError(null);
       if (showLoader) {
         setLoading(true);
       }
       const res = await api.get('/api/product-requests/?mine=true');
       setRequests(res.data.results || res.data);
     } catch (err) {
-      console.error(err);
+      const classified = classifyApiError(err);
+      if (classified.isNetworkOrServer) {
+        setFetchError(classified);
+      }
     } finally {
       setLoading(false);
     }
@@ -599,6 +617,12 @@ const ProductRequestsBoard: React.FC = () => {
 
         {loading && requests.length === 0 ? (
           <DemandAnalyticsSkeleton />
+        ) : fetchError && requests.length === 0 ? (
+          <NetworkErrorState
+            error={fetchError}
+            onRetry={() => fetchRequests(true)}
+            isRetrying={loading}
+          />
         ) : requests.length === 0 ? (
           <EmptyState
             icon={Lightbulb}
