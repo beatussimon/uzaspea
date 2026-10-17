@@ -579,7 +579,7 @@ const DashboardLayout: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0 items-start w-full min-w-0">
         {/* Sticky Sidebar on Desktop - hidden on mobile in favor of floating hamburger menu */}
         <aside 
           ref={sidebarRef}
