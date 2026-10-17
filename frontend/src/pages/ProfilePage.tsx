@@ -682,7 +682,7 @@ const ProfilePage: React.FC = () => {
                         : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                     }`}
                   >
-                    All Upcoming <span className={`ml-1 ${demandFilter === 'all' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => !r.is_fulfilled).length}</span>
+                    All Upcoming <span className={`ml-1 ${demandFilter === 'all' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => !r.is_fulfilled && r.is_visible !== false).length}</span>
                   </button>
 
                   {currentUser && (
@@ -740,7 +740,7 @@ const ProfilePage: React.FC = () => {
                 if (demandFilter === 'mine') return req.user_username === currentUser;
                 if (demandFilter === 'voted') return req.has_voted;
                 if (demandFilter === 'fulfilled') return req.is_fulfilled;
-                return !req.is_fulfilled;
+                return !req.is_fulfilled && req.is_visible !== false;
               });
 
               if (productRequests.length === 0 || filteredDemands.length === 0) {
@@ -800,11 +800,11 @@ const ProfilePage: React.FC = () => {
 
                         {/* Top Badges */}
                         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
-                          <span className={`text-[10px] font-black uppercase tracking-wider drop-shadow-sm w-fit ${
-                            isFulfilled ? 'text-emerald-500 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'
-                          }`}>
-                            {isFulfilled ? 'In Stock' : 'Coming Soon'}
-                          </span>
+                          {isFulfilled && (
+                            <span className="text-[10px] font-black uppercase tracking-wider drop-shadow-sm w-fit text-emerald-500 dark:text-emerald-400">
+                              In Stock
+                            </span>
+                          )}
                           {req.condition && req.condition !== 'New' && (
                             <span className="text-[9px] px-2 py-0.5 rounded-card font-bold text-white bg-gray-500 shadow-md uppercase tracking-wider w-fit">
                               {req.condition}
@@ -853,14 +853,16 @@ const ProfilePage: React.FC = () => {
                             ) : (
                               <Button 
                                 size="sm" 
-                                variant={hasVoted ? 'default' : 'outline'}
+                                variant="ghost"
                                 loading={isUpvotingThis}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   handleVoteToggle(req.id);
                                 }}
-                                className="h-7 text-[10px] px-2.5 active:scale-95 shadow-sm rounded-card bg-white/95 dark:bg-black/95"
+                                className={`h-7 text-[10px] px-2.5 active:scale-95 shadow-sm rounded-card border-0 bg-white/95 dark:bg-black/95 hover:bg-white dark:hover:bg-black ${
+                                  hasVoted ? 'text-brand-500 dark:text-brand-400 font-extrabold' : 'text-gray-900 dark:text-white font-bold'
+                                }`}
                               >
                                 {hasVoted ? 'Voted ✓' : 'I want this!'}
                               </Button>
@@ -1265,6 +1267,15 @@ const ProfilePage: React.FC = () => {
             onClose={() => setIsRequestModalOpen(false)}
             sellerId={profile.user_id}
             sellerUsername={profile.username}
+            onSuccess={(createdReq) => {
+              if (!createdReq) return;
+              setProductRequests(prev => {
+                const exists = prev.some(r => r.id === createdReq.id);
+                return exists
+                  ? prev.map(r => r.id === createdReq.id ? createdReq : r)
+                  : [createdReq, ...prev];
+              });
+            }}
           />
         </Suspense>
       )}

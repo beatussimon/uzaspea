@@ -5668,8 +5668,27 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 qs = base_qs.filter(seller_id=int(seller_username))
             else:
                 qs = base_qs.filter(seller__username__iexact=seller_username)
+            if not is_staff_all:
+                from uzachuo.permissions import get_effective_sellers
+                effective_sellers = get_effective_sellers(user, required_permission='manage_products') if user.is_authenticated else []
+                is_owner_viewing = user.is_authenticated and (qs.filter(seller_id=user.id).exists() or qs.filter(seller_id__in=effective_sellers).exists())
+                if not is_owner_viewing:
+                    if user.is_authenticated:
+                        qs = qs.filter(models.Q(is_visible=True) | models.Q(user=user) | models.Q(votes__user=user)).distinct()
+                    else:
+                        qs = qs.filter(is_visible=True)
         elif seller_id and str(seller_id).isdigit():
-            qs = base_qs.filter(seller_id=int(seller_id))
+            target_seller_id = int(seller_id)
+            qs = base_qs.filter(seller_id=target_seller_id)
+            if not is_staff_all:
+                from uzachuo.permissions import get_effective_sellers
+                effective_sellers = get_effective_sellers(user, required_permission='manage_products') if user.is_authenticated else []
+                is_owner_viewing = user.is_authenticated and (target_seller_id == user.id or target_seller_id in effective_sellers)
+                if not is_owner_viewing:
+                    if user.is_authenticated:
+                        qs = qs.filter(models.Q(is_visible=True) | models.Q(user=user) | models.Q(votes__user=user)).distinct()
+                    else:
+                        qs = qs.filter(is_visible=True)
         elif my_requests and user.is_authenticated:
             qs = base_qs.filter(user=user)
         elif my_votes and user.is_authenticated:
@@ -5774,6 +5793,8 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                     pr.description = request.data.get('description', '')
                 if 'condition' in request.data:
                     pr.condition = request.data.get('condition', 'New')
+                if 'is_visible' in request.data:
+                    pr.is_visible = str(request.data.get('is_visible')).lower() == 'true'
                 if 'image' in request.FILES:
                     pr.image = request.FILES['image']
                 pr.save()
@@ -5784,6 +5805,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             category_id = request.data.get('category')
             price = request.data.get('price') or request.data.get('target_price')
             buying_price = request.data.get('buying_price') if is_seller_creating else None
+            is_visible_val = str(request.data.get('is_visible', 'false')).lower() == 'true' if is_seller_creating else False
             
             pr = ProductRequest.objects.create(
                 name=name,
@@ -5796,6 +5818,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 buying_price=buying_price,
                 condition=request.data.get('condition', 'New'),
                 requires_quote=str(request.data.get('requires_quote', 'false')).lower() == 'true',
+                is_visible=is_visible_val,
             )
             if 'image' in request.FILES:
                 pr.image = request.FILES['image']

@@ -94,6 +94,7 @@ const ProductRequestsBoard: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
   const [votingId, setVotingId] = useState<number | null>(null);
+  const [togglingVisibilityId, setTogglingVisibilityId] = useState<number | null>(null);
   
   // Action Dropdown State (Convert / Cancel)
   const [actionDropdownId, setActionDropdownId] = useState<number | null>(null);
@@ -120,6 +121,7 @@ const ProductRequestsBoard: React.FC = () => {
   const [newReqBuyingPrice, setNewReqBuyingPrice] = useState('');
   const [newReqCondition, setNewReqCondition] = useState('New');
   const [newReqRequiresQuote, setNewReqRequiresQuote] = useState(false);
+  const [newReqIsVisible, setNewReqIsVisible] = useState(false);
   const [newReqImage, setNewReqImage] = useState<File | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +200,7 @@ const ProductRequestsBoard: React.FC = () => {
       if (newReqBuyingPrice) formData.append('buying_price', newReqBuyingPrice);
       formData.append('condition', newReqCondition);
       formData.append('requires_quote', newReqRequiresQuote.toString());
+      formData.append('is_visible', newReqIsVisible.toString());
       if (newReqImage) formData.append('image', newReqImage);
 
       if (editingRequestId) {
@@ -220,6 +223,26 @@ const ProductRequestsBoard: React.FC = () => {
       toast.error(err.response?.data?.error || t('request_error', 'Failed to save demand card'));
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleToggleVisibility = async (req: any) => {
+    const nextVisible = !Boolean(req.is_visible);
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, is_visible: nextVisible } : r));
+    try {
+      setTogglingVisibilityId(req.id);
+      const res = await api.patch(`/api/product-requests/${req.id}/`, { is_visible: nextVisible });
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...r, is_visible: res.data.is_visible } : r));
+      toast.success(
+        nextVisible
+          ? t('request_visible_on', `"${req.name}" is now visible in Upcoming Product Requests`)
+          : t('request_visible_off', `"${req.name}" is now hidden from Upcoming Product Requests`)
+      );
+    } catch (err: any) {
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...r, is_visible: Boolean(req.is_visible) } : r));
+      toast.error(err.response?.data?.error || t('visibility_error', 'Failed to update visibility'));
+    } finally {
+      setTogglingVisibilityId(null);
     }
   };
 
@@ -248,6 +271,7 @@ const ProductRequestsBoard: React.FC = () => {
     setNewReqBuyingPrice(req.buying_price || '');
     setNewReqCondition(req.condition || 'New');
     setNewReqRequiresQuote(req.requires_quote || false);
+    setNewReqIsVisible(Boolean(req.is_visible));
     setNewReqImage(null);
     setIsModalOpen(true);
   };
@@ -339,6 +363,7 @@ const ProductRequestsBoard: React.FC = () => {
     setNewReqBuyingPrice('');
     setNewReqCondition('New');
     setNewReqRequiresQuote(false);
+    setNewReqIsVisible(false);
     setNewReqImage(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -519,7 +544,7 @@ const ProductRequestsBoard: React.FC = () => {
       return (
         <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
           <p className="font-bold text-gray-900 dark:text-white mb-1">{payload[0].payload.fullName}</p>
-          <p className="text-brand-500 dark:text-brand-500 font-semibold">{payload[0].value} Votes</p>
+          <p className="text-emerald-500 dark:text-emerald-400 font-semibold">{payload[0].value} Votes</p>
         </div>
       );
     }
@@ -621,15 +646,15 @@ const ProductRequestsBoard: React.FC = () => {
                         <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
                           <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
-                          <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
+                          <Area type="monotone" dataKey="votes" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
                             <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
                           </Area>
                         </AreaChart>
@@ -816,13 +841,16 @@ const ProductRequestsBoard: React.FC = () => {
                           Created {getSortIcon('created_at')}
                         </div>
                       </th>
+                      <th scope="col" className="p-3 text-center whitespace-nowrap w-24">
+                        Visibility
+                      </th>
                       <th scope="col" className="p-3 text-right whitespace-nowrap w-72 min-w-[280px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {sortedActiveRequests.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-gray-400">
+                        <td colSpan={8} className="p-8 text-center text-gray-400">
                           <Package size={28} className="mx-auto mb-2 opacity-30 text-gray-400" />
                           <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
                             {dateRange.startDate || dateRange.endDate ? `No active demands in ${dateRange.label}` : 'No active demands'}
@@ -841,6 +869,7 @@ const ProductRequestsBoard: React.FC = () => {
                         const unitProfit = Math.max(0, sell - buy);
                         const projProfit = unitProfit * (req.request_count || 0);
                         const isTop = topProfitableProduct && topProfitableProduct.id === req.id && projProfit > 0;
+                        const isVisible = Boolean(req.is_visible);
 
                         return (
                           <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${actionDropdownId === req.id ? 'relative z-20' : ''}`}>
@@ -894,6 +923,25 @@ const ProductRequestsBoard: React.FC = () => {
                             </td>
                             <td className="p-3 text-2xs text-gray-400 dark:text-gray-500 align-middle whitespace-nowrap w-28">
                               {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
+                            </td>
+                            <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isVisible}
+                                disabled={togglingVisibilityId === req.id}
+                                onClick={() => handleToggleVisibility(req)}
+                                title={isVisible ? 'Visible in Upcoming Product Requests (click to hide)' : 'Hidden from Upcoming Product Requests (click to show)'}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                                  isVisible ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-neutral-700'
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                                    isVisible ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
                             </td>
                             <td className="p-3 text-right align-middle whitespace-nowrap w-72 min-w-[280px]">
                               <div className="flex justify-end gap-1.5 items-center">
@@ -1021,7 +1069,7 @@ const ProductRequestsBoard: React.FC = () => {
                           </div>
                           <div className="text-3xs text-emerald-600/70 dark:text-emerald-400/70 font-normal">total profit</div>
                         </td>
-                        <td colSpan={2} className="p-3 text-right text-3xs text-gray-400 align-middle">
+                        <td colSpan={3} className="p-3 text-right text-3xs text-gray-400 align-middle">
                           Overall Margin: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{profitMargin}%</span>
                         </td>
                       </tr>
@@ -1268,17 +1316,31 @@ const ProductRequestsBoard: React.FC = () => {
                 <option value="Used">Used</option>
               </select>
             </div>
-            <div className="flex items-center gap-2 mt-6">
-              <input
-                type="checkbox"
-                id="reqQuote"
-                checked={newReqRequiresQuote}
-                onChange={(e) => setNewReqRequiresQuote(e.target.checked)}
-                className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500"
-              />
-              <label htmlFor="reqQuote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Requires Quote
-              </label>
+            <div className="flex flex-col justify-center gap-2 mt-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="reqQuote"
+                  checked={newReqRequiresQuote}
+                  onChange={(e) => setNewReqRequiresQuote(e.target.checked)}
+                  className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500"
+                />
+                <label htmlFor="reqQuote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Requires Quote
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="reqVisible"
+                  checked={newReqIsVisible}
+                  onChange={(e) => setNewReqIsVisible(e.target.checked)}
+                  className="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="reqVisible" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Visible in Upcoming Requests
+                </label>
+              </div>
             </div>
           </div>
 
