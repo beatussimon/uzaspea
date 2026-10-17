@@ -796,7 +796,7 @@ const ProductRequestsBoard: React.FC = () => {
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
-                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
                     {sortedActiveRequests.length} active
                   </span>
                 </div>
@@ -1084,7 +1084,7 @@ const ProductRequestsBoard: React.FC = () => {
               <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Fulfilled Requests / History</h3>
-                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
+                  <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
                     Converted & Cancelled
                   </span>
                 </div>

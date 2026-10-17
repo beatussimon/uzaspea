@@ -10,6 +10,7 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   children: React.ReactNode;
   className?: string;
+  headerClassName?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'md',
   children,
   className,
+  headerClassName,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +87,7 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border dark:border-surface-dark-border">
+            <div className={cn("flex items-center justify-between px-6 py-4 border-b border-surface-border dark:border-surface-dark-border", headerClassName)}>
               {title ? (
                 <h3 className="text-heading-sm font-bold tracking-tight text-gray-900 dark:text-white">
                   {title}
