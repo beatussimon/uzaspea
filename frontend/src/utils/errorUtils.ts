@@ -27,8 +27,8 @@ export function classifyApiError(error: any): ClassifiedError {
       canRetry: true,
       titleKey: 'error_network_title',
       descKey: 'error_network_desc',
-      defaultTitle: 'Something went wrong',
-      defaultDesc: "It's not you! An unexpected issue occurred. Please try again.",
+      defaultTitle: 'Network issue',
+      defaultDesc: 'There is a network issue. Please try again.',
     };
   }
 
@@ -41,8 +41,8 @@ export function classifyApiError(error: any): ClassifiedError {
       canRetry: true,
       titleKey: 'error_network_title',
       descKey: 'error_network_desc',
-      defaultTitle: 'Connection Problem',
-      defaultDesc: "It's not you! We couldn't connect to SokoniMax. Please check your internet connection and try again.",
+      defaultTitle: 'Network issue',
+      defaultDesc: 'There is a network issue. Please check your internet connection.',
       rawMessage: error?.message,
     };
   }
@@ -60,8 +60,8 @@ export function classifyApiError(error: any): ClassifiedError {
       statusCode,
       titleKey: 'error_timeout_title',
       descKey: 'error_timeout_desc',
-      defaultTitle: 'Connection Timed Out',
-      defaultDesc: "It's not you! The request took too long to respond. The network might be slow or unstable.",
+      defaultTitle: 'Connection timed out',
+      defaultDesc: 'There is a network issue. The request took too long to respond.',
       rawMessage: error?.message,
     };
   }
@@ -79,8 +79,8 @@ export function classifyApiError(error: any): ClassifiedError {
       canRetry: true,
       titleKey: 'error_network_title',
       descKey: 'error_network_desc',
-      defaultTitle: 'Connection Problem',
-      defaultDesc: "It's not you! We couldn't connect to SokoniMax. Please check your internet connection and try again.",
+      defaultTitle: 'Network issue',
+      defaultDesc: 'There is a network issue. Please check your internet connection.',
       rawMessage: error?.message,
     };
   }
@@ -94,8 +94,8 @@ export function classifyApiError(error: any): ClassifiedError {
       statusCode,
       titleKey: 'error_server_title',
       descKey: 'error_server_desc',
-      defaultTitle: 'Server Problem',
-      defaultDesc: "It's not you! Our servers are experiencing issues right now. Our team is on it.",
+      defaultTitle: 'Service unavailable',
+      defaultDesc: 'Unable to load content right now. Please try again in a moment.',
       rawMessage: error?.message,
     };
   }
@@ -138,8 +138,9 @@ export function classifyApiError(error: any): ClassifiedError {
     statusCode,
     titleKey: 'error_network_title',
     descKey: 'error_network_desc',
-    defaultTitle: 'Connection Issue',
-    defaultDesc: "It's not you! We encountered a problem loading this data. Please try again.",
+    defaultTitle: 'Network issue',
+    defaultDesc: 'There is a network issue. Please check your internet connection.',
     rawMessage: error?.message,
   };
 }
+

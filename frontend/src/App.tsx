@@ -172,7 +172,6 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300 w-full max-w-full overflow-x-hidden">
-      <NetworkStatusBanner />
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       
@@ -182,6 +181,7 @@ function AppLayout() {
         </div>
       )}
 
+      <NetworkStatusBanner className={isLandingPage ? 'mt-14 md:mt-20' : ''} />
       <ReferralStatusBanner className={isLandingPage ? 'mt-14 md:mt-20' : ''} />
 
       <main className={`flex-1 print:pt-0 ${isLandingPage ? 'h-full p-0 overflow-hidden' : isMessagesPage ? '' : 'pt-4 md:pt-6'}`}>

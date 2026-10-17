@@ -11,25 +11,24 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('NetworkErrorState', () => {
-  it('renders explicit "It\'s not you!" badge and error information', () => {
+  it('renders plain text error information without badges or cards', () => {
     const error: ClassifiedError = {
       type: 'offline',
       isNetworkOrServer: true,
       canRetry: true,
       titleKey: 'error_network_title',
       descKey: 'error_network_desc',
-      defaultTitle: 'Connection Problem',
-      defaultDesc: "It's not you! We couldn't connect to SokoniMax.",
+      defaultTitle: 'Network issue',
+      defaultDesc: 'There is a network issue. Please check your internet connection.',
     };
 
     render(<NetworkErrorState error={error} />);
 
-    expect(screen.getByText("It's not you!")).toBeInTheDocument();
-    expect(screen.getByText('Connection Problem')).toBeInTheDocument();
-    expect(screen.getByText("It's not you! We couldn't connect to SokoniMax.")).toBeInTheDocument();
+    expect(screen.getByText(/There is a network issue\. Please check your internet connection\./)).toBeInTheDocument();
+    expect(screen.queryByText("It's not you!")).not.toBeInTheDocument();
   });
 
-  it('triggers onRetry when retry button is clicked', () => {
+  it('triggers onRetry when inline retry link is clicked', () => {
     const onRetry = vi.fn();
     const error: ClassifiedError = {
       type: 'server',
@@ -38,8 +37,8 @@ describe('NetworkErrorState', () => {
       statusCode: 500,
       titleKey: 'error_server_title',
       descKey: 'error_server_desc',
-      defaultTitle: 'Server Problem',
-      defaultDesc: "It's not you! Our servers are experiencing issues.",
+      defaultTitle: 'Service unavailable',
+      defaultDesc: 'Unable to load content right now. Please try again in a moment.',
     };
 
     render(<NetworkErrorState error={error} onRetry={onRetry} />);
@@ -51,7 +50,7 @@ describe('NetworkErrorState', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('renders compact mode correctly with badge and retry', () => {
+  it('renders compact mode correctly with plain text and retry link', () => {
     const onRetry = vi.fn();
     const error: ClassifiedError = {
       type: 'offline',
@@ -59,16 +58,16 @@ describe('NetworkErrorState', () => {
       canRetry: true,
       titleKey: 'error_network_title',
       descKey: 'error_network_desc',
-      defaultTitle: 'Connection Problem',
-      defaultDesc: "It's not you! Check your internet.",
+      defaultTitle: 'Network issue',
+      defaultDesc: 'There is a network issue. Please check your internet connection.',
     };
 
     render(<NetworkErrorState error={error} onRetry={onRetry} compact={true} />);
 
-    expect(screen.getByText("It's not you!")).toBeInTheDocument();
-    expect(screen.getByText('Connection Problem')).toBeInTheDocument();
+    expect(screen.getByText(/There is a network issue\. Please check your internet connection\./)).toBeInTheDocument();
     const retryBtn = screen.getByRole('button', { name: /retry/i });
     fireEvent.click(retryBtn);
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
+
