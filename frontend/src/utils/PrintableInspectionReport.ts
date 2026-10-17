@@ -126,7 +126,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             border-collapse: collapse;
             margin-bottom: 12px;
             background: #f9fafb;
-            border: 1px solid #e5e7eb;
             border-radius: 6px;
           }
           .info-col {
@@ -134,10 +133,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             width: 33.33%;
             padding: 8px 10px;
             vertical-align: top;
-            border-right: 1px solid #e5e7eb;
-          }
-          .info-col:last-child {
-            border-right: none;
           }
           .info-heading {
             font-size: 9px;
@@ -158,22 +153,17 @@ export const printInspectionReport = (request: InspectionRequest) => {
             margin-top: 2px;
           }
           .marketplace-tag {
-            display: inline-block;
-            margin-top: 3px;
-            padding: 1px 5px;
-            background: #fef3c7;
-            color: #92400e;
-            border-radius: 3px;
-            font-size: 9.5px;
-            font-weight: 700;
+            margin-top: 2px;
+            color: #374151;
+            font-size: 10px;
+            font-weight: 600;
           }
 
           /* Compact Verdict & Grade Banner */
           .verdict-banner {
             display: table;
             width: 100%;
-            border: 1.5px solid ${isPass ? '#10b981' : isConditional ? '#f59e0b' : '#ef4444'};
-            background: ${isPass ? '#f0fdf4' : isConditional ? '#fffbeb' : '#fef2f2'};
+            background: #f9fafb;
             border-radius: 6px;
             padding: 8px 12px;
             margin-bottom: 12px;
@@ -183,7 +173,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
             width: 75px;
             vertical-align: middle;
             text-align: center;
-            border-right: 1px solid ${isPass ? '#bbf7d0' : isConditional ? '#fde68a' : '#fecaca'};
+            border-right: 1px solid #e5e7eb;
             padding-right: 10px;
           }
           .grade-letter {
@@ -220,27 +210,23 @@ export const printInspectionReport = (request: InspectionRequest) => {
             display: table;
             width: 100%;
             margin-bottom: 12px;
-            border: 1px solid #e5e7eb;
             border-radius: 6px;
-            background: #fff;
+            background: #f9fafb;
           }
           .defect-item {
             display: table-cell;
             width: 33.33%;
             padding: 6px 10px;
             text-align: center;
-            border-right: 1px solid #e5e7eb;
-          }
-          .defect-item:last-child {
-            border-right: none;
           }
           .defect-count {
             font-size: 13px;
             font-weight: 900;
+            color: #111827;
           }
-          .defect-count.critical { color: #dc2626; }
-          .defect-count.major { color: #d97706; }
-          .defect-count.advisory { color: #ca8a04; }
+          .defect-count.critical-active { color: #dc2626; }
+          .defect-count.major-active { color: #d97706; }
+          .defect-count.advisory-active { color: #ca8a04; }
           .defect-label {
             font-size: 9px;
             font-weight: 700;
@@ -257,7 +243,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             color: #111;
             margin: 12px 0 5px 0;
             padding-bottom: 3px;
-            border-bottom: 1.5px solid #e5e7eb;
           }
           .checklist-table {
             width: 100%;
@@ -265,52 +250,39 @@ export const printInspectionReport = (request: InspectionRequest) => {
             margin-bottom: 12px;
           }
           .checklist-table th {
-            background: #f3f4f6;
-            color: #374151;
+            background: #f9fafb;
+            color: #4b5563;
             font-size: 9px;
             font-weight: 800;
             text-transform: uppercase;
             text-align: left;
-            padding: 5px 7px;
-            border: 1px solid #e5e7eb;
+            padding: 6px 7px;
+            border-bottom: 1px solid #e5e7eb;
           }
           .checklist-table td {
-            padding: 5px 7px;
-            border: 1px solid #e5e7eb;
+            padding: 6px 7px;
+            border-bottom: 1px solid #f3f4f6;
             font-size: 10.5px;
             vertical-align: top;
           }
           .badge-pass {
-            display: inline-block;
-            padding: 1px 5px;
-            font-size: 9px;
-            font-weight: 800;
-            color: #047857;
-            background: #d1fae5;
-            border-radius: 3px;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #111827;
             text-transform: uppercase;
           }
           .badge-fail {
-            display: inline-block;
-            padding: 1px 5px;
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 800;
-            color: #b91c1c;
-            background: #fee2e2;
-            border-radius: 3px;
+            color: #dc2626;
             text-transform: uppercase;
           }
           .badge-severity {
-            display: inline-block;
-            padding: 1px 4px;
-            font-size: 8px;
-            font-weight: 800;
+            font-size: 9px;
+            font-weight: 700;
             text-transform: uppercase;
-            border-radius: 3px;
+            color: #6b7280;
           }
-          .badge-severity.critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-          .badge-severity.major { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
-          .badge-severity.advisory { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
 
           /* Photo Evidence Thumbnails - Neat and Small */
           .photo-grid {
@@ -320,7 +292,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             margin-bottom: 12px;
           }
           .photo-card {
-            border: 1px solid #e5e7eb;
             border-radius: 4px;
             overflow: hidden;
             background: #f9fafb;
@@ -345,7 +316,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
 
           /* Verification & QR Code Box */
           .verify-box {
-            border: 1px solid #e5e7eb;
             background: #f9fafb;
             border-radius: 6px;
             padding: 8px 12px;
@@ -364,7 +334,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             width: 54px;
             height: 54px;
             display: block;
-            border: 1px solid #d1d5db;
             border-radius: 4px;
             background: #fff;
             padding: 2px;
@@ -376,7 +345,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .verify-title {
             font-size: 10.5px;
             font-weight: 800;
-            color: #059669;
+            color: #111;
             text-transform: uppercase;
           }
           .verify-sub {
@@ -436,7 +405,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
               <div class="info-heading">Item Under Inspection</div>
               <div class="info-val-primary">${request.item_name}</div>
               <div class="info-val-secondary">${request.category_path || request.category_name || 'General Category'}</div>
-              ${request.product_snapshot ? `<div class="marketplace-tag">🛍️ Marketplace Item #${request.product_snapshot.id} (${fmtMoney(request.product_snapshot.price)})</div>` : ''}
+              ${request.product_snapshot ? `<div class="marketplace-tag">Marketplace Item: ${request.product_snapshot.name} (${fmtMoney(request.product_snapshot.price)})</div>` : ''}
               ${request.item_age_years ? `<div class="info-val-secondary">Age: ${request.item_age_years} years</div>` : ''}
               <div class="info-val-secondary">Location: ${request.item_address || 'N/A'}</div>
             </div>
@@ -473,15 +442,15 @@ export const printInspectionReport = (request: InspectionRequest) => {
           <!-- Defect Summary Strip -->
           <div class="defect-bar">
             <div class="defect-item">
-              <div class="defect-count critical">${criticalCount}</div>
-              <div class="defect-label">Critical Defects</div>
+              <div class="defect-count ${criticalCount > 0 ? 'critical-active' : ''}">${criticalCount}</div>
+              <div class="defect-label">Critical Issues</div>
             </div>
             <div class="defect-item">
-              <div class="defect-count major">${majorCount}</div>
-              <div class="defect-label">Major Defects</div>
+              <div class="defect-count ${majorCount > 0 ? 'major-active' : ''}">${majorCount}</div>
+              <div class="defect-label">Major Issues</div>
             </div>
             <div class="defect-item">
-              <div class="defect-count advisory">${advisoryCount}</div>
+              <div class="defect-count ${advisoryCount > 0 ? 'advisory-active' : ''}">${advisoryCount}</div>
               <div class="defect-label">Advisory Items</div>
             </div>
           </div>
@@ -491,10 +460,10 @@ export const printInspectionReport = (request: InspectionRequest) => {
           <table class="checklist-table">
             <thead>
               <tr>
-                <th style="width: 25%;">Section & Checkpoint</th>
+                <th style="width: 28%;">Section & Checkpoint</th>
                 <th style="width: 12%;">Severity</th>
-                <th style="width: 13%;">Result</th>
-                <th style="width: 50%;">Inspector Findings / Notes</th>
+                <th style="width: 15%;">Result</th>
+                <th style="width: 45%;">Inspector Findings / Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -503,16 +472,18 @@ export const printInspectionReport = (request: InspectionRequest) => {
               ` : responses.map(r => `
                 <tr>
                   <td>
-                    <strong>${r.item_label}</strong>
-                    <div style="font-size: 9px; color: #6b7280;">${r.section || 'General'}</div>
+                    <strong style="${r.flagged ? 'color: #dc2626;' : 'color: #111;'}">${r.item_label}</strong>
+                    <div style="font-size: 9px; color: #6b7280; text-transform: capitalize;">${r.section || 'General'}</div>
                   </td>
                   <td>
-                    <span class="badge-severity ${r.severity}">${r.severity}</span>
+                    <span class="badge-severity">${r.severity}</span>
                   </td>
                   <td>
-                    <span class="${r.flagged ? 'badge-fail' : 'badge-pass'}">
-                      ${r.flagged ? '✕ FAIL' : '✓ PASS'}
-                    </span>
+                    ${r.flagged ? `
+                      <span class="badge-fail">✕ ${r.response_value || 'FAIL'}</span>
+                    ` : `
+                      <span class="badge-pass"><span style="color: #059669;">✓</span> ${r.response_value || 'PASS'}</span>
+                    `}
                   </td>
                   <td>
                     ${r.notes || '<span style="color:#9ca3af;">Satisfactory — No issues observed</span>'}
@@ -541,7 +512,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
               <img src="${qrCodeUrl}" alt="QR Verification" class="verify-qr-img" />
             </div>
             <div class="verify-info-cell">
-              <div class="verify-title">✓ Verified SokoniMax Inspection Certificate</div>
+              <div class="verify-title">Verified Inspection Certificate</div>
               <div class="verify-sub">
                 Scan this QR code with any phone camera to view and verify this official certificate online.
               </div>
