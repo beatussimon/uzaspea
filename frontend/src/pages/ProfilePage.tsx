@@ -1188,6 +1188,8 @@ const ProfilePage: React.FC = () => {
         onClose={() => setIsFollowModalOpen(false)}
         title={followModalType === 'followers' ? t('followers') : t('following_count')}
         size="sm"
+        className="border-none dark:border-none"
+        headerClassName="border-b-0 dark:border-b-0"
       >
         {followListLoading ? (
           <div className="flex justify-center py-8">
