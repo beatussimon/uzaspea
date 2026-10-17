@@ -1067,8 +1067,8 @@ const DashboardPOS: React.FC = () => {
             {isMobileCartOpen && (
               <div className="fixed inset-0 z-50 flex flex-col justify-end">
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setIsMobileCartOpen(false)} />
-                <div className="relative bg-white dark:bg-[#121212] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
-                  <div className="p-4 flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+                <div className="relative bg-white dark:bg-[#0A0A0A] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
+                  <div className="p-4 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                       {t('current_sale', 'Current Sale')}
                     </h2>
@@ -1437,7 +1437,7 @@ const CartContent = ({
       </div>
 
       {/* 3. Discount / Promo Code Section */}
-      <div className="px-4 py-2.5 bg-gray-50/50 dark:bg-[#111111] shrink-0">
+      <div className="px-4 py-2.5 shrink-0">
         <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
           <button
             type="button"
