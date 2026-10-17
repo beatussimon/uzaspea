@@ -1999,6 +1999,7 @@ class ProductRequest(models.Model):
     image = models.ImageField(upload_to='product-requests/', null=True, blank=True)
     is_fulfilled = models.BooleanField(default=False)
     is_cancelled = models.BooleanField(default=False)
+    is_visible = models.BooleanField(default=False)
     fulfilled_product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='fulfilled_requests')
     
     created_at = models.DateTimeField(auto_now_add=True)

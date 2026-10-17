@@ -52,7 +52,7 @@ class ProductRequestTests(TestCase):
         self.assertEqual(response.data['request_count'], 1)
 
     def test_fetch_by_seller_username(self):
-        ProductRequest.objects.create(name='Test 1', seller=self.seller)
+        ProductRequest.objects.create(name='Test 1', seller=self.seller, is_visible=True)
         
         url = reverse('product-request-list')
         response = self.client.get(f"{url}?seller_username={self.seller.username}")
@@ -134,7 +134,8 @@ class ProductRequestTests(TestCase):
             seller=self.seller,
             price='100.00',
             buying_price='40.00',
-            request_count=3
+            request_count=3,
+            is_visible=True
         )
         url = reverse('product-request-list')
 
@@ -219,6 +220,36 @@ class ProductRequestTests(TestCase):
         created_pr = ProductRequest.objects.get(id=res.data['id'])
         self.assertIsNone(created_pr.buying_price)
         self.assertEqual(created_pr.request_count, 1)
+        self.assertFalse(created_pr.is_visible)
+
+    def test_buyer_request_defaults_to_hidden_until_seller_toggles_visibility(self):
+        self.client.force_authenticate(user=self.buyer)
+        url = reverse('product-request-list')
+        res = self.client.post(url, {
+            'name': 'Requested Hidden Item',
+            'seller_username': self.seller.username,
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertFalse(res.data['is_visible'])
+
+        # Unauthenticated public visitors cannot see the hidden item on the seller's storefront
+        self.client.force_authenticate(user=None)
+        anon_res = self.client.get(f"{url}?seller_username={self.seller.username}")
+        anon_results = anon_res.data.get('results', anon_res.data)
+        self.assertEqual(len(anon_results), 0)
+
+        # Seller toggles visibility ON
+        self.client.force_authenticate(user=self.seller)
+        detail_url = reverse('product-request-detail', kwargs={'pk': res.data['id']})
+        toggle_res = self.client.patch(detail_url, {'is_visible': True}, format='json')
+        self.assertEqual(toggle_res.status_code, 200)
+        self.assertTrue(toggle_res.data['is_visible'])
+
+        # Public visitors can now see the item on the seller's storefront
+        self.client.force_authenticate(user=None)
+        anon_res_after = self.client.get(f"{url}?seller_username={self.seller.username}")
+        anon_results_after = anon_res_after.data.get('results', anon_res_after.data)
+        self.assertEqual(len(anon_results_after), 1)
 
     def test_team_member_with_manage_products_can_access(self):
         from marketplace.models import TeamMember
