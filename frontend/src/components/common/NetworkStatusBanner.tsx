@@ -20,23 +20,12 @@ export const NetworkStatusBanner: React.FC<NetworkStatusBannerProps> = ({ classN
       setIsOffline(true);
     };
 
-    const handleNetworkStatusChange = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail?.online === false) {
-        setIsOffline(true);
-      } else if (customEvent.detail?.online === true) {
-        setIsOffline(false);
-      }
-    };
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('network_status_change', handleNetworkStatusChange);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('network_status_change', handleNetworkStatusChange);
     };
   }, []);
 

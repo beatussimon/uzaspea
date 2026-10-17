@@ -38,6 +38,8 @@ import {
   CardListSkeleton
 } from '../../components/Skeleton';
 import { cn } from '../../lib/utils';
+import NetworkErrorState from '../../components/common/NetworkErrorState';
+import { classifyApiError, type ClassifiedError } from '../../utils/errorUtils';
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
@@ -45,6 +47,7 @@ const DashboardOverview: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
@@ -69,8 +72,9 @@ const DashboardOverview: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isTopLimitOpen]);
 
-  useEffect(() => {
+  const fetchStats = React.useCallback(() => {
     setLoading(true);
+    setFetchError(null);
     let url = '/api/products/seller_stats/';
     const params = new URLSearchParams();
     if (dateRange.startDate) params.append('start_date', dateRange.startDate);
@@ -79,10 +83,30 @@ const DashboardOverview: React.FC = () => {
     if (params.toString()) url += `?${params.toString()}`;
 
     api.get(url)
-      .then((res) => setStats(res.data))
-      .catch(() => toast.error('Failed to load stats'))
+      .then((res) => {
+        setStats(res.data);
+        setFetchError(null);
+      })
+      .catch((err) => {
+        setFetchError(classifyApiError(err));
+      })
       .finally(() => setLoading(false));
   }, [dateRange]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      if (loading && !stats) {
+        setFetchError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
+        setLoading(false);
+      }
+    };
+    window.addEventListener('offline', handleOffline);
+    return () => window.removeEventListener('offline', handleOffline);
+  }, [loading, stats]);
 
   const trendUp = (stats?.revenue_trend_pct || 0) >= 0;
 
@@ -425,6 +449,12 @@ const DashboardOverview: React.FC = () => {
             <CardListSkeleton count={2} />
           </div>
         </div>
+      ) : fetchError && !stats ? (
+        <NetworkErrorState
+          error={fetchError}
+          onRetry={fetchStats}
+          isRetrying={loading}
+        />
       ) : (
         <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
           {/* KPI Cards */}

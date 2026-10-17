@@ -134,19 +134,15 @@ export const DiscoveryFeed: React.FC = () => {
   }, [fetchDiscoveryFeed, gender]);
 
   useEffect(() => {
-    const handleNetworkIssue = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const isDown = e.type === 'offline' || customEvent.detail?.online === false;
-      if (isDown && loading && sections.length === 0) {
+    const handleOffline = () => {
+      if (loading && sections.length === 0) {
         setFeedError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
         setLoading(false);
       }
     };
-    window.addEventListener('offline', handleNetworkIssue);
-    window.addEventListener('network_status_change', handleNetworkIssue);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener('offline', handleNetworkIssue);
-      window.removeEventListener('network_status_change', handleNetworkIssue);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [loading, sections.length]);
 

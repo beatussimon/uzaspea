@@ -1254,20 +1254,16 @@ const ProductDetailPage: React.FC = () => {
   }, [images, selectedImage]);
 
   useEffect(() => {
-    const handleNetworkIssue = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const isDown = e.type === 'offline' || customEvent.detail?.online === false;
-      if (isDown && loading && !product) {
+    const handleOffline = () => {
+      if (loading && !product) {
         setIsHydrating(false);
         setPageError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
         setLoading(false);
       }
     };
-    window.addEventListener('offline', handleNetworkIssue);
-    window.addEventListener('network_status_change', handleNetworkIssue);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener('offline', handleNetworkIssue);
-      window.removeEventListener('network_status_change', handleNetworkIssue);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [loading, product]);
 
