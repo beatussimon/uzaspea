@@ -83,31 +83,31 @@ const PublicVerifyPage: React.FC = () => {
 
       {result && (
         <div className="mt-8 sm:mt-10 text-left">
-          {/* Status Header */}
-          <div className="flex items-center gap-2 mb-5">
-            {result.is_verified ? (
-              <CheckCircle size={18} className="text-green-500 shrink-0" />
-            ) : (
-              <Clock size={18} className="text-amber-500 shrink-0" />
-            )}
-            <span className={`text-sm sm:text-base font-bold tracking-tight ${
-              result.is_verified ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'
-            }`}>
-              {result.is_verified
-                ? t('verified_inspection', 'Verified Inspection')
-                : t('inspection_in_progress', 'Inspection In Progress')}
-            </span>
-          </div>
-
           <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-12' : ''} gap-7 items-start`}>
-            {/* Left Column: Core Verification Metadata */}
-            <div className="space-y-3 text-xs sm:text-[13px]">
-              <div className="flex items-baseline justify-between gap-4 leading-none">
-                <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('id', 'ID')}</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">
-                  {result.inspection_id}
+            {/* Left Column: Status Header + Core Verification Metadata */}
+            <div>
+              <div className="flex items-center gap-2 mb-5">
+                {result.is_verified ? (
+                  <CheckCircle size={18} className="text-green-500 shrink-0" />
+                ) : (
+                  <Clock size={18} className="text-amber-500 shrink-0" />
+                )}
+                <span className={`text-sm sm:text-base font-bold tracking-tight leading-none ${
+                  result.is_verified ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'
+                }`}>
+                  {result.is_verified
+                    ? t('verified_inspection', 'Verified Inspection')
+                    : t('inspection_in_progress', 'Inspection In Progress')}
                 </span>
               </div>
+
+              <div className="space-y-3 text-xs sm:text-[13px]">
+                <div className="flex items-baseline justify-between gap-4 leading-none">
+                  <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('id', 'ID')}</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-right break-all">
+                    {result.inspection_id}
+                  </span>
+                </div>
 
               <div className="flex items-baseline justify-between gap-4">
                 <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('category', 'Category')}</span>
@@ -149,6 +149,7 @@ const PublicVerifyPage: React.FC = () => {
                   </span>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Right Column: Quality Assessment & Post-Inspection Activity */}
