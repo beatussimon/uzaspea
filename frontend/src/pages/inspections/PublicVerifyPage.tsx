@@ -4,7 +4,69 @@ import { useTranslation } from 'react-i18next';
 import { Search, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import inspectionApi from '../../api/inspectionApi';
 import { STATUS_LABELS, VERDICT_COLORS, fmtDate } from '../../types/inspection';
-import { CardListSkeleton } from '../../components/Skeleton';
+import { Skeleton } from '../../components/Skeleton';
+
+const VerifyResultSkeleton: React.FC = () => (
+  <div className="mt-8 sm:mt-10 w-full max-w-3xl lg:max-w-4xl mx-auto text-left">
+    <div className="grid grid-cols-1 md:grid-cols-2 md:gap-14 lg:gap-16 gap-7 items-start">
+      {/* Left Column Skeleton: Status Header + 5 Key-Value Rows */}
+      <div className="w-full">
+        <div className="flex items-center gap-2 mb-5">
+          <Skeleton className="w-4.5 h-4.5 rounded-full shrink-0" />
+          <Skeleton className="h-4 w-36 rounded" />
+        </div>
+
+        <div className="space-y-3">
+          {[
+            { label: 'w-8', val: 'w-40' },
+            { label: 'w-16', val: 'w-48' },
+            { label: 'w-12', val: 'w-24' },
+            { label: 'w-24', val: 'w-16' },
+            { label: 'w-16', val: 'w-36' },
+          ].map((row, idx) => (
+            <div key={idx} className="flex items-center justify-between gap-8 sm:gap-12">
+              <Skeleton className={`h-3.5 ${row.label} rounded shrink-0`} />
+              <Skeleton className={`h-3.5 ${row.val} rounded`} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Column Skeleton: Score/Grade/Verdict + Summary + Activity */}
+      <div className="w-full space-y-6">
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-4 w-full text-center">
+            <div className="flex flex-col items-center">
+              <Skeleton className="h-7 w-20 rounded" />
+              <Skeleton className="h-2.5 w-10 rounded mt-2" />
+            </div>
+            <div className="flex flex-col items-center">
+              <Skeleton className="h-7 w-10 rounded" />
+              <Skeleton className="h-2.5 w-10 rounded mt-2" />
+            </div>
+            <div className="flex flex-col items-center">
+              <Skeleton className="h-7 w-16 rounded" />
+              <Skeleton className="h-2.5 w-20 rounded mt-2" />
+            </div>
+          </div>
+          <Skeleton className="h-3.5 w-3/4 rounded" />
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-3.5 w-52 rounded" />
+          <Skeleton className="h-3 w-64 max-w-full rounded" />
+          <div className="pt-1 space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-3.5 w-32 rounded" />
+              <Skeleton className="h-3 w-28 rounded shrink-0" />
+            </div>
+            <Skeleton className="h-3 w-44 rounded" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const PublicVerifyPage: React.FC = () => {
   const { t } = useTranslation();
@@ -40,7 +102,8 @@ const PublicVerifyPage: React.FC = () => {
   const hasSecondaryColumn = Boolean(
     result && (
       (result.has_post_inspection_changes && result.post_inspection_events?.length > 0) ||
-      (result.is_verified && (result.summary || result.quality_score || result.grade)) ||
+      (result.is_verified && (result.summary || result.quality_score || result.grade || result.verdict)) ||
+      result.verdict ||
       (result.flagged_items?.length > 0)
     )
   );
@@ -69,11 +132,7 @@ const PublicVerifyPage: React.FC = () => {
         </form>
       </div>
 
-      {loading && (
-        <div className="mt-8 max-w-md mx-auto text-left">
-          <CardListSkeleton count={1} />
-        </div>
-      )}
+      {loading && <VerifyResultSkeleton />}
 
       {searched && !loading && !result && (
         <div className="mt-8 text-center text-red-500 dark:text-red-400 text-xs sm:text-sm font-medium">
@@ -82,10 +141,10 @@ const PublicVerifyPage: React.FC = () => {
       )}
 
       {result && (
-        <div className="mt-8 sm:mt-10 w-full md:w-fit mx-auto text-left">
-          <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-[minmax(360px,auto)_minmax(280px,340px)] md:gap-14 lg:gap-16' : 'max-w-md mx-auto'} gap-7 items-start`}>
+        <div className="mt-8 sm:mt-10 w-full max-w-3xl lg:max-w-4xl mx-auto text-left">
+          <div className={`grid grid-cols-1 ${hasSecondaryColumn ? 'md:grid-cols-2 md:gap-14 lg:gap-16' : 'max-w-md mx-auto'} gap-7 items-start`}>
             {/* Left Column: Status Header + Core Verification Metadata */}
-            <div className="md:min-w-[370px] lg:min-w-[400px]">
+            <div className="w-full">
               <div className="flex items-center gap-2 mb-5">
                 {result.is_verified ? (
                   <CheckCircle size={18} className="text-green-500 shrink-0" />
@@ -119,18 +178,9 @@ const PublicVerifyPage: React.FC = () => {
                 <div className="flex items-baseline justify-between gap-8 sm:gap-12">
                   <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('status', 'Status')}</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200 capitalize text-right">
-                    {STATUS_LABELS[result.status] || result.status?.replace(/_/g, ' ')}
+                    {String(t(`inspection_status_${result.status}`, STATUS_LABELS[result.status] || result.status?.replace(/_/g, ' ')))}
                   </span>
                 </div>
-
-                {result.verdict && (
-                  <div className="flex items-baseline justify-between gap-8 sm:gap-12">
-                    <span className="text-gray-500 dark:text-gray-400 shrink-0">{t('verdict', 'Inspection Verdict')}</span>
-                    <span className={`font-bold uppercase tracking-wider text-right ${VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'}`}>
-                      {result.verdict.toUpperCase()}
-                    </span>
-                  </div>
-                )}
 
                 {result.inspected_stock !== null && result.inspected_stock !== undefined && (
                   <div className="flex items-baseline justify-between gap-8 sm:gap-12">
@@ -154,12 +204,12 @@ const PublicVerifyPage: React.FC = () => {
 
             {/* Right Column: Quality Assessment & Post-Inspection Activity */}
             {hasSecondaryColumn && (
-              <div className="space-y-6">
-                {/* Quality Score, Grade & Summary */}
-                {result.is_verified && (result.quality_score || result.grade || result.summary) && (
+              <div className="w-full space-y-6">
+                {/* Quality Score, Grade, Verdict & Summary */}
+                {(result.quality_score || result.grade || result.verdict || result.summary) && (
                   <div className="space-y-3">
-                    {(result.quality_score || result.grade) && (
-                      <div className="flex items-start gap-6">
+                    {(result.quality_score || result.grade || result.verdict) && (
+                      <div className="grid grid-cols-3 gap-4 w-full text-center">
                         {result.quality_score && (
                           <div>
                             <div className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white leading-[0.75]">
@@ -181,6 +231,18 @@ const PublicVerifyPage: React.FC = () => {
                             </div>
                             <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-2">
                               {t('grade', 'Grade')}
+                            </div>
+                          </div>
+                        )}
+                        {result.verdict && (
+                          <div>
+                            <div className={`text-2xl sm:text-3xl font-black uppercase tracking-tight leading-[0.75] ${
+                              VERDICT_COLORS[result.verdict] || 'text-gray-900 dark:text-white'
+                            }`}>
+                              {String(t(`verdict_${result.verdict}`, result.verdict.toUpperCase()))}
+                            </div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mt-2">
+                              {t('verdict', 'Verdict')}
                             </div>
                           </div>
                         )}
@@ -212,7 +274,7 @@ const PublicVerifyPage: React.FC = () => {
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="font-semibold text-gray-900 dark:text-white">{fi.label}</span>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 shrink-0">
-                                {fi.severity}
+                                {String(t(`severity_${fi.severity}`, fi.severity))}
                               </span>
                             </div>
                             <p className="text-gray-600 dark:text-gray-400 mt-0.5">

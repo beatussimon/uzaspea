@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 const ForgotPasswordPage: React.FC = () => {
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -16,7 +18,7 @@ const ForgotPasswordPage: React.FC = () => {
     e.preventDefault();
     const cleanIdent = identifier.trim();
     if (!cleanIdent) {
-      toast.error('Please enter your email address or username');
+      toast.error(t('enter_email_or_username_error', 'Please enter your email address or username'));
       return;
     }
 
@@ -28,15 +30,15 @@ const ForgotPasswordPage: React.FC = () => {
       if (typeof res.data?.attempts_left === 'number') {
         setAttemptsLeft(res.data.attempts_left);
       }
-      toast.success('Reset request submitted');
+      toast.success(t('reset_request_submitted', 'Reset request submitted'));
     } catch (err: any) {
       if (err.response?.status === 429) {
         const retryText = err.response?.data?.retry_after_formatted || 'several hours';
-        const msg = err.response?.data?.error || `Daily limit reached. Please try again in ${retryText}.`;
+        const msg = err.response?.data?.error || t('daily_limit_reached', 'Daily limit reached. Please try again in {{retryText}}.', { retryText });
         setRateLimitError(msg);
         toast.error(msg);
       } else {
-        toast.error(err.response?.data?.error || 'Failed to submit request. Please try again.');
+        toast.error(err.response?.data?.error || t('failed_submit_request', 'Failed to submit request. Please try again.'));
       }
     } finally {
       setLoading(false);
@@ -52,7 +54,7 @@ const ForgotPasswordPage: React.FC = () => {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
         >
           <ArrowLeft size={16} />
-          Back to Sign In
+          {t('back_to_sign_in', 'Back to Sign In')}
         </Link>
 
         {!submitted ? (
@@ -60,10 +62,10 @@ const ForgotPasswordPage: React.FC = () => {
             {/* Header */}
             <div className="text-center space-y-1.5 mb-2">
               <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
-                Reset Password
+                {t('reset_password', 'Reset Password')}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enter your registered email address or username to receive a password reset link.
+                {t('enter_registered_email_desc', 'Enter your registered email address or username to receive a password reset link.')}
               </p>
             </div>
 
@@ -77,7 +79,7 @@ const ForgotPasswordPage: React.FC = () => {
 
               <div className="space-y-1.5">
                 <label htmlFor="identifier" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Email Address or Username
+                  {t('email_or_username', 'Email Address or Username')}
                 </label>
                 <input
                   id="identifier"
@@ -85,7 +87,7 @@ const ForgotPasswordPage: React.FC = () => {
                   required
                   value={identifier}
                   onChange={(e) => { setIdentifier(e.target.value); setRateLimitError(null); }}
-                  placeholder="name@example.com or @username"
+                  placeholder={t('email_username_placeholder', 'name@example.com or @username')}
                   className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
                 />
               </div>
@@ -96,7 +98,7 @@ const ForgotPasswordPage: React.FC = () => {
                 disabled={!!rateLimitError}
                 className="w-full"
               >
-                Send Reset Link
+                {t('send_reset_link', 'Send Reset Link')}
               </Button>
             </form>
           </>
@@ -107,10 +109,12 @@ const ForgotPasswordPage: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <h2 className="text-heading-md font-bold text-gray-900 dark:text-white">
-                Request Received
+                {t('request_received', 'Request Received')}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                If an active account is associated with <span className="font-semibold text-gray-900 dark:text-white">{identifier}</span>, a reset link will be dispatched by an administrator to your registered contact channel.
+                {t('reset_dispatched_desc_part1', 'If an active account is associated with')}{' '}
+                <span className="font-semibold text-gray-900 dark:text-white">{identifier}</span>
+                {', '}{t('reset_dispatched_desc_part2', 'a reset link will be dispatched by an administrator to your registered contact channel.')}
               </p>
             </div>
 
@@ -118,8 +122,8 @@ const ForgotPasswordPage: React.FC = () => {
             {attemptsLeft !== null && attemptsLeft <= 1 && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {attemptsLeft === 1
-                  ? 'You have 1 attempt remaining today.'
-                  : 'This was your final attempt for today.'}
+                  ? t('attempt_remaining_1', 'You have 1 attempt remaining today.')
+                  : t('final_attempt_today', 'This was your final attempt for today.')}
               </p>
             )}
 
@@ -128,7 +132,7 @@ const ForgotPasswordPage: React.FC = () => {
                 to="/login"
                 className="w-full inline-flex justify-center items-center py-2.5 px-4 rounded-btn bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold hover:opacity-90 transition shadow-sm"
               >
-                Return to Sign In
+                {t('return_to_sign_in', 'Return to Sign In')}
               </Link>
               <button
                 type="button"
@@ -140,16 +144,16 @@ const ForgotPasswordPage: React.FC = () => {
                 }}
                 className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-1 transition"
               >
-                Try another email or username
+                {t('try_another_email_username', 'Try another email or username')}
               </button>
             </div>
           </div>
         )}
 
         <p className="text-center text-xs text-gray-400 dark:text-neutral-500 pt-2">
-          Need help?{' '}
+          {t('need_help_contact_support', 'Need help?')}{' '}
           <Link to="/help" className="text-brand-500 hover:underline font-medium">
-            Contact Support
+            {t('contact_support', 'Contact Support')}
           </Link>
         </p>
       </div>
