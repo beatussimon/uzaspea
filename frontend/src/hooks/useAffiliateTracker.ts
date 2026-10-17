@@ -218,10 +218,9 @@ export const useAffiliateTracker = () => {
         setExpiredReferralNotice({
           code: cleanCode,
           reason: 'already_used',
-          message: `You have already redeemed referral code "${cleanCode}". Regular prices apply.`,
+          message: 'You have already redeemed this referral code.',
           timestamp: Date.now()
         });
-        toast.error(`Referral code "${cleanCode}" has already been used.`);
         return;
       }
 
@@ -233,10 +232,9 @@ export const useAffiliateTracker = () => {
             setExpiredReferralNotice({
               code: cleanCode,
               reason: res.data.reason || 'expired',
-              message: res.data.message || 'This referral link has expired.',
+              message: 'This referral link is no longer active.',
               timestamp: Date.now()
             });
-            toast.error(res.data.message || 'This referral link has expired.');
           } else {
             clearExpiredReferralNotice();
             updateReferralMetadata(
@@ -256,15 +254,18 @@ export const useAffiliateTracker = () => {
           }
         })
         .catch((err) => {
-          clearActiveReferral();
-          const message = err.response?.data?.message || err.response?.data?.detail || 'This referral link is invalid or expired.';
-          setExpiredReferralNotice({
-            code: cleanCode,
-            reason: 'not_found',
-            message,
-            timestamp: Date.now()
-          });
-          toast.error(message);
+          // Only mark referral as invalid/expired on explicit 4xx client responses (e.g. 404/400),
+          // not when the request failed due to a network or server issue.
+          const status = err?.response?.status;
+          if (typeof status === 'number' && status >= 400 && status < 500) {
+            clearActiveReferral();
+            setExpiredReferralNotice({
+              code: cleanCode,
+              reason: 'not_found',
+              message: 'This referral link is no longer active.',
+              timestamp: Date.now()
+            });
+          }
         });
     } catch {
       // Storage or parsing unavailable

@@ -133,6 +133,23 @@ export const DiscoveryFeed: React.FC = () => {
     fetchDiscoveryFeed(gender);
   }, [fetchDiscoveryFeed, gender]);
 
+  useEffect(() => {
+    const handleNetworkIssue = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const isDown = e.type === 'offline' || customEvent.detail?.online === false;
+      if (isDown && loading && sections.length === 0) {
+        setFeedError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
+        setLoading(false);
+      }
+    };
+    window.addEventListener('offline', handleNetworkIssue);
+    window.addEventListener('network_status_change', handleNetworkIssue);
+    return () => {
+      window.removeEventListener('offline', handleNetworkIssue);
+      window.removeEventListener('network_status_change', handleNetworkIssue);
+    };
+  }, [loading, sections.length]);
+
   if (feedError && sections.length === 0) {
     return (
       <div className="w-full py-6 sm:py-8">

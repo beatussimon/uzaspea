@@ -399,6 +399,25 @@ const ProductList = () => {
       .catch(() => setCategories([]));
   }, []);
 
+  useEffect(() => {
+    const handleNetworkIssue = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const isDown = e.type === 'offline' || customEvent.detail?.online === false;
+      if (isDown && loading && products.length === 0) {
+        setFetchError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
+        setLoading(false);
+        setLoadingMore(false);
+        isFetchingRef.current = false;
+      }
+    };
+    window.addEventListener('offline', handleNetworkIssue);
+    window.addEventListener('network_status_change', handleNetworkIssue);
+    return () => {
+      window.removeEventListener('offline', handleNetworkIssue);
+      window.removeEventListener('network_status_change', handleNetworkIssue);
+    };
+  }, [loading, products.length]);
+
   // Infinite scroll
   useEffect(() => {
     const sentinel = sentinelRef.current;

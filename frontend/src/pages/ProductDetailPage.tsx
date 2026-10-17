@@ -20,6 +20,7 @@ import SimilarProductsSection from '../components/SimilarProductsSection';
 import YouMightAlsoLikeSection from '../components/YouMightAlsoLikeSection';
 import SafeImage from '../components/SafeImage';
 import ReferralStatusBanner from '../components/common/ReferralStatusBanner';
+import NetworkStatusBanner from '../components/common/NetworkStatusBanner';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
@@ -804,9 +805,6 @@ const ProductDetailPage: React.FC = () => {
         setIsHydrating(false);
         const classified = classifyApiError(err);
         setPageError(classified);
-        if (classified.type === 'notFound') {
-          toast.error('Product not found');
-        }
         setLoading(false);
       });
   }, [slug]);
@@ -1248,7 +1246,32 @@ const ProductDetailPage: React.FC = () => {
     }
   }, [isAuthenticated, product, location.search, navigate]);
 
-  if (loading) {
+  const otherMobileImages = useMemo(() => {
+    return images
+      .map((img, idx) => ({ img, originalIndex: idx }))
+      .filter(item => item.originalIndex !== selectedImage)
+      .slice(0, 2);
+  }, [images, selectedImage]);
+
+  useEffect(() => {
+    const handleNetworkIssue = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const isDown = e.type === 'offline' || customEvent.detail?.online === false;
+      if (isDown && loading && !product) {
+        setIsHydrating(false);
+        setPageError(classifyApiError({ code: 'ERR_NETWORK', message: 'Network Error' }));
+        setLoading(false);
+      }
+    };
+    window.addEventListener('offline', handleNetworkIssue);
+    window.addEventListener('network_status_change', handleNetworkIssue);
+    return () => {
+      window.removeEventListener('offline', handleNetworkIssue);
+      window.removeEventListener('network_status_change', handleNetworkIssue);
+    };
+  }, [loading, product]);
+
+  if (loading && !pageError) {
     return (
       <div className="container-page py-10 space-y-10">
         <Skeleton className="w-48 h-4 mb-4" />
@@ -1268,14 +1291,14 @@ const ProductDetailPage: React.FC = () => {
   if (!product) {
     if (pageError && pageError.isNetworkOrServer) {
       return (
-        <div className="fixed inset-0 z-[100] bg-neutral-950 flex items-center justify-center p-6 text-white overflow-y-auto">
+        <div className="fixed inset-0 z-[100] bg-white dark:bg-black flex items-center justify-center p-6 text-neutral-900 dark:text-white overflow-y-auto">
           <div className="max-w-md w-full">
             <NetworkErrorState
               error={pageError}
               onRetry={() => loadProductData(true)}
               isRetrying={loading}
               secondaryAction={{
-                label: `← ${t('back_to_products', 'Back to Products')}`,
+                label: t('back_to_products', 'Back to Products'),
                 onClick: () => (window.history.length > 1 ? navigate(-1) : navigate('/products')),
               }}
             />
@@ -1285,9 +1308,13 @@ const ProductDetailPage: React.FC = () => {
     }
 
     return (
-      <div className="text-center py-20 bg-neutral-950 min-h-screen text-white flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold text-gray-200">{t('product_not_found', 'Product not found')}</h2>
-        <Link to="/products" className="text-brand-500 mt-4 inline-block hover:underline">← {t('back_to_products', 'Back to Products')}</Link>
+      <div className="text-center py-20 bg-white dark:bg-black min-h-screen text-neutral-900 dark:text-white flex flex-col items-center justify-center p-6">
+        <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300">
+          {t('product_not_found', 'Product not found')}.{' '}
+          <Link to="/products" className="underline font-medium text-neutral-900 dark:text-white hover:opacity-80">
+            {t('back_to_products', 'Back to Products')}
+          </Link>
+        </p>
       </div>
     );
   }
@@ -1303,12 +1330,6 @@ const ProductDetailPage: React.FC = () => {
     || (product as any)?.image 
     || '';
 
-  const otherMobileImages = useMemo(() => {
-    return images
-      .map((img, idx) => ({ img, originalIndex: idx }))
-      .filter(item => item.originalIndex !== selectedImage)
-      .slice(0, 2);
-  }, [images, selectedImage]);
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
@@ -1420,7 +1441,8 @@ const ProductDetailPage: React.FC = () => {
         />
       )}
 
-      {/* Referral Status Notice Banner */}
+      {/* Network & Referral Status Notices */}
+      <NetworkStatusBanner />
       <ReferralStatusBanner />
 
       <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] xl:grid-cols-[62%_38%] lg:grid-rows-[auto_100vh] w-full min-h-screen">

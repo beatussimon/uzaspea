@@ -4,6 +4,7 @@ const API_BASE_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_BASE_URL ||
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 8000,
 });
 
 // CSRF token extraction from cookies (Global CSRF Injection)
@@ -14,8 +15,19 @@ function getCookie(name: string): string | null {
   return null;
 }
 
-// Request interceptor: attach JWT and CSRF tokens
+// Request interceptor: attach JWT and CSRF tokens, and fast-fail when browser is offline
 api.interceptors.request.use((config) => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('network_status_change', { detail: { online: false } }));
+    }
+    const offlineError: any = new Error('Network Error');
+    offlineError.code = 'ERR_NETWORK';
+    offlineError.isAxiosError = true;
+    offlineError.config = config;
+    return Promise.reject(offlineError);
+  }
+
   // JWT from localStorage
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -41,10 +53,24 @@ export const setLogoutCallback = (cb: () => void) => {
   logoutCallback = cb;
 };
 
-// Response interceptor: handle auth errors and token refresh
+// Response interceptor: handle auth errors, token refresh, and network status broadcasting
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('network_status_change', { detail: { online: true } }));
+    }
+    return response;
+  },
   async (error) => {
+    const isCanceled =
+      axios.isCancel(error) ||
+      error?.code === 'ERR_CANCELED' ||
+      error?.name === 'CanceledError';
+
+    if (!isCanceled && !error?.response && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('network_status_change', { detail: { online: false } }));
+    }
+
     const originalRequest = error.config;
     if (error.response?.status === 401) {
       if (error.response.data?.code === 'user_inactive' || error.response.data?.code === 'user_banned') {
