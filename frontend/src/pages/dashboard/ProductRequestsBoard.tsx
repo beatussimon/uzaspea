@@ -556,13 +556,21 @@ const ProductRequestsBoard: React.FC = () => {
       <div className="print:hidden space-y-6">
         {/* Header */}
         <header className="space-y-1">
-          <div className="flex items-center gap-x-2 gap-y-2.5 flex-wrap min-w-0 min-h-[40px]">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate order-1">
+          <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[40px]">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
               {t('product_requests', 'Demand Analytics')}
             </h1>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0 shrink-0 flex-nowrap order-2 sm:order-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
+              <Button
+                onClick={() => setIsModalOpen(true)}
+                size="sm"
+                className="hidden sm:flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+              >
+                <Plus size={14} />
+                <span>{t('create_demand', 'Create Demand')}</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -576,20 +584,16 @@ const ProductRequestsBoard: React.FC = () => {
                 <span className="hidden sm:inline">{isPrintingDemand ? 'Printing...' : 'Print'}</span>
               </Button>
             </div>
-
-            <div className="w-full sm:w-auto sm:ml-auto shrink-0 order-3 sm:order-2">
-              <Button
-                onClick={() => setIsModalOpen(true)}
-                size="sm"
-                className="flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
-              >
-                <Plus size={14} />
-                <span>{t('create_demand', 'Create Demand')}</span>
-              </Button>
-            </div>
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
+            {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}{' '}
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="sm:hidden text-brand-500 hover:underline font-semibold cursor-pointer"
+            >
+              Click to create demand
+            </button>
           </p>
         </header>
 
