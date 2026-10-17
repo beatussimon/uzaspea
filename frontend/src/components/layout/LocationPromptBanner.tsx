@@ -12,17 +12,17 @@ export const LocationPromptBanner: React.FC = () => {
   return (
     <aside
       aria-label="Location notice"
-      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
+      className="relative w-full max-w-[330px] sm:w-[330px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
     >
-      <div className="pr-6">
-        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 leading-snug">
+      <div>
+        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 leading-snug pr-6">
           {t('set_location_title', 'Set Delivery Location')}
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3.5 leading-relaxed">
           {t('set_location_desc', 'Get accurate delivery fees, discover nearby pickup hubs, and enjoy faster checkout in Tanzania.')}
         </p>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center">
           <button
             type="button"
             onClick={() => requestLocation()}
@@ -31,13 +31,6 @@ export const LocationPromptBanner: React.FC = () => {
           >
             {isLocating && <Loader2 size={13} className="animate-spin" />}
             <span>{isLocating ? t('locating', 'Locating...') : t('allow_location', 'Allow Location')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={dismissPrompt}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white px-3 py-2 rounded-btn hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
-          >
-            {t('not_now', 'Not now')}
           </button>
         </div>
       </div>
