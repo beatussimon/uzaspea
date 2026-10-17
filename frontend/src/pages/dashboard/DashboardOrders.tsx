@@ -404,7 +404,7 @@ const { showPrompt } = useDialog();
                   <div className="flex items-center gap-4 flex-1 min-w-0 pr-6 md:pr-0">
                     {/* Product Thumbnail */}
                     <div className="relative w-14 h-14 shrink-0">
-                      <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border overflow-hidden flex items-center justify-center">
+                      <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] overflow-hidden flex items-center justify-center">
                         {itemsList[0]?.product_image ? (
                           <img
                             src={itemsList[0].product_image}

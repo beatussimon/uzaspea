@@ -503,7 +503,7 @@ const OrdersPage: React.FC = () => {
                     {/* Left: Thumbnail & Details */}
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 mt-0.5">
-                        <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+                        <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
                           {order.items?.[0]?.product_image ? (
                             <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover" />
                           ) : (
