@@ -84,11 +84,7 @@ const PublicVerifyPage: React.FC = () => {
         )}
 
         {result && (
-          <div className={`mt-6 p-5 sm:p-6 rounded-xl border-2 text-left ${
-            result.is_verified
-              ? 'border-green-500 dark:border-green-500'
-              : 'border-yellow-500 dark:border-yellow-500'
-          }`}>
+          <div className="mt-6 p-5 sm:p-6 rounded-xl text-left">
             <div className="flex items-center gap-2 mb-4">
               {result.is_verified
                 ? <CheckCircle size={20} className="text-green-500 shrink-0" />
