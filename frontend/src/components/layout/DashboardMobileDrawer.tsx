@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 
@@ -47,11 +47,29 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
   const hasDraggedRef = useRef(false);
   const closeTimerRef = useRef<any>(null);
 
-  // Auto-close mobile menu on route change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
+    if (isMobileMenuOpen || isClosing || hasEntered) {
+      setIsMobileMenuOpen(false);
+      setIsClosing(false);
+      setHasEntered(false);
+    }
+  }
+
+  const closeMobileMenuInstant = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     setIsMobileMenuOpen(false);
     setIsClosing(false);
     setHasEntered(false);
+  };
+
+  // Auto-close mobile menu synchronously before paint on route change
+  useLayoutEffect(() => {
+    closeMobileMenuInstant();
   }, [location.pathname]);
 
   // Clean up close timer on unmount
@@ -145,13 +163,13 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
     const diffX = touchX - touchStartXRef.current;
     const diffY = touchY - touchStartYRef.current;
 
-    // Detect gesture direction after small movement threshold (6px)
+    // Detect gesture direction after movement threshold (12px)
     if (isSwipeGestureRef.current === null) {
       const absX = Math.abs(diffX);
       const absY = Math.abs(diffY);
-      if (absX > 6 || absY > 6) {
+      if (absX > 12 || absY > 12) {
         // Horizontal left swipe
-        if (absX > absY && diffX < -3) {
+        if (absX > absY && diffX < -10) {
           isSwipeGestureRef.current = true;
           hasDraggedRef.current = true;
           setHasEntered(true);
@@ -337,7 +355,7 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
                     <Link
                       key={item.path}
                       to={item.path}
-                      onClick={closeMobileMenuAnimated}
+                      onClick={closeMobileMenuInstant}
                       className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                         isActive
                           ? 'bg-gradient-to-r from-gray-100 to-gray-50/80 dark:from-neutral-800 dark:to-neutral-800/60 text-gray-900 dark:text-white font-semibold shadow-2xs'
@@ -384,7 +402,7 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
               }`}
               style={{ willChange: 'transform' }}
             >
-              <Link to="/" onClick={closeMobileMenuAnimated} className="flex items-center group">
+              <Link to="/" onClick={closeMobileMenuInstant} className="flex items-center group">
                 <img
                   src={brandLogoUrl}
                   alt="App Logo"
