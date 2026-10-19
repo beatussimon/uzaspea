@@ -436,7 +436,6 @@ const HelpCenterPage: React.FC = () => {
                 {/* Desktop Centered Hero Search Bar (Minimalist Line) */}
                 <div className="hidden md:block max-w-sm sm:max-w-md mx-auto mt-3">
                     <div className="relative flex items-center">
-                        <Search size={15} className="absolute left-1 text-gray-400 dark:text-neutral-500 pointer-events-none" />
                         <input
                             type="text"
                             placeholder={t('search_faqs_placeholder', 'Search FAQs, topics, guides...')}
