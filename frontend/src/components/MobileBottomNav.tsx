@@ -365,7 +365,7 @@ const MobileBottomNav = () => {
               <div className="px-4 mt-4 mb-4">
                 <button 
                   onClick={() => { logout(); sessionStorage.clear(); setIsMenuOpen(false); navigate('/'); }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-red-500/30 hover:border-red-500 text-red-600 dark:text-red-400 font-semibold transition-colors bg-transparent"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400 font-semibold transition-colors bg-transparent cursor-pointer"
                   >
                   <LogOut size={20} />
                   {t('sign_out')}
