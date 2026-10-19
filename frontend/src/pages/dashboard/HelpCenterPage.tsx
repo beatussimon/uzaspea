@@ -509,6 +509,15 @@ const HelpCenterPage: React.FC = () => {
                     right: '20px'
                 }}
             >
+                {/* Backdrop to dismiss when clicking outside */}
+                {isMobileFabOpen && (
+                    <div 
+                        className="fixed inset-0 z-[-1]" 
+                        onClick={() => setIsMobileFabOpen(false)} 
+                        aria-hidden="true" 
+                    />
+                )}
+
                 <AnimatePresence>
                     {isMobileFabOpen && (
                         <motion.div
@@ -516,7 +525,7 @@ const HelpCenterPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.9 }}
                             transition={{ duration: 0.15 }}
-                            className="flex flex-col items-end gap-2.5 mb-1"
+                            className="grid grid-cols-4 gap-2.5 mb-1 origin-bottom-right"
                         >
                             {/* Contact Items */}
                             {contactItems.map((item) => (
@@ -525,14 +534,12 @@ const HelpCenterPage: React.FC = () => {
                                     href={item.href}
                                     target={item.target}
                                     rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
-                                    className="flex items-center gap-2 group cursor-pointer"
+                                    onClick={() => setIsMobileFabOpen(false)}
+                                    aria-label={item.label}
+                                    title={item.label}
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform ${item.hoverColor}`}
                                 >
-                                    <span className="px-2.5 py-1 rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold shadow-md whitespace-nowrap">
-                                        {item.label}
-                                    </span>
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform ${item.hoverColor}`}>
-                                        {item.icon}
-                                    </div>
+                                    {item.icon}
                                 </a>
                             ))}
 
@@ -540,14 +547,11 @@ const HelpCenterPage: React.FC = () => {
                             <Link
                                 to="/blog"
                                 onClick={() => setIsMobileFabOpen(false)}
-                                className="flex items-center gap-2 group cursor-pointer"
+                                aria-label={t('learn_more', 'Learn More')}
+                                title={t('learn_more', 'Learn More')}
+                                className="w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform text-gray-700 dark:text-gray-200 hover:text-brand-500"
                             >
-                                <span className="px-2.5 py-1 rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold shadow-md whitespace-nowrap">
-                                    {t('learn_more', 'Learn More')}
-                                </span>
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform text-gray-700 dark:text-gray-200 hover:text-brand-500">
-                                    <BookOpen size={21} />
-                                </div>
+                                <BookOpen size={21} />
                             </Link>
                         </motion.div>
                     )}
