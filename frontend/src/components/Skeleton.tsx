@@ -753,7 +753,7 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
         <div
           key={i}
           className={cn(
-            'card p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden',
+            'card !border-none p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden',
             i === 4 ? 'col-span-2 md:col-span-1' : ''
           )}
         >
