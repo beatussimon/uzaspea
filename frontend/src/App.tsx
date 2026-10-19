@@ -219,7 +219,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <LocationProvider>
-          <BrowserRouter>
+          <BrowserRouter unstable_useTransitions={false}>
             <SearchProvider>
               <MessageProvider>
                 <CartProvider>

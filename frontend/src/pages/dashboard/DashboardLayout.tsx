@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, ArrowDownToLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
@@ -44,62 +43,28 @@ const DashboardLayout: React.FC = () => {
   const hasDraggedRef = useRef(false);
   const closeTimerRef = useRef<any>(null);
 
-  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const lastNavTimeRef = useRef(0);
-
-  const closeMobileMenuInstant = () => {
+  const handleNavAction = (targetPath: string) => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    setIsMobileMenuOpen(false);
-    setIsClosing(false);
-    setHasEntered(false);
-  };
 
-  const handleNavAction = (targetPath: string) => {
-    const now = Date.now();
-    if (now - lastNavTimeRef.current < 250 && location.pathname === targetPath) {
-      if (isMobileMenuOpen) {
-        closeMobileMenuInstant();
-      }
+    const isCurrent =
+      location.pathname === targetPath ||
+      (targetPath !== '/dashboard' && location.pathname.startsWith(targetPath));
+
+    if (isCurrent) {
+      closeMobileMenuInstant();
       return;
     }
-    lastNavTimeRef.current = now;
 
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-
-    // Synchronously commit route navigation and menu unmount in a single atomic render (0ms delay)
-    flushSync(() => {
-      navigate(targetPath);
-      setIsMobileMenuOpen(false);
-      setIsClosing(false);
-      setHasEntered(false);
-    });
+    // Navigating to a new route:
+    // Keep drawer open until the new route view renders.
+    // In that exact render cycle where location.pathname switches to targetPath,
+    // the render-phase prevPathname check unmounts the drawer synchronously alongside the new route view,
+    // ensuring the previous page (Overview) is NEVER exposed or flashed on screen.
+    navigate(targetPath);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  };
-
-  const handleLinkPointerDown = (e: React.PointerEvent) => {
-    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleLinkPointerUp = (e: React.PointerEvent, targetPath: string) => {
-    if (!pointerStartPosRef.current) return;
-    const diffX = Math.abs(e.clientX - pointerStartPosRef.current.x);
-    const diffY = Math.abs(e.clientY - pointerStartPosRef.current.y);
-    pointerStartPosRef.current = null;
-    if (diffX > 8 || diffY > 8) return; // User was scrolling drawer
-
-    e.preventDefault();
-    handleNavAction(targetPath);
-  };
-
-  const handleLinkClick = (e: React.MouseEvent, targetPath: string) => {
-    e.preventDefault();
-    handleNavAction(targetPath);
   };
 
   const [prevPathname, setPrevPathname] = useState(location.pathname);
@@ -534,9 +499,10 @@ const DashboardLayout: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      onPointerDown={handleLinkPointerDown}
-                      onPointerUp={(e) => handleLinkPointerUp(e, item.path)}
-                      onClick={(e) => handleLinkClick(e, item.path)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavAction(item.path);
+                      }}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all ${
                         isActive
                           ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -552,9 +518,10 @@ const DashboardLayout: React.FC = () => {
                 {isSuperuser && (
                   <Link
                     to="/staff-admin"
-                    onPointerDown={handleLinkPointerDown}
-                    onPointerUp={(e) => handleLinkPointerUp(e, '/staff-admin')}
-                    onClick={(e) => handleLinkClick(e, '/staff-admin')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavAction('/staff-admin');
+                    }}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold hover:bg-gray-50 dark:hover:bg-neutral-900/50 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all"
                   >
                     <Shield size={18} className="shrink-0" />
@@ -564,9 +531,10 @@ const DashboardLayout: React.FC = () => {
 
                 <Link
                   to="/dashboard/settings"
-                  onPointerDown={handleLinkPointerDown}
-                  onPointerUp={(e) => handleLinkPointerUp(e, '/dashboard/settings')}
-                  onClick={(e) => handleLinkClick(e, '/dashboard/settings')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavAction('/dashboard/settings');
+                  }}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all ${
                     location.pathname.startsWith('/dashboard/settings')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -578,9 +546,10 @@ const DashboardLayout: React.FC = () => {
                 </Link>
                 <Link
                   to="/dashboard/help-center"
-                  onPointerDown={handleLinkPointerDown}
-                  onPointerUp={(e) => handleLinkPointerUp(e, '/dashboard/help-center')}
-                  onClick={(e) => handleLinkClick(e, '/dashboard/help-center')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavAction('/dashboard/help-center');
+                  }}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all ${
                     location.pathname.startsWith('/dashboard/help-center')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -625,9 +594,10 @@ const DashboardLayout: React.FC = () => {
                   </button>
                   <Link
                     to={`/${user.username}`}
-                    onPointerDown={handleLinkPointerDown}
-                    onPointerUp={(e) => handleLinkPointerUp(e, `/${user.username}`)}
-                    onClick={(e) => handleLinkClick(e, `/${user.username}`)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavAction(`/${user.username}`);
+                    }}
                     className="block text-2xs text-gray-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400 hover:underline transition truncate cursor-pointer touch-manipulation"
                   >
                     View Storefront &rarr;
@@ -647,9 +617,10 @@ const DashboardLayout: React.FC = () => {
             }`} style={{ willChange: 'transform' }}>
               <Link 
                 to="/" 
-                onPointerDown={handleLinkPointerDown}
-                onPointerUp={(e) => handleLinkPointerUp(e, '/')}
-                onClick={(e) => handleLinkClick(e, '/')} 
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavAction('/');
+                }}
                 className="flex items-center group cursor-pointer touch-manipulation"
               >
                 <img 
