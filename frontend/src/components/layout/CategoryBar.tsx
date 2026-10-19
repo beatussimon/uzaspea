@@ -301,7 +301,7 @@ const CategoryBar: React.FC = () => {
           const availableChildren = activeCat?.children?.filter((sub: any) => (sub.product_count || 0) > 0) || [];
           if (activeCat && availableChildren.length > 0) {
             return (
-              <div className="w-full bg-gray-50/50 dark:bg-black/50 border-t border-surface-border/30 dark:border-surface-dark-border/30">
+              <div className="w-full bg-gray-50/50 dark:bg-black/50">
                 <div className="container-page">
                   <div data-horizontal-scroll="true" className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar py-2.5 w-full scroll-smooth">
                     <button

@@ -1784,7 +1784,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* ═══ RIGHT SIDE: Product Info & Buy Sidebar (up to Map Location) ═══ */}
-      <div className="w-full max-w-full lg:col-start-2 lg:row-start-1 bg-white dark:bg-black text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:pb-0 flex flex-col gap-6 shrink-0">
+      <div className="w-full max-w-full lg:col-start-2 lg:row-start-1 bg-white dark:bg-black text-gray-900 dark:text-white p-5 sm:p-6 lg:pb-0 flex flex-col gap-6 shrink-0">
           
           {/* Header Area */}
           <div className="flex flex-col gap-2">
@@ -2691,7 +2691,7 @@ const ProductDetailPage: React.FC = () => {
         {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Recommendations & Similar Products ═══ */}
         <div 
           ref={similarProductsColRef}
-          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
+          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 lg:h-full lg:overflow-y-auto"
         >
           {/* Section 1: You Might Also Like */}
           <YouMightAlsoLikeSection 
@@ -2715,7 +2715,7 @@ const ProductDetailPage: React.FC = () => {
         {/* ═══ ROW 2 COL 2 (Desktop) / AT THE VERY END (Mobile): Product Reviews & Comments ═══ */}
         <div 
           ref={reviewsColRef}
-          className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
+          className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
         >
           <ProductTabs 
             productId={product.id} 
