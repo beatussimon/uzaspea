@@ -1079,6 +1079,7 @@
   "grade": "品质评级",
   "flagged_issues": "检出缺陷项",
   "search_faqs": "搜索常见问题...",
+  "search_faqs_placeholder": "搜索问题、主题、订单、配送、支付或指南...",
   "all_topics": "全部服务主题",
   "seller_guide": "卖家指南",
   "payments_topic": "付款与提现结算",

@@ -1079,6 +1079,7 @@
   "grade": "Niveau",
   "flagged_issues": "Problèmes signalés",
   "search_faqs": "Rechercher dans les FAQ...",
+  "search_faqs_placeholder": "Rechercher des questions, thèmes, commandes, livraisons, paiements ou guides...",
   "all_topics": "Tous les sujets",
   "seller_guide": "Guide du vendeur",
   "payments_topic": "Paiements",

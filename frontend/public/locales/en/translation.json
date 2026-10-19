@@ -1079,6 +1079,7 @@
   "grade": "Grade",
   "flagged_issues": "Flagged Issues",
   "search_faqs": "Search FAQs...",
+  "search_faqs_placeholder": "Search questions, topics, orders, delivery, payments, or guides...",
   "all_topics": "All Topics",
   "seller_guide": "Seller Guide",
   "payments_topic": "Payments",
