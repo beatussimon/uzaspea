@@ -56,7 +56,7 @@ export const KpiGridSkeleton: React.FC<{
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="card p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden"
+          className="card !border-none p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Skeleton className="w-3.5 h-3.5 rounded-full shrink-0" />
@@ -329,7 +329,7 @@ export const ChartSkeleton: React.FC<{
   type?: 'area' | 'bar' | 'pie';
   className?: string;
 }> = ({ type = 'area', className }) => (
-  <div className={cn('card p-5 flex flex-col h-[350px] justify-between', className)}>
+  <div className={cn('card !border-none p-5 flex flex-col h-[350px] justify-between', className)}>
     <div className="flex items-center justify-between mb-4">
       <Skeleton className="h-4 w-36 rounded" />
       <Skeleton className="h-4 w-12 rounded" />
@@ -342,7 +342,7 @@ export const ChartSkeleton: React.FC<{
           <div className="flex-1 w-full flex flex-col justify-center py-2">
             <Skeleton className="h-full w-full rounded-xl" />
           </div>
-          <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
+          <div className="flex justify-between pt-3">
             {Array.from({ length: 6 }).map((_, idx) => (
               <Skeleton key={idx} className="h-2 w-8 rounded" />
             ))}
@@ -632,7 +632,7 @@ export const BillingSkeleton: React.FC<{
  * Demand Curve Chart Skeleton (Matching lg:col-span-2 card p-5 flex flex-col h-[350px])
  */
 export const DemandCurveSkeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={cn('lg:col-span-2 card p-5 flex flex-col h-[350px] justify-between relative overflow-hidden', className)}>
+  <div className={cn('lg:col-span-2 card !border-none p-5 flex flex-col h-[350px] justify-between relative overflow-hidden', className)}>
     <div className="flex items-center justify-between mb-4 shrink-0">
       <div className="space-y-1.5">
         <Skeleton className="h-4 w-48 rounded" />
@@ -644,10 +644,9 @@ export const DemandCurveSkeleton: React.FC<{ className?: string }> = ({ classNam
     {/* Neutral wireframe chart canvas matching industry standard */}
     <div className="h-[270px] w-full min-h-[270px] flex-1 flex flex-col justify-between pt-2">
       <div className="flex-1 w-full relative flex flex-col justify-between py-2">
-        {/* Subtle grid lines matching CartesianGrid */}
-        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
-        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
-        <div className="w-full border-b border-surface-border/30 dark:border-surface-dark-border/30" />
+        <div className="w-full h-px bg-surface-border/10 dark:bg-surface-dark-border/10" />
+        <div className="w-full h-px bg-surface-border/10 dark:bg-surface-dark-border/10" />
+        <div className="w-full h-px bg-surface-border/10 dark:bg-surface-dark-border/10" />
 
         {/* Subtle neutral wireframe bars */}
         <div className="absolute inset-0 flex items-end justify-between gap-3 px-2 pb-1">
@@ -660,7 +659,7 @@ export const DemandCurveSkeleton: React.FC<{ className?: string }> = ({ classNam
           ))}
         </div>
       </div>
-      <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
+      <div className="flex justify-between pt-3">
         {Array.from({ length: 6 }).map((_, idx) => (
           <Skeleton key={idx} className="h-2.5 w-10 rounded" />
         ))}
@@ -673,15 +672,15 @@ export const DemandCurveSkeleton: React.FC<{ className?: string }> = ({ classNam
  * Projected Profitability Card Skeleton (Matching card p-5 flex flex-col h-[350px])
  */
 export const ProjectedProfitabilitySkeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={cn('card p-5 flex flex-col h-[350px] relative overflow-hidden', className)}>
+  <div className={cn('card !border-none p-5 flex flex-col h-[350px] relative overflow-hidden', className)}>
     <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
       <div className="space-y-1.5">
         <Skeleton className="h-4 w-36 rounded" />
         <Skeleton className="h-2.5 w-24 rounded" />
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        <Skeleton className="w-7 h-7 rounded-lg" />
-        <Skeleton className="w-7 h-7 rounded-lg" />
+        <Skeleton className="w-7 h-7 rounded-full" />
+        <Skeleton className="w-7 h-7 rounded-full" />
       </div>
     </div>
 
@@ -709,6 +708,33 @@ export const ProjectedProfitabilitySkeleton: React.FC<{ className?: string }> = 
         </div>
       ))}
     </div>
+  </div>
+);
+
+/**
+ * Payment Numbers Grid Skeleton (Matching PaymentNumbersManager cards)
+ */
+export const PaymentNumbersSkeleton: React.FC<{ count?: number; className?: string }> = ({ count = 3, className }) => (
+  <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="card !border-none p-4 flex flex-col justify-between">
+        <div className="flex items-center gap-3 mb-3">
+          <Skeleton className="w-12 h-8 rounded-md shrink-0" />
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-4 w-28 rounded" />
+            <Skeleton className="h-2.5 w-24 rounded" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-2.5 mt-1">
+          <Skeleton className="h-4 w-12 rounded-full" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-4 w-10 rounded-full" />
+            <Skeleton className="h-4 w-12 rounded-full" />
+          </div>
+        </div>
+      </div>
+    ))}
   </div>
 );
 

@@ -831,7 +831,7 @@ const DashboardPOS: React.FC = () => {
                   placeholder={t('search_pos_input', 'Search products...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-full pl-7 sm:pl-8 pr-6 sm:pr-7 py-1 sm:py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
+                  className="w-full bg-surface-muted dark:bg-[#161616] border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 rounded-full pl-7 sm:pl-8 pr-6 sm:pr-7 py-1 sm:py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 transition"
                 />
                 {searchQuery && (
                   <button
@@ -853,7 +853,7 @@ const DashboardPOS: React.FC = () => {
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'sale'
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <Receipt size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
@@ -865,7 +865,7 @@ const DashboardPOS: React.FC = () => {
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'history'
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <History size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
@@ -879,7 +879,7 @@ const DashboardPOS: React.FC = () => {
       {activeTab === 'sale' ? (
         <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch items-start lg:h-[calc(100vh-210px)] lg:min-h-[580px]">
           {/* Products Section */}
-          <div className="flex-1 w-full card overflow-hidden flex flex-col h-full">
+          <div className="flex-1 w-full card !border-none overflow-hidden flex flex-col h-full">
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto flex-1 min-h-0">
               {loading ? (
@@ -993,7 +993,7 @@ const DashboardPOS: React.FC = () => {
           </div>
 
           {/* Desktop Cart Sidebar */}
-          <div className="hidden lg:flex w-[380px] card overflow-hidden flex-col shrink-0 h-full">
+          <div className="hidden lg:flex w-[380px] card !border-none overflow-hidden flex-col shrink-0 h-full">
             <CartContent 
               cart={cart} 
               cartTotal={cartTotal}

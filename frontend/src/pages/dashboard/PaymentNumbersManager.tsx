@@ -5,19 +5,24 @@ import toast from 'react-hot-toast';
 import { Smartphone, Plus, Edit2, Trash2, Copy, Check, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { PaymentNumbersSkeleton } from '../../components/Skeleton';
 
 // ============ Dashboard Payment Numbers ============
 const PaymentNumbersManager: React.FC = () => {
   const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
   const [networks, setNetworks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ network: '', number: '', name: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   useEffect(() => {
-    api.get('/api/lipa-numbers/').then(r => setLipaNumbers(r.data.results || r.data)).catch(() => {});
-    api.get('/api/mobile-networks/').then(r => setNetworks(r.data.results || r.data)).catch(() => {});
+    setLoading(true);
+    Promise.all([
+      api.get('/api/lipa-numbers/').then(r => setLipaNumbers(r.data.results || r.data)).catch(() => {}),
+      api.get('/api/mobile-networks/').then(r => setNetworks(r.data.results || r.data)).catch(() => {})
+    ]).finally(() => setLoading(false));
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -172,7 +177,9 @@ const PaymentNumbersManager: React.FC = () => {
           <p className="text-2xs text-gray-400">{lipaNumbers.length} numbers available for checkout</p>
         </div>
 
-        {lipaNumbers.length === 0 ? (
+        {loading ? (
+          <PaymentNumbersSkeleton count={3} />
+        ) : lipaNumbers.length === 0 ? (
           <EmptyState
             icon={Smartphone}
             title="No Payment Numbers Configured"
@@ -185,7 +192,7 @@ const PaymentNumbersManager: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {lipaNumbers.map(lipa => (
-              <div key={lipa.id} className="card p-4 flex flex-col justify-between hover:shadow-xs transition">
+              <div key={lipa.id} className="card !border-none p-4 flex flex-col justify-between hover:shadow-xs transition">
                 <div className="flex items-center gap-3 mb-3">
                   {lipa.network_logo ? (
                     <img src={lipa.network_logo} alt={lipa.network_name} className="h-8 max-w-[64px] object-contain shrink-0" />
@@ -199,7 +206,7 @@ const PaymentNumbersManager: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-neutral-100 dark:border-neutral-800">
+                <div className="flex items-center justify-between pt-2.5 mt-1">
                   <button
                     type="button"
                     onClick={() => handleCopy(lipa.id, lipa.number)}

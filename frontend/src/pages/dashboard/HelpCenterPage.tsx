@@ -466,7 +466,7 @@ const HelpCenterPage: React.FC = () => {
                             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                                 isActive
                                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                             }`}
                         >
                             {cat.label}

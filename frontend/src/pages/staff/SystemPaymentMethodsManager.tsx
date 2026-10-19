@@ -231,7 +231,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                   isActive
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -262,7 +262,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredMethods.map((method) => (
-            <div key={method.id} className="card p-5 flex flex-col justify-between space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+            <div key={method.id} className="card !border-none p-5 flex flex-col justify-between space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
@@ -299,7 +299,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   size="sm"
                   variant="outline"
