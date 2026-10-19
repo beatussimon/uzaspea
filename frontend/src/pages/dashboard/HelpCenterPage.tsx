@@ -442,7 +442,7 @@ const HelpCenterPage: React.FC = () => {
                             placeholder={t('search_faqs_placeholder', 'Search FAQs, topics, guides...')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-7 pr-7 py-2 text-xs sm:text-sm bg-transparent border-0 border-b border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 rounded-none outline-none focus:outline-none ring-0 focus:ring-0 focus:border-gray-900 dark:focus:border-white transition-colors"
+                            className="w-full px-8 py-2 text-center text-xs sm:text-sm bg-transparent border-0 border-b border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white placeholder:text-center placeholder-gray-400 dark:placeholder-neutral-500 rounded-none outline-none focus:outline-none ring-0 focus:ring-0 focus:border-gray-900 dark:focus:border-white transition-colors"
                         />
                         {searchQuery && (
                             <button
