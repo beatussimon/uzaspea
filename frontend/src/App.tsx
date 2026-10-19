@@ -156,7 +156,6 @@ function AppLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
   const isMessagesPage = location.pathname.startsWith('/messages');
-  const isProductDetailPage = location.pathname.startsWith('/product');
   
   useStatusBar();
 
@@ -176,7 +175,7 @@ function AppLayout() {
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       
-      {!isLandingPage && !isMessagesPage && !isProductDetailPage && (
+      {!isLandingPage && !isMessagesPage && (
         <div className="print-hide">
           <CategoryBar />
         </div>
