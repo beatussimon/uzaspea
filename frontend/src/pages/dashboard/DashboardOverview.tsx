@@ -668,7 +668,7 @@ const DashboardOverview: React.FC = () => {
                       <td className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-gray-300">
                         {p.sold}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-extrabold text-brand-600 dark:text-brand-400 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right font-extrabold text-gray-900 dark:text-white whitespace-nowrap">
                         TSh {(p.revenue ?? 0).toLocaleString()}
                       </td>
                     </tr>
@@ -764,7 +764,7 @@ const DashboardOverview: React.FC = () => {
                     <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.price)}
                     </td>
-                    <td className="px-3 py-2.5 font-extrabold text-brand-600 dark:text-brand-400 print:text-black text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.total)}
                     </td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
@@ -786,7 +786,7 @@ const DashboardOverview: React.FC = () => {
                   <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
                     {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
                   </td>
-                  <td className="px-4 py-4 text-right text-brand-500 dark:text-brand-500 print:text-black whitespace-nowrap font-bold" colSpan={2}>
+                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap font-bold" colSpan={2}>
                     {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
                   </td>
                   <td className="px-4 py-4"></td>

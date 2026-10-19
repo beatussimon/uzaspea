@@ -1048,7 +1048,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="input py-1.5 px-2.5 text-xs w-full md:w-auto md:min-w-[140px] rounded-lg truncate cursor-pointer"
+              className="py-1.5 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
             >
               <option value="">All Categories</option>
               {flatCategories.map((c: any) => (
@@ -1059,7 +1059,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCondition}
               onChange={(e) => setFilterCondition(e.target.value)}
-              className="input py-1.5 px-2.5 text-xs w-full md:w-auto md:min-w-[110px] rounded-lg truncate cursor-pointer"
+              className="py-1.5 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
             >
               <option value="">Any Condition</option>
               <option value="New">New</option>
