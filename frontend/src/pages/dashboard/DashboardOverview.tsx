@@ -475,7 +475,7 @@ const DashboardOverview: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print-hide">
         {/* Revenue Area Chart */}
-        <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
+        <div className="lg:col-span-2 card !border-none p-5 flex flex-col h-[350px]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <span>Revenue Pipeline</span>
@@ -546,7 +546,7 @@ const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Status Pie Chart */}
-        <div className="card p-5 flex flex-col h-[350px]">
+        <div className="card !border-none p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Order Status</h3>
           <div className="h-[280px] w-full min-h-[280px]">
             <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280} debounce={50}>

@@ -209,7 +209,10 @@ export const DashboardProductListSkeleton: React.FC<{
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Skeleton className="h-4 w-36 max-w-[60%] rounded" />
-            <Skeleton className="h-4 w-14 rounded-full shrink-0" />
+            <div className="flex items-center gap-1 shrink-0">
+              <Skeleton className="w-1.5 h-1.5 rounded-full" />
+              <Skeleton className="h-3 w-12 rounded" />
+            </div>
           </div>
           <div className="flex items-center justify-between gap-2">
             <Skeleton className="h-4 w-24 rounded" />
@@ -218,8 +221,9 @@ export const DashboardProductListSkeleton: React.FC<{
           <div className="flex items-center justify-between gap-2 pt-1">
             <Skeleton className="h-4 w-20 rounded" />
             <div className="flex items-center gap-1.5 shrink-0">
+              <Skeleton className="h-6 w-14 rounded-lg" />
               <Skeleton className="h-6 w-12 rounded-lg" />
-              <Skeleton className="h-6 w-12 rounded-lg" />
+              <Skeleton className="h-6 w-14 rounded-lg" />
             </div>
           </div>
         </div>

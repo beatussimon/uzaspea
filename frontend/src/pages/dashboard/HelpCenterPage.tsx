@@ -429,7 +429,7 @@ const HelpCenterPage: React.FC = () => {
                                 placeholder={t('search_faqs', 'Search FAQs...')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-7 pr-7 py-1.5 text-xs bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-full text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-0 transition"
+                                className="w-full pl-7 pr-7 py-1.5 text-xs bg-white dark:bg-[#141414] rounded-full text-gray-900 dark:text-white placeholder-gray-400 outline-none border-0 focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                             />
                             <button
                                 type="button"
@@ -447,7 +447,7 @@ const HelpCenterPage: React.FC = () => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={handleOpenSearch}
-                            className="w-8 h-8 rounded-full flex items-center justify-center bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border shrink-0 cursor-pointer"
+                            className="w-8 h-8 rounded-full flex items-center justify-center bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white shrink-0 cursor-pointer"
                             aria-label={t('search_faqs', 'Search FAQs')}
                         >
                             <Search size={13} />
@@ -504,7 +504,7 @@ const HelpCenterPage: React.FC = () => {
                                     <span className="px-2.5 py-1 rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold shadow-md whitespace-nowrap">
                                         {item.label}
                                     </span>
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-lg active:scale-95 transition-transform ${item.hoverColor}`}>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform ${item.hoverColor}`}>
                                         {item.icon}
                                     </div>
                                 </a>
@@ -519,7 +519,7 @@ const HelpCenterPage: React.FC = () => {
                                 <span className="px-2.5 py-1 rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold shadow-md whitespace-nowrap">
                                     {t('learn_more', 'Learn More')}
                                 </span>
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-lg active:scale-95 transition-transform hover:border-brand-500 text-gray-700 dark:text-gray-200 hover:text-brand-500">
+                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-lg active:scale-95 transition-transform text-gray-700 dark:text-gray-200 hover:text-brand-500">
                                     <BookOpen size={21} />
                                 </div>
                             </Link>
@@ -531,7 +531,7 @@ const HelpCenterPage: React.FC = () => {
                 <button
                     type="button"
                     onClick={() => setIsMobileFabOpen(!isMobileFabOpen)}
-                    className="w-12 h-12 rounded-full shadow-2xl bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
+                    className="w-12 h-12 rounded-full shadow-2xl bg-white dark:bg-[#111111] text-gray-900 dark:text-white transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
                     aria-label={t('direct_contacts_resources', 'Direct contacts and resources')}
                 >
                     {isMobileFabOpen ? <X size={20} /> : <MessageCircle size={22} className="text-brand-500" />}
@@ -809,7 +809,7 @@ const HelpCenterPage: React.FC = () => {
                                         target={item.target}
                                         rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
                                         aria-label={item.tooltip}
-                                        className={`w-11 h-11 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer ${item.hoverColor}`}
+                                        className={`w-11 h-11 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer ${item.hoverColor}`}
                                     >
                                         {item.icon}
                                     </a>
@@ -831,7 +831,7 @@ const HelpCenterPage: React.FC = () => {
                                 <Link
                                     to="/blog"
                                     aria-label={t('learn_more', 'Learn More')}
-                                    className="w-11 h-11 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:border-brand-500 text-gray-700 dark:text-gray-200 hover:text-brand-500"
+                                    className="w-11 h-11 rounded-full flex items-center justify-center bg-white dark:bg-[#141414] shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer text-gray-700 dark:text-gray-200 hover:text-brand-500"
                                 >
                                     <BookOpen size={20} />
                                 </Link>
