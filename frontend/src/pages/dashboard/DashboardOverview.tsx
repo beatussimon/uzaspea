@@ -483,7 +483,7 @@ const DashboardOverview: React.FC = () => {
             </h3>
             <div className="flex items-center gap-2">
               {stats?.revenue_trend_pct !== undefined && (
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border bg-transparent ${stats.revenue_trend_pct >= 0 ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'text-red-600 dark:text-red-400 border-red-500/30'}`}>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${stats.revenue_trend_pct >= 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-red-600 dark:text-red-400 bg-red-500/10'}`}>
                   {stats.revenue_trend_pct >= 0 ? '+' : ''}{stats.revenue_trend_pct}%
                 </span>
               )}
