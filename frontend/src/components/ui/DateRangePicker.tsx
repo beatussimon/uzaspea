@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export type DateRange = {
@@ -100,70 +100,75 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-transparent hover:bg-surface-muted dark:hover:bg-white/5 border border-surface-border dark:border-surface-dark-border rounded-btn text-xs font-bold text-gray-900 dark:text-white transition-all duration-200 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer select-none"
       >
-        <Calendar size={14} className="text-gray-500 shrink-0" />
+        <Calendar size={14} className="text-gray-500 dark:text-gray-400 shrink-0" />
         <span>{value.label}</span>
-        <ChevronDown size={13} className={`text-gray-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={13} className={`text-gray-500 dark:text-gray-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1.5 space-y-1 text-gray-900 dark:text-gray-100">
           {!showCustom ? (
-            <div className="py-2">
+            <div className="py-0.5 space-y-0.5">
               {presets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => handlePresetClick(preset)}
-                  className={`w-full text-left px-4 py-2 text-sm   transition-colors ${value.label === preset.label ? 'text-brand-500 dark:text-brand-500 font-bold  ' : 'text-gray-700 dark:text-gray-300'}`}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${
+                    value.label === preset.label 
+                      ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'
+                  }`}
                 >
-                  {preset.label}
+                  <span>{preset.label}</span>
+                  {value.label === preset.label && <Check size={13} className="text-brand-500" />}
                 </button>
               ))}
-              <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+              <div className="h-px bg-surface-border/40 dark:bg-surface-dark-border/40 my-1"></div>
               <button
                 onClick={() => setShowCustom(true)}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
               >
                 {t('custom_range', 'Custom Range...')}
               </button>
             </div>
           ) : (
-            <div className="p-4 space-y-4">
-              <div className="space-y-3">
+            <div className="p-3 space-y-3">
+              <div className="space-y-2.5">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Date</label>
+                  <label className="block text-2xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Start Date</label>
                   <input 
                     type="date" 
                     value={customStart}
                     max={customEnd || getToday()}
                     onChange={(e) => setCustomStart(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border border-surface-border dark:border-surface-dark-border rounded-lg text-xs text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Date</label>
+                  <label className="block text-2xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">End Date</label>
                   <input 
                     type="date" 
                     value={customEnd}
                     min={customStart}
                     max={getToday()}
                     onChange={(e) => setCustomEnd(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border border-surface-border dark:border-surface-dark-border rounded-lg text-xs text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-1">
                 <button 
                   onClick={() => setShowCustom(false)}
-                  className="flex-1 px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="flex-1 px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
                 >
                   Back
                 </button>
                 <button 
                   onClick={applyCustomRange}
                   disabled={!customStart || !customEnd}
-                  className="flex-1 px-3 py-2 bg-brand-500 hover:bg-brand-500 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-2.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Apply
                 </button>
