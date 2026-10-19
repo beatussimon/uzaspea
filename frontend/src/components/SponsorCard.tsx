@@ -11,8 +11,8 @@ export default function SponsorCard() {
       className="group cursor-pointer flex flex-col items-center justify-center text-center
                  bg-surface-muted/60 dark:bg-[#0A0A0A]
                  rounded-card p-6 border-2 border-dashed border-surface-border
-                 dark:border-surface-dark-border hover:border-brand-500
-                 dark:hover:border-brand-500 hover:shadow-card-hover active:scale-[0.98]
+                 dark:border-surface-dark-border hover:border-gray-400
+                 dark:hover:border-neutral-700 hover:shadow-card-hover active:scale-[0.98]
                  transition-all duration-300 min-h-[320px] h-full"
     >
       <div className="w-12 h-12 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -27,7 +27,7 @@ export default function SponsorCard() {
         {t('boost_your_listing', 'Boost your listing visibility and reach more buyers across Tanzania')}
       </p>
 
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest group-hover:gap-2.5 transition-all">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-gray-500 dark:text-gray-400 group-hover:text-brand-500 dark:group-hover:text-brand-400 uppercase tracking-widest group-hover:gap-2.5 transition-all">
         {t('boost_now', 'Boost Now')} <ArrowRight className="h-3.5 w-3.5" />
       </span>
     </Link>
