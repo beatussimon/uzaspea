@@ -2022,10 +2022,10 @@ const ProductDetailPage: React.FC = () => {
                               title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
                               className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
                                 isSelected
-                                  ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                                  ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                                   : isCompletelyOutOfStock
-                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
-                                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
+                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 line-through opacity-60 cursor-not-allowed'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-black dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:hover:text-white'
                               }`}
                             >
                               {specVal}
@@ -2169,10 +2169,10 @@ const ProductDetailPage: React.FC = () => {
                               title={`${specVal}${isCompletelyOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
                               className={`h-7 sm:h-7.5 min-w-[28px] sm:min-w-[32px] px-2 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all rounded-[3px] select-none cursor-pointer ${
                                 isSelected
-                                  ? 'bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white shadow-xs'
+                                  ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                                   : isCompletelyOutOfStock
-                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-300 dark:border-neutral-800 line-through'
-                                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-700 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white'
+                                    ? 'bg-neutral-100/60 dark:bg-neutral-900/40 text-neutral-400 dark:text-neutral-600 line-through opacity-60 cursor-not-allowed'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-black dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:hover:text-white'
                               }`}
                             >
                               {specVal}
