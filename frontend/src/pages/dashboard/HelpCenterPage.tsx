@@ -55,6 +55,30 @@ const HelpCenterPage: React.FC = () => {
     const [faqs, setFaqs] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState(qParam);
     const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
+    const [isScrollTopVisible, setIsScrollTopVisible] = useState(false);
+
+    useEffect(() => {
+        let ticking = false;
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const snapContainer = document.querySelector('.snap-container') as HTMLElement;
+                    const currentY = snapContainer ? snapContainer.scrollTop : window.scrollY;
+                    setIsScrollTopVisible(currentY > 300);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+        handleScroll();
+
+        return () => {
+            document.removeEventListener('scroll', handleScroll, { capture: true });
+        };
+    }, []);
+
     const [selectedFaqCategory, setSelectedFaqCategory] = useState<string>(() => {
         if (tabParam === 'site-verification') return 'site-verification';
         return 'all';
@@ -475,11 +499,13 @@ const HelpCenterPage: React.FC = () => {
                 })}
             </div>
 
-            {/* Mobile Floating Contacts & Resources (Positioned cleanly above Back-To-Top button) */}
+            {/* Mobile Floating Contacts & Resources (Positions dynamically based on Back-To-Top button visibility) */}
             <div 
-                className="md:hidden fixed flex flex-col items-end gap-2.5 z-[90]"
+                className="md:hidden fixed flex flex-col items-end gap-2.5 z-[90] transition-all duration-300 ease-out"
                 style={{
-                    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 140px)',
+                    bottom: isScrollTopVisible 
+                        ? 'calc(env(safe-area-inset-bottom, 0px) + 140px)' 
+                        : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
                     right: '20px'
                 }}
             >
