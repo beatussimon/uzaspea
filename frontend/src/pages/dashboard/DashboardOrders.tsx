@@ -347,7 +347,7 @@ const { showPrompt } = useDialog();
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('search_orders', 'Search Order #, Buyer, Product...')}
-            className="input pl-8 py-1.5 text-xs w-full"
+            className="w-full pl-8 pr-6 py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
           />
         </div>
       </div>
