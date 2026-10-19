@@ -541,7 +541,7 @@ const HelpCenterPage: React.FC = () => {
             {/* Main Content Area: Symmetrical 3-Column Layout with Mathematically Equal Left and Right Spaces */}
             <div className="flex flex-col md:flex-row gap-6 lg:gap-8 md:items-start">
                 {/* Left Column: Categories List (Stationary - does not scroll) */}
-                <aside aria-label={t('faq_topics', 'FAQ Categories')} className="hidden md:block w-48 lg:w-52 shrink-0 select-none sticky top-20">
+                <aside aria-label={t('faq_topics', 'FAQ Categories')} className="hidden md:block w-48 lg:w-52 shrink-0 select-none sticky top-20 pt-4">
                     <nav className="space-y-1">
                         <p className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider px-3 mb-2">
                             {t('topics', 'Topics')}
