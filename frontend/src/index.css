@@ -92,7 +92,7 @@
 
   /* Card base (before motion/glass enhancements) */
   .card {
-    @apply bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-300 overflow-hidden;
+    @apply bg-white dark:bg-[#141414] rounded-card border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-300 overflow-hidden;
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     will-change: transform, border-color, box-shadow;

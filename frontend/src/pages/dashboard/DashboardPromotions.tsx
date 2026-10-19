@@ -1563,7 +1563,7 @@ const location = useLocation();
                 return (
                   <div 
                     key={p.id} 
-                    className="card !border-none p-4 flex flex-col justify-between bg-white dark:bg-[#0A0A0A] transition-colors"
+                    className="card !border-none p-4 flex flex-col justify-between transition-colors"
                   >
                     <div>
                       {/* Top Status & Date */}
