@@ -35,7 +35,7 @@ const formatCompactCurrency = (rawNum: number | string | undefined | null, curre
 import {
   KpiGridSkeleton,
   ChartSkeleton,
-  CardListSkeleton
+  TableSkeleton
 } from '../../components/Skeleton';
 import { cn } from '../../lib/utils';
 import NetworkErrorState from '../../components/common/NetworkErrorState';
@@ -445,8 +445,8 @@ const DashboardOverview: React.FC = () => {
             <ChartSkeleton type="pie" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CardListSkeleton count={3} />
-            <CardListSkeleton count={2} />
+            <TableSkeleton rows={4} cols={4} />
+            <TableSkeleton rows={4} cols={3} />
           </div>
         </div>
       ) : fetchError && !stats ? (
