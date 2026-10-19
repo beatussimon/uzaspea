@@ -433,22 +433,22 @@ const HelpCenterPage: React.FC = () => {
                     )}
                 </h1>
 
-                {/* Desktop Centered Hero Search Bar */}
-                <div className="hidden md:block max-w-md mx-auto mt-3.5">
+                {/* Desktop Centered Hero Search Bar (Minimalist Line) */}
+                <div className="hidden md:block max-w-sm sm:max-w-md mx-auto mt-3">
                     <div className="relative flex items-center">
-                        <Search size={15} className="absolute left-3.5 text-gray-400 dark:text-neutral-500 pointer-events-none" />
+                        <Search size={15} className="absolute left-1 text-gray-400 dark:text-neutral-500 pointer-events-none" />
                         <input
                             type="text"
                             placeholder={t('search_faqs_placeholder', 'Search FAQs, topics, guides...')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm bg-surface-muted dark:bg-[#141414] rounded-full text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 border border-transparent dark:border-neutral-800/80 focus:border-gray-300 dark:focus:border-neutral-700 outline-none transition shadow-2xs hover:bg-gray-100 dark:hover:bg-[#181818]"
+                            className="w-full pl-7 pr-7 py-2 text-xs sm:text-sm bg-transparent border-0 border-b border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 rounded-none outline-none focus:outline-none ring-0 focus:ring-0 focus:border-gray-900 dark:focus:border-white transition-colors"
                         />
                         {searchQuery && (
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer"
+                                className="absolute right-1 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer"
                                 aria-label={t('clear_search', 'Clear search')}
                             >
                                 <X size={13} />
