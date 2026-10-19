@@ -66,7 +66,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         e.stopPropagation();
         setIsOpen(prev => !prev);
       }}
-      className={cn('card p-3 sm:p-3.5 relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all hover:shadow-xs hover:border-gray-900/20 dark:hover:border-white/20', className)}
+      className={cn('card !border-none p-3 sm:p-3.5 relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all hover:shadow-xs', className)}
     >
       {isOpen && (
         <div className="absolute inset-x-2 top-2 z-30 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2 rounded-xl shadow-2xl text-center text-xs font-bold border border-white/10 dark:border-black/10 animate-fade-in">

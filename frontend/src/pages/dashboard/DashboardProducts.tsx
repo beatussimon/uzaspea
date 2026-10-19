@@ -3582,21 +3582,13 @@ const DashboardProducts: React.FC = () => {
                     {product.name}
                   </h4>
                   {product.is_draft ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 shrink-0">
-                      <span className="w-1 h-1 rounded-full bg-gray-400" />
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                       Draft
                     </span>
                   ) : (
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${
-                        product.stock === 0
-                          ? 'text-red-600 dark:text-red-400 bg-red-500/10'
-                          : product.stock <= 3
-                          ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10'
-                          : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                      }`}
-                    >
-                      <span className={`w-1 h-1 rounded-full ${
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                      <span className={`w-1.5 h-1.5 rounded-full ${
                         product.stock === 0 ? 'bg-red-500' : product.stock <= 3 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`} />
                       {product.stock === 0 ? 'Out' : product.stock <= 3 ? 'Low' : 'In Stock'}
@@ -3655,7 +3647,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`, { state: { boostedProduct: product } })}
-                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500 hover:text-black dark:hover:text-black rounded-lg transition inline-flex items-center gap-1 shrink-0"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition inline-flex items-center gap-1 shrink-0"
                     title="Boost / Sponsor this product"
                   >
                     <Megaphone size={11} />

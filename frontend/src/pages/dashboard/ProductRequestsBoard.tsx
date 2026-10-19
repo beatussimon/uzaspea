@@ -670,7 +670,7 @@ const ProductRequestsBoard: React.FC = () => {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Demand Curve */}
-              <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
+              <div className="lg:col-span-2 card !border-none p-5 flex flex-col h-[350px]">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
                   </div>
@@ -703,7 +703,7 @@ const ProductRequestsBoard: React.FC = () => {
                 </div>
 
               {/* Profitability Card */}
-              <div className="card p-5 flex flex-col h-[350px]">
+              <div className="card !border-none p-5 flex flex-col h-[350px]">
                   <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
                       Projected Profitability
