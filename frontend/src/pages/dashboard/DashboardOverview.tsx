@@ -698,6 +698,7 @@ const DashboardOverview: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
                   <tr>
+                    <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
                     <th className="px-3 py-2.5 font-bold">Product</th>
                     <th className="px-3 py-2.5 font-bold text-left w-28">Status</th>
                   </tr>
@@ -705,6 +706,7 @@ const DashboardOverview: React.FC = () => {
                 <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                   {stats.stock_alerts.map((s: any, i: number) => (
                     <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                      <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
                       <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white truncate max-w-[220px]" title={s.name}>
                         {s.name}
                       </td>
