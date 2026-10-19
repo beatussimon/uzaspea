@@ -525,7 +525,7 @@ const HelpCenterPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.9 }}
                             transition={{ duration: 0.15 }}
-                            className="grid grid-cols-4 gap-2.5 mb-1 origin-bottom-right"
+                            className="grid grid-cols-2 gap-2.5 mb-1 origin-bottom-right"
                         >
                             {/* Contact Items */}
                             {contactItems.map((item) => (
