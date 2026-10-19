@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { Menu } from 'lucide-react';
 
 export interface DashboardNavItem {
@@ -32,6 +33,7 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
   brandLogoUrl = '/logo_dark.png',
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
@@ -47,15 +49,8 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
   const hasDraggedRef = useRef(false);
   const closeTimerRef = useRef<any>(null);
 
-  const [prevPathname, setPrevPathname] = useState(location.pathname);
-  if (location.pathname !== prevPathname) {
-    setPrevPathname(location.pathname);
-    if (isMobileMenuOpen || isClosing || hasEntered) {
-      setIsMobileMenuOpen(false);
-      setIsClosing(false);
-      setHasEntered(false);
-    }
-  }
+  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastNavTimeRef = useRef(0);
 
   const closeMobileMenuInstant = () => {
     if (closeTimerRef.current) {
@@ -66,6 +61,61 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
     setIsClosing(false);
     setHasEntered(false);
   };
+
+  const handleNavAction = (targetPath: string) => {
+    const now = Date.now();
+    if (now - lastNavTimeRef.current < 250 && location.pathname === targetPath) {
+      if (isMobileMenuOpen) {
+        closeMobileMenuInstant();
+      }
+      return;
+    }
+    lastNavTimeRef.current = now;
+
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    // Synchronously commit route navigation and menu unmount in a single atomic render (0ms delay)
+    flushSync(() => {
+      navigate(targetPath);
+      setIsMobileMenuOpen(false);
+      setIsClosing(false);
+      setHasEntered(false);
+    });
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
+  const handleLinkPointerDown = (e: React.PointerEvent) => {
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleLinkPointerUp = (e: React.PointerEvent, targetPath: string) => {
+    if (!pointerStartPosRef.current) return;
+    const diffX = Math.abs(e.clientX - pointerStartPosRef.current.x);
+    const diffY = Math.abs(e.clientY - pointerStartPosRef.current.y);
+    pointerStartPosRef.current = null;
+    if (diffX > 8 || diffY > 8) return; // User was scrolling drawer
+
+    e.preventDefault();
+    handleNavAction(targetPath);
+  };
+
+  const handleLinkClick = (e: React.MouseEvent, targetPath: string) => {
+    e.preventDefault();
+    handleNavAction(targetPath);
+  };
+
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
+    if (isMobileMenuOpen || isClosing || hasEntered) {
+      setIsMobileMenuOpen(false);
+      setIsClosing(false);
+      setHasEntered(false);
+    }
+  }
 
   // Auto-close mobile menu synchronously before paint on route change
   useLayoutEffect(() => {
@@ -355,8 +405,10 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
                     <Link
                       key={item.path}
                       to={item.path}
-                      onClick={closeMobileMenuInstant}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
+                      onPointerDown={handleLinkPointerDown}
+                      onPointerUp={(e) => handleLinkPointerUp(e, item.path)}
+                      onClick={(e) => handleLinkClick(e, item.path)}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-btn text-sm cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all ${
                         isActive
                           ? 'bg-gradient-to-r from-gray-100 to-gray-50/80 dark:from-neutral-800 dark:to-neutral-800/60 text-gray-900 dark:text-white font-semibold shadow-2xs'
                           : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-neutral-900/50 font-medium'
@@ -402,7 +454,13 @@ export const DashboardMobileDrawer: React.FC<DashboardMobileDrawerProps> = ({
               }`}
               style={{ willChange: 'transform' }}
             >
-              <Link to="/" onClick={closeMobileMenuInstant} className="flex items-center group">
+              <Link 
+                to="/" 
+                onPointerDown={handleLinkPointerDown}
+                onPointerUp={(e) => handleLinkPointerUp(e, '/')}
+                onClick={(e) => handleLinkClick(e, '/')} 
+                className="flex items-center group cursor-pointer touch-manipulation"
+              >
                 <img
                   src={brandLogoUrl}
                   alt="App Logo"
