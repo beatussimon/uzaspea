@@ -213,7 +213,7 @@ const LandingPage = () => {
 
           <motion.div 
             style={{ rotate: rotateForm, skewX: skewForm }}
-            className="bg-white/95 dark:bg-black/90 p-2 rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto border-4 border-white/10 backdrop-blur-md pointer-events-auto origin-center"
+            className="bg-white/95 dark:bg-black/90 p-1.5 rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto backdrop-blur-md pointer-events-auto origin-center"
           >
             <div 
               onClick={openSearch} 
@@ -223,14 +223,14 @@ const LandingPage = () => {
                 type="text"
                 placeholder={t('search_placeholder')}
                 readOnly
-                className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full cursor-pointer pointer-events-none"
+                className="w-full pl-6 pr-14 py-2 md:py-2.5 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full cursor-pointer pointer-events-none"
               />
               <button
                 type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-gray-400 group-hover:text-brand-500 transition-colors pointer-events-none"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 group-hover:text-brand-500 transition-colors pointer-events-none"
                 aria-label="Search"
               >
-                <Search className="h-6 w-6" />
+                <Search className="h-5 w-5 md:h-6 md:w-6" />
               </button>
             </div>
           </motion.div>
