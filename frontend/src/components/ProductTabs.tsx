@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Star, MessageSquare, CheckCircle2, CornerDownRight, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, MessageSquare, CornerDownRight, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -506,12 +506,6 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                               {t('seller', 'Seller')}
                             </span>
                           )}
-                        </span>
-
-                        {/* Verified Purchase Badge */}
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 size={11} className="stroke-[2.5]" />
-                          {t('verified_purchase', 'Verified Purchase')}
                         </span>
 
                         <span className="text-xs text-neutral-400 dark:text-neutral-500 ml-auto">
