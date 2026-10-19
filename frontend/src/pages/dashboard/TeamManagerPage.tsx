@@ -631,7 +631,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="p-3">Date & Time</th>
                     <th className="p-3">Action</th>
@@ -639,7 +639,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                     <th className="p-3">Performed By</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                <tbody>
                   {auditLogs.map((entry) => (
                     <tr key={entry.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                       <td className="p-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">

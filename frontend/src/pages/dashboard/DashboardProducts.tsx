@@ -931,7 +931,7 @@ const DashboardProducts: React.FC = () => {
                   setIsPrintDropdownOpen(prev => !prev);
                 }}
                 disabled={isPrintingReport}
-                className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
                 title="Print options"
               >
                 <Printer size={14} />
@@ -989,7 +989,7 @@ const DashboardProducts: React.FC = () => {
                     className={`px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                        : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                        : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     {tab.label}
@@ -3567,13 +3567,13 @@ const DashboardProducts: React.FC = () => {
             {products.map((product: any) => (
             <div
               key={product.id}
-              className="card p-3 sm:p-4 hover:shadow-xs transition flex flex-row items-start gap-3 sm:gap-4"
+              className="card !border-none p-3 sm:p-4 hover:shadow-xs transition flex flex-row items-start gap-3 sm:gap-4"
             >
               <SafeImage
                 src={product.images?.[0]?.image || ''}
                 alt={product.name}
                 category={product.category_name}
-                className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl object-cover shrink-0 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border"
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl object-cover shrink-0 bg-surface-muted dark:bg-[#161616]"
               />
               <div className="flex-1 min-w-0 space-y-1.5">
                 {/* Row 1: Title & Stock status */}
@@ -3582,18 +3582,18 @@ const DashboardProducts: React.FC = () => {
                     {product.name}
                   </h4>
                   {product.is_draft ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-transparent text-gray-600 dark:text-gray-400 border border-gray-500/30 shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 shrink-0">
                       <span className="w-1 h-1 rounded-full bg-gray-400" />
                       Draft
                     </span>
                   ) : (
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 bg-transparent ${
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${
                         product.stock === 0
-                          ? 'text-red-600 dark:text-red-400 border-red-500/40'
+                          ? 'text-red-600 dark:text-red-400 bg-red-500/10'
                           : product.stock <= 3
-                          ? 'text-amber-600 dark:text-amber-400 border-amber-500/40'
-                          : 'text-emerald-600 dark:text-emerald-400 border-emerald-500/40'
+                          ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                          : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                       }`}
                     >
                       <span className={`w-1 h-1 rounded-full ${
@@ -3603,7 +3603,7 @@ const DashboardProducts: React.FC = () => {
                     </span>
                   )}
                   {Boolean(product.has_a_plus_content) && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 bg-transparent text-purple-600 dark:text-purple-400 border-purple-500/40">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                       A+ Content
                     </span>
                   )}
@@ -3655,7 +3655,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`, { state: { boostedProduct: product } })}
-                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-transparent hover:bg-brand-500 hover:text-black dark:hover:text-black border border-brand-500/50 rounded-lg transition inline-flex items-center gap-1 shrink-0"
+                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500 hover:text-black dark:hover:text-black rounded-lg transition inline-flex items-center gap-1 shrink-0"
                     title="Boost / Sponsor this product"
                   >
                     <Megaphone size={11} />
@@ -3678,7 +3678,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(product.slug)}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-transparent hover:bg-red-600 hover:text-white border border-red-500/40 rounded-lg transition shrink-0 ml-auto"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-600 hover:text-white rounded-lg transition shrink-0 ml-auto"
                   >
                     Delete
                   </button>

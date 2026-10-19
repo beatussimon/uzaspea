@@ -1159,7 +1159,7 @@ const location = useLocation();
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'sponsored'
               ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
           }`}
         >
           <Megaphone size={13} className="shrink-0" />
@@ -1176,7 +1176,7 @@ const location = useLocation();
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'coupons'
               ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
           }`}
         >
           <Ticket size={13} className="shrink-0" />
@@ -1193,7 +1193,7 @@ const location = useLocation();
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'referrals'
               ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
           }`}
         >
           <UserCheck size={13} className="shrink-0" />
@@ -1513,7 +1513,7 @@ const location = useLocation();
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                       campaignFilter === f
                         ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                        : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                        : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     {f === 'approved' && t('live_active', 'Active')}
@@ -1563,7 +1563,7 @@ const location = useLocation();
                 return (
                   <div 
                     key={p.id} 
-                    className="card p-4 flex flex-col justify-between bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-neutral-400 dark:hover:border-neutral-700 transition-colors"
+                    className="card !border-none p-4 flex flex-col justify-between bg-white dark:bg-[#0A0A0A] transition-colors"
                   >
                     <div>
                       {/* Top Status & Date */}
@@ -1846,7 +1846,7 @@ const location = useLocation();
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                     <tr>
                       <th className="p-3">{t('coupon_code', 'Promo Code')}</th>
                       <th className="p-3">{t('discount', 'Discount')}</th>
@@ -1857,7 +1857,7 @@ const location = useLocation();
                       <th className="p-3 text-center">{t('action', 'Action')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                   {filteredCoupons.map((promo: any) => {
                     const isExpired = isPromoExpired(promo);
                     return (
@@ -2075,7 +2075,7 @@ const location = useLocation();
               <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                       <tr>
                         <th className="p-3 min-w-[240px]">{t('code_and_link', 'Code & Share Link')}</th>
                         <th className="p-3">{t('scope_product', 'Scope / Target')}</th>
@@ -2088,7 +2088,7 @@ const location = useLocation();
                         <th className="p-3 text-center">{t('actions', 'Actions')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                    <tbody>
                     {filteredAffiliateCodes.map((promo: any) => {
                       const isExpired = isPromoExpired(promo);
                       return (
@@ -2096,7 +2096,7 @@ const location = useLocation();
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <span
-                              className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2.5 py-1 rounded w-36 truncate text-center shrink-0 border border-surface-border dark:border-surface-dark-border"
+                              className="font-mono font-semibold text-gray-900 dark:text-white text-xs bg-surface-muted dark:bg-[#161616] px-2.5 py-1 rounded w-36 truncate text-center shrink-0"
                               title={promo.code}
                             >
                               {promo.code}
@@ -2296,7 +2296,7 @@ const location = useLocation();
               <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                       <tr>
                         <th className="p-3">{t('customer', 'Customer')}</th>
                         <th className="p-3">{t('influencer_code', 'Influencer / Code')}</th>
@@ -2309,7 +2309,7 @@ const location = useLocation();
                         <th className="p-3 text-center">{t('action', 'Action')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                    <tbody>
                       {referralConversions.map((conv: any) => {
                         const isPending = conv.status === 'PENDING';
                         const isApproved = conv.status === 'APPROVED';

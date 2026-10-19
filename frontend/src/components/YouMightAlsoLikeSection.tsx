@@ -166,7 +166,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
             <button
               type="button"
               onClick={() => setIsCollapsed((prev) => !prev)}
-              className="flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800"
+              className="flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               aria-expanded={!isCollapsed}
               aria-label="Toggle You Might Also Like section"
             >

@@ -288,7 +288,7 @@ const { showPrompt } = useDialog();
             </h1>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               {t('live_view', 'Live View')}
             </span>
@@ -315,7 +315,7 @@ const { showPrompt } = useDialog();
                     ? tab.isAction
                       ? 'bg-brand-500 text-white shadow-xs'
                       : 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -394,7 +394,7 @@ const { showPrompt } = useDialog();
               <div
                 key={order.id}
                 id={`order-${order.id}`}
-                className="card overflow-hidden transition-all duration-200"
+                className="card !border-none overflow-hidden transition-all duration-200"
               >
                 {/* Collapsible Header */}
                 <div

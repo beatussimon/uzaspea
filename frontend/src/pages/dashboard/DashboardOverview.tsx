@@ -567,7 +567,7 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
         {/* Top Products */}
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-            <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+            <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
               
               <div className="flex items-center gap-2">
@@ -576,7 +576,7 @@ const DashboardOverview: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsTopLimitOpen(!isTopLimitOpen)}
-                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border hover:border-gray-400 dark:hover:border-neutral-600 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 transition select-none"
+                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300 bg-surface-muted dark:bg-[#161616] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 transition select-none"
                     title="Customize item limit"
                   >
                     <span>Top {topProductsLimit}</span>
@@ -650,7 +650,7 @@ const DashboardOverview: React.FC = () => {
             </div>
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left">
-                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
                     <th className="px-3 py-2.5 font-bold">Product</th>
@@ -658,7 +658,7 @@ const DashboardOverview: React.FC = () => {
                     <th className="px-3 py-2.5 font-bold text-right">Revenue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                <tbody>
                   {(stats?.top_products || []).slice(0, topProductsLimit).map((p: any, i: number) => (
                     <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
@@ -687,7 +687,7 @@ const DashboardOverview: React.FC = () => {
 
         {/* Low Stock Alerts */}
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-          <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+          <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">
               Stock Alerts
             </h3>
@@ -696,14 +696,14 @@ const DashboardOverview: React.FC = () => {
           {(stats?.stock_alerts?.length || 0) > 0 ? (
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left">
-                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
                     <th className="px-3 py-2.5 font-bold">Product</th>
                     <th className="px-3 py-2.5 font-bold text-left w-28">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                <tbody>
                   {stats.stock_alerts.map((s: any, i: number) => (
                     <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
@@ -727,13 +727,13 @@ const DashboardOverview: React.FC = () => {
       {/* Items Sold List */}
       {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent print:shadow-none print:m-0 print:p-0">
-          <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2 print-hide">
+          <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2 print-hide">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
             <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Recent 100</span>
           </div>
           <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-left">
-              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                 <tr>
                   <th className="px-3 py-2.5 font-bold w-8 text-center">S/N</th>
                   <th className="px-3 py-2.5 font-bold whitespace-nowrap">Date & Time</th>
@@ -745,7 +745,7 @@ const DashboardOverview: React.FC = () => {
                   <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border print:divide-gray-300">
+              <tbody className="print:divide-y print:divide-gray-300">
                 {stats.items_sold_list.map((item: any, idx: number) => (
                   <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
                     <td className="px-3 py-2.5 text-center text-gray-400 print:text-black font-medium">{idx + 1}</td>
@@ -775,7 +775,7 @@ const DashboardOverview: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t-2 border-surface-border dark:border-surface-dark-border print:border-black font-extrabold">
+              <tfoot className="print:border-t-2 print:border-black font-extrabold">
                 <tr className="bg-neutral-100/60 dark:bg-neutral-800/60 print:bg-transparent text-xs print:text-2xs">
                   <td colSpan={3} className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-wider text-2xs">
                     Grand Total

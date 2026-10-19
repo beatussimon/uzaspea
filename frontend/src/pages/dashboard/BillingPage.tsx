@@ -697,7 +697,7 @@ const { showConfirm } = useDialog();
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                     <tr>
                       <th className="p-3">Billing Period</th>
                       <th className="p-3 text-right">Orders Value</th>
@@ -709,7 +709,7 @@ const { showConfirm } = useDialog();
                       <th className="p-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                     {invoices.map((inv: any) => {
                       const totalDue = inv.total_amount_due != null 
                         ? Number(inv.total_amount_due) 
@@ -806,7 +806,7 @@ const { showConfirm } = useDialog();
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                     <tr>
                       <th className="p-3">Date</th>
                       <th className="p-3">Order ID</th>
@@ -816,7 +816,7 @@ const { showConfirm } = useDialog();
                       <th className="p-3 text-right">Commission</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                     {ledger.map((entry: any) => (
                       <tr key={entry.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                         <td className="p-3 text-gray-500 dark:text-gray-400">
@@ -906,7 +906,7 @@ const { showConfirm } = useDialog();
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                     <tr>
                       <th className="p-3">Date</th>
                       <th className="p-3">Order ID</th>
@@ -916,7 +916,7 @@ const { showConfirm } = useDialog();
                       <th className="p-3">Paid At</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                     {driverPayments.map((dp: any) => (
                       <tr key={dp.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                         <td className="p-3 text-gray-500 dark:text-gray-400">

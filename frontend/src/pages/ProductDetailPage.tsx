@@ -407,7 +407,7 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
            {t('location', 'Location')}
          </h3>
          {!isDesktop && (
-           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1 rounded-full text-gray-900 dark:text-white font-bold transition border border-gray-300 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800">
+           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1 rounded-full text-gray-900 dark:text-white font-bold transition hover:bg-gray-100 dark:hover:bg-neutral-800">
              {showMap ? t('hide_map', 'Hide Map') : t('show_map', 'Show Map')}
            </button>
          )}
@@ -2606,10 +2606,8 @@ const ProductDetailPage: React.FC = () => {
           <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] text-xs space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                {product.is_verified && !product.has_post_inspection_changes ? (
+                {product.is_verified && !product.has_post_inspection_changes && (
                   <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
-                ) : (
-                  <Shield size={16} className="text-gray-400 dark:text-gray-500 shrink-0" />
                 )}
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="font-bold text-gray-900 dark:text-white truncate">

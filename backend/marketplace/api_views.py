@@ -2318,9 +2318,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 
             total_commission_collected = Decimal('0.00')
             total_items_subtotal = sum(seller_totals.values()) or Decimal('1.00')
+            settings_obj = SiteSettings.get()
+            configured_pos_rate = getattr(settings_obj, 'pos_commission_rate', None)
+            pos_commission_rate = configured_pos_rate if configured_pos_rate is not None else Decimal('3.00')
             for seller, amount in seller_totals.items():
                 actual_seller = seller or user
-                pos_commission_rate = Decimal('3.00')
                 seller_share = amount / total_items_subtotal
                 net_amount = max(Decimal('0.00'), amount - (discount_amount * seller_share))
                 commission_amount = net_amount * (pos_commission_rate / Decimal('100'))
