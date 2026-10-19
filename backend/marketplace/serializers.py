@@ -466,7 +466,16 @@ class ProductSerializer(serializers.ModelSerializer):
     is_sponsored = serializers.SerializerMethodField()
 
     def get_is_sponsored(self, obj):
-        return getattr(obj, 'annotated_is_sponsored', False)
+        if hasattr(obj, 'annotated_is_sponsored'):
+            return bool(obj.annotated_is_sponsored)
+        from django.utils import timezone
+        from django.db.models import Q
+        from marketplace.models import SponsoredListing
+        return SponsoredListing.objects.filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
+            product=obj,
+            status='approved'
+        ).exists()
 
     class Meta:
         model = Product
@@ -817,7 +826,16 @@ class ProductListSerializer(serializers.ModelSerializer):
         return getattr(obj, 'sales_count', 0)
 
     def get_is_sponsored(self, obj):
-        return getattr(obj, 'annotated_is_sponsored', False)
+        if hasattr(obj, 'annotated_is_sponsored'):
+            return bool(obj.annotated_is_sponsored)
+        from django.utils import timezone
+        from django.db.models import Q
+        from marketplace.models import SponsoredListing
+        return SponsoredListing.objects.filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
+            product=obj,
+            status='approved'
+        ).exists()
 
     def get_has_inspection(self, obj):
         if hasattr(obj, 'annotated_has_inspection'):

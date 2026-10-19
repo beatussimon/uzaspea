@@ -63,6 +63,7 @@ interface ProductData {
   seller_tier: string;
   seller_profile_picture: string | null;
   condition: string;
+  is_sponsored?: boolean;
   avg_rating: number;
   like_count: number;
   old_price?: string;
@@ -484,6 +485,7 @@ const ProductDetailPage: React.FC = () => {
   const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [isAdHovered, setIsAdHovered] = useState(false);
   const [showInspectionHistory, setShowInspectionHistory] = useState(false);
   const [customMessage, setCustomMessage] = useState('Hi, is this still available?');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -607,6 +609,22 @@ const ProductDetailPage: React.FC = () => {
       setMapModalState({ isOpen: true, mode: 'open' });
     });
   };
+
+  const handleAdInfoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate('/help?q=ad');
+  };
+
+  const getConditionLabel = useCallback(() => {
+    if (!product?.condition) return '';
+    const c = (product.condition || '').toLowerCase();
+    if (c === 'new') return t('new', 'MPYA');
+    if (c === 'used') return t('used', 'IMETUMIKA');
+    if (c === 'refurbished') return t('refurbished', 'Iliyokarabatiwa');
+    if (c === 'like_new' || c === 'like new') return t('like_new', 'Kama Mpya');
+    return product.condition;
+  }, [product?.condition, t]);
 
   const existingConversation = useMemo(() => {
     if (!product || !conversations) return null;
@@ -1841,7 +1859,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* Metadata Line: Single horizontal space justified equally across items */}
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2 text-xs text-gray-500 dark:text-gray-400 font-medium w-full pt-0.5 flex-nowrap overflow-hidden">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 text-xs text-gray-500 dark:text-gray-400 font-medium w-full pt-0.5 flex-nowrap">
               {/* Brand */}
               {(product.brand_details || product.brand_name) && (
                 <Link
@@ -1853,21 +1871,49 @@ const ProductDetailPage: React.FC = () => {
                 </Link>
               )}
 
-              {/* Condition */}
-              {product.condition && (
-                <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider shrink-0 ${
-                  (product.condition || '').toLowerCase() === 'new' 
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                }`}>
-                  {(product.condition || '').toLowerCase() === 'new'
-                    ? t('new', 'MPYA')
-                    : (product.condition || '').toLowerCase() === 'used'
-                      ? t('used', 'IMETUMIKA')
-                      : (product.condition || '').toLowerCase() === 'refurbished'
-                        ? t('refurbished', 'Iliyokarabatiwa')
-                        : product.condition}
-                </span>
+              {/* Condition & Sponsored AD */}
+              {(product.condition || product.is_sponsored) && (
+                <div className="flex items-center gap-1.5 shrink-0 select-none">
+                  {/* Condition Badge */}
+                  {product.condition && (
+                    <span className={`min-w-[38px] px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider text-center shrink-0 ${
+                      (product.condition || '').toLowerCase() === 'new' 
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                    }`}>
+                      {getConditionLabel()}
+                    </span>
+                  )}
+
+                  {/* Sponsored AD Badge */}
+                  {product.is_sponsored && (
+                    <div 
+                      className="relative inline-flex items-center shrink-0"
+                      onMouseLeave={() => setIsAdHovered(false)}
+                    >
+                      <button
+                        type="button"
+                        onClick={handleAdInfoClick}
+                        onMouseEnter={() => setIsAdHovered(true)}
+                        title={t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                        aria-label="What does AD mean? Click to view FAQ"
+                        className="min-w-[38px] px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider text-center shrink-0 bg-gray-100 text-brand-500 dark:bg-gray-800 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
+                      >
+                        {t('ad_badge', 'AD')}
+                      </button>
+                      {isAdHovered && (
+                        <div
+                          onClick={handleAdInfoClick}
+                          className="absolute top-full left-0 mt-1 pointer-events-auto cursor-pointer z-50 animate-in fade-in duration-150"
+                        >
+                          <span className="text-[10px] font-semibold normal-case tracking-normal text-neutral-800 dark:text-neutral-200 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded px-2 py-1 shadow-xl whitespace-nowrap block drop-shadow-md">
+                            {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Location */}
@@ -2241,7 +2287,7 @@ const ProductDetailPage: React.FC = () => {
               </div>
 
               {!product.requires_quote && product.price_tiers && product.price_tiers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {product.price_tiers.map((tier) => {
                     const minQ = parseFloat(tier.min_quantity);
                     const maxQ = tier.max_quantity ? parseFloat(tier.max_quantity) : null;
@@ -2256,17 +2302,21 @@ const ProductDetailPage: React.FC = () => {
                         key={tier.id}
                         type="button"
                         onClick={() => setQuantity(minQ)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer bg-transparent ${
+                        className={`h-7 sm:h-7.5 px-2.5 flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold transition-all rounded-[3px] select-none cursor-pointer ${
                           isCurrentActive
-                            ? 'border-amber-400 text-amber-500 dark:text-amber-400'
-                            : 'border-transparent bg-gray-100/80 hover:bg-gray-200 dark:bg-[#242526] dark:hover:bg-[#2d2e30] text-gray-700 dark:text-gray-300'
+                            ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-black dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:hover:text-white'
                         }`}
                       >
                         <span>
                           {formatQtyNum(minQ)}{maxQ ? `–${formatQtyNum(maxQ)}` : '+'} {formatUnit(maxQ || minQ, uom)}
                         </span>
                         {savingsPercent > 0 && (
-                          <span className="text-[11px] font-extrabold text-emerald-500 dark:text-emerald-400">
+                          <span className={`text-[11px] font-extrabold ${
+                            isCurrentActive
+                              ? 'text-emerald-400 dark:text-emerald-600'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
                             -{savingsPercent}%
                           </span>
                         )}
