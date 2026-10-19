@@ -55,7 +55,7 @@ const UserAvatar = ({
   
   if (profilePicture) {
     return (
-      <div className={`${sizeClasses} shrink-0 rounded-full overflow-hidden ring-2 ${isSeller ? 'ring-brand-500' : 'ring-neutral-200 dark:ring-neutral-800'}`}>
+      <div className={`${sizeClasses} shrink-0 rounded-full overflow-hidden ${isSeller ? 'ring-2 ring-brand-500' : ''}`}>
         <SafeImage 
           src={profilePicture} 
           alt={username} 
@@ -68,8 +68,8 @@ const UserAvatar = ({
   return (
     <div className={`${sizeClasses} shrink-0 rounded-full flex items-center justify-center font-bold uppercase transition-transform ${
       isSeller 
-        ? 'bg-brand-500 text-white shadow-sm' 
-        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 ring-1 ring-neutral-200 dark:ring-neutral-700'
+        ? 'bg-brand-500 text-white shadow-sm ring-2 ring-brand-500' 
+        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
     }`}>
       {username ? username.charAt(0) : 'U'}
     </div>
@@ -569,6 +569,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
               <UserAvatar 
                 username={user?.username || 'U'} 
                 profilePicture={user?.profile_picture} 
+                isSeller={user?.username === sellerUsername}
                 size="md" 
               />
               <div className="flex-1 min-w-0">
@@ -696,6 +697,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                               <UserAvatar 
                                 username={user?.username || 'U'} 
                                 profilePicture={user?.profile_picture} 
+                                isSeller={user?.username === sellerUsername}
                                 size="sm" 
                               />
                               <div className="flex-1 min-w-0">
