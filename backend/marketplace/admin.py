@@ -253,7 +253,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         }),
         ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
         ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url']}),
-        ('Business Rules', {'fields': ['commission_rate']}),
+        ('Business Rules', {'fields': ['commission_rate', 'pos_commission_rate', 'driver_payout_percentage']}),
     ]
     def has_add_permission(self, request):
         return not SiteSettings.objects.exists()  # Only one row allowed

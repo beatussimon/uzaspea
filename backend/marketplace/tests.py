@@ -1710,3 +1710,37 @@ class POSTestCase(TestCase):
         self.assertEqual(ledger_entry.commission_rate, Decimal('3.00'))
         self.assertEqual(ledger_entry.order_amount, Decimal('95000.00'))
         self.assertEqual(ledger_entry.commission_amount, Decimal('2850.00'))
+
+    def test_pos_checkout_with_custom_pos_commission_rate(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from billing.models import CommissionLedgerEntry
+        from .models import Order, SiteSettings
+
+        settings = SiteSettings.get()
+        settings.pos_commission_rate = Decimal('5.00')
+        settings.save()
+
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        payload = {
+            'customer_name': 'Walk-in Charlie',
+            'amount_paid': 100000,
+            'items': [
+                {
+                    'product_id': self.product.id,
+                    'quantity': 1,
+                    'price': float(self.product.price)
+                }
+            ]
+        }
+
+        res = self.client.post('/api/orders/pos-checkout/', payload, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+
+        order = Order.objects.get(id=res.data['id'])
+        # Platform fee (5% of 100,000 = 5,000)
+        self.assertEqual(order.platform_fee, Decimal('5000.00'))
+        ledger_entry = CommissionLedgerEntry.objects.get(order=order)
+        self.assertEqual(ledger_entry.commission_rate, Decimal('5.00'))
+        self.assertEqual(ledger_entry.commission_amount, Decimal('5000.00'))

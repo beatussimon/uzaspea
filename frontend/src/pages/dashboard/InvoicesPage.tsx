@@ -169,7 +169,7 @@ const [orders, setOrders] = useState<any[]>([]);
                     ? tab.isAction
                       ? 'bg-brand-500 text-white shadow-xs'
                       : 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -235,7 +235,7 @@ const [orders, setOrders] = useState<any[]>([]);
             return (
               <div
                 key={order.id}
-                className="card overflow-hidden transition-all duration-200"
+                className="card !border-none overflow-hidden transition-all duration-200"
               >
                 {/* Collapsible Header */}
                 <div

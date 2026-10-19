@@ -97,7 +97,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs whitespace-nowrap">
-          <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+          <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
             <tr>
               <th className="p-3">{t('date', 'Date')}</th>
               <th className="p-3">{t('invoice_number', 'Invoice #')}</th>
@@ -108,7 +108,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
               <th className="p-3 text-center">{t('receipt', 'Receipt')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+          <tbody>
             {filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">

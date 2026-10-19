@@ -45,7 +45,7 @@ const ProductRequestThumbnail: React.FC<{
   if (!src || error) {
     return (
       <div 
-        className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0"
+        className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] flex items-center justify-center shrink-0"
         title={alt}
       >
         <ImageIcon size={18} className="text-gray-400 opacity-60" />
@@ -54,7 +54,7 @@ const ProductRequestThumbnail: React.FC<{
   }
 
   return (
-    <div className="relative w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border overflow-hidden shrink-0">
+    <div className="relative w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] overflow-hidden shrink-0">
       {/* Low-res blurred preview placeholder while decoding */}
       {!loaded && (
         <img
@@ -827,7 +827,7 @@ const ProductRequestsBoard: React.FC = () => {
 
             {/* Active Data Table */}
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent min-w-0">
-              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+              <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">Active Demand Requests</h3>
                   <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 shrink-0">
@@ -840,7 +840,7 @@ const ProductRequestsBoard: React.FC = () => {
               </div>
               <div className="overflow-x-auto min-h-[160px]">
                 <table className="w-full text-left text-xs min-w-[900px]">
-                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
                         <div className="flex items-center gap-1">
@@ -881,7 +881,7 @@ const ProductRequestsBoard: React.FC = () => {
                       <th scope="col" className="p-3 text-right whitespace-nowrap w-72 min-w-[280px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <tbody>
                     {sortedActiveRequests.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="p-8 text-center text-gray-400">
@@ -1073,7 +1073,7 @@ const ProductRequestsBoard: React.FC = () => {
                     )}
                   </tbody>
                   {sortedActiveRequests.length > 0 && (
-                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold border-t-2 border-surface-border dark:border-surface-dark-border">
+                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold">
                       <tr>
                         <td className="p-3 align-middle min-w-[200px]">
                           <div className="font-bold text-gray-900 dark:text-white text-xs">Total Active Demands</div>
@@ -1115,7 +1115,7 @@ const ProductRequestsBoard: React.FC = () => {
 
             {/* Fulfilled Requests Table (In Inventory History) */}
             <div className="card overflow-hidden !border-none !rounded-none !bg-transparent min-w-0">
-              <div className="h-12 px-3 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-2">
+              <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">Fulfilled Requests / History</h3>
                   <span className="hidden sm:inline-block text-2xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 shrink-0">
@@ -1142,7 +1142,7 @@ const ProductRequestsBoard: React.FC = () => {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs min-w-[800px]">
-                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                       <tr>
                         <th scope="col" className="p-3">
                           {t('product_name', 'Product Info')}
@@ -1155,7 +1155,7 @@ const ProductRequestsBoard: React.FC = () => {
                         <th scope="col" className="p-3 text-right whitespace-nowrap w-36">Record</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                    <tbody>
                       {sortedFulfilledRequests.map((req) => {
                         const sell = parseFloat(req.price || '0') || 0;
                         const buy = parseFloat(req.buying_price || '0') || 0;
@@ -1235,7 +1235,7 @@ const ProductRequestsBoard: React.FC = () => {
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold border-t-2 border-surface-border dark:border-surface-dark-border">
+                    <tfoot className="bg-neutral-50 dark:bg-neutral-900/60 font-semibold">
                       <tr>
                         <td className="p-3 align-middle min-w-[200px]">
                           <div className="font-bold text-gray-900 dark:text-white text-xs">Total History</div>

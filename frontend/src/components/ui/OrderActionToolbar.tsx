@@ -63,8 +63,8 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
 
   const btnClasses =
     size === 'sm'
-      ? 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm'
-      : 'inline-flex items-center gap-2 px-3.5 py-2 rounded-btn text-sm font-bold transition-all border shadow-sm';
+      ? 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm'
+      : 'inline-flex items-center gap-2 px-3.5 py-2 rounded-btn text-sm font-bold transition-all shadow-sm';
 
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`} onClick={(e) => e.stopPropagation()}>
@@ -73,7 +73,7 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
         <button
           type="button"
           onClick={handleMessageClick}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-brand-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-brand-500`}
           title={`Message @${username}`}
         >
           <MessageSquare size={size === 'sm' ? 13 : 15} className="text-brand-500" />
@@ -86,7 +86,7 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
         <a
           href={telLink}
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-emerald-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-emerald-500`}
           title={`Call ${phone}`}
         >
           <Phone size={size === 'sm' ? 13 : 15} className="text-emerald-500" />
@@ -101,7 +101,7 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-blue-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-blue-500`}
           title="Open directions in Google Maps"
         >
           <Navigation size={size === 'sm' ? 13 : 15} className="text-blue-500" />

@@ -1440,6 +1440,11 @@ class SiteSettings(models.Model):
         max_digits=5, decimal_places=2, default=Decimal('10.00'),
         help_text="Default platform commission % charged to sellers"
     )
+    pos_commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('3.00'),
+        verbose_name="POS commission rate",
+        help_text="Platform commission % charged to sellers for in-store POS (Point of Sale) checkouts"
+    )
     driver_payout_percentage = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('70.00'),
         help_text="Percentage of an order's shipping fee paid out to the delivering driver for standard (non-vehicle) deliveries."
