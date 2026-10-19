@@ -986,7 +986,7 @@ const DashboardProducts: React.FC = () => {
                     key={tab.key}
                     type="button"
                     onClick={() => setFilterStatus(tab.key)}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                    className={`h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
                         : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -1003,10 +1003,10 @@ const DashboardProducts: React.FC = () => {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={t('search_products', 'Search by Name or SKU...')}
+                placeholder={t('search_products', 'Search products...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-6 py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
+                className="w-full h-8 pl-7 pr-6 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-xs placeholder:font-semibold placeholder:text-gray-600 dark:placeholder:text-gray-400 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
               />
               {searchQuery && (
                 <button
@@ -1028,10 +1028,10 @@ const DashboardProducts: React.FC = () => {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={t('search_products', 'Search by Name or SKU...')}
+                placeholder={t('search_products', 'Search products...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-6 py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
+                className="w-full h-8 pl-7 pr-6 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-xs placeholder:font-semibold placeholder:text-gray-600 dark:placeholder:text-gray-400 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
               />
               {searchQuery && (
                 <button
@@ -1048,7 +1048,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="py-1.5 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
+              className="h-8 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
             >
               <option value="">All Categories</option>
               {flatCategories.map((c: any) => (
@@ -1059,7 +1059,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCondition}
               onChange={(e) => setFilterCondition(e.target.value)}
-              className="py-1.5 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
+              className="h-8 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
             >
               <option value="">Any Condition</option>
               <option value="New">New</option>
