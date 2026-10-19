@@ -315,10 +315,10 @@ const CategoryBar: React.FC = () => {
                           });
                         });
                       }}
-                      className={`flex items-center px-3 py-1.5 rounded-full text-xs border shrink-0 ${
+                      className={`flex items-center px-3 py-1.5 rounded-full text-xs shrink-0 transition-colors ${
                         !activeSubcategorySlug
-                          ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white border-neutral-400 dark:border-neutral-500 shadow-sm'
-                          : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-300/80 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 shadow-sm'
+                          ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white shadow-sm'
+                          : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white shadow-sm'
                       }`}
                     >
                       <span>All {activeCat.name}</span>
@@ -338,10 +338,10 @@ const CategoryBar: React.FC = () => {
                               });
                             });
                           }}
-                          className={`flex items-center px-3 py-1.5 rounded-full text-xs border shrink-0 ${
+                          className={`flex items-center px-3 py-1.5 rounded-full text-xs shrink-0 transition-colors ${
                             isSelected
-                              ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white border-neutral-400 dark:border-neutral-500 shadow-sm'
-                              : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-300/80 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 shadow-sm'
+                              ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white shadow-sm'
+                              : 'font-medium bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white shadow-sm'
                           }`}
                         >
                           <span>{sub.name}</span>
