@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import SafeImage from '../SafeImage';
@@ -91,29 +90,9 @@ const CategoryBar: React.FC = () => {
   const siteSettings = useSiteSettings();
   const [categories, setCategories] = useState<any[]>(() => categoriesCache ? ensureArray(categoriesCache) : []);
   const [loading, setLoading] = useState(!categoriesCache || categoriesCache.length === 0);
-  const [product, setProduct] = useState<any>(null);
   const forYouImage = siteSettings?.for_you_image || null;
 
   const isProductsPage = location.pathname === '/products' || location.pathname === '/browse_products' || location.pathname === '/browse';
-  const isProductDetailPage = location.pathname.startsWith('/product/');
-
-  // Extract product slug from path if in detail view
-  const productSlug = useMemo(() => {
-    if (!isProductDetailPage) return null;
-    const match = location.pathname.match(/\/product\/([^/]+)/);
-    return match ? match[1] : null;
-  }, [location.pathname, isProductDetailPage]);
-
-  // Load product if in details page
-  useEffect(() => {
-    if (productSlug) {
-      fetchProductCached(productSlug)
-        .then((res: any) => setProduct(res.data))
-        .catch(() => {});
-    } else {
-      setProduct(null);
-    }
-  }, [productSlug]);
 
   useEffect(() => {
     if (categoriesCache && categoriesCache.length > 0) {
@@ -196,31 +175,8 @@ const CategoryBar: React.FC = () => {
   const effectiveCategorySlug = activeCategory ? activeCategory.slug : activeCategorySlug;
   const isForYouActive = !effectiveCategorySlug && !activeSubcategorySlug;
 
-  // Find product's category and subcategory from the nested categories list
-  const { productParentCat, productSubCat } = useMemo(() => {
-    if (!isProductDetailPage || !product || categories.length === 0) {
-      return { productParentCat: null, productSubCat: null };
-    }
-    let parentCat: any = null;
-    let subCat: any = null;
-    for (const root of categories) {
-      if (root.id === product.category) {
-        parentCat = root;
-        subCat = null;
-        break;
-      }
-      const kid = root.children?.find((c: any) => c.id === product.category);
-      if (kid) {
-        parentCat = root;
-        subCat = kid;
-        break;
-      }
-    }
-    return { productParentCat: parentCat, productSubCat: subCat };
-  }, [isProductDetailPage, product, categories]);
-
-  // Only show on product catalog and detail pages
-  const allowedPaths = ['/products', '/product', '/browse_products', '/browse'];
+  // Only show on product catalog pages
+  const allowedPaths = ['/products', '/browse_products', '/browse'];
   const showBar = allowedPaths.some(p => location.pathname.startsWith(p));
 
   if (!showBar) return null;
@@ -256,23 +212,8 @@ const CategoryBar: React.FC = () => {
     }
   };
 
-  // Render a loading skeleton for product details page
-  if (isProductDetailPage && (loading || !product)) {
-    return (
-      <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
-        <div className="container-page">
-          <div className="flex items-center justify-center gap-2 py-2.5 w-full">
-            <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
-            <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isProductsPage) {
-    // CIRCLES Layout (original category circles slider, updated with desktop-large/mobile-small sizes)
-    return (
+  // CIRCLES Layout (category circles slider with subcategory pills)
+  return (
       <div className="w-full pt-0.5 pb-0 md:pb-1 bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="container-page">
           <div data-horizontal-scroll="true" className="flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-2 pb-1.5 md:pt-3 md:pb-4 px-2 sm:px-3 w-full">
@@ -425,70 +366,6 @@ const CategoryBar: React.FC = () => {
           return null;
         })()}
       </div>
-    );
-  }
-
-  // PILLS Layout (displayed on details page, otherwise falls back to all categories if ever rendered elsewhere)
-  const pillsToRender = isProductDetailPage 
-    ? [productParentCat, productSubCat].filter(Boolean)
-    : topCategories.filter((cat: any) => cat.total_products > 0);
-
-  return (
-    <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
-      <div className="container-page">
-        <div data-horizontal-scroll="true" className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 scroll-smooth w-full">
-          {/* All Products Pill - only shown when showing all categories */}
-          {!isProductDetailPage && (
-            <button 
-              onClick={() => handleCategoryClick('')}
-              onMouseEnter={preloadProductList}
-              onFocus={preloadProductList}
-              onTouchStart={preloadProductList}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-100 border-transparent shadow-sm"
-            >
-              <LayoutGrid size={12} className="stroke-[2]" />
-              <span>{t('all_products', 'All Products')}</span>
-            </button>
-          )}
-
-          {loading && !isProductDetailPage ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-7 w-20 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse shrink-0" />
-            ))
-          ) : (
-            pillsToRender.map((cat: any) => {
-              const isSub = isProductDetailPage && cat.parent !== null && cat.parent !== undefined;
-              const clickUrl = isSub && productParentCat
-                ? `/products?category=${productParentCat.slug}&subcategory=${cat.slug}`
-                : `/products?category=${cat.slug}`;
-
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => isProductDetailPage ? navigate(clickUrl) : handleCategoryClick(cat.slug)}
-                  onMouseEnter={preloadProductList}
-                  onFocus={preloadProductList}
-                  onTouchStart={preloadProductList}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 bg-white dark:bg-neutral-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800 shadow-sm"
-                >
-                  {cat.image ? (
-                    <SafeImage
-                      src={cat.image}
-                      alt=""
-                      category={cat.name}
-                      className="w-4 h-4 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <span className="w-4 h-4 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[8px] font-black uppercase">{cat.name.charAt(0)}</span>
-                  )}
-                  <span>{cat.name} ({cat.product_count || 0})</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </div>
   );
 };
 
