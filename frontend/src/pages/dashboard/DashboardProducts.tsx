@@ -1385,7 +1385,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         return (
-          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] rounded-xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
+          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (

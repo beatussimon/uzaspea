@@ -391,7 +391,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 {/* Main Content Pane */}
-                <div className="bg-white dark:bg-[#0A0A0A] rounded-card p-6 sm:p-8 shadow-xs">
+                <div className="bg-white dark:bg-[#141414] rounded-card p-6 sm:p-8 shadow-xs">
                     
                     {/* 1. Profile Tab */}
                     {activeTab === 'profile' && (

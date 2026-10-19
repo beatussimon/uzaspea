@@ -1067,7 +1067,7 @@ const DashboardPOS: React.FC = () => {
             {isMobileCartOpen && (
               <div className="fixed inset-0 z-50 flex flex-col justify-end">
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setIsMobileCartOpen(false)} />
-                <div className="relative bg-white dark:bg-[#0A0A0A] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
+                <div className="relative bg-white dark:bg-[#141414] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
                   <div className="p-4 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                       {t('current_sale', 'Current Sale')}
@@ -1342,7 +1342,7 @@ const CartContent = ({
   };
 
   return (
-    <div className="flex flex-col flex-1 h-full bg-white dark:bg-[#0A0A0A]">
+    <div className="flex flex-col flex-1 h-full bg-white dark:bg-[#141414]">
       {/* 1. Customer & Status Header */}
       <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1547,7 +1547,7 @@ const CartContent = ({
       </div>
 
       {/* 4. Checkout Footer with Refined Typography & Comma-Separated Tender Input */}
-      <div className="p-4 shrink-0 space-y-3.5 bg-white dark:bg-[#0A0A0A] mt-auto">
+      <div className="p-4 shrink-0 space-y-3.5 bg-white dark:bg-[#141414] mt-auto">
         {/* Total Breakdown */}
         <div className="space-y-1.5">
           {discountAmount > 0 && (
