@@ -416,3 +416,48 @@ class ProductInspectionEventTests(TestCase):
         self.assertTrue(restock_events.exists())
         self.assertIn('+5', restock_events.first().title)
 
+    def test_verified_and_has_inspection_revoked_on_critical_edits(self):
+        from inspections.models import InspectionReport
+        from marketplace.serializers import ProductListSerializer, ProductSerializer
+        from marketplace.discovery_views import get_base_product_queryset
+
+        # Create passed inspection report
+        report = InspectionReport.objects.create(
+            request=self.inspection,
+            verdict='pass',
+            quality_score=95.0,
+            grade='A',
+            summary='Passed all tests'
+        )
+
+        # Before critical changes: is_verified is True, has_inspection is True
+        self.assertTrue(self.product.is_verified)
+        list_data_before = ProductListSerializer(self.product).data
+        self.assertTrue(list_data_before['is_verified'])
+        self.assertTrue(list_data_before['has_inspection'])
+        self.assertFalse(list_data_before['has_post_inspection_changes'])
+
+        # Now perform critical edit: Restock
+        self.product.stock = Decimal('20.00')
+        self.product.save()
+
+        # Verify inspection event was created
+        self.assertTrue(self.product.inspection_events.filter(event_type='restock').exists())
+
+        # After critical edit: is_verified and has_inspection must be False
+        self.assertFalse(self.product.is_verified)
+        list_data_after = ProductListSerializer(self.product).data
+        self.assertFalse(list_data_after['is_verified'])
+        self.assertFalse(list_data_after['has_inspection'])
+        self.assertTrue(list_data_after['has_post_inspection_changes'])
+
+        detail_data_after = ProductSerializer(self.product).data
+        self.assertFalse(detail_data_after['is_verified'])
+        self.assertFalse(detail_data_after['has_inspection'])
+
+        # Check annotated queryset in discovery_views
+        annotated_product = get_base_product_queryset().get(pk=self.product.pk)
+        self.assertFalse(annotated_product.annotated_is_verified)
+        self.assertFalse(annotated_product.annotated_has_inspection)
+
+

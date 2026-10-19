@@ -442,10 +442,16 @@ class Product(models.Model):
 
     @property
     def is_verified(self):
-        """Returns True if there is at least one published inspection report with a 'pass' verdict."""
+        """Returns True if there is at least one published inspection report with a 'pass' verdict,
+        and no critical post-inspection events (restock, alterations) exist."""
         if hasattr(self, 'annotated_is_verified'):
             return self.annotated_is_verified
-        return self.inspections.filter(status='published', report__verdict='pass').exists()
+        has_passed = self.inspections.filter(status='published', report__verdict='pass').exists()
+        if not has_passed:
+            return False
+        if hasattr(self, 'inspection_events') and self.inspection_events.exists():
+            return False
+        return True
 
 
 class ProductPriceTier(models.Model):

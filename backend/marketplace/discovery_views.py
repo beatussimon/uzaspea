@@ -1,13 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
-from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, Q, F, ExpressionWrapper, FloatField
+from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, Q, F, ExpressionWrapper, FloatField, Case, When
 from django.db.models.functions import Coalesce, Cos, Sin, ACos, Radians, Greatest, Least
 from django.utils import timezone
 
 from django.core.cache import cache
 from .models import Product, Category, Like, Review, SponsoredListing
-from inspections.models import InspectionRequest, InspectionReport
+from inspections.models import InspectionRequest, InspectionReport, ProductInspectionEvent
 from .serializers import ProductListSerializer
 
 
@@ -20,8 +20,15 @@ def get_base_product_queryset(user=None):
         if user and user.is_authenticated
         else Value(False, output_field=BooleanField())
     )
-    has_inspection_expr = Exists(
-        InspectionRequest.objects.filter(marketplace_product=OuterRef('pk'), status='published')
+    has_post_inspection_changes_expr = Exists(
+        ProductInspectionEvent.objects.filter(product=OuterRef('pk'))
+    )
+    has_inspection_expr = Case(
+        When(has_post_inspection_changes_expr, then=Value(False)),
+        default=Exists(
+            InspectionRequest.objects.filter(marketplace_product=OuterRef('pk'), status='published')
+        ),
+        output_field=BooleanField()
     )
     inspection_verdict_expr = Subquery(
         InspectionReport.objects.filter(
@@ -29,12 +36,16 @@ def get_base_product_queryset(user=None):
             request__status='published'
         ).values('verdict')[:1]
     )
-    is_verified_expr = Exists(
-        InspectionRequest.objects.filter(
-            marketplace_product=OuterRef('pk'), 
-            status='published', 
-            report__verdict='pass'
-        )
+    is_verified_expr = Case(
+        When(has_post_inspection_changes_expr, then=Value(False)),
+        default=Exists(
+            InspectionRequest.objects.filter(
+                marketplace_product=OuterRef('pk'), 
+                status='published', 
+                report__verdict='pass'
+            )
+        ),
+        output_field=BooleanField()
     )
     is_sponsored_expr = Exists(
         SponsoredListing.objects.filter(
@@ -63,7 +74,8 @@ def get_base_product_queryset(user=None):
         annotated_has_inspection=has_inspection_expr,
         annotated_inspection_verdict=inspection_verdict_expr,
         annotated_is_verified=is_verified_expr,
-        annotated_is_sponsored=is_sponsored_expr
+        annotated_is_sponsored=is_sponsored_expr,
+        annotated_has_post_inspection_changes=has_post_inspection_changes_expr
     ).select_related(
         'seller', 'seller__profile', 'category', 'category__parent',
         'brand', 'brand__created_by',

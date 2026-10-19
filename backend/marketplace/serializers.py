@@ -724,6 +724,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_has_inspection(self, obj):  # FIX B-19
         if hasattr(obj, 'annotated_has_inspection'):
             return obj.annotated_has_inspection
+        if hasattr(obj, 'inspection_events') and obj.inspection_events.exists():
+            return False
         return any(i.status == 'published' for i in obj.inspections.all())
 
     def get_inspection_verdict(self, obj):  # FIX B-19
@@ -763,6 +765,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     is_sponsored = serializers.SerializerMethodField()
     has_inspection = serializers.SerializerMethodField()
     inspection_verdict = serializers.SerializerMethodField()
+    has_post_inspection_changes = serializers.SerializerMethodField()
     distance = serializers.FloatField(read_only=True, required=False, allow_null=True)
 
     class Meta:
@@ -774,7 +777,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
             'condition', 'requires_quote',
             'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images',
-            'is_verified', 'has_inspection', 'inspection_verdict', 'is_sponsored',
+            'is_verified', 'has_inspection', 'inspection_verdict', 'is_sponsored', 'has_post_inspection_changes',
             'location_name', 'latitude', 'longitude', 'distance', 'created_at',
             'weight_kg', 'size'
         ]
@@ -819,12 +822,21 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_has_inspection(self, obj):
         if hasattr(obj, 'annotated_has_inspection'):
             return obj.annotated_has_inspection
+        if hasattr(obj, 'inspection_events') and obj.inspection_events.exists():
+            return False
         return any(i.status == 'published' for i in obj.inspections.all())
 
     def get_inspection_verdict(self, obj):
         if hasattr(obj, 'annotated_inspection_verdict'):
             return obj.annotated_inspection_verdict
         return None
+
+    def get_has_post_inspection_changes(self, obj):
+        if hasattr(obj, 'annotated_has_post_inspection_changes'):
+            return obj.annotated_has_post_inspection_changes
+        if hasattr(obj, 'inspection_events'):
+            return obj.inspection_events.exists()
+        return False
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
