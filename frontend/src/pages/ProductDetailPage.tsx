@@ -2556,22 +2556,18 @@ const ProductDetailPage: React.FC = () => {
           <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] border border-gray-100 dark:border-neutral-800 text-xs space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                {product.has_post_inspection_changes ? (
-                  <AlertTriangle size={16} className="text-amber-500 shrink-0" />
-                ) : product.is_verified ? (
+                {product.is_verified && !product.has_post_inspection_changes ? (
                   <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
                 ) : (
                   <Shield size={16} className="text-gray-400 dark:text-gray-500 shrink-0" />
                 )}
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="font-bold text-gray-900 dark:text-white truncate">
-                    {product.has_post_inspection_changes 
-                      ? t('inspected_altered_listing', 'Inspected (Altered/Restocked)')
-                      : product.is_verified 
-                        ? t('verified_listing', 'Verified Item') 
-                        : t('professional_inspection', 'Professional Inspection')}
+                    {product.is_verified && !product.has_post_inspection_changes
+                      ? t('verified_listing', 'Verified Item') 
+                      : t('professional_inspection', 'Professional Inspection')}
                   </span>
-                  {product.inspections && product.inspections.length > 0 && (
+                  {product.is_verified && !product.has_post_inspection_changes && product.inspections && product.inspections.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                       {product.inspections.length} {product.inspections.length === 1 ? t('report', 'Report') : t('reports', 'Reports')}
                     </span>
@@ -2600,13 +2596,6 @@ const ProductDetailPage: React.FC = () => {
                 </Link>
               </div>
             </div>
-
-            {/* Subtle text notice if altered after inspection (no loud card or shades) */}
-            {product.has_post_inspection_changes && (
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
-                {t('inspection_altered_subtle', 'Stock or details updated after inspection. View history for details.')}
-              </p>
-            )}
 
             {/* Collapsible Inspection & Modification History */}
             {showInspectionHistory && product.inspections && product.inspections.length > 0 && (

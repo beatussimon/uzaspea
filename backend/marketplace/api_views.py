@@ -203,26 +203,37 @@ class ProductViewSet(viewsets.ModelViewSet):
         raise Http404("No product matches the given query.")
 
     def get_queryset(self):
-        from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, IntegerField
+        from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, IntegerField, Case, When
         from marketplace.models import Like
-        from inspections.models import InspectionRequest, InspectionReport
+        from inspections.models import InspectionRequest, InspectionReport, ProductInspectionEvent
 
         user = self.request.user
         
         is_liked_expr = Exists(Like.objects.filter(product=OuterRef('pk'), user=user)) if user.is_authenticated else Value(False, output_field=BooleanField())
-        has_inspection_expr = Exists(InspectionRequest.objects.filter(marketplace_product=OuterRef('pk'), status='published'))
+        has_post_inspection_changes_expr = Exists(
+            ProductInspectionEvent.objects.filter(product=OuterRef('pk'))
+        )
+        has_inspection_expr = Case(
+            When(has_post_inspection_changes_expr, then=Value(False)),
+            default=Exists(InspectionRequest.objects.filter(marketplace_product=OuterRef('pk'), status='published')),
+            output_field=BooleanField()
+        )
         inspection_verdict_expr = Subquery(
             InspectionReport.objects.filter(
                 request__marketplace_product=OuterRef('pk'), 
                 request__status='published'
             ).values('verdict')[:1]
         )
-        is_verified_expr = Exists(
-            InspectionRequest.objects.filter(
-                marketplace_product=OuterRef('pk'), 
-                status='published', 
-                report__verdict='pass'
-            )
+        is_verified_expr = Case(
+            When(has_post_inspection_changes_expr, then=Value(False)),
+            default=Exists(
+                InspectionRequest.objects.filter(
+                    marketplace_product=OuterRef('pk'), 
+                    status='published', 
+                    report__verdict='pass'
+                )
+            ),
+            output_field=BooleanField()
         )
 
         from django.utils import timezone
@@ -261,7 +272,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             annotated_has_inspection=has_inspection_expr,
             annotated_inspection_verdict=inspection_verdict_expr,
             annotated_is_verified=is_verified_expr,
-            annotated_is_sponsored=is_sponsored_expr
+            annotated_is_sponsored=is_sponsored_expr,
+            annotated_has_post_inspection_changes=has_post_inspection_changes_expr
         ).select_related(
             'seller', 'seller__profile', 'category', 'category__parent',
             'brand', 'brand__created_by',
