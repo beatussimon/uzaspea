@@ -115,11 +115,11 @@ export default function ProductVariantsModal({
                 <div className="p-8 text-center text-xs text-gray-400">No variants created for this product yet.</div>
               ) : (
                 variants.map(v => (
-                  <div key={v.id} className="card p-3 flex items-center justify-between">
+                  <div key={v.id} className="card !border-none p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative group/varimg shrink-0">
                         {v.image ? (
-                          <div className="w-10 h-10 rounded-btn overflow-hidden bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                          <div className="w-10 h-10 rounded-btn overflow-hidden bg-surface-muted dark:bg-[#161616]">
                             <SafeImage src={v.image} alt={v.name} category="product" className="w-full h-full object-cover" />
                           </div>
                         ) : (
