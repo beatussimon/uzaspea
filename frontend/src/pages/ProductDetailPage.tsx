@@ -2297,7 +2297,7 @@ const ProductDetailPage: React.FC = () => {
               ) : (
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {/* Quantity Stepper */}
-                  <div className="relative flex items-center border border-gray-200 dark:border-neutral-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0 h-10 select-none isolate">
+                  <div className="relative flex items-center rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0 h-10 select-none isolate">
                     {/* Directional Soft Gray Gradient: Originates at the exact center (50%) of the whole button and flows in the direction of the hover */}
                     <div 
                       className={`absolute inset-0 pointer-events-none transition-opacity duration-200 ${
@@ -2529,7 +2529,7 @@ const ProductDetailPage: React.FC = () => {
                         value={customMessage}
                         onChange={(e) => setCustomMessage(e.target.value)}
                         placeholder={t('quick_message_placeholder', 'Hi, is this still available?')}
-                        className="min-w-0 flex-1 bg-white dark:bg-black border border-gray-200 dark:border-neutral-700 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
+                        className="min-w-0 flex-1 bg-white dark:bg-black rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors shadow-2xs"
                       />
                       <button
                         type="submit"
@@ -2553,7 +2553,7 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Verification & Inspection Services */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] border border-gray-100 dark:border-neutral-800 text-xs space-y-2">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] text-xs space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 {product.is_verified && !product.has_post_inspection_changes ? (
@@ -2588,7 +2588,7 @@ const ProductDetailPage: React.FC = () => {
                 )}
                 <Link
                   to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
-                  className="text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 bg-white dark:bg-black border border-gray-200 dark:border-neutral-700 hover:border-brand-500 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                  className="text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 bg-white dark:bg-black px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
                 >
                   {isOwnProduct 
                     ? (product.inspections?.length > 0 ? t('reinspect', 'Re-inspect') : t('request_inspection', 'Request Inspection'))
