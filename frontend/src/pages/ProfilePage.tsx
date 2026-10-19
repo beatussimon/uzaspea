@@ -814,13 +814,13 @@ const ProfilePage: React.FC = () => {
                         {/* Bottom Card Body - Floating Bubbles */}
                         <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
                           {/* Product Name Bubble */}
-                          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
+                          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm">
                             <h3 className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1">{req.name}</h3>
                           </div>
                           
                           {/* Price / Estimated Budget Bubble */}
                           {req.price && (
-                            <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-baseline gap-1.5">
+                            <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm flex items-baseline gap-1.5">
                               <span className="font-black text-gray-900 dark:text-white text-sm">
                                 Est. TSh {Number(req.price).toLocaleString()}
                               </span>
@@ -829,7 +829,7 @@ const ProfilePage: React.FC = () => {
 
                           {/* Description Bubble */}
                           {req.description && (
-                            <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
+                            <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm">
                               <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">{req.description}</p>
                             </div>
                           )}
@@ -837,7 +837,7 @@ const ProfilePage: React.FC = () => {
                           {/* Demand & Action Row */}
                           <div className="flex items-center justify-between gap-1 w-full mt-0.5">
                             {/* Demand Bubble */}
-                            <div className="flex items-center gap-1 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-2 py-1 shadow-sm font-bold shrink-0">
+                            <div className="flex items-center gap-1 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 rounded-card px-2 py-1 shadow-sm font-bold shrink-0">
                               <span className="text-gray-400 uppercase text-[7.5px]">Demand:</span>
                               <span className="font-black text-brand-500">{req.request_count || 1} {req.request_count === 1 ? 'vote' : 'votes'}</span>
                             </div>

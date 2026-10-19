@@ -890,6 +890,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             data['is_liked'] = False
 
+        # Dynamic overlay: is_sponsored (ensure fresh accuracy even with cached detail payload)
+        if hasattr(instance, 'annotated_is_sponsored'):
+            data['is_sponsored'] = bool(instance.annotated_is_sponsored)
+        else:
+            from django.utils import timezone
+            from django.db.models import Q
+            from marketplace.models import SponsoredListing
+            data['is_sponsored'] = SponsoredListing.objects.filter(
+                Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
+                product=instance,
+                status='approved'
+            ).exists()
+
         response = Response(data)
         response['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
         return response

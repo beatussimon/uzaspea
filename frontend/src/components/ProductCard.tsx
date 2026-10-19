@@ -273,6 +273,8 @@ const ProductCard = memo(({
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const effectiveSponsored = isSponsored || Boolean(product?.is_sponsored);
+
   const bgState = useMemo(() => {
     const existingBg = (location.state as any)?.backgroundLocation;
     const isCurrentlyProductPage = location.pathname.startsWith('/product');
@@ -281,10 +283,10 @@ const ProductCard = memo(({
     return {
       state: {
         backgroundLocation: bgLocation,
-        initialProduct: product
+        initialProduct: effectiveSponsored ? { ...product, is_sponsored: true } : product
       }
     };
-  }, [location.pathname, location.search, location.state, product]);
+  }, [location.pathname, location.search, location.state, product, effectiveSponsored]);
   const { calculateDistance } = useUserLocation();
   const [liked, setLiked] = React.useState(product?.is_liked || false);
   const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
@@ -361,7 +363,7 @@ const ProductCard = memo(({
           onTouchStart={preloadProductDetail}
         >
           {/* Horizontal Image Carousel */}
-          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
+          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 
           {/* Content */}
           <div className="flex-1 min-w-0 pr-8">
@@ -442,7 +444,7 @@ const ProductCard = memo(({
         onTouchStart={preloadProductDetail}
       >
         {/* Image Carousel — fixed height */}
-        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} compact={compact} />
+        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} compact={compact} />
 
         {/* Card body */}
         <div className={compact ? "absolute bottom-0 left-0 right-0 p-1.5 sm:p-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 bg-transparent" : "absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent"}>
@@ -450,12 +452,12 @@ const ProductCard = memo(({
           {(product.oem_part_number || (product.has_inspection && !product.has_post_inspection_changes)) && (
             <div className="flex flex-wrap items-center gap-1">
               {product.oem_part_number && (
-                 <div className="flex items-center text-[7.5px] text-neutral-700 dark:text-neutral-300 font-mono font-bold bg-white/95 dark:bg-black/95 px-1.5 py-0.5 rounded-card border border-gray-200/80 dark:border-white/10 whitespace-nowrap shrink-0 shadow-sm" title={`OEM Part: ${product.oem_part_number}`}>
+                 <div className="flex items-center text-[7.5px] text-neutral-700 dark:text-neutral-300 font-mono font-bold bg-white/95 dark:bg-black/95 px-1.5 py-0.5 rounded-card whitespace-nowrap shrink-0 shadow-sm" title={`OEM Part: ${product.oem_part_number}`}>
                    <span>OEM: {product.oem_part_number}</span>
                  </div>
               )}
               {product.has_inspection && !product.has_post_inspection_changes && (
-                 <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
+                 <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <span className="uppercase tracking-widest">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
               )}
@@ -463,12 +465,12 @@ const ProductCard = memo(({
           )}
 
           {/* Product Name Bubble */}
-          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden">
+          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm overflow-hidden">
             <h3 className={`font-bold ${compact ? 'text-[10.5px] sm:text-xs' : 'text-xs'} text-gray-900 dark:text-white truncate transition-colors leading-tight`}>{product.name}</h3>
           </div>
           
           {/* Price Bubble */}
-          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
+          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
             {product.requires_quote ? (
               <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-xs sm:text-sm' : 'text-sm'} truncate leading-tight`}>
                 {t('price_on_request', 'Price on Request')}
@@ -488,7 +490,7 @@ const ProductCard = memo(({
           {/* Seller Info Bubbles */}
           <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar touch-pan-y overscroll-x-contain">
             {/* Seller Username Bubble */}
-            <div className={`flex items-center gap-0.5 ${compact ? 'text-[7.5px] sm:text-[8.5px] max-w-[80px]' : 'text-[8.5px]'} text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold sm:max-w-none`}>
+            <div className={`flex items-center gap-0.5 ${compact ? 'text-[7.5px] sm:text-[8.5px] max-w-[80px]' : 'text-[8.5px]'} text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold sm:max-w-none`}>
               <span className="truncate">{product.seller_username || 'Seller'}</span>
               <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3 shrink-0" />
             </div>
@@ -505,14 +507,14 @@ const ProductCard = memo(({
 
             {/* Time Bubble */}
             {product.created_at && (
-              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
                 <Clock size={8} strokeWidth={2.5} className="shrink-0 text-gray-500 dark:text-gray-400" />
                 <span className="whitespace-nowrap">{timeAgo(product.created_at)}</span>
               </div>
             )}
 
             {/* Rating Bubble */}
-            <div className="flex gap-0.5 items-center shrink-0 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm text-gray-800 dark:text-gray-200 font-bold text-[8.5px]">
+            <div className="flex gap-0.5 items-center shrink-0 bg-white/95 dark:bg-black/95 rounded-card px-1.5 py-0.5 shadow-sm text-gray-800 dark:text-gray-200 font-bold text-[8.5px]">
               <Star size={8} strokeWidth={2.5} className={product.avg_rating > 0 ? "fill-yellow-400 text-yellow-500 shrink-0" : "text-gray-500 dark:text-gray-400 shrink-0"} />
               <span>{product.avg_rating > 0 ? product.avg_rating : '0.0'}</span>
             </div>

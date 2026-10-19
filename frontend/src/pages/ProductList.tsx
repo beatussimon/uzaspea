@@ -909,7 +909,7 @@ const ProductList = () => {
                       if ('product' in entry) {
                         const product = entry.product;
                         if (!product) return null;
-                        const isPromo = entry.type === 'promo';
+                        const isPromo = entry.type === 'promo' || Boolean(product.is_sponsored);
 
                         return (
                           <React.Fragment key={`${product.id}-${idx}`}>
