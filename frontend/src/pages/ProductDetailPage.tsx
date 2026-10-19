@@ -185,6 +185,7 @@ const ImageLightbox = ({
   initialIndex: number; 
   onClose: () => void;
 }) => {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -232,13 +233,30 @@ const ImageLightbox = ({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col" onClick={onClose}>
-      <button
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="absolute top-4 right-4 p-3 text-white hover:bg-white/10 rounded-xl transition z-50"
-        aria-label="Close fullscreen"
-      >
-        <X size={28} />
-      </button>
+      {/* Top Left: Close (X) button & OKO Logo */}
+      <div className="absolute top-4 left-4 z-50 flex items-center gap-2.5">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
+          title="Close"
+          aria-label="Close fullscreen"
+        >
+          <X size={20} />
+        </button>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/');
+          }}
+          className="flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 select-none focus:outline-none" 
+          title="Go to Homepage"
+        >
+          <img src="/logo.png" alt="OKO" className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-md select-none" />
+        </button>
+      </div>
 
       <div className="flex-1 relative w-full overflow-hidden flex items-center justify-center">
         <div 
