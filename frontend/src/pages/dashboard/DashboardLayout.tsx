@@ -43,6 +43,16 @@ const DashboardLayout: React.FC = () => {
   const hasDraggedRef = useRef(false);
   const closeTimerRef = useRef<any>(null);
 
+  const closeMobileMenuInstant = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsMobileMenuOpen(false);
+    setIsClosing(false);
+    setHasEntered(false);
+  };
+
   const handleNavAction = (targetPath: string) => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
