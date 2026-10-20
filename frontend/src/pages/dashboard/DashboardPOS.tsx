@@ -421,10 +421,10 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
                     onClick={() => handleSelectOption(dim.index, val)}
                     className={`px-2 py-0.5 rounded-lg text-2xs transition cursor-pointer ${
                       isSelected
-                        ? 'bg-white text-neutral-950 font-bold shadow-xs border border-white'
+                        ? 'bg-white text-neutral-950 font-bold shadow-xs'
                         : inStock
-                          ? 'bg-white/[0.08] hover:bg-white/[0.15] text-neutral-200 hover:text-white border border-white/10'
-                          : 'bg-white/[0.02] text-neutral-500 border border-white/5 line-through opacity-40'
+                          ? 'bg-white/[0.08] hover:bg-white/[0.15] text-neutral-200 hover:text-white'
+                          : 'bg-white/[0.02] text-neutral-500 line-through opacity-40'
                     }`}
                     title={`${val}${!inStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
                   >
