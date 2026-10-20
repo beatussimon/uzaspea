@@ -107,13 +107,13 @@
 
   /* Pills (Pellets) for categories and filters */
   .pill {
-    @apply px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 border whitespace-nowrap;
+    @apply h-8 px-3 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none border-0;
   }
   .pill-active {
-    @apply bg-transparent text-gray-900 border-gray-900 font-bold dark:text-white dark:border-white;
+    @apply bg-gray-900 text-white dark:bg-white dark:text-black font-bold shadow-sm border-0;
   }
   .pill-inactive {
-    @apply bg-surface-muted text-gray-600 border-surface-border hover:bg-gray-100 dark:bg-surface-dark dark:text-gray-300 dark:border-surface-dark-border dark:hover:bg-[#1a1a1a];
+    @apply bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0;
   }
 
   /* ── Button System ─────────────────────────────────────────── */

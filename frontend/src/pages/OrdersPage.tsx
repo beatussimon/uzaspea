@@ -376,8 +376,8 @@ const OrdersPage: React.FC = () => {
             className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
           >
             <span>{t('all', 'All')}</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+              !filterStatus ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
             }`}>
               {orders.length}
             </span>
@@ -387,15 +387,15 @@ const OrdersPage: React.FC = () => {
               onClick={() => setFilterStatus('REQUESTED_INVOICE')}
               className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
                 filterStatus === 'REQUESTED_INVOICE'
-                  ? 'pill-active border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 shadow-xs'
+                  ? 'pill-active shadow-xs'
                   : 'pill-inactive'
               }`}
             >
               <Receipt size={14} className="inline mr-0.5" />
               <span>Requested Quotes</span>
               {statusCounts.REQUESTED_INVOICE > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filterStatus === 'REQUESTED_INVOICE' ? 'bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  filterStatus === 'REQUESTED_INVOICE' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                 }`}>
                   {statusCounts.REQUESTED_INVOICE}
                 </span>
@@ -407,15 +407,15 @@ const OrdersPage: React.FC = () => {
               onClick={() => setFilterStatus('INVOICE_GENERATED')}
               className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
                 filterStatus === 'INVOICE_GENERATED'
-                  ? 'pill-active border-green-500 text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-300 shadow-xs'
+                  ? 'pill-active shadow-xs'
                   : 'pill-inactive'
               }`}
             >
               <CheckCircle2 size={14} className="inline mr-0.5" />
               <span>Invoices Ready</span>
               {statusCounts.INVOICE_GENERATED > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filterStatus === 'INVOICE_GENERATED' ? 'bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  filterStatus === 'INVOICE_GENERATED' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                 }`}>
                   {statusCounts.INVOICE_GENERATED}
                 </span>
@@ -432,8 +432,8 @@ const OrdersPage: React.FC = () => {
               >
                 <span>{t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}</span>
                 {count > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    filterStatus === s ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                    filterStatus === s ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                   }`}>
                     {count}
                   </span>
@@ -447,7 +447,7 @@ const OrdersPage: React.FC = () => {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 animate-pulse">
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 animate-pulse">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
                 <div className="flex-1 space-y-2.5">
@@ -487,7 +487,7 @@ const OrdersPage: React.FC = () => {
 
 
             return (
-              <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
+              <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
                 {/* Header */}
                 <div role="button" tabIndex={0} onClick={() => handleOrderExpand(order)}
                   onKeyDown={(e) => {
@@ -997,18 +997,18 @@ const OrdersPage: React.FC = () => {
                         <div className="pt-4 mt-auto flex justify-end gap-2 shrink-0">
                             <button 
                               onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
-                              className="btn-secondary py-1.5 px-3 text-xs bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                              className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all flex items-center gap-1.5 cursor-pointer"
                             >
-                                <Receipt size={12} className="inline mr-1" /> Receipt
+                                <Receipt size={12} /> Receipt
                             </button>
                             {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
-                                <button onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }} className="btn-secondary py-1.5 px-3 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-100 dark:border-red-900/20">Cancel</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }} className="py-1.5 px-3 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 bg-red-50/50 dark:bg-red-900/10 transition-all cursor-pointer">Cancel</button>
                             )}
                             {order.status === 'DELIVERED' && (
-                                <button onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }} className="btn-primary py-1.5 px-3 text-xs bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-black dark:hover:bg-gray-100">Confirm</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }} className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-black dark:hover:bg-gray-100 transition-all cursor-pointer">Confirm</button>
                             )}
                             {order.status === 'DELIVERED' && !order.dispute && (
-                                <button onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }} className="btn-secondary py-1.5 px-3 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-100 dark:border-red-900/20">Dispute</button>
+                                <button onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }} className="py-1.5 px-3 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 bg-red-50/50 dark:bg-red-900/10 transition-all cursor-pointer">Dispute</button>
                             )}
                         </div>
 
