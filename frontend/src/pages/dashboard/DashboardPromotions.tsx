@@ -1073,6 +1073,8 @@ const location = useLocation();
     </form>
   );
 
+  const isCreating = showForm || showPromoForm;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1100,114 +1102,119 @@ const location = useLocation();
         </p>
       </header>
 
-      {/* KPI Metrics Row */}
-      {initialLoading ? (
-        <KpiGridSkeleton count={4} cols={4} />
-      ) : (
-        activeTab === 'referrals' ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label={t('referral_sales', 'Referral Sales')}
-              value={`TSh ${Math.round(referralSummary.total_sales || 0).toLocaleString()}`}
-              icon={TrendingUp}
-            />
-            <KpiCard
-              label={t('commission_owed', 'Commission Owed')}
-              value={`TSh ${Math.round(referralSummary.total_commission_owed || 0).toLocaleString()}`}
-              icon={Ticket}
-            />
-            <KpiCard
-              label={t('commission_paid', 'Commission Paid')}
-              value={`TSh ${Math.round(referralSummary.total_commission_paid || 0).toLocaleString()}`}
-              icon={CheckCircle2}
-            />
-            <KpiCard
-              label={t('referral_orders', 'Referral Orders')}
-              value={referralSummary.total_orders || referralConversions.length}
-              icon={Package}
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label={t('active_placements', 'Active Placements')}
-              value={activeCampaignsCount}
-              sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
-              icon={Megaphone}
-            />
-            <KpiCard
-              label={t('active_coupons', 'Active Coupons')}
-              value={activeCouponsCount}
-              icon={Ticket}
-            />
-            <KpiCard
-              label={t('total_redemptions', 'Coupon Uses')}
-              value={totalRedemptions}
-              icon={TrendingUp}
-            />
-            <KpiCard
-              label={t('total_inventory', 'Store Products')}
-              value={products.length}
-              icon={Package}
-            />
-          </div>
-        )
-      )}
-
-      {/* Main Tab Bar */}
-      <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveTab('sponsored')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'sponsored'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <Megaphone size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('sponsored_listings', 'Sponsored Products')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'sponsored' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {promotions.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('coupons')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'coupons'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <Ticket size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('promo_coupons', 'Promo Codes')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {promoCodes.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('referrals')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'referrals'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <UserCheck size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('affiliates_referrals', 'Affiliates & Referrals')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'referrals' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {referralConversions.length}
-          </span>
-        </button>
+      {/* KPI Metrics Row & Main Tab Bar (Temporarily hidden while creating new for better UI/UX) */}
+      {!isCreating && (
+        <>
+      {/* KPI Metrics Row */}
+      {initialLoading ? (
+        <KpiGridSkeleton count={4} cols={4} />
+      ) : (
+        activeTab === 'referrals' ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('referral_sales', 'Referral Sales')}
+              value={`TSh ${Math.round(referralSummary.total_sales || 0).toLocaleString()}`}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('commission_owed', 'Commission Owed')}
+              value={`TSh ${Math.round(referralSummary.total_commission_owed || 0).toLocaleString()}`}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('commission_paid', 'Commission Paid')}
+              value={`TSh ${Math.round(referralSummary.total_commission_paid || 0).toLocaleString()}`}
+              icon={CheckCircle2}
+            />
+            <KpiCard
+              label={t('referral_orders', 'Referral Orders')}
+              value={referralSummary.total_orders || referralConversions.length}
+              icon={Package}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('active_placements', 'Active Placements')}
+              value={activeCampaignsCount}
+              sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
+              icon={Megaphone}
+            />
+            <KpiCard
+              label={t('active_coupons', 'Active Coupons')}
+              value={activeCouponsCount}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('total_redemptions', 'Coupon Uses')}
+              value={totalRedemptions}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('total_inventory', 'Store Products')}
+              value={products.length}
+              icon={Package}
+            />
+          </div>
+        )
+      )}
+
+      {/* Main Tab Bar */}
+      <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveTab('sponsored')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'sponsored'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+          }`}
+        >
+          <Megaphone size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('sponsored_listings', 'Sponsored Products')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+            activeTab === 'sponsored' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+          }`}>
+            {promotions.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('coupons')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'coupons'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+          }`}
+        >
+          <Ticket size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('promo_coupons', 'Promo Codes')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+            activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+          }`}>
+            {promoCodes.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('referrals')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'referrals'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+          }`}
+        >
+          <UserCheck size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('affiliates_referrals', 'Affiliates & Referrals')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+            activeTab === 'referrals' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+          }`}>
+            {referralConversions.length}
+          </span>
+        </button>
       </div>
+        </>
+      )}
 
       {/* Tab 1: Sponsored Listings */}
       {activeTab === 'sponsored' && (
