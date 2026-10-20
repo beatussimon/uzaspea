@@ -1312,7 +1312,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         return (
-          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
+          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="mb-6 space-y-4 scroll-mt-20 md:scroll-mt-24">
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (
@@ -1337,7 +1337,7 @@ const DashboardProducts: React.FC = () => {
             )}
 
             {/* ─── CLEAN SUBTLE STEPPER HEADER ─── */}
-            <div className="px-6 py-4">
+            <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
@@ -1384,10 +1384,11 @@ const DashboardProducts: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6">
-              {/* ═══ STEP 1: PROGRESSIVE CATEGORY & BASIC INFO ═══ */}
-              {wizardStep === 1 && (
-                <div className="space-y-5">
+            {/* ═══ STEP 1: PROGRESSIVE CATEGORY & BASIC INFO ═══ */}
+            {wizardStep === 1 && (
+              <div className="space-y-4">
+                {/* Card 1: Category & Product Title */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* Category & Subcategory Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Category */}
@@ -1469,7 +1470,10 @@ const DashboardProducts: React.FC = () => {
                       className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                     />
                   </div>
+                </div>
 
+                {/* Card 2: Condition, SKU & Actions */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* Condition & SKU Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1504,7 +1508,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 1 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -1532,13 +1536,15 @@ const DashboardProducts: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* ═══ STEP 2: PHOTOS & MEDIA ═══ */}
               {wizardStep === 2 && (
-                <div className="space-y-5">
-                  {/* Photo Gallery Grid */}
-                  <div className="space-y-2.5">
+                <div className="space-y-4">
+                  {/* Card 1: Product Photos Gallery */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-3">
+                    <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         {existingImages.length > 0 
@@ -1697,10 +1703,13 @@ const DashboardProducts: React.FC = () => {
                       </label>
                     </div>
                   </div>
+                </div>
 
+                {/* Card 2: A+ Content & Actions */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
-                  <div className="pt-2 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-1">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
@@ -1726,7 +1735,7 @@ const DashboardProducts: React.FC = () => {
                     </div>
 
                     {form.has_a_plus_content && (
-                      <div className="p-4 sm:p-5 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-5">
+                      <div className="space-y-4 pt-1">
                         {/* Brand & Section Headline */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
@@ -2025,14 +2034,17 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* ═══ STEP 3: SPECIFICATIONS & FITMENT ═══ */}
               {wizardStep === 3 && (
-                <div className="space-y-5">
-                  {/* Non-Auto: Brand & Model Catalog Selector */}
-                  {!isAuto && (
-                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
+                <div className="space-y-4">
+                  {/* Card 1: Brand & Model Selection / Fitment */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                    {/* Non-Auto: Brand & Model Catalog Selector */}
+                    {!isAuto && (
+                      <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                           Brand & Model
@@ -2252,53 +2264,56 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Vehicle Fitment if Auto */}
-                  {isAuto && (
-                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
-                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                        Vehicle Fitment (Optional)
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
-                            Compatible Vehicle
-                          </label>
-                          <VehicleSelector 
-                            mode="manage"
-                            onVehicleSelect={(v) => {
-                              if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
-                            }} 
-                          />
-                          {vehicleIds.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {vehicleIds.map(vid => (
-                                <span key={vid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs font-semibold">
-                                  ID: {vid}
-                                  <button type="button" onClick={() => setVehicleIds(vehicleIds.filter(id => id !== vid))} className="hover:text-red-500 ml-1">&times;</button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
-                            OEM Part Number
-                          </label>
-                          <input 
-                            type="text" 
-                            value={oemPartNumber} 
-                            onChange={(e) => setOemPartNumber(e.target.value)} 
-                            placeholder="e.g. 04465-42180"
-                            className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
-                          />
+                    {/* Vehicle Fitment if Auto */}
+                    {isAuto && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                          Vehicle Fitment (Optional)
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
+                              Compatible Vehicle
+                            </label>
+                            <VehicleSelector 
+                              mode="manage"
+                              onVehicleSelect={(v) => {
+                                if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
+                              }} 
+                            />
+                            {vehicleIds.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {vehicleIds.map(vid => (
+                                  <span key={vid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs font-semibold">
+                                    ID: {vid}
+                                    <button type="button" onClick={() => setVehicleIds(vehicleIds.filter(id => id !== vid))} className="hover:text-red-500 ml-1">&times;</button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
+                              OEM Part Number
+                            </label>
+                            <input 
+                              type="text" 
+                              value={oemPartNumber} 
+                              onChange={(e) => setOemPartNumber(e.target.value)} 
+                              placeholder="e.g. 04465-42180"
+                              className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Schema Specs */}
-                  {specSchema.length > 0 && (
-                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
+                  {/* Card 2: Technical Specifications, Custom Attributes, Description & Actions */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-5">
+                    {/* Schema Specs */}
+                    {specSchema.length > 0 && (
+                      <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                           Technical Specifications
@@ -2392,7 +2407,7 @@ const DashboardProducts: React.FC = () => {
                   )}
 
                   {/* Custom Specifications & Attributes Block */}
-                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
@@ -2566,12 +2581,15 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* ═══ STEP 4: PRICING & INVENTORY ═══ */}
               {wizardStep === 4 && (
-                <div className="space-y-5">
-                  {/* Prices */}
+                <div className="space-y-4">
+                  {/* Card 1: Pricing & Stock Inventory */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                    {/* Prices */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
@@ -2715,7 +2733,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Volume Tiers */}
-                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
+                  <div className="space-y-3 pt-1">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Volume Pricing Tiers
@@ -2766,9 +2784,12 @@ const DashboardProducts: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
 
+                {/* Card 2: Product Variants, Matrix & Actions */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* Variations */}
-                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
+                  <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Product Variants
@@ -3345,52 +3366,57 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* ═══ STEP 5: REVIEW & PUBLISH ═══ */}
               {wizardStep === 5 && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Summary */}
-                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
-                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                        Listing Summary
-                      </p>
+                <div className="space-y-4">
+                  {/* Card 1: Listing Summary */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                    <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                      Listing Summary
+                    </p>
 
-                      <div className="flex gap-3">
-                        <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-neutral-900">
-                          {existingImages.length > 0 ? (
-                            <SafeImage src={existingImages[0].image} alt="Cover" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
-                          ) : imagePreviews.length > 0 ? (
-                            <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-neutral-500">
-                              <ImageIcon size={24} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
-                            {form.name || 'Untitled Listing'}
-                          </p>
-                          <p className="text-xs font-bold text-brand-500">
-                            {form.requires_quote ? 'Price on Request' : `TZS ${parseInt(form.sale_price || form.price || '0').toLocaleString()}`}
-                          </p>
-                          <p className="text-[11px] text-neutral-500">
-                            {form.stock} {form.unit_of_measure ? `${form.unit_of_measure}s ` : ''}in stock • {form.condition}
-                          </p>
-                        </div>
+                    <div className="flex gap-4 items-center">
+                      <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-neutral-900">
+                        {existingImages.length > 0 ? (
+                          <SafeImage src={existingImages[0].image} alt="Cover" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
+                        ) : imagePreviews.length > 0 ? (
+                          <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-500">
+                            <ImageIcon size={24} />
+                          </div>
+                        )}
                       </div>
-
-                      <div className="pt-2 text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
-                        <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Category:</span> {selectedCat?.name.replace(/^[\s›]+/, '')}</p>
-                        {form.brand && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Brand:</span> {form.brand}</p>}
-                        {form.reference_product && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Model:</span> {form.reference_product}</p>}
-                        <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Location:</span> {locData.location_name || 'Dar es Salaam, Tanzania'}</p>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
+                          {form.name || 'Untitled Listing'}
+                        </p>
+                        <p className="text-xs font-bold text-brand-500">
+                          {form.requires_quote ? 'Price on Request' : `TZS ${parseInt(form.sale_price || form.price || '0').toLocaleString()}`}
+                        </p>
+                        <p className="text-[11px] text-neutral-500">
+                          {form.stock} {form.unit_of_measure ? `${form.unit_of_measure}s ` : ''}in stock • {form.condition}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Options */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                      <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Category:</span> {selectedCat?.name.replace(/^[\s›]+/, '')}</p>
+                      {form.brand && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Brand:</span> {form.brand}</p>}
+                      {form.reference_product && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Model:</span> {form.reference_product}</p>}
+                      <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Location:</span> {locData.location_name || 'Dar es Salaam, Tanzania'}</p>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Visibility & Publishing Options */}
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                    <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                      Visibility & Publishing Options
+                    </p>
+
                     <div className="space-y-3">
                       <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
                         <input 
@@ -3451,38 +3477,37 @@ const DashboardProducts: React.FC = () => {
                         </div>
                       </label>
                     </div>
-                  </div>
 
-                  {/* Step 5 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
-                    <div className="flex items-center gap-2">
+                    {/* Step 5 Actions */}
+                    <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          type="button" 
+                          onClick={() => setWizardStep(4)} 
+                          className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          <ArrowLeft size={14} /> Back
+                        </button>
+                        <button 
+                          type="button" 
+                          disabled={submitting} 
+                          onClick={(e) => handleSubmitWithProgress(e, true)}
+                          className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          Save as Draft
+                        </button>
+                      </div>
                       <button 
-                        type="button" 
-                        onClick={() => setWizardStep(4)} 
-                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        type="submit" 
+                        disabled={submitting || !canSubmit}
+                        className="h-9 px-5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        <ArrowLeft size={14} /> Back
-                      </button>
-                      <button 
-                        type="button" 
-                        disabled={submitting} 
-                        onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        Save as Draft
+                        {submitting ? 'Saving...' : editingId ? (form.is_draft ? 'Publish Listing' : 'Update Product') : 'Publish Product'}
                       </button>
                     </div>
-                    <button 
-                      type="submit" 
-                      disabled={submitting || !canSubmit}
-                      className="h-9 px-5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                    >
-                      {submitting ? 'Saving...' : editingId ? (form.is_draft ? 'Publish Listing' : 'Update Product') : 'Publish Product'}
-                    </button>
                   </div>
                 </div>
               )}
-            </div>
           </form>
         );
       })()}
