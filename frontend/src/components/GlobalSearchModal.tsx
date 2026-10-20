@@ -16,6 +16,7 @@ import { useUserLocation } from '../context/LocationContext';
 import VerifiedBadge from './VerifiedBadge';
 import NetworkErrorState from './common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
+import { saveRecVehicle } from '../utils/recentViews';
 
 // In-memory filter for seller-scoped search (0ms instant response)
 const filterSellerProductsInMemory = (
@@ -128,6 +129,10 @@ const GlobalSearchModal: React.FC = () => {
   const [condition, setCondition] = useState('');
   const [sortBy, setSortBy] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const handleVehicleSelect = (id: string) => {
+    setVehicleId(id);
+    saveRecVehicle(id);
+  };
   const [oemPartNumber, setOemPartNumber] = useState('');
   
   // Dynamic Specs
@@ -674,7 +679,7 @@ const GlobalSearchModal: React.FC = () => {
                       <VehicleSelector 
                         category={category}
                         subcategory={subcategory}
-                        onVehicleSelect={setVehicleId} 
+                        onVehicleSelect={handleVehicleSelect} 
                         selectedVehicleId={vehicleId} 
                       />
                     )}
@@ -833,7 +838,7 @@ const GlobalSearchModal: React.FC = () => {
                             <VehicleSelector 
                               category={category}
                               subcategory={subcategory}
-                              onVehicleSelect={setVehicleId} 
+                              onVehicleSelect={handleVehicleSelect} 
                               selectedVehicleId={vehicleId} 
                             />
                           )}

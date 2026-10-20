@@ -224,210 +224,99 @@ def get_section_products(section_id, active_gender, base_qs, offset=0, limit=16)
 
 class DiscoveryFeedView(APIView):
     """
-    Recommendation-ready discovery feed endpoint.
-    Serves structured section carousels ('Look Different', 'For Your Car', 
-    'Brand New Deals in Phones', 'View More in [Category]', 'Fresh Picks').
-    Supports single-section pagination via section_id, page, page_size.
+    For You feed (recommendations v3).
+    - No section_id: personalised shelves + ranked editorial shelves (see recs/engine.for_you).
+    - section_id='shelf:<key>': next page of an editorial shelf.
+    - Any other section_id: legacy section pagination (kept for old cached clients and 'fresh_picks').
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from .recs import config as rec_config
+        from .recs.context import context_from_request
+        from .recs.engine import for_you, editorial_page
+        from .recs.queries import cache_key
+        from .recs.views import cards_for_ids, shelves_to_payload, safe_int
+
+        section_id = request.query_params.get('section_id')
+        if section_id:
+            page = safe_int(request.query_params.get('page'), 1, 1, 1000)
+            page_size = safe_int(request.query_params.get('page_size'), 12, 1, 50)
+            if section_id.startswith('shelf:'):
+                ids, has_more = editorial_page(section_id[len('shelf:'):], page, page_size)
+                return Response({"status": "success", "section_id": section_id, "page": page,
+                                 "has_more": has_more, "products": cards_for_ids(ids, request)})
+            return self._legacy_section(request, section_id, page, page_size)
+
+        ctx = context_from_request(request)
+        cold_key = None
+        if ctx.user is None and not ctx.has_signals:
+            cold_key = cache_key('foryou', 'cold', ctx.gender or 'auto', ctx.region or 'all')
+            cached = cache.get(cold_key)
+            if cached is not None:
+                return Response(cached)
+        payload = {"status": "success", "personalized": ctx.has_signals,
+                   "sections": shelves_to_payload(for_you(ctx), request)}
+        if cold_key:
+            cache.set(cold_key, payload, rec_config.COLD_FEED_TTL)
+        return Response(payload)
+
+    def _legacy_section(self, request, section_id, page, page_size):
         user = request.user
         user_gender = 'unspecified'
         if user and user.is_authenticated and hasattr(user, 'profile'):
             user_gender = getattr(user.profile, 'gender', 'unspecified') or 'unspecified'
-
-        # Client override query param takes priority (e.g. guest toggling female/male)
         req_gender = request.query_params.get('gender')
         active_gender = req_gender if req_gender in ['female', 'male'] else (
             user_gender if user_gender in ['female', 'male'] else 'female'
         )
-
         base_qs = get_base_product_queryset(user)
-
-        # Single Section Pagination Support for Infinite Horizontal Scroll
-        section_id = request.query_params.get('section_id')
-        if section_id:
-            try:
-                page = max(1, int(request.query_params.get('page', 1)))
-            except (ValueError, TypeError):
-                page = 1
-            try:
-                page_size = max(1, min(50, int(request.query_params.get('page_size', 12))))
-            except (ValueError, TypeError):
-                page_size = 12
-
-            offset = (page - 1) * page_size
-            filtered_qs = apply_location_filters(base_qs, request)
-            section_items = get_section_products(section_id, active_gender, filtered_qs, offset=offset, limit=page_size)
-
-            return Response({
-                "status": "success",
-                "section_id": section_id,
-                "page": page,
-                "has_more": len(section_items) >= page_size,
-                "products": ProductListSerializer(section_items, many=True, context={'request': request}).data
-            })
-
-        # Check cache for standard initial load without specific location filters
-        is_standard_feed = not any([
-            request.query_params.get('lat'),
-            request.query_params.get('lng'),
-            request.query_params.get('region'),
-            request.query_params.get('location_mode')
-        ])
-        cache_key = f"discovery_feed_{active_gender}"
-        if is_standard_feed:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                return Response(cached_data)
-
-        # Full Discovery Feed Initial Load
+        offset = (page - 1) * page_size
         filtered_qs = apply_location_filters(base_qs, request)
-        sections = []
-
-        # 1. Section: "Look Different" (Fashion personalized by gender)
-        if active_gender == 'male':
-            fashion_cat = get_category_by_slug_or_keywords('mens-fashion', ["Men's Fashion", "Men"])
-            fashion_title = "Look Different"
-            fashion_subtitle = "Sharp looks, shoes & style essentials for men"
-            fashion_see_more = f"/products?category={fashion_cat.slug if fashion_cat else 'mens-fashion'}"
-        else:
-            fashion_cat = get_category_by_slug_or_keywords('womens-fashion', ["Women's Fashion", "Women"])
-            fashion_title = "Look Different"
-            fashion_subtitle = "Trendy styles, dresses, shoes & beauty picks for women"
-            fashion_see_more = f"/products?category={fashion_cat.slug if fashion_cat else 'womens-fashion'}"
-
-        fashion_products = get_section_products('look_different', active_gender, filtered_qs, offset=0, limit=16)
-        sections.append({
-            "id": "look_different",
-            "type": "horizontal_shelf",
-            "title": fashion_title,
-            "subtitle": fashion_subtitle,
-            "category_slug": fashion_cat.slug if fashion_cat else ("mens-fashion" if active_gender == 'male' else "womens-fashion"),
-            "gender_active": active_gender,
-            "has_gender_toggle": False,
-            "see_more_url": fashion_see_more,
-            "products": ProductListSerializer(fashion_products, many=True, context={'request': request}).data
-        })
-
-        # 2. Section: "For Your Car" (Automotive & Spare Parts)
-        auto_cat = get_category_by_slug_or_keywords('vehicles', ["Vehicles", "Cars", "Motorcycles", "Vehicle Parts"])
-        auto_products = get_section_products('for_your_car', active_gender, filtered_qs, offset=0, limit=16)
-        sections.append({
-            "id": "for_your_car",
-            "type": "horizontal_shelf",
-            "title": "For Your Car",
-            "subtitle": "Essential spare parts, vehicle accessories & automobiles",
-            "category_slug": auto_cat.slug if auto_cat else "vehicles",
-            "see_more_url": f"/products?category={auto_cat.slug if auto_cat else 'vehicles'}",
-            "products": ProductListSerializer(auto_products, many=True, context={'request': request}).data
-        })
-
-        # 3. Section: "Brand New Deals in Phones" (Phones & Gadgets)
-        phone_cat = get_category_by_slug_or_keywords('electronics-mobile-phones', ["Mobile Phones", "Phones", "Smartphones", "Electronics"])
-        phone_products = get_section_products('phone_deals', active_gender, filtered_qs, offset=0, limit=16)
-        sections.append({
-            "id": "phone_deals",
-            "type": "horizontal_shelf",
-            "title": "Brand New Deals in Phones",
-            "subtitle": "Smartphones, mobile accessories & hot electronic gadgets",
-            "category_slug": phone_cat.slug if phone_cat else "electronics",
-            "see_more_url": f"/products?category={phone_cat.slug if phone_cat else 'electronics'}",
-            "products": ProductListSerializer(phone_products, many=True, context={'request': request}).data
-        })
-
-        # 4. Section: "View More in Home & Living"
-        home_cat = get_category_by_slug_or_keywords('home-garden-furniture', ["Home", "Furniture", "Appliances", "Living"])
-        home_products = get_section_products('view_more_home', active_gender, filtered_qs, offset=0, limit=16)
-        if home_products:
-            sections.append({
-                "id": "view_more_home",
-                "type": "horizontal_shelf",
-                "title": f"View More in {home_cat.name if home_cat else 'Home & Living'}",
-                "subtitle": "Popular furnishings, kitchen electronics & home appliances",
-                "category_slug": home_cat.slug if home_cat else "home-garden-furniture",
-                "see_more_url": f"/products?category={home_cat.slug if home_cat else 'home-garden-furniture'}",
-                "products": ProductListSerializer(home_products, many=True, context={'request': request}).data
-            })
-
-        # 5. Section: "Fresh Picks" (Latest across all categories)
-        fresh_products = get_section_products('fresh_picks', active_gender, filtered_qs, offset=0, limit=16)
-        sections.append({
-            "id": "fresh_picks",
-            "type": "horizontal_shelf",
-            "title": "Fresh Picks Across All Categories",
-            "subtitle": "Just listed verified products in Tanzania",
-            "category_slug": "",
-            "see_more_url": "/products?sort_by=newest",
-            "products": ProductListSerializer(fresh_products, many=True, context={'request': request}).data
-        })
-
-        result_payload = {
+        section_items = get_section_products(section_id, active_gender, filtered_qs, offset=offset, limit=page_size)
+        return Response({
             "status": "success",
-            "sections": sections
-        }
-        if is_standard_feed:
-            cache.set(cache_key, result_payload, timeout=600)
-
-        return Response(result_payload)
+            "section_id": section_id,
+            "page": page,
+            "has_more": len(section_items) >= page_size,
+            "products": ProductListSerializer(section_items, many=True, context={'request': request}).data
+        })
 
 
 class CategoryRecommendationsView(APIView):
-    """
-    Returns closest related products for a given category or product context.
-    Uses multi-stage candidate retrieval, ranking, and diversification.
-    """
+    """Recommendation shelf for a category page (or a product, for old clients). Uses recs v3."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from .models import Product
-        from .recommendation_service import RecommendationEngine
+        from .recs.context import context_from_request
+        from .recs.engine import ymal_for_product, category_picks, top_picks
+        from .recs.views import cards_for_scored, safe_int
 
-        product_id = request.query_params.get('product_id')
-        cat_slug = request.query_params.get('category')
-        exclude_param = request.query_params.get('exclude', '')
-        limit = int(request.query_params.get('limit', 24))
+        product_id = request.query_params.get('product_id') or ''
+        cat_slug = (request.query_params.get('category') or '').strip()
+        limit = safe_int(request.query_params.get('limit'), 24, 1, 50)
+        ctx = context_from_request(request)
 
-        exclude_ids = []
-        if exclude_param:
-            for item in exclude_param.split(','):
-                item = item.strip()
-                if item.isdigit():
-                    exclude_ids.append(int(item))
-
-        target_prod = None
-        if product_id and product_id.isdigit():
-            target_prod = Product.objects.filter(id=int(product_id), is_available=True).first()
-
+        target = Product.objects.filter(id=int(product_id), is_available=True).first() if product_id.isdigit() else None
         cat = None
         if cat_slug:
-            cat = Category.objects.filter(slug=cat_slug).first()
-            if not cat:
-                cat = Category.objects.filter(name__icontains=cat_slug).first()
+            cat = Category.objects.filter(slug=cat_slug).first() or Category.objects.filter(name__icontains=cat_slug).first()
 
-        recs = RecommendationEngine.get_recommendations(
-            target_product=target_prod,
-            user=request.user,
-            category_slug=cat.slug if cat else cat_slug,
-            limit=limit,
-            exclude_ids=exclude_ids,
-            request=request
-        )
-
-        title = "You Might Also Like"
-        if target_prod:
+        if target is not None:
+            items = ymal_for_product(target.id, ctx, limit)
             subtitle = "Recommended for you based on this product"
-        elif cat:
+        elif cat is not None:
+            items = category_picks(cat, ctx, limit)
             subtitle = f"Recommended picks in {cat.name}"
         else:
+            items = top_picks(ctx, limit)
             subtitle = "Popular picks tailored for you"
 
         return Response({
-            "product_id": target_prod.id if target_prod else None,
+            "product_id": target.id if target else None,
             "category": cat.slug if cat else cat_slug,
             "category_name": cat.name if cat else None,
-            "title": title,
+            "title": "You Might Also Like",
             "subtitle": subtitle,
-            "products": ProductListSerializer(recs, many=True, context={'request': request}).data
+            "products": cards_for_scored(items, request),
         })

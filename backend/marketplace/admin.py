@@ -10,6 +10,7 @@ from .models import (
     SellerApplication, SellerSiteVisit, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ,
     PasswordResetRequest, ReservedUsername
 )
+from .models import EditorialShelf, ProductStats, ProductRecs
 from django.utils.html import format_html
 import urllib.parse
 from django.utils import timezone
@@ -111,6 +112,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    filter_horizontal = ('related_categories',)
     list_display = ('name', 'slug', 'parent', 'description')
     list_filter = ('parent',)
     search_fields = ('name', 'description', 'parent__name')
@@ -550,4 +552,34 @@ class SellerSiteVisitAdmin(admin.ModelAdmin):
     list_filter = ['status', 'region', 'created_at']
     search_fields = ['business_name', 'user__username', 'contact_phone', 'address']
     readonly_fields = ['created_at', 'updated_at', 'reviewed_at']
+
+
+@admin.register(EditorialShelf)
+class EditorialShelfAdmin(admin.ModelAdmin):
+    list_display = ('title', 'key', 'category', 'audience', 'base_order', 'is_active')
+    list_editable = ('base_order', 'is_active')
+    list_filter = ('audience', 'is_active')
+    search_fields = ('title', 'key', 'category__name')
+    raw_id_fields = ('category',)
+
+
+@admin.register(ProductStats)
+class ProductStatsAdmin(admin.ModelAdmin):
+    list_display = ('product', 'popularity', 'quality', 'views_7d', 'likes', 'orders_30d', 'rating_avg', 'updated_at')
+    search_fields = ('product__name',)
+    raw_id_fields = ('product',)
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(ProductRecs)
+class ProductRecsAdmin(admin.ModelAdmin):
+    list_display = ('product', 'computed_at')
+    search_fields = ('product__name',)
+    raw_id_fields = ('product',)
+
+    def has_add_permission(self, request):
+        return False
+
 

@@ -3,7 +3,8 @@ import api from '../../api';
 import { apiCache } from '../../utils/apiCache';
 import ProductCard from '../ProductCard';
 import { ProductCardSkeleton } from '../Skeleton';
-import { getRecentProductIdsParam } from '../../utils/recentViews';
+import { getRecContextParams } from '../../utils/recentViews';
+import { trackRecImpression } from '../../utils/recTracking';
 
 interface CategoryRecommendationShelfProps {
   category: string;
@@ -18,70 +19,69 @@ export const CategoryRecommendationShelf: React.FC<CategoryRecommendationShelfPr
   viewMode = 'grid',
   cols = 5,
 }) => {
-  const cacheKey = `recommendations:${category}`;
-  const [products, setProducts] = useState<any[]>(() => {
-    const cached = apiCache.get<any>(cacheKey);
-    return cached && Array.isArray(cached.data?.products) ? cached.data.products : [];
-  });
-  const [title, setTitle] = useState<string>(() => {
-    const cached = apiCache.get<any>(cacheKey);
-    return cached?.data?.title || 'You Might Also Like';
-  });
-  const [subtitle, setSubtitle] = useState<string>(() => {
-    const cached = apiCache.get<any>(cacheKey);
-    return cached?.data?.subtitle || '';
-  });
-  const [loading, setLoading] = useState(!products.length);
-
   const numCols = Math.max(1, cols);
-  const maxProducts = 4 * numCols; // Exactly 4 rows
+  const maxProducts = 4 * numCols; // exactly 4 rows
+  const recParams = getRecContextParams();
+  const cacheKey = `recommendations:v3:${category}:${recParams.recent_ids || ''}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [data, setData] = useState<any>(() => apiCache.get<any>(cacheKey)?.data || null);
+  const [loading, setLoading] = useState<boolean>(() => !apiCache.get<unknown>(cacheKey));
 
   useEffect(() => {
     if (!category) return;
-    const key = `recommendations:${category}`;
-    const cached = apiCache.get<any>(key);
-
-    if (cached && Array.isArray(cached.data?.products)) {
-      setProducts(cached.data.products);
-      if (cached.data.title) setTitle(cached.data.title);
-      if (cached.data.subtitle) setSubtitle(cached.data.subtitle);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cached = apiCache.get<any>(cacheKey);
+    if (cached?.data) {
+      setData(cached.data);
       setLoading(false);
       return;
     }
-
+    let isMounted = true;
     setLoading(true);
-    const recentIds = getRecentProductIdsParam();
-    const params: Record<string, any> = {
+    const params: Record<string, string> = {
       category,
-      limit: Math.max(maxProducts, 24),
-      ...(recentIds ? { recent_ids: recentIds } : {}),
+      limit: String(Math.min(50, Math.max(maxProducts + Math.min(excludeIds.length, 26), 24))),
+      ...recParams,
     };
-    if (excludeIds.length > 0) {
-      params.exclude = excludeIds.slice(0, 10).join(',');
-    }
-
+    if (excludeIds.length > 0) params.exclude = excludeIds.slice(0, 200).join(',');
     api.get('/api/products/recommendations/', { params })
       .then((res) => {
-        apiCache.set(key, res.data);
-        if (Array.isArray(res.data?.products)) {
-          setProducts(res.data.products);
-        }
-        if (res.data?.title) setTitle(res.data.title);
-        if (res.data?.subtitle) setSubtitle(res.data.subtitle);
+        apiCache.set(cacheKey, res.data);
+        if (isMounted) setData(res.data);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [category, maxProducts]);
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+    // Fetch once per category/history; later grid pages are filtered client-side below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey, maxProducts]);
+
+  const excludeSet = new Set(excludeIds);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const products: any[] = (Array.isArray(data?.products) ? data.products : [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((p: any) => !excludeSet.has(p.id))
+    .slice(0, maxProducts);
+
+  useEffect(() => {
+    if (!loading && products.length > 0) trackRecImpression('cat_shelf', products.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, data]);
 
   if (!loading && products.length === 0) {
     return null;
   }
 
-  const productsToShow = products.slice(0, maxProducts);
+  const title: string = data?.title || 'You Might Also Like';
+  const subtitle: string = data?.subtitle || '';
 
   return (
     <div className="col-span-full my-6 sm:my-8">
-      {/* Clean Header - No AI sparkle icon, no shaded colored box */}
       <div className="mb-3 sm:mb-4 px-1">
         <h3 className="text-lg sm:text-xl md:text-2xl font-black text-neutral-900 dark:text-white tracking-tight">
           {title}
@@ -93,7 +93,6 @@ export const CategoryRecommendationShelf: React.FC<CategoryRecommendationShelfPr
         )}
       </div>
 
-      {/* 4 Rows of Related Category Products */}
       {loading ? (
         <div className={viewMode === 'grid'
           ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
@@ -108,9 +107,14 @@ export const CategoryRecommendationShelf: React.FC<CategoryRecommendationShelfPr
           ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
           : "flex flex-col gap-3"
         }>
-          {productsToShow.map((prod) => (
+          {products.map((prod) => (
             <div key={prod.id} className="h-full">
-              <ProductCard product={prod} viewMode={viewMode} />
+              <ProductCard
+                product={prod}
+                viewMode={viewMode}
+                trackSource="cat_shelf"
+                isSponsored={prod.rec_slot === 'sponsored'}
+              />
             </div>
           ))}
         </div>

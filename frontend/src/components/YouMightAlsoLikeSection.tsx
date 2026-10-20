@@ -4,7 +4,9 @@ import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api';
 import ProductCard from './ProductCard';
 import { ProductCardSkeleton } from './Skeleton';
-import { getRecentProductIdsParam } from '../utils/recentViews';
+import { getRecContextParams } from '../utils/recentViews';
+import { trackRecImpression } from '../utils/recTracking';
+import { useCart } from '../context/CartContext';
 
 export interface YouMightAlsoLikeSectionProps {
   currentProductId: number;
@@ -22,19 +24,12 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
 }) => {
   const { t } = useTranslation();
 
-  // Pre-bundled recommendations from the product detail response (zero latency)
-  const preloadedList = useMemo(() => {
-    if (product && Array.isArray(product.recommended_products) && product.recommended_products.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return product.recommended_products.filter((p: any) => p.id !== currentProductId);
-    }
-    return null;
-  }, [product, currentProductId]);
-
-  const hasPreloaded = preloadedList !== null && preloadedList.length > 0;
+  const { items: cartItems } = useCart();
+  const sectionRef = useRef<HTMLElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [products, setProducts] = useState<any[]>(() => (hasPreloaded ? preloadedList : []));
-  const [loading, setLoading] = useState<boolean>(() => !hasPreloaded);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [shouldLoad, setShouldLoad] = useState<boolean>(false);
 
   // Mobile collapsible state (expanded by default, collapsible by tapping header or chevron)
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
@@ -66,51 +61,60 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
     }
   };
 
-  // Fetch recommendations if not preloaded in product detail payload
+  // Lazy-load: start fetching when the section is within 600px of the viewport
   useEffect(() => {
-    let isMounted = true;
-
-    if (hasPreloaded) {
-      setProducts(preloadedList);
-      setLoading(false);
+    setShouldLoad(false);
+    setLoading(true);
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setShouldLoad(true);
       return;
     }
-
-    setLoading(true);
-    const fetchRecommendations = async () => {
-      try {
-        const res = await api.get('/api/products/recommendations/', {
-          params: {
-            product_id: currentProductId,
-            limit: isDesktop ? 9 : 4,
-            exclude: currentProductId.toString(),
-            recent_ids: getRecentProductIdsParam(),
-          },
-        });
-
-        const rawList = res.data?.products || (Array.isArray(res.data) ? res.data : []);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const filtered = rawList.filter((p: any) => p.id !== currentProductId);
-
-        if (isMounted) {
-          setProducts(filtered);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load recommended products:', err);
-        if (isMounted) {
-          setProducts([]);
-          setLoading(false);
-        }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setShouldLoad(true);
+        observer.disconnect();
       }
-    };
+    }, { rootMargin: '600px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [currentProductId]);
 
-    fetchRecommendations();
-
+  // Personalised complements from /api/recs/products/<id>/ymal/ (never cached per user on the server)
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let isMounted = true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const similarIds: number[] = Array.isArray(product?.similar_products) ? product.similar_products.slice(0, 12).map((p: any) => p.id) : [];
+    const cartIds = cartItems.map((i) => Number(i.productId)).filter((n) => Number.isInteger(n) && n > 0);
+    api.get(`/api/recs/products/${currentProductId}/ymal/`, {
+      params: {
+        limit: isDesktop ? 9 : 4,
+        ...getRecContextParams(),
+        ...(similarIds.length ? { exclude: similarIds.join(',') } : {}),
+        ...(cartIds.length ? { cart_ids: cartIds.slice(0, 50).join(',') } : {}),
+      },
+    })
+      .then((res) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const list = Array.isArray(res.data?.products) ? res.data.products.filter((p: any) => p.id !== currentProductId) : [];
+        if (isMounted) {
+          setProducts(list);
+          if (list.length > 0) trackRecImpression('ymal', list.length);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load recommended products:', err);
+        if (isMounted) setProducts([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
     return () => {
       isMounted = false;
     };
-  }, [currentProductId, isDesktop, hasPreloaded, preloadedList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldLoad, currentProductId, isDesktop]);
 
   // Update desktop carousel scroll button states
   useEffect(() => {
@@ -146,7 +150,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
   }
 
   return (
-    <section className={`w-full mb-4 sm:mb-5 ${className}`}>
+    <section ref={sectionRef} className={`w-full mb-4 sm:mb-5 ${className}`}>
       {/* Header Bar */}
       <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] flex items-center justify-between pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 lg:px-6 h-[52px] sm:h-[56px] lg:h-[60px] box-border shrink-0">
         <div className="flex items-center gap-2 min-w-0 pb-2">
@@ -264,6 +268,8 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                     viewMode="grid"
                     compact
                     className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[320px]"
+                    trackSource="ymal"
+                    isSponsored={prod.rec_slot === 'sponsored'}
                   />
                 ))}
           </div>
@@ -298,6 +304,8 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                       product={prod}
                       viewMode="grid"
                       className="min-h-[300px] md:min-h-[320px]"
+                      trackSource="ymal"
+                      isSponsored={prod.rec_slot === 'sponsored'}
                     />
                   </div>
                 ))}

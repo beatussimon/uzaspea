@@ -10,6 +10,7 @@ import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
 import { preloadProductDetail } from '../App';
 import { useUserLocation } from '../context/LocationContext';
+import { trackRecClick } from '../utils/recTracking';
 
 const TrendingMetricBadge = ({ product, metricType = 'auto', compact = false }: { product: any; metricType?: boolean | string; compact?: boolean }) => {
   const { t } = useTranslation();
@@ -259,7 +260,8 @@ const ProductCard = memo(({
   isTopFold = false, 
   showTrendingMetrics = false,
   compact = false,
-  className = ''
+  className = '',
+  trackSource
 }: { 
   product: any; 
   viewMode?: 'grid' | 'list'; 
@@ -268,11 +270,15 @@ const ProductCard = memo(({
   showTrendingMetrics?: boolean | string;
   compact?: boolean;
   className?: string;
+  trackSource?: string;
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const handleRecClick = () => {
+    if (trackSource) trackRecClick(trackSource, product.id);
+  };
   const effectiveSponsored = isSponsored || Boolean(product?.is_sponsored);
 
   const bgState = useMemo(() => {
@@ -357,6 +363,7 @@ const ProductCard = memo(({
         <Link 
           to={`/product/${product.slug}`} 
           {...bgState} 
+          onClick={handleRecClick}
           className="flex flex-row items-center gap-4 flex-1 min-w-0"
           onMouseEnter={preloadProductDetail}
           onFocus={preloadProductDetail}
@@ -438,6 +445,7 @@ const ProductCard = memo(({
       <Link 
         to={`/product/${product.slug}`} 
         {...bgState} 
+        onClick={handleRecClick}
         className="relative flex-1 flex flex-col h-full w-full"
         onMouseEnter={preloadProductDetail}
         onFocus={preloadProductDetail}

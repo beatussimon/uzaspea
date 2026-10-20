@@ -18,6 +18,8 @@ export interface DiscoveryShelfProps {
   loading?: boolean;
   type?: 'horizontal_shelf' | 'grid_shelf';
   gender?: 'female' | 'male';
+  paginated?: boolean;
+  trackSource?: string;
 }
 
 export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
@@ -28,6 +30,8 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   loading = false,
   type = 'horizontal_shelf',
   gender = 'female',
+  paginated = true,
+  trackSource,
 }) => {
   const { t } = useTranslation();
   const sectionRef = useRef<HTMLElement>(null);
@@ -38,16 +42,16 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   // Dynamic products list for section-based infinite horizontal scroll
   const [shelfProducts, setShelfProducts] = useState<any[]>(products);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(products.length >= 12);
+  const [hasMore, setHasMore] = useState(paginated && products.length >= 12);
   const [loadingMore, setLoadingMore] = useState(false);
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
     setShelfProducts(products);
     setPage(1);
-    setHasMore(products.length >= 12);
+    setHasMore(paginated && products.length >= 12);
     hasAutoScrolledRef.current = false;
-  }, [products]);
+  }, [products, paginated]);
 
   // Guarantee that in a 2-row horizontal shelf, only complete pairs (even count) are rendered so the bottom row is never empty
   const displayProducts = (type === 'horizontal_shelf' && shelfProducts.length > 1 && shelfProducts.length % 2 !== 0 && !loadingMore)
@@ -465,7 +469,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
           {displayProducts.slice(0, 10).map((product, idx) => (
             <div key={product.id || idx} className="h-full">
-              <ProductCard product={product} viewMode="grid" isTopFold={idx < 6} />
+              <ProductCard product={product} viewMode="grid" isTopFold={idx < 6} trackSource={trackSource} isSponsored={product.rec_slot === 'sponsored'} />
             </div>
           ))}
         </div>
@@ -491,7 +495,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
                 key={product.id || idx}
                 className="w-full snap-start h-full"
               >
-                <ProductCard product={product} viewMode="grid" isTopFold={idx < 6} />
+                <ProductCard product={product} viewMode="grid" isTopFold={idx < 6} trackSource={trackSource} isSponsored={product.rec_slot === 'sponsored'} />
               </div>
             ))}
 

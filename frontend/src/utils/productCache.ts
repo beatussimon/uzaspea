@@ -136,11 +136,11 @@ export function setCachedProduct(slugOrId: string | number, data: any) {
  */
 export function seedProductsCache(products: any[]) {
   if (!Array.isArray(products) || products.length === 0) return;
-  const now = Date.now();
 
   products.forEach(p => {
     if (!p) return;
-    const entry: CacheEntry = { data: p, timestamp: now };
+    // Rec cards are partial products: timestamp 0 forces a background refetch when the detail page opens.
+    const entry: CacheEntry = { data: { ...p, _partial: true }, timestamp: 0 };
     if (p.slug) {
       productCache[p.slug] = entry;
       touchKey(p.slug);

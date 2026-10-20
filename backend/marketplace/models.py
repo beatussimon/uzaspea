@@ -247,6 +247,10 @@ class Category(models.Model):
     spec_schema = models.JSONField(default=list, blank=True, help_text="List of dicts defining specs for this category")
     is_leaf = models.BooleanField(default=False, help_text="True if this is an end-node category")
     brands = models.ManyToManyField(Brand, blank=True, related_name='categories', help_text="Brands applicable to this category")
+    related_categories = models.ManyToManyField(
+        'self', symmetrical=True, blank=True,
+        help_text="Complementary categories used by 'You Might Also Like' (e.g. Mobile Phones <-> Phone Accessories)"
+    )
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -2243,4 +2247,130 @@ class PasswordResetRequest(models.Model):
             'body': body,
             'reset_url': url,
         }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Recommendation System v3
+# ═══════════════════════════════════════════════════════════════════
+
+class ProductStats(models.Model):
+    """Denormalised per-product signals. Refreshed hourly by marketplace.tasks.refresh_product_stats_task."""
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, primary_key=True, related_name='stats')
+    views_7d = models.PositiveIntegerField(default=0)
+    views_30d = models.PositiveIntegerField(default=0)
+    likes = models.PositiveIntegerField(default=0)
+    orders_7d = models.PositiveIntegerField(default=0)
+    orders_30d = models.PositiveIntegerField(default=0)
+    rating_avg = models.FloatField(default=0.0)
+    rating_count = models.PositiveIntegerField(default=0)
+    has_inspection = models.BooleanField(default=False)
+    inspection_verdict = models.CharField(max_length=20, blank=True, default='')
+    inspection_pass = models.BooleanField(default=False)
+    popularity = models.FloatField(default=0.0, db_index=True)
+    quality = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Stats for product {self.product_id}"
+
+
+class ProductRecs(models.Model):
+    """Precomputed neighbours. Each list item: [product_id, score, [component values]] best first."""
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, primary_key=True, related_name='recs')
+    similar = models.JSONField(default=list, blank=True)
+    complements = models.JSONField(default=list, blank=True)
+    computed_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Recs for product {self.product_id}"
+
+
+class ProductDailyStat(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='daily_stats')
+    date = models.DateField()
+    views = models.PositiveIntegerField(default=0)
+    rec_clicks = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['product', 'date'], name='uniq_product_daily_stat')]
+        indexes = [models.Index(fields=['date'], name='mkt_pds_date_idx')]
+
+
+class ProductCoView(models.Model):
+    """Directed pair counts: visitors who viewed product_a also viewed product_b (within 2 steps)."""
+    product_a = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='+')
+    product_b = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='+')
+    hits = models.PositiveIntegerField(default=0)
+    last_seen = models.DateField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['product_a', 'product_b'], name='uniq_product_coview')]
+        indexes = [models.Index(fields=['product_a', '-hits'], name='mkt_coview_a_hits_idx')]
+
+
+class RecSurfaceDailyStat(models.Model):
+    """Impressions and clicks per recommendation surface per day (for CTR)."""
+    date = models.DateField()
+    surface = models.CharField(max_length=30)
+    impressions = models.PositiveIntegerField(default=0)
+    clicks = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['date', 'surface'], name='uniq_rec_surface_day')]
+
+
+class UserRecProfile(models.Model):
+    """Server-side memory for logged-in users only (max 20 recent product ids)."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='rec_profile')
+    recent_ids = models.JSONField(default=list, blank=True)
+    vehicle_id = models.PositiveIntegerField(null=True, blank=True)
+    region = models.CharField(max_length=64, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Rec profile for user {self.user_id}"
+
+
+class EditorialShelf(models.Model):
+    """Admin-managed shelves on the For You page. Order is personalised per visitor."""
+    AUDIENCE_CHOICES = [('all', 'Everyone'), ('female', 'Female'), ('male', 'Male')]
+
+    key = models.SlugField(max_length=50, unique=True)
+    title = models.CharField(max_length=80)
+    subtitle = models.CharField(max_length=160, blank=True, default='')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='editorial_shelves')
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default='all')
+    base_order = models.PositiveSmallIntegerField(default=100, help_text="Lower = higher on the page for visitors with no history")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['base_order', 'id']
+
+    def __str__(self):
+        return f"{self.title} ({self.key})"
+
+
+@receiver(post_save, sender=Product)
+def recs_on_product_saved(sender, instance, created, **kwargs):
+    """Ensure a stats row exists and (debounced) rebuild this product's recommendation lists."""
+    if kwargs.get('raw'):
+        return
+    try:
+        ProductStats.objects.get_or_create(product_id=instance.pk)
+    except Exception:
+        return
+    if instance.is_draft or not instance.is_available:
+        return
+    from django.db import transaction
+
+    def _enqueue():
+        try:
+            if cache.add(f"recs:v3:rebuild:{instance.pk}", 1, 600):
+                from .tasks import build_recs_for_product_task
+                build_recs_for_product_task.delay(instance.pk)
+        except Exception:
+            pass
+
+    transaction.on_commit(_enqueue)
+
 
