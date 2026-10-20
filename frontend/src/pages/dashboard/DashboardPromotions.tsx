@@ -727,17 +727,6 @@ const location = useLocation();
     return `${mins}m ${t('remaining', 'left')}`;
   };
 
-  // Calculate elapsed progress percentage
-  const calculateProgress = (createdAt: string, expiresAt: string | null) => {
-    if (!expiresAt) return 0;
-    const start = new Date(createdAt).getTime();
-    const end = new Date(expiresAt).getTime();
-    const total = end - start;
-    if (total <= 0) return 100;
-    const elapsed = nowTimestamp - start;
-    const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
-    return Math.round(pct);
-  };
 
   const isAffiliate = promoFormType === 'affiliate';
 
@@ -1650,7 +1639,6 @@ const location = useLocation();
               {filteredPromotions.map((p: any) => {
                 const status = getCampaignStatus(p);
                 const timeRemaining = formatTimeRemaining(p.expires_at);
-                const progress = calculateProgress(p.created_at, p.expires_at);
                 const product = p.product_details || {};
                 const productImg = product.images?.[0]?.image || null;
 
