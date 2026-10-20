@@ -1918,8 +1918,8 @@ const MyInspections: React.FC = () => {
               className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
             >
               <span>{t('all', 'All')}</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                !filterStatus ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
               }`}>
                 {requests.length}
               </span>
@@ -1934,8 +1934,8 @@ const MyInspections: React.FC = () => {
               >
                 <CheckCircle size={14} className="inline mr-0.5" />
                 <span>{t('report_ready', 'Report Ready')}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filterStatus === 'report_ready' ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  filterStatus === 'report_ready' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                 }`}>
                   {statusCounts.report_ready}
                 </span>
@@ -1951,8 +1951,8 @@ const MyInspections: React.FC = () => {
               >
                 <Clock size={14} className="inline mr-0.5" />
                 <span>{t('in_progress', 'In Progress')}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filterStatus === 'in_progress' ? 'bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  filterStatus === 'in_progress' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                 }`}>
                   {statusCounts.in_progress}
                 </span>
@@ -1968,8 +1968,8 @@ const MyInspections: React.FC = () => {
               >
                 <FileText size={14} className="inline mr-0.5" />
                 <span>{t('awaiting_payment', 'Awaiting Payment')}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filterStatus === 'awaiting_payment' ? 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  filterStatus === 'awaiting_payment' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
                 }`}>
                   {statusCounts.awaiting_payment}
                 </span>
@@ -1980,10 +1980,10 @@ const MyInspections: React.FC = () => {
 
         {/* Search & Verify Search Box */}
         <form onSubmit={handleSearchSubmit} className="relative min-w-[220px] sm:w-64 shrink-0">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            className={`input pl-8 py-1.5 text-xs w-full ${
+            className={`w-full h-8 pl-7 pr-6 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-xs placeholder:font-semibold placeholder:text-gray-600 dark:placeholder:text-gray-400 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition ${
               searchQuery.trim() ? (isCode ? 'pr-16' : 'pr-8') : 'pr-3'
             }`}
             placeholder={t('search_inspections_placeholder', 'Search inspections or ID')}
