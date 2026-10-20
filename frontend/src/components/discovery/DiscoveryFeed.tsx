@@ -16,7 +16,6 @@ interface SectionData {
   subtitle?: string;
   category_slug?: string;
   gender_active?: 'female' | 'male';
-  has_gender_toggle?: boolean;
   see_more_url?: string;
   paginated?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +35,7 @@ const DEFAULT_PREVIEW_SECTIONS: SectionData[] = [
 export const DiscoveryFeed: React.FC = () => {
   const { location, searchPrefs } = useUserLocation();
 
-  const [gender, setGender] = useState<Gender>(() => {
+  const [gender] = useState<Gender>(() => {
     const saved = localStorage.getItem('preferred_gender');
     return saved === 'female' || saved === 'male' ? saved : '';
   });
@@ -105,15 +104,6 @@ export const DiscoveryFeed: React.FC = () => {
     fetchFeed();
   }, [fetchFeed]);
 
-  const chooseGender = (g: 'female' | 'male') => {
-    try {
-      localStorage.setItem('preferred_gender', g);
-    } catch {
-      // ignore
-    }
-    setGender(g);
-  };
-
   if (feedError && sections.length === 0) {
     return (
       <div className="w-full py-6 sm:py-8">
@@ -142,39 +132,19 @@ export const DiscoveryFeed: React.FC = () => {
         ))
       ) : (
         sections.map((section) => (
-          <React.Fragment key={section.id}>
-            {section.has_gender_toggle && (
-              <div className="flex items-center gap-2 px-1 pt-2">
-                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Show fashion for:</span>
-                {(['female', 'male'] as const).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => chooseGender(g)}
-                    className={`text-xs font-bold px-3 py-1 rounded-full border transition-colors ${
-                      (section.gender_active || 'female') === g
-                        ? 'bg-brand-500 text-white border-brand-500'
-                        : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300'
-                    }`}
-                  >
-                    {g === 'female' ? 'Women' : 'Men'}
-                  </button>
-                ))}
-              </div>
-            )}
-            <DiscoveryShelf
-              id={section.id}
-              title={section.title}
-              subtitle={section.subtitle}
-              categorySlug={section.category_slug}
-              seeMoreUrl={section.see_more_url}
-              products={section.products || []}
-              type={section.type}
-              gender={section.gender_active || (gender || 'female')}
-              paginated={section.paginated === true}
-              trackSource="foryou"
-            />
-          </React.Fragment>
+          <DiscoveryShelf
+            key={section.id}
+            id={section.id}
+            title={section.title}
+            subtitle={section.subtitle}
+            categorySlug={section.category_slug}
+            seeMoreUrl={section.see_more_url}
+            products={section.products || []}
+            type={section.type}
+            gender={section.gender_active || (gender || 'female')}
+            paginated={section.paginated === true}
+            trackSource="foryou"
+          />
         ))
       )}
     </div>

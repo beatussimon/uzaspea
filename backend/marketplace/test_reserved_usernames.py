@@ -130,6 +130,7 @@ class ReservedUsernameTestCase(TestCase):
             'email': 'one@example.com',
             'password': 'StrongPassword123!',
             'confirm_password': 'StrongPassword123!',
+            'gender': 'female',
         })
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(resp.data['detail'], 'This username is unavailable.')

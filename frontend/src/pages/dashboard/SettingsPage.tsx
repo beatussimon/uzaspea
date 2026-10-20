@@ -37,6 +37,7 @@ const SettingsPage: React.FC = () => {
         bio: '', 
         phone_number: '', 
         location: '', 
+        gender: '',
         website: '', 
         instagram_username: '', 
         whatsapp_number: '', 
@@ -146,6 +147,7 @@ const SettingsPage: React.FC = () => {
                     bio: r.data.bio || '',
                     phone_number: r.data.phone_number || '',
                     location: r.data.location || '',
+                    gender: r.data.gender || '',
                     website: r.data.website || '',
                     instagram_username: r.data.instagram_username || '',
                     whatsapp_number: r.data.whatsapp_number || '',
@@ -171,6 +173,7 @@ const SettingsPage: React.FC = () => {
             form.bio !== initialForm.bio ||
             form.phone_number !== initialForm.phone_number ||
             form.location !== initialForm.location ||
+            form.gender !== initialForm.gender ||
             form.website !== initialForm.website ||
             form.instagram_username !== initialForm.instagram_username ||
             form.whatsapp_number !== initialForm.whatsapp_number ||
@@ -194,17 +197,25 @@ const SettingsPage: React.FC = () => {
     const handleProfileSave = async () => {
         setSaving(true);
         try {
-            await api.patch(`/api/profiles/${username}/`, form);
+            const res = await api.patch(`/api/profiles/${username}/`, form);
             toast.success('Profile updated');
             setInitialForm({ ...form });
-            setProfile((prev: any) => ({ ...prev, ...form }));
+            setProfile((prev: any) => ({
+                ...prev,
+                ...form,
+                gender_locked: res.data?.gender_locked ?? prev.gender_locked,
+            }));
+            if (form.gender && form.gender !== 'unspecified') {
+                localStorage.setItem('preferred_gender', form.gender);
+            }
             if (defaultCountryCode !== initialCountryCode) {
                 setDefaultCountry(username, defaultCountryCode);
                 setInitialCountryCode(defaultCountryCode);
             }
             setIsEditingProfile(false);
-        } catch { 
-            toast.error('Failed to save'); 
+        } catch (err: any) { 
+            const msg = err.response?.data?.gender?.[0] || err.response?.data?.detail || 'Failed to save';
+            toast.error(msg); 
         } finally { 
             setSaving(false); 
         }
@@ -499,6 +510,13 @@ const SettingsPage: React.FC = () => {
                                                         <span>{form.location}</span>
                                                     </div>
                                                 )}
+
+                                                {form.gender && form.gender !== 'unspecified' && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <User size={13} />
+                                                        <span className="capitalize">{form.gender === 'female' ? 'Female' : form.gender === 'male' ? 'Male' : form.gender}</span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Social Media Icons */}
@@ -604,6 +622,60 @@ const SettingsPage: React.FC = () => {
                                                 Sets your default phone dial code and destination country for checkout orders.
                                             </p>
                                         </div>
+                                    </div>
+
+                                    {/* Gender Section (Single-update for existing users, locked once set) */}
+                                    <div className="space-y-2 border-t border-gray-100 dark:border-neutral-800 pt-4">
+                                        <div className="flex items-center justify-between">
+                                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                Gender
+                                            </label>
+                                            {profile.gender_locked ? (
+                                                <span className="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1 font-medium">
+                                                    <Lock size={11} /> Locked (Set once)
+                                                </span>
+                                            ) : (
+                                                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                                    Can only be set once
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {profile.gender_locked ? (
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                                <div className="w-full sm:w-64 px-3.5 py-2.5 rounded-btn border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 text-xs text-gray-600 dark:text-neutral-400 flex items-center justify-between">
+                                                    <span className="capitalize font-semibold text-gray-900 dark:text-white">
+                                                        {form.gender === 'female' ? 'Female' : form.gender === 'male' ? 'Male' : (form.gender || 'Not specified')}
+                                                    </span>
+                                                    <Lock size={12} className="text-gray-400" />
+                                                </div>
+                                                <p className="text-[11px] text-gray-400 dark:text-neutral-500">
+                                                    Gender cannot be changed once set.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-3">
+                                                    {(['female', 'male'] as const).map((g) => (
+                                                        <button
+                                                            key={g}
+                                                            type="button"
+                                                            onClick={() => setForm({ ...form, gender: g })}
+                                                            className={`px-4 py-2 rounded-btn border text-xs font-bold transition cursor-pointer ${
+                                                                form.gender === g
+                                                                    ? 'bg-brand-500 text-white border-brand-500 shadow-xs'
+                                                                    : 'border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                                                            }`}
+                                                        >
+                                                            {g === 'female' ? 'Female' : 'Male'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                    Select your gender to personalize recommendation feeds. Note: This can only be updated once and is locked permanently after saving.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Seller Links */}

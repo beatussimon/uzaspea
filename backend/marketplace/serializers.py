@@ -1788,10 +1788,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
                   'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
-                  'website', 'bio', 'tier', 'gender', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
+                  'website', 'bio', 'tier', 'gender', 'gender_locked', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'preferred_language', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
                   'show_product_requests']
-        read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude']  # FIX: S-07 — only staff/admin should set these
+        read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude', 'gender_locked']  # FIX: S-07 — only staff/admin should set these
+
+    def validate_gender(self, value):
+        if not value:
+            return value
+        if value not in ('female', 'male', 'other', 'unspecified'):
+            raise serializers.ValidationError("Invalid gender choice.")
+        if self.instance and self.instance.gender_locked:
+            if value != self.instance.gender:
+                raise serializers.ValidationError("Gender has already been set and cannot be changed.")
+        return value
 
     def _normalize_url(self, value):
         if not value:
@@ -1885,6 +1895,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
             # If user is a seller, lock business location address from regular profile settings
             if instance.tier in ['seller_pro', 'business', 'worker']:
                 validated_data.pop('location', None)
+
+        # Lock gender once set to female or male
+        gender = validated_data.get('gender')
+        if gender and gender in ('female', 'male') and not instance.gender_locked:
+            validated_data['gender_locked'] = True
 
         # Check if location coordinates changed
         lat_changed = 'latitude' in validated_data and validated_data['latitude'] != instance.latitude
