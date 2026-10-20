@@ -7,7 +7,7 @@
  */
 
 const STORAGE_KEY = 'sokonimax_recent_views_v1';
-const MAX_RECENT_ITEMS = 10;
+const MAX_RECENT_ITEMS = 20;
 
 /**
  * Records a product view by appending the ID to the front of the list.
@@ -60,3 +60,55 @@ export function getRecentProductIdsParam(): string {
   const ids = getRecentProductIds();
   return ids.length > 0 ? ids.join(',') : '';
 }
+
+/* ─── Recommendation context (recs v3) ─────────────────────────── */
+const VEHICLE_KEY = 'sokonimax_rec_vehicle_v1';
+
+/** Remembers the last vehicle the user picked in search ("my garage"). Empty values are ignored. */
+export function saveRecVehicle(vehicleId: string | number | null | undefined): void {
+  try {
+    const n = Number(vehicleId);
+    if (vehicleId && Number.isInteger(n) && n > 0) {
+      localStorage.setItem(VEHICLE_KEY, String(n));
+    }
+  } catch {
+    // storage unavailable
+  }
+}
+
+export function getSavedVehicleId(): number | null {
+  try {
+    const raw = localStorage.getItem(VEHICLE_KEY);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isInteger(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Region chosen in the location picker (if any). */
+export function getRecRegion(): string {
+  try {
+    const saved = localStorage.getItem('uzaspea_search_location_prefs');
+    if (saved) {
+      const prefs = JSON.parse(saved);
+      if (prefs && typeof prefs.region === 'string') return prefs.region;
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+}
+
+/** Query params every recommendation request should send. */
+export function getRecContextParams(): Record<string, string> {
+  const params: Record<string, string> = {};
+  const recent = getRecentProductIdsParam();
+  if (recent) params.recent_ids = recent;
+  const vehicle = getSavedVehicleId();
+  if (vehicle) params.vehicle_id = String(vehicle);
+  const region = getRecRegion();
+  if (region) params.region = region;
+  return params;
+}
+

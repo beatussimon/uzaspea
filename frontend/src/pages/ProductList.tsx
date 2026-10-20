@@ -898,7 +898,7 @@ const ProductList = () => {
                             {selectedCategory && idx === recInsertionIndex && (
                               <CategoryRecommendationShelf
                                 category={selectedSubcategory || selectedCategory}
-                                excludeIds={products.slice(0, 40).map(p => p.id)}
+                                excludeIds={products.map(p => p.id)}
                                 viewMode={viewMode}
                                 cols={COLS}
                               />
@@ -919,7 +919,7 @@ const ProductList = () => {
                             {selectedCategory && idx === recInsertionIndex && (
                               <CategoryRecommendationShelf
                                 category={selectedSubcategory || selectedCategory}
-                                excludeIds={products.slice(0, 40).map(p => p.id)}
+                                excludeIds={products.map(p => p.id)}
                                 viewMode={viewMode}
                                 cols={COLS}
                               />

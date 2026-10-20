@@ -417,7 +417,38 @@ class SafeJSONField(serializers.Field):
                 pass
         return {}
 
-class ProductSerializer(serializers.ModelSerializer):
+def user_can_view_cost(user, seller_id, memo=None):
+    """True if `user` may see a product's buying_price (seller, team member with manage_products, or staff)."""
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser or user.is_staff or user.id == seller_id:
+        return True
+    if memo is not None and 'effective' in memo:
+        effective = memo['effective']
+    else:
+        try:
+            from uzachuo.permissions import get_effective_sellers
+            effective = {getattr(x, 'id', x) for x in get_effective_sellers(user, required_permission='manage_products')}
+        except Exception:
+            effective = set()
+        if memo is not None:
+            memo['effective'] = effective
+    return seller_id in effective
+
+
+class CostPriceVisibilityMixin:
+    """Removes buying_price from serializer output unless the viewer may see it."""
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if 'buying_price' in ret:
+            request = self.context.get('request')
+            memo = self.context.setdefault('_cost_visibility_memo', {})
+            if not user_can_view_cost(getattr(request, 'user', None), getattr(instance, 'seller_id', None), memo):
+                ret.pop('buying_price', None)
+        return ret
+
+
+class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
@@ -746,7 +777,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return None
  
  
-class ProductListSerializer(serializers.ModelSerializer):
+class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     """
     High-performance, card-optimized serializer for product feeds, search lists, and discovery.
     Eliminates N+1 queries by reading from annotated fields and prefetched images/variants/tiers.

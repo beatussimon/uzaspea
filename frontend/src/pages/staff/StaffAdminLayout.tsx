@@ -8,7 +8,7 @@ import {
   CreditCard, Layers,
   ChevronLeft, ChevronRight, Search, Check, X,
   ArrowUpRight, KeyRound, ShieldAlert,
-  Headphones, MapPin, ExternalLink
+  Headphones, MapPin, ExternalLink, BarChart2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import api from '../../api';
@@ -29,6 +29,7 @@ import CatalogModerationManager from './CatalogModerationManager';
 import PasswordChangeRequestsManager from './PasswordChangeRequestsManager';
 import ReservedUsernamesManager from './ReservedUsernamesManager';
 import PlatformContactSettingsManager from './PlatformContactSettingsManager';
+import RecommendationInspector from './RecommendationInspector';
 import { useAuth } from '../../context/AuthContext';
 import { DashboardMobileDrawer } from '../../components/layout/DashboardMobileDrawer';
 
@@ -1644,6 +1645,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/audit', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/payment-methods', label: 'Payment Channels', icon: CreditCard },
     { path: '/staff-admin/catalog-moderation', label: 'Brand & Catalog', icon: Layers },
+    { path: '/staff-admin/recommendations', label: 'Recommendations', icon: BarChart2 },
     { path: '/staff-admin/reserved-usernames', label: 'Reserved Usernames', icon: ShieldAlert },
     { path: '/staff-admin/contact-settings', label: 'Contact & Socials', icon: Headphones },
     { path: '/staff-admin/site-visits', label: 'Site Verifications', icon: MapPin },
@@ -1728,6 +1730,7 @@ const StaffAdminLayout: React.FC = () => {
               <Route path="reserved-usernames" element={<ReservedUsernamesManager />} />
               <Route path="contact-settings" element={<PlatformContactSettingsManager />} />
               <Route path="site-visits" element={<AdminSiteVisitsReview />} />
+            <Route path="recommendations" element={<RecommendationInspector />} />
             </Routes>
           </main>
         </div>

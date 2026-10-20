@@ -87,6 +87,7 @@ REST_FRAMEWORK = {
         'anon': '1000/minute',
         'user': '5000/minute',
         'register': '50/hour',
+        'rec_events': '120/minute',
         'login': '100/hour',
         'ticket': '100/hour',
         'verify_superuser': '300/minute',

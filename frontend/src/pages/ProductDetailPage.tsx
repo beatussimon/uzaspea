@@ -27,6 +27,7 @@ import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 import { fetchProductCached, getCachedProduct, seedProductsCache } from '../utils/productCache';
 import { recordProductView } from '../utils/recentViews';
+import { trackView } from '../utils/recTracking';
 import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
@@ -812,6 +813,7 @@ const ProductDetailPage: React.FC = () => {
         }
         if (prodData?.id) {
           recordProductView(prodData.id);
+          trackView(prodData.id);
         }
 
         // Immediate variants extraction from product payload

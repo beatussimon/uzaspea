@@ -5,6 +5,7 @@ import api from '../api';
 import ProductCard from './ProductCard';
 import { ProductCardSkeleton } from './Skeleton';
 import APlusContent from './APlusContent';
+import { trackRecImpression } from '../utils/recTracking';
 
 export interface SimilarProductsSectionProps {
   currentProductId: number;
@@ -185,6 +186,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
       setLoading(false);
       setPage(1);
       setHasMore(product?.has_more_similar ?? (preloadedList.length >= pageSize));
+      if (preloadedList.length > 0) trackRecImpression('similar', preloadedList.length);
       return;
     }
 
@@ -194,44 +196,13 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
 
     const fetchInitial = async () => {
       try {
-        const params: Record<string, any> = {
-          page: 1,
-          page_size: pageSize,
-          exclude: currentProductId.toString(),
-        };
-        if (categoryTarget) {
-          params.category = categoryTarget;
-        }
-
-        const res = await api.get('/api/products/', { params });
-        const rawItems = res.data?.results || (Array.isArray(res.data) ? res.data : []);
-        const filtered = rawItems.filter((p: any) => p.id !== currentProductId);
-
-        if (filtered.length > 0) {
-          if (isMounted) {
-            setProducts(filtered);
-            setHasMore(Boolean(res.data?.next));
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Fallback: Try recommendations endpoint if category search returned nothing
-        const recParams: Record<string, any> = {
-          limit: pageSize,
-          exclude: currentProductId.toString(),
-        };
-        if (categoryTarget) {
-          recParams.category = categoryTarget;
-        }
-        const recRes = await api.get('/api/products/recommendations/', { params: recParams });
-        const recList = Array.isArray(recRes.data?.products) ? recRes.data.products : [];
-
+        const res = await api.get(`/api/recs/products/${currentProductId}/similar/`, { params: { page: 1, page_size: pageSize } });
+        const list = (Array.isArray(res.data?.products) ? res.data.products : []).filter((p: any) => p.id !== currentProductId);
         if (isMounted) {
-          const recFiltered = recList.filter((p: any) => p.id !== currentProductId).slice(0, pageSize);
-          setProducts(recFiltered);
-          setHasMore(false);
+          setProducts(list);
+          setHasMore(Boolean(res.data?.has_more));
           setLoading(false);
+          if (list.length > 0) trackRecImpression('similar', list.length);
         }
       } catch (err) {
         console.error('Failed to load similar products:', err);
@@ -257,18 +228,8 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
 
     try {
       const nextPage = page + 1;
-      const params: Record<string, any> = {
-        page: nextPage,
-        page_size: pageSize,
-        exclude: currentProductId.toString(),
-      };
-      if (categoryTarget) {
-        params.category = categoryTarget;
-      }
-
-      const res = await api.get('/api/products/', { params });
-      const rawItems = res.data?.results || (Array.isArray(res.data) ? res.data : []);
-      const newFiltered = rawItems.filter((p: any) => p.id !== currentProductId);
+      const res = await api.get(`/api/recs/products/${currentProductId}/similar/`, { params: { page: nextPage, page_size: pageSize } });
+      const newFiltered = (Array.isArray(res.data?.products) ? res.data.products : []).filter((p: any) => p.id !== currentProductId);
 
       if (newFiltered.length > 0) {
         setProducts((prev) => {
@@ -277,7 +238,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
           return [...prev, ...uniqueNew];
         });
         setPage(nextPage);
-        setHasMore(Boolean(res.data?.next));
+        setHasMore(Boolean(res.data?.has_more));
       } else {
         setHasMore(false);
       }
@@ -417,6 +378,8 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
                     viewMode="grid"
                     compact={!isDesktop}
                     className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"
+                    trackSource="similar"
+                    isSponsored={prod.rec_slot === 'sponsored'}
                   />
                 ))}
           </div>

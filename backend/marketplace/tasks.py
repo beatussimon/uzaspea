@@ -186,3 +186,29 @@ def send_webpush_notification_task(self, user_id, title, message, url=''):
         logger.warning('pywebpush not installed, skipping push delivery.')
     except Exception as e:
         logger.error(f'Web Push task error: {e}')
+
+
+# ─── Recommendations v3 ────────────────────────────────────────────
+@shared_task
+def refresh_product_stats_task():
+    from marketplace.recs.builder import refresh_product_stats
+    return refresh_product_stats()
+
+
+@shared_task
+def build_product_recs_task():
+    from marketplace.recs.builder import build_recs
+    return build_recs()
+
+
+@shared_task
+def build_recs_for_product_task(product_id):
+    from marketplace.recs.builder import build_recs
+    return build_recs(only_ids=[product_id])
+
+
+@shared_task
+def prune_rec_data_task():
+    from marketplace.recs.builder import prune_rec_data
+    return prune_rec_data()
+

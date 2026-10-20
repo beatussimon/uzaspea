@@ -807,38 +807,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         super().perform_destroy(instance)
 
     def _get_similar_products(self, product, request, limit=12):
-        from .discovery_views import get_base_product_queryset
-        base_qs = get_base_product_queryset(request.user).exclude(id=product.id)
-
-        similar_products = []
-        if product.category:
-            cat_ids = list(product.category.get_descendants(include_self=True).values_list('id', flat=True))
-            same_cat = list(
-                base_qs.filter(category_id__in=cat_ids).order_by('-annotated_is_sponsored', '-created_at')[:limit]
-            )
-            similar_products.extend(same_cat)
-
-        if len(similar_products) < limit and product.category and product.category.parent:
-            parent_ids = list(product.category.parent.get_descendants(include_self=True).values_list('id', flat=True))
-            existing_ids = [product.id] + [x.id for x in similar_products]
-            needed = limit - len(similar_products)
-            parent_products = list(
-                base_qs.filter(category_id__in=parent_ids).exclude(id__in=existing_ids).order_by('-annotated_is_sponsored', '-created_at')[:needed]
-            )
-            similar_products.extend(parent_products)
-
-        if len(similar_products) < 6:
-            existing_ids = [product.id] + [x.id for x in similar_products]
-            needed = limit - len(similar_products)
-            fallback = list(
-                base_qs.exclude(id__in=existing_ids).order_by('-annotated_is_sponsored', '-created_at')[:needed]
-            )
-            similar_products.extend(fallback)
-
-        return similar_products
+        """Similar items (recs v3): precomputed ProductRecs list. Returns (products, has_more, slots)."""
+        from .recs.engine import similar_for_product
+        from .recs.queries import hydrate
+        items, has_more = similar_for_product(product.id, page=1, page_size=limit)
+        products = hydrate([s.product_id for s in items])
+        slots = {s.product_id: s.slot for s in items if s.slot}
+        return products, has_more, slots
 
     def retrieve(self, request, *args, **kwargs):
         from django.core.cache import cache
+        from .recs.serializers import serialize_cards
+        from .serializers import user_can_view_cost
         instance = self.get_object()
         cache_key = f"product:detail:{instance.id}"
         cached_data = cache.get(cache_key)
@@ -847,64 +827,32 @@ class ProductViewSet(viewsets.ModelViewSet):
             data = dict(cached_data)
         else:
             serializer = self.get_serializer(instance)
-            data = serializer.data
-
-            # Preload similar products for instant display without extra client roundtrips
-            similar_items = []
+            data = dict(serializer.data)
+            data.pop('buying_price', None)  # cost price must never enter the shared cache
+            # Similar items are not personalised -> safe in this shared cache.
+            # 'You Might Also Like' is personal -> client fetches /api/recs/products/<id>/ymal/.
             try:
-                similar_items = self._get_similar_products(instance, request, limit=12)
-                data['similar_products'] = ProductSerializer(
-                    similar_items, many=True, context=self.get_serializer_context()
-                ).data
-                data['has_more_similar'] = len(similar_items) >= 12
+                similar_items, has_more, slots = self._get_similar_products(instance, request, limit=12)
+                data['similar_products'] = serialize_cards(similar_items, request, slots=slots, personal=False)
+                data['has_more_similar'] = has_more
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
                 data['similar_products'] = []
                 data['has_more_similar'] = False
-
-            # Preload 'You Might Also Like' recommendations
-            try:
-                from .recommendation_service import RecommendationEngine
-                similar_ids = [p.id for p in similar_items] if similar_items else []
-                recommended_items = RecommendationEngine.get_recommendations(
-                    target_product=instance,
-                    user=request.user,
-                    limit=8,
-                    exclude_ids=similar_ids,
-                    request=request
-                )
-                data['recommended_products'] = ProductSerializer(
-                    recommended_items, many=True, context=self.get_serializer_context()
-                ).data
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning("Failed to preload recommended products: %s", e)
-                data['recommended_products'] = []
-
             cache.set(cache_key, data, timeout=180)
 
-        # Dynamic user-specific overlay: is_liked
+        # Viewer-specific overlays (never cached)
+        if user_can_view_cost(request.user, instance.seller_id):
+            data['buying_price'] = str(instance.buying_price) if instance.buying_price is not None else None
         if request.user.is_authenticated:
             data['is_liked'] = instance.likes.filter(user=request.user).exists()
         else:
             data['is_liked'] = False
 
-        # Dynamic overlay: is_sponsored (ensure fresh accuracy even with cached detail payload)
-        if hasattr(instance, 'annotated_is_sponsored'):
-            data['is_sponsored'] = bool(instance.annotated_is_sponsored)
-        else:
-            from django.utils import timezone
-            from django.db.models import Q
-            from marketplace.models import SponsoredListing
-            data['is_sponsored'] = SponsoredListing.objects.filter(
-                Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
-                product=instance,
-                status='approved'
-            ).exists()
-
         response = Response(data)
-        response['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
+        response['Cache-Control'] = ('private, max-age=60' if request.user.is_authenticated
+                                     else 'public, max-age=60, stale-while-revalidate=300')
         return response
 
     @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])

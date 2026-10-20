@@ -27,6 +27,19 @@ app.conf.beat_schedule = {
         'task': 'billing.tasks.generate_monthly_invoices',
         'schedule': crontab(day_of_month=1, hour=0, minute=0),
     },
+    # Recommendations v3 (times are UTC; EAT = UTC+3)
+    'recs-refresh-product-stats-hourly': {
+        'task': 'marketplace.tasks.refresh_product_stats_task',
+        'schedule': crontab(minute=7),
+    },
+    'recs-build-product-recs-nightly': {
+        'task': 'marketplace.tasks.build_product_recs_task',
+        'schedule': crontab(hour=23, minute=15),
+    },
+    'recs-prune-weekly': {
+        'task': 'marketplace.tasks.prune_rec_data_task',
+        'schedule': crontab(day_of_week=0, hour=0, minute=30),
+    },
 }
 
 app.conf.timezone = 'UTC'
