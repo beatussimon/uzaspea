@@ -1387,7 +1387,7 @@ const DashboardProducts: React.FC = () => {
             <div className="p-6">
               {/* ═══ STEP 1: PROGRESSIVE CATEGORY & BASIC INFO ═══ */}
               {wizardStep === 1 && (
-                <div className="space-y-5 max-w-3xl">
+                <div className="space-y-5">
                   {/* Category & Subcategory Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Category */}
@@ -1537,20 +1537,13 @@ const DashboardProducts: React.FC = () => {
               {/* ═══ STEP 2: PHOTOS & MEDIA ═══ */}
               {wizardStep === 2 && (
                 <div className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1">
-                      Product Photos <span className="text-brand-500">*</span>
-                    </label>
-                    <p className="text-xs text-neutral-500">Upload images for your listing. The first image will be used as the cover photo.</p>
-                  </div>
-
                   {/* Photo Gallery Grid */}
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         {existingImages.length > 0 
                           ? `Current Images (${existingImages.length + imagePreviews.length})` 
-                          : `Product Photos (${imagePreviews.length})`}
+                          : `Product Photos (${imagePreviews.length})`} <span className="text-brand-500">*</span>
                       </p>
                       <span className="text-[10px] text-neutral-400">
                         First image is current cover • Click or drag to add photos
@@ -1679,7 +1672,7 @@ const DashboardProducts: React.FC = () => {
                         className={`relative aspect-square rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-3 text-center cursor-pointer group select-none ${
                           dragOver 
                             ? 'border-brand-500 bg-brand-500/10 scale-[1.02]' 
-                            : 'border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#141414] hover:border-brand-500 dark:hover:border-brand-500/70 hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
+                            : 'border-brand-500/70 dark:border-brand-500/70 hover:border-brand-500 dark:hover:border-brand-500 bg-neutral-50/50 dark:bg-[#141414] hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
                         }`}
                       >
                         <input
@@ -1692,10 +1685,10 @@ const DashboardProducts: React.FC = () => {
                             e.target.value = '';
                           }}
                         />
-                        <div className="w-9 h-9 rounded-full bg-neutral-200/80 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-300 group-hover:text-brand-500 group-hover:scale-110 transition shrink-0 mb-2">
+                        <div className="w-9 h-9 rounded-full bg-neutral-200/80 dark:bg-neutral-800 flex items-center justify-center text-neutral-500 dark:text-neutral-400 group-hover:scale-105 transition shrink-0 mb-2">
                           <Camera size={18} />
                         </div>
-                        <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200 leading-tight px-1 group-hover:text-brand-500 transition-colors">
+                        <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200 leading-tight px-1">
                           Drag photos here or click to browse
                         </p>
                         <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1 line-clamp-1">
