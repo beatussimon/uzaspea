@@ -1077,7 +1077,10 @@ const location = useLocation();
             {activeTab === 'sponsored' && (
               <Button
                 size="sm"
-                onClick={() => setShowForm(!showForm)}
+                onClick={() => {
+                  if (showForm) setFormStep(1);
+                  setShowForm(!showForm);
+                }}
                 className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
               >
                 {showForm ? <X size={14} /> : <Plus size={14} />}
@@ -1216,25 +1219,15 @@ const location = useLocation();
               className="space-y-4 animate-scale-in text-xs"
             >
               {/* Form Header */}
-              <div className="flex justify-between items-center pb-1">
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-                    {t('create_sponsored_listing', 'Create Sponsored Listing')}
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {formStep === 1 
-                      ? t('sponsored_form_desc', 'Feature your product with priority placement in search and category feeds.')
-                      : t('sponsored_payment_step_desc', 'Complete payment verification to activate your placement request.')}
-                  </p>
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => { setShowForm(false); setFormStep(1); }} 
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg cursor-pointer transition"
-                  title={t('close', 'Close')}
-                >
-                  <X size={16} />
-                </button>
+              <div className="pb-1">
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+                  {t('create_sponsored_listing', 'Create Sponsored Listing')}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {formStep === 1 
+                    ? t('sponsored_form_desc', 'Feature your product with priority placement in search and category feeds.')
+                    : t('sponsored_payment_step_desc', 'Complete payment verification to activate your placement request.')}
+                </p>
               </div>
 
               {/* Step 1: Campaign Setup */}
@@ -1397,15 +1390,7 @@ const location = useLocation();
                   </div>
 
                   {/* Step 1 Action Buttons */}
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => { setShowForm(false); setFormStep(1); }}
-                    >
-                      {t('cancel', 'Cancel')}
-                    </Button>
+                  <div className="flex justify-end pt-1">
                     <Button 
                       type="button" 
                       size="sm" 
