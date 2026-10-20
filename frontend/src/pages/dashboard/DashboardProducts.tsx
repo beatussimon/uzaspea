@@ -24,105 +24,7 @@ import { printElement } from '../../utils/printHelper';
 import { invalidateProductCache } from '../../components/layout/CategoryBar';
 import { useUserLocation } from '../../context/LocationContext';
 
-// ─── Mobile detection (camera option only shown on touch devices) ─────────────
-const isMobile = () =>
-  typeof window !== 'undefined' &&
-  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
-// ─── Reusable image picker button ────────────────────────────────────────────
-interface ImagePickerButtonProps {
-  label?: string;
-  compact?: boolean;
-  multiple?: boolean;
-  className?: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}
-const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
-  label = 'Add Images',
-  compact = false,
-  multiple = false,
-  className,
-  onChange,
-}) => {
-  const [open, setOpen] = React.useState(false);
-  const cameraRef = React.useRef<HTMLInputElement>(null);
-  const galleryRef = React.useRef<HTMLInputElement>(null);
-  const mobile = isMobile();
-
-  return (
-    <>
-      {mobile && (
-        <input ref={cameraRef} type="file" accept="image/*" capture="environment" multiple={multiple} onChange={onChange} className="hidden" />
-      )}
-      <input ref={galleryRef} type="file" accept="image/*" multiple={multiple} onChange={onChange} className="hidden" />
-
-      {/* trigger button */}
-      <button
-        type="button"
-        onClick={() => (mobile ? setOpen(true) : galleryRef.current?.click())}
-        className={
-          className || (
-            compact
-              ? 'flex items-center justify-center px-3 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-semibold transition-colors'
-              : 'flex items-center justify-center px-4 py-2.5 rounded-xl text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 font-semibold text-sm transition-colors w-full'
-          )
-        }
-      >
-        {label}
-      </button>
-
-      {/* bottom-sheet picker — mobile only */}
-      {open && mobile && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className="relative w-full max-w-md mx-auto bg-white dark:bg-gray-900 rounded-t-3xl px-5 pt-4 pb-10 shadow-2xl animate-slide-up"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5" />
-            <p className="text-center text-base font-bold text-gray-900 dark:text-white mb-5">{label}</p>
-            <div className="grid grid-cols-2 gap-3">
-              {/* Camera */}
-              <button
-                type="button"
-                onClick={() => { setOpen(false); cameraRef.current?.click(); }}
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800   hover:border-brand-500 dark:hover:border-brand-500 transition-all group"
-              >
-                <div className="w-12 h-12 rounded-full   flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-6 h-6 text-brand-500 dark:text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Use Camera</span>
-              </button>
-              {/* Gallery */}
-              <button
-                type="button"
-                onClick={() => { setOpen(false); galleryRef.current?.click(); }}
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800   hover:border-brand-500 dark:hover:border-brand-500 transition-all group"
-              >
-                <div className="w-12 h-12 rounded-full   flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-6 h-6 text-brand-500 dark:text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Choose File</span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="mt-4 w-full py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
 
 
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
@@ -284,7 +186,7 @@ const DashboardProducts: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const dropRef = React.useRef<HTMLDivElement>(null);
+  const dropRef = React.useRef<HTMLLabelElement>(null);
 
   // A+ Content (From the Manufacturer) State & Helpers
   const [uploadingAPlusIndex, setUploadingAPlusIndex] = useState<number | 'logo' | null>(null);
@@ -1769,40 +1671,37 @@ const DashboardProducts: React.FC = () => {
                       ))}
 
                       {/* Dropzone Image Container Tile */}
-                      <div 
+                      <label 
                         ref={dropRef} 
                         onDragOver={handleDragOver} 
                         onDragLeave={handleDragLeave} 
                         onDrop={handleDrop}
-                        onClick={() => {
-                          const btn = dropRef.current?.querySelector('button');
-                          btn?.click();
-                        }}
-                        className={`relative aspect-square rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-2 sm:p-2.5 text-center cursor-pointer group select-none ${
+                        className={`relative aspect-square rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-3 text-center cursor-pointer group select-none ${
                           dragOver 
                             ? 'border-brand-500 bg-brand-500/10 scale-[1.02]' 
                             : 'border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#141414] hover:border-brand-500 dark:hover:border-brand-500/70 hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-full bg-neutral-200/80 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-300 group-hover:text-brand-500 group-hover:scale-105 transition shrink-0 mb-1">
-                          <Camera size={16} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            handleImageChange(e);
+                            e.target.value = '';
+                          }}
+                        />
+                        <div className="w-9 h-9 rounded-full bg-neutral-200/80 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-300 group-hover:text-brand-500 group-hover:scale-110 transition shrink-0 mb-2">
+                          <Camera size={18} />
                         </div>
-                        <p className="text-[11px] sm:text-xs font-bold text-neutral-800 dark:text-neutral-200 leading-tight px-1">
-                          Drag photos here or browse
+                        <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200 leading-tight px-1 group-hover:text-brand-500 transition-colors">
+                          Drag photos here or click to browse
                         </p>
-                        <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5 mb-2 line-clamp-1">
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1 line-clamp-1">
                           Supports PNG, JPG, WebP
                         </p>
-                        <div className="w-full max-w-[125px]" onClick={(e) => e.stopPropagation()}>
-                          <ImagePickerButton 
-                            label="Choose Photos" 
-                            compact 
-                            multiple 
-                            className="w-full flex items-center justify-center px-2 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-bold transition-colors cursor-pointer"
-                            onChange={handleImageChange} 
-                          />
-                        </div>
-                      </div>
+                      </label>
                     </div>
                   </div>
 
