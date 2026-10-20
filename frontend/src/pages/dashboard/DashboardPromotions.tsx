@@ -1237,8 +1237,8 @@ const location = useLocation();
               </div>
 
               {/* Section 1: Campaign Setup (Layer 2 Container) */}
-              <div className="bg-neutral-50/80 dark:bg-[#121212] border border-neutral-200/80 dark:border-neutral-800/80 rounded-2xl p-4 sm:p-4.5 space-y-4">
-                <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-200/60 dark:border-neutral-800/60">
+              <div className="bg-neutral-50 dark:bg-[#121212] rounded-2xl p-4 sm:p-4.5 space-y-4">
+                <div className="flex items-center gap-2 pb-1">
                   <span className="w-5 h-5 rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-400 font-bold text-[11px] flex items-center justify-center shrink-0">
                     1
                   </span>
@@ -1258,8 +1258,8 @@ const location = useLocation();
                     {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
                   </label>
                   {selectedProduct ? (
-                    <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-brand-500/40 bg-white dark:bg-[#1A1A1A] transition shadow-2xs">
-                      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-[#121212]">
+                    <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white dark:bg-[#1A1A1A] transition shadow-2xs">
+                      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-[#121212]">
                         <SafeImage
                           src={selectedProduct.images?.[0]?.image || selectedProduct.image}
                           alt={selectedProduct.name}
@@ -1285,7 +1285,7 @@ const location = useLocation();
                           setSelectedProduct(null);
                           setForm(prev => ({ ...prev, product: '' }));
                         }}
-                        className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
+                        className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
                       >
                         Change
                       </button>
@@ -1313,7 +1313,7 @@ const location = useLocation();
                         }
                       }} 
                       required 
-                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500"
+                      className="input !border-none py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="">-- {t('choose_from_inventory', 'Choose from your listed inventory')} --</option>
                       {products.map(p => (
@@ -1341,7 +1341,7 @@ const location = useLocation();
                           className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-white dark:bg-[#1A1A1A] shadow-2xs ${
                             isSelected
                               ? 'border-2 border-brand-500 dark:border-brand-500 bg-brand-50/50 dark:bg-[#1F1F1F] text-gray-900 dark:text-white ring-1 ring-brand-500/20'
-                              : 'border border-neutral-200 dark:border-neutral-800 text-gray-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white'
+                              : 'border border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
@@ -1357,7 +1357,7 @@ const location = useLocation();
                           <p className="text-[11px] text-gray-500 dark:text-neutral-400 mt-1 leading-snug line-clamp-2">
                             {plan.description}
                           </p>
-                          <div className="mt-2.5 pt-1.5 flex items-baseline justify-between w-full border-t border-neutral-100 dark:border-neutral-800/80">
+                          <div className="mt-2.5 pt-1.5 flex items-baseline justify-between w-full">
                             <span className="text-3xs text-gray-400 uppercase font-medium">{t('rate', 'Rate')}</span>
                             <span className="font-semibold font-mono text-xs text-gray-900 dark:text-white">
                               TSh {plan.price.toLocaleString()}
@@ -1380,7 +1380,7 @@ const location = useLocation();
                       value={form.title} 
                       onChange={handleChange} 
                       placeholder="e.g. Genuine OEM Quality • Limited Stock Available" 
-                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500" 
+                      className="input !border-none py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500" 
                     />
                   </div>
                   <div>
@@ -1392,15 +1392,15 @@ const location = useLocation();
                       value={form.description} 
                       onChange={handleChange} 
                       placeholder="e.g. Fast delivery in Dar es Salaam. Guaranteed fitment." 
-                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500" 
+                      className="input !border-none py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 2: Payment & Verification (Layer 2 Container) */}
-              <div className="bg-neutral-50/80 dark:bg-[#121212] border border-neutral-200/80 dark:border-neutral-800/80 rounded-2xl p-4 sm:p-4.5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-neutral-200/60 dark:border-neutral-800/60">
+              <div className="bg-neutral-50 dark:bg-[#121212] rounded-2xl p-4 sm:p-4.5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-1">
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
                       2
@@ -1420,7 +1420,7 @@ const location = useLocation();
                     </div>
                   </div>
                   <div className="shrink-0 self-start sm:self-auto">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold border border-emerald-500/20">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold">
                       <span className="text-[10px] font-sans font-medium uppercase text-emerald-600/80 dark:text-emerald-400/80">{t('total', 'Total')}:</span>
                       TSh {(Number(form.duration_days) * 1000).toLocaleString()}
                     </div>
@@ -1430,7 +1430,7 @@ const location = useLocation();
                 {adminLipa.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {adminLipa.map((lipa: any) => (
-                      <div key={lipa.id} className="flex items-center gap-2.5 bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-2.5 shadow-2xs">
+                      <div key={lipa.id} className="flex items-center gap-2.5 bg-white dark:bg-[#1A1A1A] rounded-xl p-2.5 shadow-2xs">
                         <div className={`rounded flex items-center justify-center overflow-hidden shrink-0 ${lipa.network_logo ? 'w-10 h-5' : 'w-5 h-5'}`}>
                           {lipa.network_logo ? (
                             <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
@@ -1445,7 +1445,7 @@ const location = useLocation();
                         <button 
                           type="button" 
                           onClick={() => handleCopy(lipa.number)}
-                          className="text-xs text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200/80 dark:border-neutral-700/80 rounded-lg transition px-2.5 py-1 cursor-pointer font-medium"
+                          className="text-xs text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition px-2.5 py-1 cursor-pointer font-medium"
                         >
                           {copiedCode === lipa.number ? <Check size={12} className="text-emerald-500" /> : t('copy', 'Copy')}
                         </button>
@@ -1453,7 +1453,7 @@ const location = useLocation();
                     ))}
                   </div>
                 ) : (
-                  <div className="p-3 bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs text-gray-500">
+                  <div className="p-3 bg-white dark:bg-[#1A1A1A] rounded-xl text-xs text-gray-500">
                     {t('pay_via_admin_number', 'Pay via the official platform merchant Lipa number and input your transaction code.')}
                   </div>
                 )}
@@ -1469,7 +1469,7 @@ const location = useLocation();
                       value={refId}
                       onChange={(e) => setRefId(e.target.value)}
                       placeholder="e.g. PP260618.1746 or MPESA / TIGO REF"
-                      className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500"
+                      className="input !border-none py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500"
                     />
                   </div>
                   <div>
@@ -1477,7 +1477,7 @@ const location = useLocation();
                       {t('payment_receipt_proof', 'Payment Receipt Screenshot')} <span className="text-red-500">*</span>
                     </label>
                     {proofPreview ? (
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#1A1A1A] shadow-2xs">
                         <div className="flex items-center gap-2 min-w-0">
                           <img src={proofPreview} alt="Receipt preview" className="w-6 h-6 object-cover rounded shrink-0" />
                           <span className="text-xs text-gray-700 dark:text-gray-300 truncate font-mono">
@@ -1494,7 +1494,7 @@ const location = useLocation();
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center justify-between w-full h-9.5 rounded-xl cursor-pointer bg-white dark:bg-[#1A1A1A] border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-500 transition px-3 shadow-2xs">
+                      <label className="flex items-center justify-between w-full h-9.5 rounded-xl cursor-pointer bg-white dark:bg-[#1A1A1A] hover:bg-neutral-100 dark:hover:bg-[#202020] transition px-3 shadow-2xs">
                         <div className="flex items-center gap-2 truncate">
                           <Upload size={13} className="text-gray-400 shrink-0" />
                           <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -1507,7 +1507,6 @@ const location = useLocation();
                   </div>
                 </div>
               </div>
-
               {/* Form Action Buttons */}
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>
@@ -1590,11 +1589,11 @@ const location = useLocation();
                 return (
                   <div 
                     key={p.id} 
-                    className="card p-3.5 sm:p-4 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-white dark:bg-[#111111] border border-neutral-200/80 dark:border-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 rounded-xl shadow-2xs"
+                    className="card !border-none p-3.5 sm:p-4 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-white dark:bg-[#111111] rounded-xl shadow-2xs"
                   >
                     {/* Left: Product Thumbnail & Details */}
                     <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-800">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
                         {productImg ? (
                           <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
                         ) : (
@@ -1670,7 +1669,7 @@ const location = useLocation();
                     </div>
 
                     {/* Right: Duration & Rate, Status Pill, Action Button */}
-                    <div className="flex items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-neutral-100 dark:border-neutral-800/80">
+                    <div className="flex items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-2 lg:pt-0">
                       {/* Duration & Price */}
                       <div className="text-left lg:text-right min-w-[85px]">
                         <div className="text-xs font-semibold text-gray-900 dark:text-white">
@@ -1685,7 +1684,7 @@ const location = useLocation();
                       <div className="min-w-[125px] flex justify-center lg:justify-start">
                         {status === 'approved' && (
                           <div className="space-y-1 text-center lg:text-left">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               {t('active', 'Active')}
                             </span>
@@ -1697,19 +1696,19 @@ const location = useLocation();
                           </div>
                         )}
                         {status === 'pending' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
                             <Clock size={12} />
                             {t('under_review', 'Under Review')}
                           </span>
                         )}
                         {status === 'expired' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
                             <CheckCircle2 size={12} />
                             {t('completed', 'Completed')}
                           </span>
                         )}
                         {status === 'rejected' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400">
                             <AlertCircle size={12} />
                             {t('rejected', 'Rejected')}
                           </span>
@@ -1722,7 +1721,7 @@ const location = useLocation();
                           <button
                             type="button"
                             onClick={() => handleStartReboost(p.product)}
-                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                           >
                             <span>{t('renew', 'Renew')}</span>
                           </button>
@@ -1731,7 +1730,7 @@ const location = useLocation();
                           <button
                             type="button"
                             onClick={() => handleDeleteCampaign(p.id)}
-                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg text-red-500 hover:bg-red-500/10 border border-red-500/30 transition flex items-center justify-center cursor-pointer active:scale-95"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg text-red-500 hover:bg-red-500/10 transition flex items-center justify-center cursor-pointer active:scale-95"
                           >
                             <span>{t('cancel', 'Cancel')}</span>
                           </button>
@@ -1741,7 +1740,7 @@ const location = useLocation();
                             href={`/product/${p.product_slug}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition flex items-center justify-center"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center"
                           >
                             <span>{t('view_live_item', 'View Listing')}</span>
                           </a>
