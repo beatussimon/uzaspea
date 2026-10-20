@@ -25,7 +25,7 @@ STATS_FIELDS = ['views_7d', 'views_30d', 'likes', 'orders_7d', 'orders_30d', 'ra
 
 
 def _active():
-    return Product.objects.filter(is_available=True, is_draft=False, stock__gt=0)
+    return Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False)
 
 
 # ─── Hourly: ProductStats ──────────────────────────────────────────

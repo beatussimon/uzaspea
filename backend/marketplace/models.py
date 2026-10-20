@@ -323,6 +323,7 @@ class Product(models.Model):
     minimum_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
     is_available = models.BooleanField(default=True)
     is_draft = models.BooleanField(default=False, db_index=True, help_text="True if listing is saved as draft and not published")
+    pos_only = models.BooleanField(default=False, db_index=True, help_text="Exclusive to in-store POS register; hidden from public marketplace listings and public seller store")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -366,6 +367,7 @@ class Product(models.Model):
             models.Index(fields=['is_draft', 'seller', '-created_at']),
             models.Index(fields=['is_available', 'is_draft', 'stock', 'category', '-created_at']),
             models.Index(fields=['is_available', 'is_draft', 'stock', 'brand', '-created_at']),
+            models.Index(fields=['is_available', 'is_draft', 'pos_only', 'stock', '-created_at']),
         ]
 
     def save(self, *args, **kwargs):

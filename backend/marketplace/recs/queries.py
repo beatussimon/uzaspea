@@ -8,7 +8,7 @@ from django.utils import timezone
 from marketplace.models import Product, Like, SponsoredListing
 from . import config
 
-ACTIVE = {'is_available': True, 'is_draft': False, 'stock__gt': 0}
+ACTIVE = {'is_available': True, 'is_draft': False, 'stock__gt': 0, 'pos_only': False}
 
 
 def cache_key(*parts):

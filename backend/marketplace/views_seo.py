@@ -79,7 +79,8 @@ class SeoRenderView(APIView):
         product = Product.objects.filter(
             slug=slug, 
             is_available=True, 
-            is_draft=False
+            is_draft=False,
+            pos_only=False
         ).select_related('category', 'category__parent', 'seller', 'seller__profile', 'brand').prefetch_related('images').first()
 
         if not product:
@@ -266,7 +267,7 @@ class SeoRenderView(APIView):
             robots = "index, follow"
 
         # Fetch top 12 featured products for crawler discovery
-        products = Product.objects.filter(is_available=True, is_draft=False, stock__gt=0).order_by('-created_at')[:12]
+        products = Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False).order_by('-created_at')[:12]
         links_html = "".join([
             f'<li><a href="/product/{p.slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
             for p in products
@@ -385,7 +386,7 @@ class SeoRenderView(APIView):
             desc = f"Buy items directly from {user.username} on {SITE_NAME}. Browse available inventory and contact verified seller."
             canonical = f"{SITE_URL}/{user.username}"
 
-            products = Product.objects.filter(seller=user, is_available=True, is_draft=False)[:10]
+            products = Product.objects.filter(seller=user, is_available=True, is_draft=False, pos_only=False)[:10]
             prod_links = "".join([
                 f'<li><a href="/product/{p.slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
                 for p in products

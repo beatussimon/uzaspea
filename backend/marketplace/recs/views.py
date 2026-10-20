@@ -248,7 +248,7 @@ class RecAdminHealthView(APIView):
                     .values('surface').annotate(impressions=Sum('impressions'), clicks=Sum('clicks')).order_by('surface')):
             ctr = (row['clicks'] / row['impressions']) if row['impressions'] else 0.0
             surfaces.append({**row, 'ctr': round(ctr * 100, 2)})
-        active_ids = set(Product.objects.filter(is_available=True, is_draft=False, stock__gt=0).values_list('id', flat=True))
+        active_ids = set(Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False).values_list('id', flat=True))
         covered = set()
         for sim, comp in ProductRecs.objects.values_list('similar', 'complements').iterator(chunk_size=200):
             for e in (sim or []) + (comp or []):
