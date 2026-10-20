@@ -1214,11 +1214,12 @@ const location = useLocation();
             <form 
               ref={formRef} 
               onSubmit={handleSubmit} 
-              className="card p-5 space-y-4 animate-scale-in text-xs border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]"
+              className="card p-5 sm:p-6 space-y-5 animate-scale-in text-xs border border-surface-border dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] shadow-xl"
             >
-              <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 flex justify-between items-center">
+              {/* Form Modal Header */}
+              <div className="border-b border-surface-border dark:border-neutral-800 pb-3.5 flex justify-between items-center">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
                     {t('create_sponsored_listing', 'Create Sponsored Listing')}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -1228,182 +1229,207 @@ const location = useLocation();
                 <button 
                   type="button" 
                   onClick={() => setShowForm(false)} 
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg cursor-pointer transition"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Product Selection */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
-                </label>
-                {selectedProduct ? (
-                  <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-brand-500/40 bg-brand-500/5 dark:bg-brand-500/10 transition">
-                    <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900">
-                      <SafeImage
-                        src={selectedProduct.images?.[0]?.image || selectedProduct.image}
-                        alt={selectedProduct.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded">
-                          Item Selected for Boost
-                        </span>
-                      </div>
-                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
-                        {selectedProduct.name}
-                      </h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        TSh {parseInt(selectedProduct.price || 0).toLocaleString()} • {selectedProduct.category_name || selectedProduct.category || 'Product'} • Stock: {selectedProduct.stock}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedProduct(null);
-                        setForm(prev => ({ ...prev, product: '' }));
-                      }}
-                      className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-white dark:bg-neutral-800 hover:bg-gray-100 border border-neutral-200 dark:border-neutral-700 rounded-lg transition shrink-0"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : products.length === 0 ? (
-                  <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
-                    <div className="flex items-center gap-2">
-                      <Info size={15} className="shrink-0" />
-                      <span>{t('no_products_yet', 'You do not have any active products listed yet.')}</span>
-                    </div>
-                    <Link to="/dashboard/products" className="font-semibold underline flex items-center gap-1">
-                      {t('add_product_first', 'Add Product First')} <ArrowUpRight size={12} />
-                    </Link>
-                  </div>
-                ) : (
-                  <select 
-                    name="product" 
-                    value={form.product} 
-                    onChange={(e) => {
-                      handleChange(e);
-                      const found = products.find(p => String(p.id) === e.target.value);
-                      if (found) {
-                        setSelectedProduct(found);
-                        setForm(prev => ({ ...prev, title: prev.title || `Boost: ${found.name}` }));
-                      }
-                    }} 
-                    required 
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-                  >
-                    <option value="">-- {t('choose_from_inventory', 'Choose from your listed inventory')} --</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — TSh {parseInt(p.price || 0).toLocaleString()} ({p.condition || 'Used'})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Tiered Duration Package Selector */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('choose_duration_plan', 'Placement Duration & Rate')} <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {BOOST_PLANS.map(plan => {
-                    const isSelected = Number(form.duration_days) === plan.days;
-                    return (
-                      <button
-                        key={plan.days}
-                        type="button"
-                        onClick={() => setForm({ ...form, duration_days: plan.days })}
-                        className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-surface-muted/60 dark:bg-neutral-900/60 ${
-                          isSelected
-                            ? 'border-2 border-brand-500 text-gray-900 dark:text-white'
-                            : 'border-2 border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <span className="font-semibold text-xs text-gray-900 dark:text-white">
-                            {plan.days} {t('days', 'Days')}
-                          </span>
-                          {plan.badge && (
-                            <span className="text-3xs text-brand-600 dark:text-brand-400 font-medium uppercase tracking-wider">
-                              {plan.badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-gray-500 dark:text-neutral-400 mt-1 leading-snug">
-                          {plan.description}
-                        </p>
-                        <div className="mt-2.5 pt-1.5 flex items-baseline justify-between w-full">
-                          <span className="text-3xs text-gray-400 uppercase font-medium">{t('rate', 'Rate')}</span>
-                          <span className="font-semibold font-mono text-xs text-gray-900 dark:text-white">
-                            TSh {plan.price.toLocaleString()}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Optional Customization */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('headline_optional', 'Campaign Headline (Optional)')}
-                  </label>
-                  <input 
-                    name="title" 
-                    value={form.title} 
-                    onChange={handleChange} 
-                    placeholder="e.g. Genuine OEM Quality • Limited Stock Available" 
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('pitch_optional', 'Pitch / Highlight (Optional)')}
-                  </label>
-                  <input 
-                    name="description" 
-                    value={form.description} 
-                    onChange={handleChange} 
-                    placeholder="e.g. Fast delivery in Dar es Salaam. Guaranteed fitment." 
-                    className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border" 
-                  />
-                </div>
-              </div>
-
-              {/* Payment Verification Box */}
-              <div className="pt-3 border-t border-surface-border/40 space-y-3">
-                <div className="flex items-start justify-between">
+              {/* Section 1: Campaign Setup (Layer 2 Container) */}
+              <div className="bg-neutral-50/80 dark:bg-[#121212] border border-neutral-200/80 dark:border-neutral-800/80 rounded-2xl p-4 sm:p-4.5 space-y-4">
+                <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-200/60 dark:border-neutral-800/60">
+                  <span className="w-5 h-5 rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+                    1
+                  </span>
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white text-xs flex items-center gap-1.5">
-                      <Smartphone size={13} className="text-emerald-500" />
-                      {t('payment_verification', 'Payment Verification')}
+                    <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
+                      {t('campaign_setup', 'Campaign Setup')}
                     </h4>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      {t('send_exact_amount', 'Send exactly')}{' '}
-                      <strong className="text-brand-600 dark:text-brand-400 font-semibold">
-                        TSh {(Number(form.duration_days) * 1000).toLocaleString()}
-                      </strong>{' '}
-                      {t('to_official_number', 'to an official platform merchant number below:')}
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {t('campaign_setup_desc', 'Select inventory item, choose duration package, and customize your copy.')}
                     </p>
                   </div>
-                  <div className="text-right font-mono text-xs font-semibold text-brand-600 dark:text-brand-400">
-                    TSh {(Number(form.duration_days) * 1000).toLocaleString()}
+                </div>
+
+                {/* Product Selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
+                  </label>
+                  {selectedProduct ? (
+                    <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-brand-500/40 bg-white dark:bg-[#1A1A1A] transition shadow-2xs">
+                      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-[#121212]">
+                        <SafeImage
+                          src={selectedProduct.images?.[0]?.image || selectedProduct.image}
+                          alt={selectedProduct.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded">
+                            Item Selected for Boost
+                          </span>
+                        </div>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                          {selectedProduct.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          TSh {parseInt(selectedProduct.price || 0).toLocaleString()} • {selectedProduct.category_name || selectedProduct.category || 'Product'} • Stock: {selectedProduct.stock}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProduct(null);
+                          setForm(prev => ({ ...prev, product: '' }));
+                        }}
+                        className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : products.length === 0 ? (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
+                      <div className="flex items-center gap-2">
+                        <Info size={15} className="shrink-0" />
+                        <span>{t('no_products_yet', 'You do not have any active products listed yet.')}</span>
+                      </div>
+                      <Link to="/dashboard/products" className="font-semibold underline flex items-center gap-1">
+                        {t('add_product_first', 'Add Product First')} <ArrowUpRight size={12} />
+                      </Link>
+                    </div>
+                  ) : (
+                    <select 
+                      name="product" 
+                      value={form.product} 
+                      onChange={(e) => {
+                        handleChange(e);
+                        const found = products.find(p => String(p.id) === e.target.value);
+                        if (found) {
+                          setSelectedProduct(found);
+                          setForm(prev => ({ ...prev, title: prev.title || `Boost: ${found.name}` }));
+                        }
+                      }} 
+                      required 
+                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500"
+                    >
+                      <option value="">-- {t('choose_from_inventory', 'Choose from your listed inventory')} --</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} — TSh {parseInt(p.price || 0).toLocaleString()} ({p.condition || 'Used'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Tiered Duration Package Selector */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    {t('choose_duration_plan', 'Placement Duration & Rate')} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {BOOST_PLANS.map(plan => {
+                      const isSelected = Number(form.duration_days) === plan.days;
+                      return (
+                        <button
+                          key={plan.days}
+                          type="button"
+                          onClick={() => setForm({ ...form, duration_days: plan.days })}
+                          className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-white dark:bg-[#1A1A1A] shadow-2xs ${
+                            isSelected
+                              ? 'border-2 border-brand-500 dark:border-brand-500 bg-brand-50/50 dark:bg-[#1F1F1F] text-gray-900 dark:text-white ring-1 ring-brand-500/20'
+                              : 'border border-neutral-200 dark:border-neutral-800 text-gray-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-semibold text-xs text-gray-900 dark:text-white">
+                              {plan.days} {t('days', 'Days')}
+                            </span>
+                            {plan.badge && (
+                              <span className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider bg-brand-500/10 px-1.5 py-0.5 rounded">
+                                {plan.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 dark:text-neutral-400 mt-1 leading-snug line-clamp-2">
+                            {plan.description}
+                          </p>
+                          <div className="mt-2.5 pt-1.5 flex items-baseline justify-between w-full border-t border-neutral-100 dark:border-neutral-800/80">
+                            <span className="text-3xs text-gray-400 uppercase font-medium">{t('rate', 'Rate')}</span>
+                            <span className="font-semibold font-mono text-xs text-gray-900 dark:text-white">
+                              TSh {plan.price.toLocaleString()}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Optional Customization */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      {t('headline_optional', 'Campaign Headline (Optional)')}
+                    </label>
+                    <input 
+                      name="title" 
+                      value={form.title} 
+                      onChange={handleChange} 
+                      placeholder="e.g. Genuine OEM Quality • Limited Stock Available" 
+                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      {t('pitch_optional', 'Pitch / Highlight (Optional)')}
+                    </label>
+                    <input 
+                      name="description" 
+                      value={form.description} 
+                      onChange={handleChange} 
+                      placeholder="e.g. Fast delivery in Dar es Salaam. Guaranteed fitment." 
+                      className="input py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Payment & Verification (Layer 2 Container) */}
+              <div className="bg-neutral-50/80 dark:bg-[#121212] border border-neutral-200/80 dark:border-neutral-800/80 rounded-2xl p-4 sm:p-4.5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-neutral-200/60 dark:border-neutral-800/60">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+                      2
+                    </span>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                        <Smartphone size={13} className="text-emerald-500" />
+                        {t('payment_verification', 'Payment Verification')}
+                      </h4>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        {t('send_exact_amount', 'Send exactly')}{' '}
+                        <strong className="text-brand-600 dark:text-brand-400 font-semibold">
+                          TSh {(Number(form.duration_days) * 1000).toLocaleString()}
+                        </strong>{' '}
+                        {t('to_official_number', 'to an official platform merchant number below:')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 self-start sm:self-auto">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold border border-emerald-500/20">
+                      <span className="text-[10px] font-sans font-medium uppercase text-emerald-600/80 dark:text-emerald-400/80">{t('total', 'Total')}:</span>
+                      TSh {(Number(form.duration_days) * 1000).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
                 {adminLipa.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {adminLipa.map((lipa: any) => (
-                      <div key={lipa.id} className="flex items-center gap-2.5 bg-surface-muted/50 dark:bg-neutral-900/50 rounded-xl p-2.5">
+                      <div key={lipa.id} className="flex items-center gap-2.5 bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-2.5 shadow-2xs">
                         <div className={`rounded flex items-center justify-center overflow-hidden shrink-0 ${lipa.network_logo ? 'w-10 h-5' : 'w-5 h-5'}`}>
                           {lipa.network_logo ? (
                             <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
@@ -1418,7 +1444,7 @@ const location = useLocation();
                         <button 
                           type="button" 
                           onClick={() => handleCopy(lipa.number)}
-                          className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition px-2 py-1 cursor-pointer font-medium"
+                          className="text-xs text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200/80 dark:border-neutral-700/80 rounded-lg transition px-2.5 py-1 cursor-pointer font-medium"
                         >
                           {copiedCode === lipa.number ? <Check size={12} className="text-emerald-500" /> : t('copy', 'Copy')}
                         </button>
@@ -1426,14 +1452,14 @@ const location = useLocation();
                     ))}
                   </div>
                 ) : (
-                  <div className="p-2.5 bg-surface-muted/50 dark:bg-neutral-900/50 rounded-xl text-xs text-gray-500">
+                  <div className="p-3 bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs text-gray-500">
                     {t('pay_via_admin_number', 'Pay via the official platform merchant Lipa number and input your transaction code.')}
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       {t('transaction_ref_code', 'Transaction Reference Code')} <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1442,15 +1468,15 @@ const location = useLocation();
                       value={refId}
                       onChange={(e) => setRefId(e.target.value)}
                       placeholder="e.g. PP260618.1746 or MPESA / TIGO REF"
-                      className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+                      className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#1A1A1A] border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-brand-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       {t('payment_receipt_proof', 'Payment Receipt Screenshot')} <span className="text-red-500">*</span>
                     </label>
                     {proofPreview ? (
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-surface-muted/50 dark:bg-neutral-900/50">
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#1A1A1A] border border-neutral-200 dark:border-neutral-800 shadow-2xs">
                         <div className="flex items-center gap-2 min-w-0">
                           <img src={proofPreview} alt="Receipt preview" className="w-6 h-6 object-cover rounded shrink-0" />
                           <span className="text-xs text-gray-700 dark:text-gray-300 truncate font-mono">
@@ -1467,7 +1493,7 @@ const location = useLocation();
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center justify-between w-full h-9 rounded-xl cursor-pointer bg-surface-muted/50 dark:bg-neutral-900/50 hover:bg-surface-muted dark:hover:bg-neutral-900 transition px-3">
+                      <label className="flex items-center justify-between w-full h-9.5 rounded-xl cursor-pointer bg-white dark:bg-[#1A1A1A] border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-500 transition px-3 shadow-2xs">
                         <div className="flex items-center gap-2 truncate">
                           <Upload size={13} className="text-gray-400 shrink-0" />
                           <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
