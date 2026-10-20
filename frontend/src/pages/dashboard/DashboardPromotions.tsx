@@ -1214,10 +1214,10 @@ const location = useLocation();
             <form 
               ref={formRef} 
               onSubmit={handleSubmit} 
-              className="card p-5 sm:p-6 space-y-5 animate-scale-in text-xs border border-surface-border dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] shadow-xl"
+              className="space-y-4 animate-scale-in text-xs"
             >
-              {/* Form Modal Header */}
-              <div className="border-b border-surface-border dark:border-neutral-800 pb-3.5 flex justify-between items-center">
+              {/* Form Header */}
+              <div className="flex justify-between items-center pb-1">
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
                     {t('create_sponsored_listing', 'Create Sponsored Listing')}
@@ -1229,7 +1229,8 @@ const location = useLocation();
                 <button 
                   type="button" 
                   onClick={() => setShowForm(false)} 
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg cursor-pointer transition"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg cursor-pointer transition"
+                  title={t('close', 'Close')}
                 >
                   <X size={16} />
                 </button>
@@ -1508,7 +1509,7 @@ const location = useLocation();
               </div>
 
               {/* Form Action Buttons */}
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>
                   {t('cancel', 'Cancel')}
                 </Button>
@@ -1578,7 +1579,7 @@ const location = useLocation();
               }}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2.5">
               {filteredPromotions.map((p: any) => {
                 const status = getCampaignStatus(p);
                 const timeRemaining = formatTimeRemaining(p.expires_at);
@@ -1589,171 +1590,139 @@ const location = useLocation();
                 return (
                   <div 
                     key={p.id} 
-                    className="card !border-none p-4 flex flex-col justify-between transition-colors"
+                    className="card p-3.5 sm:p-4 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-white dark:bg-[#111111] border border-neutral-200/80 dark:border-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 rounded-xl shadow-2xs"
                   >
-                    <div>
-                      {/* Top Status & Date */}
-                      <div className="flex items-center justify-between gap-2 mb-3">
+                    {/* Left: Product Thumbnail & Details */}
+                    <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-800">
+                        {productImg ? (
+                          <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Package size={18} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                            {p.product_slug ? (
+                              <a 
+                                href={`/product/${p.product_slug}`} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                              >
+                                {p.product_name || 'Product'}
+                              </a>
+                            ) : (
+                              p.product_name || 'Product'
+                            )}
+                          </h4>
+                          {product.price && (
+                            <span className="font-mono text-gray-500 dark:text-gray-400 text-xs">
+                              • TSh {parseInt(product.price).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title / Description */}
+                        {(p.title || p.description) && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xl mt-0.5">
+                            {p.title && <span className="font-medium text-gray-700 dark:text-gray-300">{p.title}</span>}
+                            {p.title && p.description && ' — '}
+                            {p.description}
+                          </p>
+                        )}
+
+                        {/* Meta: Date, Ref, Receipt */}
+                        <div className="flex items-center gap-2.5 text-[11px] text-gray-400 mt-1 flex-wrap">
+                          <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                          {p.transaction_reference && (
+                            <>
+                              <span>•</span>
+                              <span className="font-mono">Ref: {p.transaction_reference}</span>
+                            </>
+                          )}
+                          {p.payment_proof && (
+                            <>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImage(p.payment_proof)}
+                                className="text-brand-600 dark:text-brand-400 hover:underline font-medium flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <Eye size={11} /> {t('view_proof', 'Receipt')}
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Rejection Note */}
+                        {status === 'rejected' && p.admin_notes && (
+                          <div className="mt-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs">
+                            <span className="font-semibold text-[11px] uppercase tracking-wider">{t('rejection_reason', 'Staff Note:')} </span>
+                            <span>{p.admin_notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Duration & Rate, Status Pill, Action Button */}
+                    <div className="flex items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-neutral-100 dark:border-neutral-800/80">
+                      {/* Duration & Price */}
+                      <div className="text-left lg:text-right min-w-[85px]">
+                        <div className="text-xs font-semibold text-gray-900 dark:text-white">
+                          {p.duration_days || 7} {t('days_duration', 'Days')}
+                        </div>
+                        <div className="font-mono text-xs text-brand-600 dark:text-brand-400 font-semibold">
+                          TSh {((p.duration_days || 7) * 1000).toLocaleString()}
+                        </div>
+                      </div>
+
+                      {/* Status badge */}
+                      <div className="min-w-[125px] flex justify-center lg:justify-start">
                         {status === 'approved' && (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            {t('active', 'Active')}
-                          </span>
+                          <div className="space-y-1 text-center lg:text-left">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              {t('active', 'Active')}
+                            </span>
+                            {p.expires_at && (
+                              <div className="text-[10px] text-gray-400 font-mono">
+                                {timeRemaining}
+                              </div>
+                            )}
+                          </div>
                         )}
                         {status === 'pending' && (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                             <Clock size={12} />
                             {t('under_review', 'Under Review')}
                           </span>
                         )}
                         {status === 'expired' && (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
                             <CheckCircle2 size={12} />
                             {t('completed', 'Completed')}
                           </span>
                         )}
                         {status === 'rejected' && (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                             <AlertCircle size={12} />
                             {t('rejected', 'Rejected')}
                           </span>
                         )}
-
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-normal">
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </span>
                       </div>
 
-                      {/* Product Snippet Header - Clickable Product */}
-                      {p.product_slug ? (
-                        <a
-                          href={`/product/${p.product_slug}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-3 mb-3 group select-none"
-                          title={t('view_product_page', 'View Product Page')}
-                        >
-                          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
-                            {productImg ? (
-                              <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <Package size={16} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="font-medium text-gray-900 dark:text-white text-xs truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                              {p.product_name || 'Product'}
-                            </h4>
-                            <p className="font-mono text-gray-500 dark:text-gray-400 text-[11px] mt-0.5">
-                              {product.price ? `TSh ${parseInt(product.price).toLocaleString()}` : ''}
-                            </p>
-                          </div>
-                        </a>
-                      ) : (
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
-                            {productImg ? (
-                              <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <Package size={16} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="font-medium text-gray-900 dark:text-white text-xs truncate">
-                              {p.product_name || 'Product'}
-                            </h4>
-                            <p className="font-mono text-gray-500 dark:text-gray-400 text-[11px] mt-0.5">
-                              {product.price ? `TSh ${parseInt(product.price).toLocaleString()}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Campaign Title & Description */}
-                      {p.title && (
-                        <h5 className="font-medium text-gray-900 dark:text-white text-xs mb-0.5">
-                          {p.title}
-                        </h5>
-                      )}
-                      {p.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">
-                          {p.description}
-                        </p>
-                      )}
-
-                      {/* Rejection Note if Rejected */}
-                      {status === 'rejected' && p.admin_notes && (
-                        <div className="p-2.5 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs mb-3 space-y-0.5">
-                          <p className="font-medium text-[11px] uppercase tracking-wider">
-                            {t('rejection_reason', 'Staff Note:')}
-                          </p>
-                          <p className="leading-relaxed">{p.admin_notes}</p>
-                        </div>
-                      )}
-
-                      {/* Active Timeline & Countdown */}
-                      {status === 'approved' && p.expires_at && (
-                        <div className="mb-3 space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-500 dark:text-gray-400">
-                              {t('time_remaining', 'Time Remaining')}:
-                            </span>
-                            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
-                              {timeRemaining}
-                            </span>
-                          </div>
-                          {/* Progress Bar */}
-                          <div className="w-full bg-neutral-200 dark:bg-neutral-800 h-1 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-brand-500 h-full rounded-full transition-all duration-500" 
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px] text-gray-400">
-                            <span>{t('expires', 'Expires')} {new Date(p.expires_at).toLocaleDateString()}</span>
-                            <span>{progress}% {t('elapsed', 'elapsed')}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer & Actions */}
-                    <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800/80 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="text-gray-500 dark:text-gray-400 font-normal">
-                          {p.duration_days || 7} {t('days_duration', 'Days')}
-                        </div>
-                        <div className="font-mono font-medium text-gray-900 dark:text-white">
-                          TSh {((p.duration_days || 7) * 1000).toLocaleString()}
-                        </div>
-                      </div>
-
-                      {p.transaction_reference && (
-                        <div className="flex items-center justify-between text-[11px] text-gray-400">
-                          <span className="font-mono">Ref: {p.transaction_reference}</span>
-                          {p.payment_proof && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewImage(p.payment_proof)}
-                              className="text-brand-600 dark:text-brand-400 hover:underline font-medium flex items-center gap-0.5 cursor-pointer"
-                            >
-                              <Eye size={11} /> {t('view_proof', 'Receipt')}
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Action Bar */}
-                      <div className="pt-1 flex items-center gap-2">
+                      {/* Action Button */}
+                      <div className="min-w-[85px] shrink-0">
                         {(status === 'expired' || status === 'rejected') && (
                           <button
                             type="button"
                             onClick={() => handleStartReboost(p.product)}
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center cursor-pointer active:scale-[0.98]"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                           >
                             <span>{t('renew', 'Renew')}</span>
                           </button>
@@ -1762,7 +1731,7 @@ const location = useLocation();
                           <button
                             type="button"
                             onClick={() => handleDeleteCampaign(p.id)}
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl text-red-500 hover:bg-red-500/10 transition flex items-center justify-center cursor-pointer active:scale-[0.98]"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg text-red-500 hover:bg-red-500/10 border border-red-500/30 transition flex items-center justify-center cursor-pointer active:scale-95"
                           >
                             <span>{t('cancel', 'Cancel')}</span>
                           </button>
@@ -1772,7 +1741,7 @@ const location = useLocation();
                             href={`/product/${p.product_slug}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center"
+                            className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition flex items-center justify-center"
                           >
                             <span>{t('view_live_item', 'View Listing')}</span>
                           </a>
