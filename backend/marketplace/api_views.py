@@ -3713,13 +3713,12 @@ class RegisterView(APIView):
         first_name = request.data.get('first_name', '')
         last_name = request.data.get('last_name', '')
         dob = request.data.get('date_of_birth')
+        gender = str(request.data.get('gender') or '').strip().lower()
         password = request.data.get('password')
         confirm_password = request.data.get('confirm_password')
 
         if not username or not password or not email:
             return Response({'detail': 'Username, email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        if password != confirm_password:
-            return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate username rules & availability (case-insensitive + reserved words + format)
         from .username_rules import validate_username_availability, canonicalize_username
@@ -3727,6 +3726,11 @@ class RegisterView(APIView):
         is_avail, err_msg, code, meta = validate_username_availability(clean_username, check_db=True)
         if not is_avail:
             return Response({'detail': err_msg or 'Username is not available.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not gender or gender not in ('female', 'male'):
+            return Response({'detail': 'Gender is required and must be either female or male.'}, status=status.HTTP_400_BAD_REQUEST)
+        if password != confirm_password:
+            return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(email=email).exists():
             return Response({'detail': 'An account with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3749,6 +3753,8 @@ class RegisterView(APIView):
         profile.terms_accepted = True
         if dob:
             profile.date_of_birth = dob
+        profile.gender = gender
+        profile.gender_locked = True
         profile.save()
 
         from datetime import timedelta
@@ -3775,6 +3781,8 @@ class RegisterView(APIView):
             'is_verified': False,
             'tier': profile.tier,
             'terms_accepted': True,
+            'gender': profile.gender,
+            'gender_locked': profile.gender_locked,
             'is_inspector': False,
             'inspector_level': None,
             'has_staff_permissions': False

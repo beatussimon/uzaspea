@@ -967,6 +967,10 @@ class UserProfile(models.Model):
         default='unspecified',
         blank=True
     )
+    gender_locked = models.BooleanField(
+        default=False,
+        help_text="True if gender was set at signup or updated once in settings. Once locked, cannot be changed."
+    )
     show_product_requests = models.BooleanField(default=False, help_text="Show Coming Soon / Requested items tab on profile")
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 

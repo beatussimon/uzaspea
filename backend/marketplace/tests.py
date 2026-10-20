@@ -9,19 +9,69 @@ class AuthTests(TestCase):
     def test_register_success(self):
         res = self.client.post('/api/auth/register/', {
             'username': 'testuser', 'email': 'test@test.com',
-            'password': 'StrongPass123!', 'confirm_password': 'StrongPass123!'
+            'password': 'StrongPass123!', 'confirm_password': 'StrongPass123!',
+            'gender': 'female',
         }, content_type='application/json')
         if res.status_code != 201:
             print("REG ERROR:", res.content)
         self.assertEqual(res.status_code, 201)
         self.assertIn('access', res.json())
+        data = res.json()
+        self.assertEqual(data.get('gender'), 'female')
+        self.assertTrue(data.get('gender_locked'))
+
+    def test_register_missing_gender_fails(self):
+        res = self.client.post('/api/auth/register/', {
+            'username': 'testuser_nogender', 'email': 'nogender@test.com',
+            'password': 'StrongPass123!', 'confirm_password': 'StrongPass123!',
+        }, content_type='application/json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('Gender is required', res.json().get('detail', ''))
+
+    def test_register_invalid_gender_fails(self):
+        res = self.client.post('/api/auth/register/', {
+            'username': 'testuser_badgender', 'email': 'badgender@test.com',
+            'password': 'StrongPass123!', 'confirm_password': 'StrongPass123!',
+            'gender': 'robot',
+        }, content_type='application/json')
+        self.assertEqual(res.status_code, 400)
 
     def test_register_weak_password_fails(self):
         res = self.client.post('/api/auth/register/', {
             'username': 'testuser2', 'email': 't2@test.com',
-            'password': 'abc', 'confirm_password': 'abc'
+            'password': 'abc', 'confirm_password': 'abc',
+            'gender': 'male',
         }, content_type='application/json')
         self.assertEqual(res.status_code, 400)
+
+    def test_existing_user_gender_locked_after_settings_update(self):
+        user = User.objects.create_user('existinguser', 'ex@test.com', 'Pass123!456')
+        profile = user.profile
+        self.assertEqual(profile.gender, 'unspecified')
+        self.assertFalse(profile.gender_locked)
+
+        client = APIClient()
+        token = RefreshToken.for_user(user)
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        # First update in settings should succeed
+        res = client.patch(f'/api/profiles/{user.username}/', {'gender': 'male'}, format='json')
+        self.assertEqual(res.status_code, 200)
+        profile.refresh_from_db()
+        self.assertEqual(profile.gender, 'male')
+        self.assertTrue(profile.gender_locked)
+
+        # Second update attempting to change gender should fail
+        res2 = client.patch(f'/api/profiles/{user.username}/', {'gender': 'female'}, format='json')
+        self.assertEqual(res2.status_code, 400)
+        profile.refresh_from_db()
+        self.assertEqual(profile.gender, 'male')
+
+        # Submitting the same gender or other fields should succeed
+        res3 = client.patch(f'/api/profiles/{user.username}/', {'gender': 'male', 'bio': 'Hello world'}, format='json')
+        self.assertEqual(res3.status_code, 200)
+        profile.refresh_from_db()
+        self.assertEqual(profile.bio, 'Hello world')
 
 class OrderTests(TestCase):
     def setUp(self):

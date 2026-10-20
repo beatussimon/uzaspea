@@ -301,7 +301,7 @@ def for_you(ctx, per_shelf=None, even=True, min_items=None):
         plans.append({'id': f"shelf:{shelf.key}", 'kind': 'editorial', 'title': shelf.title,
                       'subtitle': shelf.subtitle, 'category_slug': shelf.category.slug, 'diversify': 'seller',
                       'paginated': True, 'shelf_score': shelf_score,
-                      'has_gender_toggle': shelf.audience != 'all', 'gender_active': active_gender,
+                      'has_gender_toggle': False, 'gender_active': active_gender,
                       'cands': [(pid, None, {}, 'editorial') for pid in category_pool(shelf.category_id)]})
 
     plans.append({'id': 'fresh_picks', 'kind': 'fresh', 'title': 'Fresh Picks Across All Categories',
@@ -333,7 +333,7 @@ def for_you(ctx, per_shelf=None, even=True, min_items=None):
             'id': plan['id'], 'kind': plan['kind'], 'type': 'horizontal_shelf', 'title': plan['title'],
             'subtitle': plan.get('subtitle', ''), 'category_slug': slug,
             'see_more_url': plan.get('see_more_url') or (f"/products?category={slug}" if slug else ''),
-            'paginated': bool(plan.get('paginated')), 'has_gender_toggle': bool(plan.get('has_gender_toggle')),
+            'paginated': bool(plan.get('paginated')), 'has_gender_toggle': False,
             'gender_active': plan.get('gender_active', active_gender), 'shelf_score': plan.get('shelf_score'),
             'items': items,
         })

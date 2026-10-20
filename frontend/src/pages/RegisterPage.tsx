@@ -18,6 +18,7 @@ const RegisterPage: React.FC = () => {
     first_name: '',
     last_name: '',
     date_of_birth: '',
+    gender: '' as 'female' | 'male' | '',
     password: '',
     confirm_password: '',
     terms_accepted: false
@@ -82,8 +83,8 @@ const RegisterPage: React.FC = () => {
 
   const nextStep = () => {
     if (step === 1) {
-      if (!formData.first_name || !formData.last_name || !formData.date_of_birth) {
-        return toast.error(t('fill_personal_details_error', 'Please fill in all personal details'));
+      if (!formData.first_name || !formData.last_name || !formData.date_of_birth || !formData.gender) {
+        return toast.error(t('fill_personal_details_error', 'Please fill in all personal details including gender'));
       }
     }
     setStep(set => set + 1);
@@ -117,6 +118,9 @@ const RegisterPage: React.FC = () => {
       localStorage.setItem('refresh_token', res.data.refresh);
       localStorage.setItem('user_id', res.data.user_id);
       localStorage.setItem('username', res.data.username || formData.username);
+      if (res.data.gender || formData.gender) {
+        localStorage.setItem('preferred_gender', res.data.gender || formData.gender);
+      }
       localStorage.setItem('is_verified', String(res.data.is_verified || false));
       localStorage.setItem('tier', res.data.tier || 'free');
       localStorage.setItem('is_staff', String(res.data.is_staff || false));
@@ -210,6 +214,40 @@ const RegisterPage: React.FC = () => {
                       value={formData.date_of_birth}
                       onChange={handleChange}
                     />
+
+                    {/* Gender Selection (Mandatory) */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        {t('gender', 'Gender')} <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, gender: 'female' }))}
+                          className={`py-2.5 px-4 rounded-btn border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                            formData.gender === 'female'
+                              ? 'bg-brand-500 text-white border-brand-500 shadow-xs'
+                              : 'border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          {t('gender_female', 'Female')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, gender: 'male' }))}
+                          className={`py-2.5 px-4 rounded-btn border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                            formData.gender === 'male'
+                              ? 'bg-brand-500 text-white border-brand-500 shadow-xs'
+                              : 'border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          {t('gender_male', 'Male')}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                        {t('gender_signup_help', 'Required to personalize your fashion & product recommendations.')}
+                      </p>
+                    </div>
 
                     <Button 
                       type="button"
