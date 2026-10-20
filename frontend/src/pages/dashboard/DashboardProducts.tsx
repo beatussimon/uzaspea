@@ -34,12 +34,14 @@ interface ImagePickerButtonProps {
   label?: string;
   compact?: boolean;
   multiple?: boolean;
+  className?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
   label = 'Add Images',
   compact = false,
   multiple = false,
+  className,
   onChange,
 }) => {
   const [open, setOpen] = React.useState(false);
@@ -59,9 +61,11 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
         type="button"
         onClick={() => (mobile ? setOpen(true) : galleryRef.current?.click())}
         className={
-          compact
-            ? 'flex items-center justify-center px-3 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-semibold transition-colors'
-            : 'flex items-center justify-center px-4 py-2.5 rounded-xl text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 font-semibold text-sm transition-colors w-full'
+          className || (
+            compact
+              ? 'flex items-center justify-center px-3 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-semibold transition-colors'
+              : 'flex items-center justify-center px-4 py-2.5 rounded-xl text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 font-semibold text-sm transition-colors w-full'
+          )
         }
       >
         {label}
@@ -1638,162 +1642,168 @@ const DashboardProducts: React.FC = () => {
                     <p className="text-xs text-neutral-500">Upload images for your listing. The first image will be used as the cover photo.</p>
                   </div>
 
-                  {existingImages.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Current Images ({existingImages.length})</p>
-                        <span className="text-[10px] text-neutral-400">First image is current cover</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                        {existingImages.map((img: any, idx: number) => (
-                          <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900">
-                            <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
-                            
-                            {idx === 0 ? (
-                              <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
-                                <Star size={10} className="fill-black" /> Cover
-                              </span>
-                            ) : (
-                              <button 
-                                type="button" 
-                                onClick={() => handleSetExistingCoverImage(idx)}
-                                className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
-                                title="Make this the cover photo"
-                              >
-                                <Star size={9} /> Set Cover
-                              </button>
-                            )}
+                  {/* Photo Gallery Grid */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
+                        {existingImages.length > 0 
+                          ? `Current Images (${existingImages.length + imagePreviews.length})` 
+                          : `Product Photos (${imagePreviews.length})`}
+                      </p>
+                      <span className="text-[10px] text-neutral-400">
+                        First image is current cover • Click or drag to add photos
+                      </span>
+                    </div>
 
-                            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                              <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
-                                <button 
-                                  type="button" 
-                                  disabled={idx === 0} 
-                                  onClick={() => handleMoveExistingImage(idx, 'left')} 
-                                  className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
-                                  title="Move Left"
-                                >
-                                  <ChevronLeft size={12} />
-                                </button>
-                                <button 
-                                  type="button" 
-                                  disabled={idx === existingImages.length - 1} 
-                                  onClick={() => handleMoveExistingImage(idx, 'right')} 
-                                  className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
-                                  title="Move Right"
-                                >
-                                  <ChevronRight size={12} />
-                                </button>
-                              </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                      {/* Existing Product Images */}
+                      {existingImages.map((img: any, idx: number) => (
+                        <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900">
+                          <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
+                          
+                          {idx === 0 ? (
+                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
+                              <Star size={10} className="fill-black" /> Cover
+                            </span>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => handleSetExistingCoverImage(idx)}
+                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                              title="Make this the cover photo"
+                            >
+                              <Star size={9} /> Set Cover
+                            </button>
+                          )}
+
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
                               <button 
                                 type="button" 
-                                onClick={() => handleRemoveExistingImage(img.id)}
-                                className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
-                                title="Remove photo"
+                                disabled={idx === 0} 
+                                onClick={() => handleMoveExistingImage(idx, 'left')} 
+                                className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                title="Move Left"
                               >
-                                <Trash2 size={12} />
+                                <ChevronLeft size={12} />
+                              </button>
+                              <button 
+                                type="button" 
+                                disabled={idx === existingImages.length - 1} 
+                                onClick={() => handleMoveExistingImage(idx, 'right')} 
+                                className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                title="Move Right"
+                              >
+                                <ChevronRight size={12} />
                               </button>
                             </div>
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveExistingImage(img.id)}
+                              className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
+                              title="Remove photo"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+
+                      {/* Newly Added Image Previews */}
+                      {imagePreviews.map((p, idx) => (
+                        <div key={p.url} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900 ring-1 ring-brand-500/30">
+                          <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
+                          
+                          {existingImages.length === 0 && idx === 0 ? (
+                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
+                              <Star size={10} className="fill-black" /> Cover Photo
+                            </span>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => handleSetCoverImage(idx)}
+                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                              title="Set as cover photo"
+                            >
+                              <Star size={9} /> Set Cover
+                            </button>
+                          )}
+
+                          {existingImages.length > 0 && (
+                            <span className="absolute top-1.5 right-1.5 bg-brand-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow z-10">
+                              New
+                            </span>
+                          )}
+
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
+                              <button 
+                                type="button" 
+                                disabled={idx === 0} 
+                                onClick={() => handleMoveImage(idx, 'left')} 
+                                className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                title="Move Left"
+                              >
+                                <ChevronLeft size={12} />
+                              </button>
+                              <button 
+                                type="button" 
+                                disabled={idx === imagePreviews.length - 1} 
+                                onClick={() => handleMoveImage(idx, 'right')} 
+                                className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                title="Move Right"
+                              >
+                                <ChevronRight size={12} />
+                              </button>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveImage(idx)}
+                              className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
+                              title="Remove photo"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Dropzone Image Container Tile */}
+                      <div 
+                        ref={dropRef} 
+                        onDragOver={handleDragOver} 
+                        onDragLeave={handleDragLeave} 
+                        onDrop={handleDrop}
+                        onClick={() => {
+                          const btn = dropRef.current?.querySelector('button');
+                          btn?.click();
+                        }}
+                        className={`relative aspect-square rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-2 sm:p-2.5 text-center cursor-pointer group select-none ${
+                          dragOver 
+                            ? 'border-brand-500 bg-brand-500/10 scale-[1.02]' 
+                            : 'border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#141414] hover:border-brand-500 dark:hover:border-brand-500/70 hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-neutral-200/80 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-300 group-hover:text-brand-500 group-hover:scale-105 transition shrink-0 mb-1">
+                          <Camera size={16} />
+                        </div>
+                        <p className="text-[11px] sm:text-xs font-bold text-neutral-800 dark:text-neutral-200 leading-tight px-1">
+                          Drag photos here or browse
+                        </p>
+                        <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5 mb-2 line-clamp-1">
+                          Supports PNG, JPG, WebP
+                        </p>
+                        <div className="w-full max-w-[125px]" onClick={(e) => e.stopPropagation()}>
+                          <ImagePickerButton 
+                            label="Choose Photos" 
+                            compact 
+                            multiple 
+                            className="w-full flex items-center justify-center px-2 py-1.5 rounded-lg text-brand-500 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 text-xs font-bold transition-colors cursor-pointer"
+                            onChange={handleImageChange} 
+                          />
+                        </div>
                       </div>
                     </div>
-                  )}
-
-                  {/* Dropzone */}
-                  <div 
-                    ref={dropRef} 
-                    onDragOver={handleDragOver} 
-                    onDragLeave={handleDragLeave} 
-                    onDrop={handleDrop}
-                    className={`rounded-xl border-2 border-dashed transition-all ${
-                      dragOver 
-                        ? 'border-brand-500 bg-brand-500/5' 
-                        : 'border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#0d0d0d] hover:border-neutral-400 dark:hover:border-neutral-700'
-                    } ${imagePreviews.length > 0 ? 'p-4' : 'p-8 text-center'}`}
-                  >
-                    {imagePreviews.length === 0 ? (
-                      <div className="max-w-xs mx-auto space-y-3">
-                        <div className="w-12 h-12 mx-auto rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-500">
-                          <Camera size={22} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-neutral-900 dark:text-white">Drag photos here or browse</p>
-                          <p className="text-xs text-neutral-500 mt-0.5">Supports PNG, JPG, WebP</p>
-                        </div>
-                        <ImagePickerButton label="Choose Photos" multiple onChange={handleImageChange} />
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">
-                            {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} selected
-                          </p>
-                          <p className="text-[11px] text-neutral-500">First image is the main Cover Photo. Click &quot;Set Cover&quot; or use arrows to reorder.</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                          {imagePreviews.map((p, idx) => (
-                            <div key={p.url} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900">
-                              <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
-                              
-                              {idx === 0 ? (
-                                <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
-                                  <Star size={10} className="fill-black" /> Cover Photo
-                                </span>
-                              ) : (
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleSetCoverImage(idx)}
-                                  className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
-                                  title="Set as cover photo"
-                                >
-                                  <Star size={9} /> Set Cover
-                                </button>
-                              )}
-
-                              <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
-                                  <button 
-                                    type="button" 
-                                    disabled={idx === 0} 
-                                    onClick={() => handleMoveImage(idx, 'left')} 
-                                    className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
-                                    title="Move Left"
-                                  >
-                                    <ChevronLeft size={12} />
-                                  </button>
-                                  <button 
-                                    type="button" 
-                                    disabled={idx === imagePreviews.length - 1} 
-                                    onClick={() => handleMoveImage(idx, 'right')} 
-                                    className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
-                                    title="Move Right"
-                                  >
-                                    <ChevronRight size={12} />
-                                  </button>
-                                </div>
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleRemoveImage(idx)}
-                                  className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
-                                  title="Remove photo"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2">
-                          <ImagePickerButton label="Add More" compact multiple onChange={handleImageChange} />
-                          <span className="text-xs text-neutral-500 font-medium">
-                            {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} selected
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
@@ -3457,10 +3467,10 @@ const DashboardProducts: React.FC = () => {
 
                       <div className="flex gap-3">
                         <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-neutral-900">
-                          {imagePreviews.length > 0 ? (
-                            <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
-                          ) : existingImages.length > 0 ? (
+                          {existingImages.length > 0 ? (
                             <SafeImage src={existingImages[0].image} alt="Cover" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
+                          ) : imagePreviews.length > 0 ? (
+                            <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-neutral-500">
                               <ImageIcon size={24} />
