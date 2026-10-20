@@ -82,7 +82,7 @@ def get_base_product_queryset(user=None):
         'reference_product', 'reference_product__brand', 'reference_product__category', 'reference_product__created_by'
     ).prefetch_related(
         'images', 'variants', 'fitments', 'price_tiers'
-    ).filter(is_available=True, stock__gt=0, is_draft=False)
+    ).filter(is_available=True, stock__gt=0, is_draft=False, pos_only=False)
 
 
 def get_category_by_slug_or_keywords(slug, keywords=None):

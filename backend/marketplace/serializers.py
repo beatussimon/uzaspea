@@ -479,6 +479,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     a_plus_content = SafeJSONField(required=False)
     unit_of_measure = serializers.CharField(max_length=50, required=False, allow_blank=True, default='piece')
     is_draft = serializers.BooleanField(required=False, default=False)
+    pos_only = serializers.BooleanField(required=False, default=False)
 
     brand_details = BrandSerializer(source='brand', read_only=True)
     reference_product_details = ReferenceProductSerializer(source='reference_product', read_only=True)
@@ -510,7 +511,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft',
+        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft', 'pos_only',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
@@ -812,7 +813,7 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
         model = Product
         fields = [
             'id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
-            'is_available', 'is_draft', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
+            'is_available', 'is_draft', 'pos_only', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
             'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug',
             'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
             'condition', 'requires_quote',
@@ -1583,6 +1584,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
                 if product.seller == self.context['request'].user:
                     raise serializers.ValidationError(f'You cannot order your own product: "{product.name}".')
+
+                if product.pos_only:
+                    raise serializers.ValidationError(f'"{product.name}" is available for in-store POS purchase only.')
                     
                 if qty < product.minimum_order_quantity:
                     unit_disp = getattr(product, 'get_unit_of_measure_display', lambda: product.unit_of_measure)()

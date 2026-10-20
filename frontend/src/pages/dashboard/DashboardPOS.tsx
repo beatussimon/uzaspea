@@ -21,6 +21,7 @@ interface Product {
   requires_quote?: boolean;
   category_name?: string;
   category_slug?: string;
+  pos_only?: boolean;
 }
 
 interface CartItem {
@@ -501,10 +502,7 @@ const DashboardPOS: React.FC = () => {
 
   const fetchProducts = () => {
     setLoading(true);
-    const currentUser = localStorage.getItem('username');
-    const endpoint = currentUser
-      ? `/api/products/?seller=${encodeURIComponent(currentUser)}&page=1&page_size=100`
-      : `/api/products/?mine=true&page=1&page_size=100`;
+    const endpoint = `/api/products/?mine=true&is_draft=false&page=1&page_size=100`;
 
     api.get(endpoint)
       .then((res) => {
@@ -933,9 +931,16 @@ const DashboardPOS: React.FC = () => {
 
                         {/* Top Badges */}
                         <div className="relative z-10 p-2 flex justify-between items-start pointer-events-none">
-                          <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
-                            {effectiveStock > 0 ? t('items_left', '{{count}} left', { count: Math.round(effectiveStock) }) : t('items_left', '0 left', { count: 0 })}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
+                              {effectiveStock > 0 ? t('items_left', '{{count}} left', { count: Math.round(effectiveStock) }) : t('items_left', '0 left', { count: 0 })}
+                            </span>
+                            {product.pos_only && (
+                              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-blue-600/90 text-white shadow-sm flex items-center gap-0.5">
+                                📟 POS
+                              </span>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={(e) => {

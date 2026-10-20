@@ -1794,3 +1794,117 @@ class POSTestCase(TestCase):
         ledger_entry = CommissionLedgerEntry.objects.get(order=order)
         self.assertEqual(ledger_entry.commission_rate, Decimal('5.00'))
         self.assertEqual(ledger_entry.commission_amount, Decimal('5000.00'))
+
+
+class POSOnlyVisibilityTestCase(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from .models import Category, Product
+        from rest_framework.test import APIClient
+
+        User = get_user_model()
+        self.seller = User.objects.create_user(username='pos_seller', password='password123', email='seller@pos.com')
+        self.buyer = User.objects.create_user(username='pos_buyer', password='password123', email='buyer@pos.com')
+        self.cat = Category.objects.create(name='Gadgets', slug='gadgets')
+
+        self.public_prod = Product.objects.create(
+            name='Public Gadget',
+            slug='public-gadget',
+            price=Decimal('10000.00'),
+            stock=10,
+            seller=self.seller,
+            category=self.cat,
+            is_available=True,
+            is_draft=False,
+            pos_only=False
+        )
+
+        self.pos_only_prod = Product.objects.create(
+            name='POS Only Gadget',
+            slug='pos-only-gadget',
+            price=Decimal('15000.00'),
+            stock=5,
+            seller=self.seller,
+            category=self.cat,
+            is_available=True,
+            is_draft=False,
+            pos_only=True
+        )
+
+        self.client = APIClient()
+
+    def test_public_browsing_excludes_pos_only_products(self):
+        res = self.client.get('/api/products/')
+        self.assertEqual(res.status_code, 200)
+        results = res.data.get('results', res.data)
+        slugs = [p['slug'] for p in results]
+        self.assertIn('public-gadget', slugs)
+        self.assertNotIn('pos-only-gadget', slugs)
+
+    def test_buyer_viewing_seller_store_excludes_pos_only_products(self):
+        res = self.client.get('/api/products/?seller=pos_seller')
+        self.assertEqual(res.status_code, 200)
+        results = res.data.get('results', res.data)
+        slugs = [p['slug'] for p in results]
+        self.assertIn('public-gadget', slugs)
+        self.assertNotIn('pos-only-gadget', slugs)
+
+    def test_seller_mine_includes_both_products(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.get('/api/products/?mine=true')
+        self.assertEqual(res.status_code, 200)
+        results = res.data.get('results', res.data)
+        slugs = [p['slug'] for p in results]
+        self.assertIn('public-gadget', slugs)
+        self.assertIn('pos-only-gadget', slugs)
+
+    def test_seller_pos_only_filter_tab(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.get('/api/products/?mine=true&pos_only=true')
+        self.assertEqual(res.status_code, 200)
+        results = res.data.get('results', res.data)
+        slugs = [p['slug'] for p in results]
+        self.assertNotIn('public-gadget', slugs)
+        self.assertIn('pos-only-gadget', slugs)
+
+    def test_non_owner_direct_detail_returns_404(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(self.buyer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.get('/api/products/pos-only-gadget/')
+        self.assertEqual(res.status_code, 404)
+
+        # Public gadget returns 200
+        res_pub = self.client.get('/api/products/public-gadget/')
+        self.assertEqual(res_pub.status_code, 200)
+
+    def test_owner_direct_detail_returns_200(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        res = self.client.get('/api/products/pos-only-gadget/')
+        self.assertEqual(res.status_code, 200)
+
+    def test_online_checkout_rejects_pos_only_product(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(self.buyer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+        order_data = {
+            'items': [
+                {'product': self.pos_only_prod.id, 'quantity': 1}
+            ],
+            'shipping_method': 'DELIVERY',
+            'delivery_info': {'name': 'Buyer', 'phone': '0712345678', 'address': 'Dar'}
+        }
+        res = self.client.post('/api/orders/', order_data, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('POS purchase only', str(res.data))

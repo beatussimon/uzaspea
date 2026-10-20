@@ -36,6 +36,7 @@ class ProductSitemap(Sitemap):
         return Product.objects.filter(
             is_available=True, 
             is_draft=False, 
+            pos_only=False,
             stock__gt=0
         ).select_related('category', 'seller', 'brand').prefetch_related('images').order_by('-updated_at')
 

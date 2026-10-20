@@ -201,7 +201,7 @@ const DashboardProducts: React.FC = () => {
   }, [showForm, editingId, jumpToEdit]);
   const INITIAL_FORM = { 
     name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', 
-    is_available: true, is_draft: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', 
+    is_available: true, is_draft: false, pos_only: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', 
     reference_product: '', structured_specs: {} as Record<string, any>,
     has_a_plus_content: false,
     a_plus_content: {
@@ -224,7 +224,7 @@ const DashboardProducts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterCondition, setFilterCondition] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'drafts'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'pos_only' | 'drafts'>('all');
   
   // Batch Upload Modal
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -533,7 +533,12 @@ const DashboardProducts: React.FC = () => {
     if (filterCategory) params.append('category', filterCategory);
     if (filterCondition) params.append('condition', filterCondition);
     if (filterStatus === 'drafts') params.append('is_draft', 'true');
-    else if (filterStatus === 'published') params.append('is_draft', 'false');
+    else if (filterStatus === 'published') {
+      params.append('is_draft', 'false');
+      params.append('pos_only', 'false');
+    } else if (filterStatus === 'pos_only') {
+      params.append('pos_only', 'true');
+    }
     
     api.get(`/api/products/?${params.toString()}`)
       .then((res) => {
@@ -738,6 +743,7 @@ const DashboardProducts: React.FC = () => {
       condition: product.condition,
       is_available: product.is_available,
       is_draft: Boolean(product.is_draft),
+      pos_only: Boolean(product.pos_only),
       requires_quote: product.requires_quote || false,
       unit_of_measure: product.unit_of_measure || '',
       minimum_order_quantity: product.minimum_order_quantity || '1',
@@ -815,6 +821,19 @@ const DashboardProducts: React.FC = () => {
       fetchProducts(1, true);
     } catch {
       toast.error('Failed to delete product');
+    }
+  };
+
+  const handleTogglePosOnly = async (product: any) => {
+    const nextVal = !product.pos_only;
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, pos_only: nextVal } : p));
+    try {
+      await api.patch(`/api/products/${product.slug}/`, { pos_only: nextVal });
+      invalidateProductCache(product.slug);
+      toast.success(nextVal ? t('product_set_pos_only', 'Product set to POS Only') : t('product_set_public', 'Product is now Public'));
+    } catch {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, pos_only: !nextVal } : p));
+      toast.error(t('failed_update_visibility', 'Failed to update visibility'));
     }
   };
 
@@ -978,6 +997,7 @@ const DashboardProducts: React.FC = () => {
               {([
                 { key: 'all' as const, label: t('all', 'All') },
                 { key: 'published' as const, label: t('published', 'Published') },
+                { key: 'pos_only' as const, label: t('pos_only', 'POS Only') },
                 { key: 'drafts' as const, label: t('drafts', 'Drafts') },
               ]).map((tab) => {
                 const isActive = filterStatus === tab.key;
@@ -1214,6 +1234,7 @@ const DashboardProducts: React.FC = () => {
             fd.append('condition', form.condition || 'New');
             fd.append('is_available', asDraft ? 'false' : String(form.is_available));
             fd.append('is_draft', asDraft ? 'true' : 'false');
+            fd.append('pos_only', String(form.pos_only));
             fd.append('requires_quote', String(form.requires_quote));
             fd.append('unit_of_measure', hasCustomUnit && form.unit_of_measure.trim() ? form.unit_of_measure.trim() : 'piece');
             fd.append('minimum_order_quantity', form.minimum_order_quantity || '1');
@@ -1577,12 +1598,12 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 1 Actions */}
-                  <div className="flex items-center justify-between pt-5 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
                         onClick={cancelForm} 
-                        className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -1590,7 +1611,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={submitting} 
                         onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Save as Draft
                       </button>
@@ -1599,7 +1620,7 @@ const DashboardProducts: React.FC = () => {
                       type="button" 
                       disabled={!canProceedStep1} 
                       onClick={() => setWizardStep(2)}
-                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition flex items-center gap-1.5"
+                      className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Next: Photos <ArrowRight size={14} />
                     </button>
@@ -2061,12 +2082,12 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 2 Actions */}
-                  <div className="flex items-center justify-between pt-4">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
                         onClick={() => setWizardStep(1)} 
-                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <ArrowLeft size={14} /> Back
                       </button>
@@ -2074,7 +2095,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={submitting} 
                         onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Save as Draft
                       </button>
@@ -2085,7 +2106,7 @@ const DashboardProducts: React.FC = () => {
                           type="button" 
                           disabled={submitting || !canSubmit} 
                           onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Save and update listing immediately"
                         >
                           <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
@@ -2095,7 +2116,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={!canProceedStep2} 
                         onClick={() => setWizardStep(3)}
-                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                        className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Next: Specifications <ArrowRight size={14} />
                       </button>
@@ -2602,12 +2623,12 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 3 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
                         onClick={() => setWizardStep(2)} 
-                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <ArrowLeft size={14} /> Back
                       </button>
@@ -2615,7 +2636,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={submitting} 
                         onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Save as Draft
                       </button>
@@ -2626,7 +2647,7 @@ const DashboardProducts: React.FC = () => {
                           type="button" 
                           disabled={submitting || !canSubmit} 
                           onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Save and update listing immediately"
                         >
                           <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
@@ -2636,7 +2657,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={!canProceedStep3} 
                         onClick={() => setWizardStep(4)}
-                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                        className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Next: Pricing & Stock <ArrowRight size={14} />
                       </button>
@@ -2792,7 +2813,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Volume Tiers */}
-                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Volume Pricing Tiers
@@ -2800,7 +2821,7 @@ const DashboardProducts: React.FC = () => {
                       <button 
                         type="button" 
                         onClick={() => setPriceTiers([...priceTiers, { min_quantity: '', max_quantity: '', unit_price: '' }])}
-                        className="text-xs font-bold text-brand-500 hover:text-brand-400"
+                        className="text-xs font-bold text-brand-500 hover:text-brand-400 cursor-pointer"
                       >
                         + Add Tier
                       </button>
@@ -2815,7 +2836,7 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.min_quantity} 
                           onChange={e => { const t=[...priceTiers]; t[idx].min_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none" 
                         />
                         <input 
                           type="number" 
@@ -2823,7 +2844,7 @@ const DashboardProducts: React.FC = () => {
                           placeholder="Max Qty" 
                           value={tier.max_quantity || ''} 
                           onChange={e => { const t=[...priceTiers]; t[idx].max_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none" 
                         />
                         <input 
                           type="number" 
@@ -2831,12 +2852,12 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.unit_price} 
                           onChange={e => { const t=[...priceTiers]; t[idx].unit_price=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none font-bold" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none font-bold" 
                         />
                         <button 
                           type="button" 
                           onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== idx))} 
-                          className="text-neutral-400 hover:text-red-500 font-bold px-1"
+                          className="text-neutral-400 hover:text-red-500 font-bold px-1 cursor-pointer"
                         >
                           ✕
                         </button>
@@ -2845,7 +2866,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Variations */}
-                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Product Variants
@@ -2924,7 +2945,7 @@ const DashboardProducts: React.FC = () => {
 
                     {/* Quick Matrix Generator Panel */}
                     {showMatrixGenerator && variationColumns.length > 0 && (
-                      <div className="p-3 bg-neutral-100 dark:bg-[#1a1a1a] rounded-lg border border-neutral-300 dark:border-neutral-700 space-y-2.5 animate-fade-in text-xs">
+                      <div className="p-3.5 bg-neutral-100/80 dark:bg-[#1a1a1a] rounded-xl space-y-2.5 animate-fade-in text-xs">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-neutral-800 dark:text-neutral-200">
                             ⚡ Quick Matrix Generator
@@ -2964,7 +2985,7 @@ const DashboardProducts: React.FC = () => {
                                       placeholder={suggestedUnit || 'None'}
                                       value={matrixUnits[col] !== undefined ? matrixUnits[col] : suggestedUnit}
                                       onChange={e => setMatrixUnits({ ...matrixUnits, [col]: e.target.value })}
-                                      className="w-14 px-1 py-0.5 text-[10px] border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none text-center font-bold"
+                                      className="w-14 px-1.5 py-1 text-[10px] rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none text-center font-bold"
                                       title={'Optional dimension unit/suffix appended to each value (e.g. ", GB, V, kg)'}
                                     />
                                   </div>
@@ -2973,7 +2994,7 @@ const DashboardProducts: React.FC = () => {
                                   placeholder={col.toLowerCase().includes('color') ? 'e.g. Red, Blue, Black' : 'e.g. 50, 55, 60'}
                                   value={matrixValues[col] || ''}
                                   onChange={e => setMatrixValues({ ...matrixValues, [col]: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none"
+                                  className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none"
                                 />
                               </div>
                             );
@@ -3061,7 +3082,7 @@ const DashboardProducts: React.FC = () => {
 
                     {/* Bulk Actions Toolbar */}
                     {newVariants.length > 2 && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-neutral-100/80 dark:bg-[#1a1a1a] rounded-xl text-xs">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-semibold text-neutral-500">Bulk Stock:</span>
                           <input
@@ -3069,7 +3090,7 @@ const DashboardProducts: React.FC = () => {
                             placeholder="e.g. 4"
                             value={bulkStockVal}
                             onChange={e => setBulkStockVal(e.target.value)}
-                            className="w-16 px-1.5 py-0.5 text-xs rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#161616]"
+                            className="w-16 px-2 py-1 text-xs rounded-lg border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 bg-white dark:bg-[#111] focus:ring-1 focus:ring-brand-500 outline-none"
                           />
                           <button
                             type="button"
@@ -3078,7 +3099,7 @@ const DashboardProducts: React.FC = () => {
                               setNewVariants(prev => prev.map(v => ({ ...v, stock: bulkStockVal })));
                               toast.success(`Set stock to ${bulkStockVal} across all variants`);
                             }}
-                            className="px-2 py-0.5 text-[11px] font-bold bg-neutral-200 dark:bg-neutral-800 hover:bg-brand-500 hover:text-black rounded transition cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-bold bg-neutral-200 dark:bg-neutral-800 hover:bg-brand-500 hover:text-black rounded-lg transition cursor-pointer"
                           >
                             Apply to All
                           </button>
@@ -3090,8 +3111,8 @@ const DashboardProducts: React.FC = () => {
                     )}
 
                     {newVariants.map((v, i) => (
-                      <div key={i} className="p-2.5 bg-white dark:bg-[#161616] rounded-lg border border-neutral-200 dark:border-neutral-800">
-                        <div className="flex flex-wrap gap-2 items-end">
+                      <div key={i} className="p-3 bg-white dark:bg-[#1a1a1a] rounded-xl shadow-2xs">
+                        <div className="flex flex-wrap gap-2.5 items-end">
                           {/* Variant Photo Picker */}
                           <div className="shrink-0 flex flex-col items-center relative">
                             <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Photo</label>
@@ -3108,7 +3129,7 @@ const DashboardProducts: React.FC = () => {
                                     setPickingPhotoVariantIndex(i);
                                   }
                                 }}
-                                className="w-8 h-8 rounded border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors"
+                                className="w-8.5 h-8.5 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-[#141414] transition-colors"
                                 title="Click to choose or upload variant photo"
                               >
                                 {v.previewUrl || v.existingImageUrl ? (
@@ -3156,7 +3177,7 @@ const DashboardProducts: React.FC = () => {
                                   nv[i].fields[col] = e.target.value;
                                   setNewVariants(nv);
                                 }}
-                                className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
+                                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-50 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 focus:ring-1 focus:ring-brand-500 outline-none" 
                               />
                             </div>
                           ))}
@@ -3167,16 +3188,16 @@ const DashboardProducts: React.FC = () => {
                               type="number" 
                               value={v.stock} 
                               onChange={e => { const nv = [...newVariants]; nv[i].stock = e.target.value; setNewVariants(nv); }} 
-                              className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-50 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 focus:ring-1 focus:ring-brand-500 outline-none" 
                             />
                           </div>
                           <div className="w-24 shrink-0">
                             <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Price Adj.</label>
-                            <div className="flex border border-neutral-300 dark:border-neutral-700 rounded overflow-hidden">
+                            <div className="flex rounded-lg overflow-hidden ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 bg-neutral-50 dark:bg-[#141414]">
                               <select 
                                 value={v.price_adj_sign} 
                                 onChange={e => { const nv = [...newVariants]; nv[i].price_adj_sign = e.target.value; setNewVariants(nv); }} 
-                                className="bg-neutral-100 dark:bg-neutral-800 text-xs px-1 py-1 outline-none border-r border-neutral-300 dark:border-neutral-700 font-bold"
+                                className="bg-neutral-200/60 dark:bg-neutral-800/80 text-xs px-1.5 py-1.5 outline-none font-bold border-0"
                               >
                                 <option value="+">+</option><option value="-">-</option>
                               </select>
@@ -3185,7 +3206,7 @@ const DashboardProducts: React.FC = () => {
                                 type="number" 
                                 value={v.price_adjustment} 
                                 onChange={e => { const nv = [...newVariants]; nv[i].price_adjustment = e.target.value; setNewVariants(nv); }} 
-                                className="w-full px-1.5 py-1 text-xs bg-transparent dark:text-white outline-none" 
+                                className="w-full px-2 py-1.5 text-xs bg-transparent dark:text-white outline-none border-0" 
                               />
                             </div>
                           </div>
@@ -3197,7 +3218,7 @@ const DashboardProducts: React.FC = () => {
                               setNewVariants(nv);
                               if (removed.id) setDeletedVariantIds(prev => [...prev, removed.id]);
                             }}
-                            className="text-neutral-400 hover:text-red-500 p-1 mb-0.5"
+                            className="text-neutral-400 hover:text-red-500 p-1 mb-0.5 cursor-pointer"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -3381,12 +3402,12 @@ const DashboardProducts: React.FC = () => {
                   )}
 
                   {/* Step 4 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
                         onClick={() => setWizardStep(3)} 
-                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <ArrowLeft size={14} /> Back
                       </button>
@@ -3394,7 +3415,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={submitting} 
                         onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Save as Draft
                       </button>
@@ -3405,7 +3426,7 @@ const DashboardProducts: React.FC = () => {
                           type="button" 
                           disabled={submitting || !canSubmit} 
                           onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Save and update listing immediately"
                         >
                           <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
@@ -3415,7 +3436,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={!canProceedStep4} 
                         onClick={() => setWizardStep(5)}
-                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                        className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Next: Review <ArrowRight size={14} />
                       </button>
@@ -3469,7 +3490,7 @@ const DashboardProducts: React.FC = () => {
 
                     {/* Options */}
                     <div className="space-y-3">
-                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                      <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
                         <input 
                           type="checkbox" 
                           checked={form.is_available} 
@@ -3482,7 +3503,23 @@ const DashboardProducts: React.FC = () => {
                         </div>
                       </label>
 
-                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                      <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
+                        <input 
+                          type="checkbox" 
+                          checked={form.pos_only} 
+                          onChange={(e) => setForm({...form, pos_only: e.target.checked})} 
+                          className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                            <span>Point of Sale (POS) Only</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">In-Store</span>
+                          </p>
+                          <p className="text-[11px] text-neutral-500">Item will only be available on your in-store POS register and hidden from public marketplace listings and your profile store.</p>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
                         <input 
                           type="checkbox" 
                           checked={form.requires_quote} 
@@ -3495,7 +3532,7 @@ const DashboardProducts: React.FC = () => {
                         </div>
                       </label>
 
-                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                      <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
                         <input 
                           type="checkbox" 
                           checked={form.has_a_plus_content} 
@@ -3515,12 +3552,12 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 5 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
                         onClick={() => setWizardStep(4)} 
-                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <ArrowLeft size={14} /> Back
                       </button>
@@ -3528,7 +3565,7 @@ const DashboardProducts: React.FC = () => {
                         type="button" 
                         disabled={submitting} 
                         onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         Save as Draft
                       </button>
@@ -3536,7 +3573,7 @@ const DashboardProducts: React.FC = () => {
                     <button 
                       type="submit" 
                       disabled={submitting || !canSubmit}
-                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-extrabold rounded-lg text-sm transition shadow-sm"
+                      className="h-9 px-5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       {submitting ? 'Saving...' : editingId ? (form.is_draft ? 'Publish Listing' : 'Update Product') : 'Publish Product'}
                     </button>
@@ -3597,6 +3634,11 @@ const DashboardProducts: React.FC = () => {
                   {Boolean(product.has_a_plus_content) && (
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                       A+ Content
+                    </span>
+                  )}
+                  {Boolean(product.pos_only) && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      POS Only
                     </span>
                   )}
                 </div>
@@ -3666,6 +3708,18 @@ const DashboardProducts: React.FC = () => {
                     className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0"
                   >
                     Variants
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePosOnly(product)}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition shrink-0 flex items-center gap-1 ${
+                      product.pos_only
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                        : 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                    }`}
+                    title={product.pos_only ? "Currently POS Only. Click to make Public" : "Currently Public. Click to make POS Only"}
+                  >
+                    {product.pos_only ? '📟 POS Only' : '🌐 Public'}
                   </button>
                   <button
                     type="button"

@@ -198,6 +198,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 
             if obj is not None:
                 self.check_object_permissions(self.request, obj)
+                if getattr(obj, 'pos_only', False) and self.action == 'retrieve':
+                    user = self.request.user
+                    is_owner_or_staff = user.is_authenticated and (user.id == obj.seller_id or user.is_staff or user.is_superuser)
+                    if not is_owner_or_staff:
+                        raise Http404("No product matches the given query.")
                 return obj
                 
         raise Http404("No product matches the given query.")
@@ -302,6 +307,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if seller_param:
             queryset = base.filter(seller__username__iexact=seller_param)
             is_draft_param = self.request.query_params.get('is_draft')
+            pos_only_param = self.request.query_params.get('pos_only')
             include_unlisted = self.request.query_params.get('include_unlisted') == 'true'
             is_seller_self = user.is_authenticated and (user.username.lower() == str(seller_param).lower() or user.is_staff or user.is_superuser)
             if is_seller_self and is_draft_param == 'true':
@@ -312,6 +318,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
             else:
                 queryset = queryset.filter(is_available=True, stock__gt=0, is_draft=False)
+
+            if not is_seller_self:
+                queryset = queryset.filter(pos_only=False)
+            else:
+                if pos_only_param == 'true':
+                    queryset = queryset.filter(pos_only=True)
+                elif pos_only_param == 'false':
+                    queryset = queryset.filter(pos_only=False)
         elif user.is_authenticated and self.request.query_params.get('mine') == 'true':
             from uzachuo.permissions import get_effective_sellers
             sellers = get_effective_sellers(user, required_permission='manage_products')
@@ -321,15 +335,20 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(is_draft=True)
             elif is_draft_param == 'false':
                 queryset = queryset.filter(is_draft=False)
+            pos_only_param = self.request.query_params.get('pos_only')
+            if pos_only_param == 'true':
+                queryset = queryset.filter(pos_only=True)
+            elif pos_only_param == 'false':
+                queryset = queryset.filter(pos_only=False)
         elif self.request.query_params.get('following') and user.is_authenticated:
             from .models import Follow
             followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
-            queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0, is_draft=False)
+            queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0, is_draft=False, pos_only=False)
         elif user.is_authenticated and (user.is_staff or user.is_superuser) and (self.request.query_params.get('all') == 'true' or self.request.query_params.get('moderation') == 'true'):
             queryset = base.all()
         else:
             # Public list only shows available and in-stock published products for general browsing
-            queryset = base.filter(is_available=True, stock__gt=0, is_draft=False)
+            queryset = base.filter(is_available=True, stock__gt=0, is_draft=False, pos_only=False)
             
         if self.request.query_params.get('saved') == 'true':
             if user.is_authenticated:
@@ -397,7 +416,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
             'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
-            'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
+            'is_draft', 'pos_only', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
             'region', 'location_mode', 'exclude', 'ref', 'aff'
         }
         for key, value in self.request.query_params.items():
