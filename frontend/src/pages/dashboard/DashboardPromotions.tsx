@@ -36,7 +36,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { KpiCard } from '../../components/ui/KpiCard';
 import SafeImage from '../../components/SafeImage';
-import { KpiGridSkeleton, TableSkeleton, CardGridSkeleton } from '../../components/Skeleton';
+import { Skeleton, KpiGridSkeleton, TableSkeleton, CardGridSkeleton } from '../../components/Skeleton';
 
 interface BoostPlan {
   days: number;
@@ -1151,60 +1151,68 @@ const location = useLocation();
         )
       )}
 
-      {/* Main Tab Bar */}
-      <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveTab('sponsored')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'sponsored'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <Megaphone size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('sponsored_listings', 'Sponsored Products')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'sponsored' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {promotions.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('coupons')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'coupons'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <Ticket size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('promo_coupons', 'Promo Codes')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {promoCodes.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('referrals')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-            activeTab === 'referrals'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
-          }`}
-        >
-          <UserCheck size={13} className="shrink-0" />
-          <span className="whitespace-nowrap">{t('affiliates_referrals', 'Affiliates & Referrals')}</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
-            activeTab === 'referrals' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-          }`}>
-            {referralConversions.length}
-          </span>
-        </button>
-      </div>
+      {/* Main Tab Bar */}
+      {initialLoading ? (
+        <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
+          <Skeleton className="h-7 w-36 rounded-full" />
+          <Skeleton className="h-7 w-28 rounded-full" />
+          <Skeleton className="h-7 w-40 rounded-full" />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setActiveTab('sponsored')}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'sponsored'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+            }`}
+          >
+            <Megaphone size={13} className="shrink-0" />
+            <span className="whitespace-nowrap">{t('sponsored_listings', 'Sponsored Products')}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+              activeTab === 'sponsored' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+            }`}>
+              {promotions.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('coupons')}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'coupons'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+            }`}
+          >
+            <Ticket size={13} className="shrink-0" />
+            <span className="whitespace-nowrap">{t('promo_coupons', 'Promo Codes')}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+              activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+            }`}>
+              {promoCodes.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('referrals')}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'referrals'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900'
+            }`}
+          >
+            <UserCheck size={13} className="shrink-0" />
+            <span className="whitespace-nowrap">{t('affiliates_referrals', 'Affiliates & Referrals')}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+              activeTab === 'referrals' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+            }`}>
+              {referralConversions.length}
+            </span>
+          </button>
+        </div>
+      )}
         </>
       )}
 
@@ -1218,18 +1226,6 @@ const location = useLocation();
               onSubmit={handleSubmit} 
               className="space-y-4 animate-scale-in text-xs"
             >
-              {/* Form Header */}
-              <div className="pb-1">
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-                  {t('create_sponsored_listing', 'Create Sponsored Listing')}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {formStep === 1 
-                    ? t('sponsored_form_desc', 'Feature your product with priority placement in search and category feeds.')
-                    : t('sponsored_payment_step_desc', 'Complete payment verification to activate your placement request.')}
-                </p>
-              </div>
-
               {/* Step 1: Campaign Setup */}
               {formStep === 1 && (
                 <>
@@ -1567,44 +1563,57 @@ const location = useLocation();
           )}
 
           {/* Campaign Filter Bar */}
-          <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-            <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
-                const count = f === 'all' 
-                  ? promotions.length 
-                  : promotions.filter(p => getCampaignStatus(p) === f).length;
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setCampaignFilter(f)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      campaignFilter === f
-                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                        : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {f === 'approved' && t('live_active', 'Active')}
-                    {f === 'pending' && t('pending_review', 'Under Review')}
-                    {f === 'expired' && t('completed', 'Completed')}
-                    {f === 'rejected' && t('rejected', 'Rejected')}
-                    {f === 'all' && t('all_campaigns', 'All Placements')}
-                    <span className="opacity-60 text-[11px]">({count})</span>
-                  </button>
-                );
-              })}
+          {initialLoading ? (
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-6 w-28 rounded-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-28 rounded-full" />
+              </div>
+              <Skeleton className="h-7 w-20 rounded-lg" />
             </div>
+          ) : (
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+              <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
+                  const count = f === 'all' 
+                    ? promotions.length 
+                    : promotions.filter(p => getCampaignStatus(p) === f).length;
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setCampaignFilter(f)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                        campaignFilter === f
+                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                          : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {f === 'approved' && t('live_active', 'Active')}
+                      {f === 'pending' && t('pending_review', 'Under Review')}
+                      {f === 'expired' && t('completed', 'Completed')}
+                      {f === 'rejected' && t('rejected', 'Rejected')}
+                      {f === 'all' && t('all_campaigns', 'All Placements')}
+                      <span className="opacity-60 text-[11px]">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshPromotions}
-              className="text-xs py-1 px-2.5 h-7 flex items-center gap-1 border-surface-border dark:border-surface-dark-border"
-              title={t('refresh', 'Refresh')}
-            >
-              <RefreshCw size={11} /> {t('refresh', 'Refresh')}
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshPromotions}
+                className="text-xs py-1 px-2.5 h-7 flex items-center gap-1 border-surface-border dark:border-surface-dark-border"
+                title={t('refresh', 'Refresh')}
+              >
+                <RefreshCw size={11} /> {t('refresh', 'Refresh')}
+              </Button>
+            </div>
+          )}
 
           {/* Campaign List Grid */}
           {initialLoading ? (
