@@ -1406,7 +1406,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         return (
-          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
+          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (
@@ -1504,7 +1504,7 @@ const DashboardProducts: React.FC = () => {
                           }
                         }}
                         required
-                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                       >
                         <option value="">Select Category...</option>
                         {categories.map((root: any) => (
@@ -1527,7 +1527,7 @@ const DashboardProducts: React.FC = () => {
                           setForm(prev => ({ ...prev, category: e.target.value, brand: '', reference_product: '' }));
                         }}
                         required
-                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="">
                           {!currentRootCat 
@@ -1560,7 +1560,7 @@ const DashboardProducts: React.FC = () => {
                       placeholder="e.g. Toyota RAV4 2018 White or MacBook Pro 14 M3 Pro 512GB" 
                       maxLength={120}
                       required 
-                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors" 
+                      className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                     />
                   </div>
 
@@ -1574,7 +1574,7 @@ const DashboardProducts: React.FC = () => {
                         name="condition"
                         value={form.condition}
                         onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                       >
                         <option value="New">Brand New</option>
                         <option value="Like_New">Like New</option>
@@ -1592,13 +1592,13 @@ const DashboardProducts: React.FC = () => {
                         value={form.sku} 
                         onChange={handleChange} 
                         placeholder="e.g. PRD-001" 
-                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors" 
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                       />
                     </div>
                   </div>
 
                   {/* Step 1 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -1646,7 +1646,7 @@ const DashboardProducts: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                         {existingImages.map((img: any, idx: number) => (
-                          <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group bg-neutral-100 dark:bg-neutral-900">
+                          <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900">
                             <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
                             
                             {idx === 0 ? (
@@ -1734,7 +1734,7 @@ const DashboardProducts: React.FC = () => {
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                           {imagePreviews.map((p, idx) => (
-                            <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group bg-neutral-100 dark:bg-neutral-900">
+                            <div key={p.url} className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-900">
                               <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
                               
                               {idx === 0 ? (
@@ -1786,7 +1786,7 @@ const DashboardProducts: React.FC = () => {
                           ))}
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                        <div className="flex items-center justify-between pt-2">
                           <ImagePickerButton label="Add More" compact multiple onChange={handleImageChange} />
                           <span className="text-xs text-neutral-500 font-medium">
                             {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} selected
@@ -2082,7 +2082,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 2 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -2130,7 +2130,7 @@ const DashboardProducts: React.FC = () => {
                 <div className="space-y-5">
                   {/* Non-Auto: Brand & Model Catalog Selector */}
                   {!isAuto && (
-                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                           Brand & Model
@@ -2217,7 +2217,7 @@ const DashboardProducts: React.FC = () => {
                                   };
                                 });
                               }} 
-                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                              className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                             >
                               <option value="">Select Brand (Optional)...</option>
                               {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
@@ -2252,7 +2252,7 @@ const DashboardProducts: React.FC = () => {
                                   });
                                 }}
                                 placeholder="e.g. CeraVe, Garnier, The Ordinary, Generic..."
-                                className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                               />
                             </div>
                           )}
@@ -2304,7 +2304,7 @@ const DashboardProducts: React.FC = () => {
                                     };
                                   });
                                 }} 
-                                className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                               >
                                 <option value="">Select Model (Auto-fill specs)...</option>
                                 {referenceProducts.map(r => (
@@ -2340,7 +2340,7 @@ const DashboardProducts: React.FC = () => {
                                     });
                                   }}
                                   placeholder="e.g. Galaxy S25 Ultra, Latitude 5450, Pavilion 15, iPhone 16 Pro..."
-                                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                  className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
                                 />
                               </div>
                             )}
@@ -2352,7 +2352,7 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Vehicle Fitment if Auto */}
                   {isAuto && (
-                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Vehicle Fitment (Optional)
                       </p>
@@ -2387,7 +2387,7 @@ const DashboardProducts: React.FC = () => {
                             value={oemPartNumber} 
                             onChange={(e) => setOemPartNumber(e.target.value)} 
                             placeholder="e.g. 04465-42180"
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                            className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                           />
                         </div>
                       </div>
@@ -2396,7 +2396,7 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Schema Specs */}
                   {specSchema.length > 0 && (
-                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                           Technical Specifications
@@ -2440,7 +2440,7 @@ const DashboardProducts: React.FC = () => {
                                       placeholder={`Enter custom ${spec.label}`}
                                       value={form.structured_specs[spec.key] || ''}
                                       onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
-                                      className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                      className="w-full px-3.5 py-2 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500"
                                     />
                                   </div>
                                 ) : (
@@ -2456,7 +2456,7 @@ const DashboardProducts: React.FC = () => {
                                         setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: val } }));
                                       }
                                     }}
-                                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                    className="w-full px-3.5 py-2 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500"
                                   >
                                     <option value="">Select {spec.label}...</option>
                                     {spec.options.map((opt: string) => (
@@ -2473,7 +2473,7 @@ const DashboardProducts: React.FC = () => {
                                     placeholder={`Enter ${spec.label}`}
                                     value={form.structured_specs[spec.key] || ''}
                                     onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
-                                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                    className="w-full px-3.5 py-2 text-sm border-0 rounded-xl bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500"
                                   />
                                   {spec.unit && (
                                     <span className="absolute right-3 text-xs text-neutral-400 pointer-events-none">
@@ -2490,7 +2490,7 @@ const DashboardProducts: React.FC = () => {
                   )}
 
                   {/* Custom Specifications & Attributes Block */}
-                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
@@ -2515,7 +2515,7 @@ const DashboardProducts: React.FC = () => {
                     {customAttributes.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {customAttributes.map(attr => (
-                          <div key={attr.key} className="relative p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#161616]">
+                          <div key={attr.key} className="relative p-2.5 rounded-xl bg-white dark:bg-[#1c1c1c]">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-bold text-neutral-500 uppercase">{attr.label}</span>
                               <button
@@ -2552,21 +2552,21 @@ const DashboardProducts: React.FC = () => {
 
                     {/* Add Custom Attribute Form */}
                     {showAddAttr && (
-                      <div className="p-3 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#161616] space-y-2.5">
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-[#1c1c1c] space-y-2.5">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input
                             type="text"
                             placeholder="Attribute Name (e.g. Shade, Warranty, Fabric)"
                             value={newAttrLabel}
                             onChange={e => setNewAttrLabel(e.target.value)}
-                            className="px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
+                            className="px-3 py-2 text-xs border-0 rounded-xl bg-neutral-100 dark:bg-[#141414] text-neutral-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500"
                           />
                           <input
                             type="text"
                             placeholder="Value (e.g. #02 Golden Sand, 2 Years, 100% Cotton)"
                             value={newAttrValue}
                             onChange={e => setNewAttrValue(e.target.value)}
-                            className="px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
+                            className="px-3 py-2 text-xs border-0 rounded-xl bg-neutral-100 dark:bg-[#141414] text-neutral-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500"
                           />
                         </div>
                         <div className="flex items-center justify-end gap-2">
@@ -2618,12 +2618,12 @@ const DashboardProducts: React.FC = () => {
                       placeholder="Provide full description of the item, features, warranty, condition..."
                       required 
                       rows={5}
-                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 resize-none outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" 
+                      className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 resize-none outline-none focus:ring-1 focus:ring-brand-500" 
                     />
                   </div>
 
                   {/* Step 3 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -2683,7 +2683,7 @@ const DashboardProducts: React.FC = () => {
                         type="number" 
                         min="0"
                         required
-                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                        className="w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500" 
                       />
                     </div>
 
@@ -2698,7 +2698,7 @@ const DashboardProducts: React.FC = () => {
                         placeholder="0" 
                         type="number" 
                         min="0"
-                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                        className="w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500" 
                       />
                     </div>
 
@@ -2713,7 +2713,7 @@ const DashboardProducts: React.FC = () => {
                         placeholder="0" 
                         type="number" 
                         min="0"
-                        className="w-full px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500" 
                       />
                     </div>
                   </div>
@@ -2738,7 +2738,7 @@ const DashboardProducts: React.FC = () => {
                         min="0"
                         required
                         readOnly={newVariants.length > 0}
-                        className={`w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 ${newVariants.length > 0 ? 'bg-neutral-50 dark:bg-neutral-900 cursor-not-allowed opacity-90' : ''}`} 
+                        className={`w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 ${newVariants.length > 0 ? 'bg-neutral-200/50 dark:bg-neutral-900 cursor-not-allowed opacity-90' : ''}`} 
                       />
                     </div>
 
@@ -2754,7 +2754,7 @@ const DashboardProducts: React.FC = () => {
                         type="number" 
                         min="1"
                         step="1"
-                        className="w-full px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500" 
                       />
                     </div>
                   </div>
@@ -2777,7 +2777,7 @@ const DashboardProducts: React.FC = () => {
                     </label>
 
                     {hasCustomUnit && (
-                      <div className="mt-3 p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-2">
+                      <div className="mt-3 p-3.5 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-2">
                         <label className="block text-[11px] font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
                           Select or Enter Unit
                         </label>
@@ -2785,7 +2785,7 @@ const DashboardProducts: React.FC = () => {
                           <select 
                             value={['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) ? form.unit_of_measure : (form.unit_of_measure ? 'custom' : 'piece')}
                             onChange={(e) => setForm({...form, unit_of_measure: e.target.value === 'custom' ? 'custom' : e.target.value})}
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                            className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#1a1a1a] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500"
                           >
                             <option value="piece">Piece(s)</option>
                             <option value="kg">Kilogram (kg)</option>
@@ -2804,7 +2804,7 @@ const DashboardProducts: React.FC = () => {
                               value={form.unit_of_measure === 'custom' ? '' : form.unit_of_measure} 
                               onChange={(e) => setForm({...form, unit_of_measure: e.target.value})} 
                               placeholder="e.g. Gallon, Pack, Bundle" 
-                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
+                              className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-[#1a1a1a] text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500" 
                             />
                           )}
                         </div>
@@ -2836,7 +2836,7 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.min_quantity} 
                           onChange={e => { const t=[...priceTiers]; t[idx].min_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none" 
                         />
                         <input 
                           type="number" 
@@ -2844,7 +2844,7 @@ const DashboardProducts: React.FC = () => {
                           placeholder="Max Qty" 
                           value={tier.max_quantity || ''} 
                           onChange={e => { const t=[...priceTiers]; t[idx].max_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none" 
                         />
                         <input 
                           type="number" 
@@ -2852,7 +2852,7 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.unit_price} 
                           onChange={e => { const t=[...priceTiers]; t[idx].unit_price=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none font-bold" 
+                          className="w-1/3 px-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none font-bold" 
                         />
                         <button 
                           type="button" 
@@ -2887,7 +2887,7 @@ const DashboardProducts: React.FC = () => {
                                   setShowCustomColumnInput(false);
                                 } else if (e.key==='Escape') setShowCustomColumnInput(false); 
                               }}
-                              className="text-xs px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none w-20" 
+                              className="text-xs px-2.5 py-1.5 border-0 rounded-lg bg-neutral-100 dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none w-20 focus:ring-1 focus:ring-brand-500" 
                             />
                             <button 
                               type="button" 
@@ -2985,7 +2985,7 @@ const DashboardProducts: React.FC = () => {
                                       placeholder={suggestedUnit || 'None'}
                                       value={matrixUnits[col] !== undefined ? matrixUnits[col] : suggestedUnit}
                                       onChange={e => setMatrixUnits({ ...matrixUnits, [col]: e.target.value })}
-                                      className="w-14 px-1.5 py-1 text-[10px] rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none text-center font-bold"
+                                      className="w-14 px-1.5 py-1 text-[10px] rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none text-center font-bold"
                                       title={'Optional dimension unit/suffix appended to each value (e.g. ", GB, V, kg)'}
                                     />
                                   </div>
@@ -2994,20 +2994,20 @@ const DashboardProducts: React.FC = () => {
                                   placeholder={col.toLowerCase().includes('color') ? 'e.g. Red, Blue, Black' : 'e.g. 50, 55, 60'}
                                   value={matrixValues[col] || ''}
                                   onChange={e => setMatrixValues({ ...matrixValues, [col]: e.target.value })}
-                                  className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 focus:ring-1 focus:ring-brand-500 outline-none"
+                                  className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none"
                                 />
                               </div>
                             );
                           })}
                         </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-200 dark:border-neutral-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-neutral-500">Default Stock per variant:</span>
                             <input
                               type="number"
                               value={matrixDefaultStock}
                               onChange={e => setMatrixDefaultStock(e.target.value)}
-                              className="w-14 px-1.5 py-0.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111]"
+                              className="w-14 px-1.5 py-0.5 text-xs border-0 rounded bg-white dark:bg-[#111] focus:ring-1 focus:ring-brand-500 outline-none"
                             />
                           </div>
                           <button
@@ -3090,7 +3090,7 @@ const DashboardProducts: React.FC = () => {
                             placeholder="e.g. 4"
                             value={bulkStockVal}
                             onChange={e => setBulkStockVal(e.target.value)}
-                            className="w-16 px-2 py-1 text-xs rounded-lg border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-800 bg-white dark:bg-[#111] focus:ring-1 focus:ring-brand-500 outline-none"
+                            className="w-16 px-2 py-1 text-xs rounded-lg border-0 bg-white dark:bg-[#111] focus:ring-1 focus:ring-brand-500 outline-none"
                           />
                           <button
                             type="button"
@@ -3129,14 +3129,14 @@ const DashboardProducts: React.FC = () => {
                                     setPickingPhotoVariantIndex(i);
                                   }
                                 }}
-                                className="w-8.5 h-8.5 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-50 dark:bg-[#141414] transition-colors"
+                                className="w-8 h-8 min-w-[32px] min-h-[32px] max-w-[32px] max-h-[32px] rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-400 flex items-center justify-center cursor-pointer overflow-hidden bg-neutral-100 dark:bg-[#141414] transition-colors shrink-0"
                                 title="Click to choose or upload variant photo"
                               >
                                 {v.previewUrl || v.existingImageUrl ? (
                                   <img
                                     src={v.previewUrl || v.existingImageUrl}
                                     alt={`Variant ${i + 1}`}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover shrink-0"
                                   />
                                 ) : (
                                   <Camera size={13} className="text-neutral-400 group-hover:text-brand-500 transition-colors" />
@@ -3177,7 +3177,7 @@ const DashboardProducts: React.FC = () => {
                                   nv[i].fields[col] = e.target.value;
                                   setNewVariants(nv);
                                 }}
-                                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-50 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 focus:ring-1 focus:ring-brand-500 outline-none" 
+                                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-100 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none" 
                               />
                             </div>
                           ))}
@@ -3188,12 +3188,12 @@ const DashboardProducts: React.FC = () => {
                               type="number" 
                               value={v.stock} 
                               onChange={e => { const nv = [...newVariants]; nv[i].stock = e.target.value; setNewVariants(nv); }} 
-                              className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-50 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 focus:ring-1 focus:ring-brand-500 outline-none" 
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-neutral-100 dark:bg-[#141414] text-neutral-900 dark:text-neutral-100 border-0 focus:ring-1 focus:ring-brand-500 outline-none" 
                             />
                           </div>
                           <div className="w-24 shrink-0">
                             <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Price Adj.</label>
-                            <div className="flex rounded-lg overflow-hidden ring-1 ring-neutral-200/80 dark:ring-neutral-700/60 bg-neutral-50 dark:bg-[#141414]">
+                            <div className="flex rounded-lg overflow-hidden bg-neutral-100 dark:bg-[#141414]">
                               <select 
                                 value={v.price_adj_sign} 
                                 onChange={e => { const nv = [...newVariants]; nv[i].price_adj_sign = e.target.value; setNewVariants(nv); }} 
@@ -3402,7 +3402,7 @@ const DashboardProducts: React.FC = () => {
                   )}
 
                   {/* Step 4 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
@@ -3450,13 +3450,13 @@ const DashboardProducts: React.FC = () => {
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {/* Summary */}
-                    <div className="p-4 rounded-lg bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#141414] space-y-3">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                         Listing Summary
                       </p>
 
                       <div className="flex gap-3">
-                        <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                        <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-neutral-900">
                           {imagePreviews.length > 0 ? (
                             <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
                           ) : existingImages.length > 0 ? (
@@ -3480,7 +3480,7 @@ const DashboardProducts: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
+                      <div className="pt-2 text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
                         <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Category:</span> {selectedCat?.name.replace(/^[\s›]+/, '')}</p>
                         {form.brand && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Brand:</span> {form.brand}</p>}
                         {form.reference_product && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Model:</span> {form.reference_product}</p>}
@@ -3552,7 +3552,7 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 5 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
