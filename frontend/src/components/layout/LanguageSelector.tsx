@@ -213,7 +213,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-neutral-700 text-xs font-bold text-gray-700 dark:text-gray-200"
+        className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full transition-colors border-0 outline-none text-xs font-bold text-gray-700 dark:text-gray-200 ${
+          open ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-100 dark:hover:bg-neutral-800'
+        }`}
         aria-label="Select Language"
         aria-expanded={open}
       >
@@ -223,7 +225,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       </button>
 
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-44 bg-white dark:bg-[#141414] rounded-2xl shadow-xl border border-gray-100 dark:border-neutral-800 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-[calc(100%+8px)] right-0 w-44 bg-white dark:bg-[#141414] rounded-2xl shadow-2xl border-0 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
           <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400">
             {t('language', 'Language')}
           </div>

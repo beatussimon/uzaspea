@@ -338,7 +338,7 @@ const Navbar = () => {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-xl shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
+                  <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-[#141414] rounded-2xl shadow-2xl border-0 z-50 animate-scale-in overflow-hidden">
                     {/* Account Header */}
                     <Link to={`/${username}`} onClick={() => setProfileOpen(false)} className="block p-4 bg-gray-50/50 dark:bg-neutral-950/50 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors group">
                       <div className="flex items-center gap-3">
