@@ -589,18 +589,17 @@ const ProductRequestsBoard: React.FC = () => {
                 <Plus size={14} />
                 <span>{t('create_demand', 'Create Demand')}</span>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                type="button"
                 onClick={handlePrintDemand}
                 disabled={isPrintingDemand}
-                className="font-bold flex items-center justify-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 shrink-0 whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white shrink-0 whitespace-nowrap cursor-pointer transition border-0 disabled:opacity-50 active:scale-[0.97]"
                 title="Print Demand Report"
                 aria-label="Print Demand Report"
               >
                 <Printer size={15} className="shrink-0" />
                 <span className="hidden sm:inline">{isPrintingDemand ? 'Printing...' : 'Print'}</span>
-              </Button>
+              </button>
             </div>
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm">

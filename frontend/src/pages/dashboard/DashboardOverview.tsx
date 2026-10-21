@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
@@ -176,18 +175,17 @@ const DashboardOverview: React.FC = () => {
           </h1>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             <DateRangePicker value={dateRange} onChange={setDateRange} />
-            <Button 
-              variant="outline"
-              size="sm"
+            <button 
+              type="button"
               onClick={handleExportPdf}
               disabled={isExporting}
-              className="font-bold flex items-center justify-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 shrink-0 whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white shrink-0 whitespace-nowrap cursor-pointer transition border-0 disabled:opacity-50 active:scale-[0.97]"
               title="Export to PDF"
               aria-label="Export to PDF"
             >
               <Printer size={15} className="shrink-0" />
               <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
-            </Button>
+            </button>
           </div>
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
