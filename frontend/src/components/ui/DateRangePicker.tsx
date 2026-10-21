@@ -100,7 +100,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-transparent hover:bg-surface-muted dark:hover:bg-white/5 border border-surface-border dark:border-surface-dark-border rounded-btn text-xs font-bold text-gray-900 dark:text-white transition-all duration-200 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer select-none"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] border-0 rounded-btn text-xs font-bold text-gray-900 dark:text-white transition-all duration-200 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer select-none"
       >
         <Calendar size={14} className="text-gray-500 dark:text-gray-400 shrink-0" />
         <span>{value.label}</span>

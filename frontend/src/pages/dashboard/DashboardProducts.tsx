@@ -816,15 +816,14 @@ const DashboardProducts: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-            <Button
+            <button
+              type="button"
               onClick={() => setShowBatchModal(true)}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0"
             >
               <Package size={14} />
               <span>Batch Import (CSV)</span>
-            </Button>
+            </button>
             <Button
               onClick={() => {
                 const nextShow = !showForm;

@@ -305,18 +305,18 @@ const [orders, setOrders] = useState<any[]>([]);
                     )}
 
                     {/* Print Invoice Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setPrintOrder(order);
                       }}
-                      className="flex items-center gap-1.5"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0 disabled:opacity-50"
+                      title={t('print', 'Print')}
                     >
                       <Printer size={13} />
                       <span className="hidden sm:inline">{t('print', 'Print')}</span>
-                    </Button>
+                    </button>
 
                     <div className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-4 right-4 md:static">
                       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
