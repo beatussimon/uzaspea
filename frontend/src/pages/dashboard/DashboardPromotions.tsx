@@ -21,7 +21,6 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle2,
-  RefreshCw,
   Eye,
   ArrowUpRight,
   Info,
@@ -1602,54 +1601,39 @@ const location = useLocation();
 
           {/* Campaign Filter Bar */}
           {initialLoading ? (
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                <Skeleton className="h-7 w-20 rounded-full shrink-0" />
-                <Skeleton className="h-7 w-28 rounded-full shrink-0" />
-                <Skeleton className="h-7 w-24 rounded-full shrink-0" />
-                <Skeleton className="h-7 w-20 rounded-full shrink-0" />
-                <Skeleton className="h-7 w-28 rounded-full shrink-0" />
-              </div>
-              <Skeleton className="h-7 w-20 rounded-lg shrink-0" />
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+              <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+              <Skeleton className="h-7 w-28 rounded-full shrink-0" />
+              <Skeleton className="h-7 w-24 rounded-full shrink-0" />
+              <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+              <Skeleton className="h-7 w-28 rounded-full shrink-0" />
             </div>
           ) : (
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-              <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
-                  const count = f === 'all' 
-                    ? promotions.length 
-                    : promotions.filter(p => getCampaignStatus(p) === f).length;
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setCampaignFilter(f)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                        campaignFilter === f
-                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                          : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {f === 'approved' && t('live_active', 'Active')}
-                      {f === 'pending' && t('pending_review', 'Under Review')}
-                      {f === 'expired' && t('completed', 'Completed')}
-                      {f === 'rejected' && t('rejected', 'Rejected')}
-                      {f === 'all' && t('all_campaigns', 'All Placements')}
-                      <span className="opacity-60 text-[11px]">({count})</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refreshPromotions}
-                className="text-xs py-1 px-2.5 h-7 flex items-center gap-1 border-surface-border dark:border-surface-dark-border"
-                title={t('refresh', 'Refresh')}
-              >
-                <RefreshCw size={11} /> {t('refresh', 'Refresh')}
-              </Button>
+            <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+              {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
+                const count = f === 'all' 
+                  ? promotions.length 
+                  : promotions.filter(p => getCampaignStatus(p) === f).length;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setCampaignFilter(f)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                      campaignFilter === f
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {f === 'approved' && t('live_active', 'Active')}
+                    {f === 'pending' && t('pending_review', 'Under Review')}
+                    {f === 'expired' && t('completed', 'Completed')}
+                    {f === 'rejected' && t('rejected', 'Rejected')}
+                    {f === 'all' && t('all_campaigns', 'All Placements')}
+                    <span className="opacity-60 text-[11px]">({count})</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 

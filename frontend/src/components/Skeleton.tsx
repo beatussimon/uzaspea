@@ -906,15 +906,12 @@ export const PromotionsSkeleton: React.FC<{
     {tab === 'sponsored' && (
       <div className="space-y-4">
         {/* Campaign Filter Bar */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            <Skeleton className="h-7 w-20 rounded-full shrink-0" />
-            <Skeleton className="h-7 w-28 rounded-full shrink-0" />
-            <Skeleton className="h-7 w-24 rounded-full shrink-0" />
-            <Skeleton className="h-7 w-20 rounded-full shrink-0" />
-            <Skeleton className="h-7 w-28 rounded-full shrink-0" />
-          </div>
-          <Skeleton className="h-7 w-20 rounded-btn shrink-0" />
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+          <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+          <Skeleton className="h-7 w-28 rounded-full shrink-0" />
+          <Skeleton className="h-7 w-24 rounded-full shrink-0" />
+          <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+          <Skeleton className="h-7 w-28 rounded-full shrink-0" />
         </div>
 
         {/* Campaign List */}
