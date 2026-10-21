@@ -108,7 +108,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-[#141414] border border-surface-border dark:border-surface-dark-border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1.5 space-y-1 text-gray-900 dark:text-gray-100">
+        <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-[#141414] border-0 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1.5 space-y-1 text-gray-900 dark:text-gray-100">
           {!showCustom ? (
             <div className="py-0.5 space-y-0.5">
               {presets.map((preset, i) => (
@@ -125,7 +125,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
                   {value.label === preset.label && <Check size={13} className="text-brand-500" />}
                 </button>
               ))}
-              <div className="h-px bg-surface-border/40 dark:bg-surface-dark-border/40 my-1"></div>
+              <div className="my-1"></div>
               <button
                 onClick={() => setShowCustom(true)}
                 className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"

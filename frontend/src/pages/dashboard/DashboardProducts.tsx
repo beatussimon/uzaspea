@@ -864,7 +864,7 @@ const DashboardProducts: React.FC = () => {
               </button>
 
               {isPrintDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border border-surface-border dark:border-surface-dark-border rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
+                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border-0 rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
                   <button
                     type="button"
                     onClick={() => {
@@ -882,7 +882,7 @@ const DashboardProducts: React.FC = () => {
                       setIsPrintDropdownOpen(false);
                       handlePrintReport('customer');
                     }}
-                    className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition border-t border-surface-border/40 dark:border-surface-dark-border/40"
+                    className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition"
                   >
                     Customer Ready
                   </button>
@@ -1003,10 +1003,9 @@ const DashboardProducts: React.FC = () => {
       {/* Batch Upload Modal */}
       {showBatchModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border">
-            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Package className="text-brand-500" size={18} />
+          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border-0">
+            <div className="p-5 flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">
                 Batch Import Products
               </h3>
               <button onClick={() => setShowBatchModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -1022,14 +1021,18 @@ const DashboardProducts: React.FC = () => {
                 type="file"
                 accept=".csv"
                 onChange={(e) => setBatchFile(e.target.files ? e.target.files[0] : null)}
-                className="input w-full py-2 text-xs file:mr-3 file:py-1 file:px-3 file:rounded-btn file:border-0 file:text-xs file:font-bold file:bg-brand-500 file:text-white hover:file:bg-brand-600"
+                className="w-full px-3 py-2 text-xs rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none file:mr-3 file:py-1 file:px-3 file:rounded-btn file:border-0 file:text-xs file:font-bold file:bg-brand-500 file:text-white hover:file:bg-brand-600 cursor-pointer"
               />
             </div>
 
-            <div className="p-4 bg-surface-muted dark:bg-[#161616] border-t border-surface-border dark:border-surface-dark-border flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowBatchModal(false)}>
+            <div className="p-4 bg-surface-muted dark:bg-[#161616] flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-btn bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 text-gray-800 dark:text-white border-0 transition cursor-pointer"
+              >
                 Cancel
-              </Button>
+              </button>
               <Button size="sm" onClick={handleBatchUpload} disabled={!batchFile || batchUploading}>
                 {batchUploading ? 'Importing...' : 'Upload CSV'}
               </Button>
