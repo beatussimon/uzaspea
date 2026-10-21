@@ -470,64 +470,66 @@ const { showPrompt } = useDialog();
                   </div>
 
                   {/* Actions & Chevron */}
-                  <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-surface-border/60 dark:border-surface-dark-border/60 mt-2 md:mt-0">
-                    <div className="flex items-center gap-2 flex-wrap flex-1 md:flex-initial">
-                      {nextStatus && (
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (nextStatus === 'SHIPPED') {
-                              const promptNotes = prompt('Enter tracking number or courier info:') || '';
-                              handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
-                            } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
-                              setShipModalOpen(order.id);
-                            } else {
-                              handleAdvance(order.id, nextStatus, `Moved to ${nextStatus} by seller.`);
-                            }
-                          }}
-                          disabled={advancing === order.id}
-                          className="font-bold flex items-center gap-1"
-                        >
-                          {advancing === order.id ? (
-                            <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
-                          ) : (
-                            <>
-                              <ShieldCheck size={14} />
-                              {nextStatus === 'SELLER_CONFIRMED' && 'Confirm'}
-                              {nextStatus === 'PREPARING' && 'Prepare'}
-                              {nextStatus === 'PACKAGING' && 'Package'}
-                              {nextStatus === 'READY_FOR_PICKUP' && 'Ready for Pickup'}
-                              {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
-                              {nextStatus === 'PROCESSING' && 'Process'}
-                              {nextStatus === 'SHIPPED' && 'Mark Shipped'}
-                              {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
-                              {nextStatus === 'COMPLETED' && 'Finalize'}
-                              {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && 'Advance'}
-                            </>
-                          )}
-                        </Button>
-                      )}
+                  <div className={`flex items-center gap-2 md:w-auto shrink-0 justify-between md:justify-end ${nextStatus || !order.delivery_info?.is_pos ? 'w-full mt-2 md:mt-0' : 'w-auto'}`}>
+                    {(nextStatus || !order.delivery_info?.is_pos) && (
+                      <div className="flex items-center gap-2 flex-wrap flex-1 md:flex-initial">
+                        {nextStatus && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (nextStatus === 'SHIPPED') {
+                                const promptNotes = prompt('Enter tracking number or courier info:') || '';
+                                handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
+                              } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
+                                setShipModalOpen(order.id);
+                              } else {
+                                handleAdvance(order.id, nextStatus, `Moved to ${nextStatus} by seller.`);
+                              }
+                            }}
+                            disabled={advancing === order.id}
+                            className="font-bold flex items-center gap-1"
+                          >
+                            {advancing === order.id ? (
+                              <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <>
+                                <ShieldCheck size={14} />
+                                {nextStatus === 'SELLER_CONFIRMED' && 'Confirm'}
+                                {nextStatus === 'PREPARING' && 'Prepare'}
+                                {nextStatus === 'PACKAGING' && 'Package'}
+                                {nextStatus === 'READY_FOR_PICKUP' && 'Ready for Pickup'}
+                                {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
+                                {nextStatus === 'PROCESSING' && 'Process'}
+                                {nextStatus === 'SHIPPED' && 'Mark Shipped'}
+                                {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
+                                {nextStatus === 'COMPLETED' && 'Finalize'}
+                                {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && 'Advance'}
+                              </>
+                            )}
+                          </Button>
+                        )}
 
-                      {!order.delivery_info?.is_pos && (
-                        <OrderActionToolbar
-                          phone={order.delivery_info?.phone || order.buyer_contact?.phone || null}
-                          phoneLabel="Call Buyer"
-                          username={order.buyer_username || order.buyer || null}
-                          messageLabel="Chat"
-                          orderId={order.id}
-                          location={
-                            order.delivery_latitude && order.delivery_longitude
-                              ? { lat: order.delivery_latitude, lng: order.delivery_longitude, address: order.delivery_info?.address }
-                              : order.delivery_info?.address
-                              ? { address: order.delivery_info.address }
-                              : null
-                          }
-                          locationLabel="Directions"
-                          size="sm"
-                        />
-                      )}
-                    </div>
+                        {!order.delivery_info?.is_pos && (
+                          <OrderActionToolbar
+                            phone={order.delivery_info?.phone || order.buyer_contact?.phone || null}
+                            phoneLabel="Call Buyer"
+                            username={order.buyer_username || order.buyer || null}
+                            messageLabel="Chat"
+                            orderId={order.id}
+                            location={
+                              order.delivery_latitude && order.delivery_longitude
+                                ? { lat: order.delivery_latitude, lng: order.delivery_longitude, address: order.delivery_info?.address }
+                                : order.delivery_info?.address
+                                ? { address: order.delivery_info.address }
+                                : null
+                            }
+                            locationLabel="Directions"
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                    )}
 
                     <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-4 right-4 md:static">
                       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
