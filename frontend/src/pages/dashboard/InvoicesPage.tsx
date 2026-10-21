@@ -247,8 +247,10 @@ const [orders, setOrders] = useState<any[]>([]);
                       <span className="font-extrabold text-sm text-gray-900 dark:text-white">Order #{order.id}</span>
                       <span className="text-2xs text-gray-400">@{order.buyer || order.buyer_username || 'Customer'}</span>
                       
-                      {/* Standard Status Badge */}
-                      <StatusBadge status={order.status} size="sm" />
+                      {/* Standard Status Badge - Mobile Only */}
+                      <span className="md:hidden inline-flex">
+                        <StatusBadge status={order.status} size="sm" />
+                      </span>
 
                       {order.is_bulk_order && (
                         <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
@@ -274,6 +276,11 @@ const [orders, setOrders] = useState<any[]>([]);
 
                   {/* Actions & Chevron */}
                   <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                    {/* Desktop Status Badge */}
+                    <div className="hidden md:flex items-center shrink-0">
+                      <StatusBadge status={order.status} size="sm" />
+                    </div>
+
                     {/* Action: Set initial prices */}
                     {order.status === 'REQUESTED_INVOICE' && (
                       <Button
