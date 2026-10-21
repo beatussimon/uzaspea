@@ -74,26 +74,26 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 
   return (
     <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <div>
-          <h2 className="text-sm font-bold text-gray-900 dark:text-white">{t('sales_history', 'Sales History')}</h2>
-          <p className="text-2xs text-gray-500 dark:text-gray-400">{t('sales_history_desc', 'View past walk-in customers and printed invoices')}</p>
+      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-3 min-w-0">
+        <div className="min-w-0 pr-1">
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate">{t('sales_history', 'Sales History')}</h2>
+          <p className="text-2xs text-gray-500 dark:text-gray-400 truncate">{t('sales_history_desc', 'View past walk-in customers and printed invoices')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="relative shrink-0">
+            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={13} />
             <input 
               type="date" 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-xs font-semibold rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+              className="pl-7 pr-2 sm:pl-8 sm:pr-3 py-1.5 text-xs font-semibold rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
             />
           </div>
           {dateFilter && (
             <button 
               type="button" 
               onClick={() => setDateFilter('')} 
-              className="px-2.5 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition"
+              className="px-2 py-1.5 sm:px-2.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition shrink-0"
             >
               {t('clear', 'Clear')}
             </button>
