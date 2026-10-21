@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
   CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
-  Star, ChevronLeft, ChevronRight, Search, X, Megaphone,
+  ChevronLeft, ChevronRight, Search, X, Megaphone,
   ChevronDown
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
@@ -1563,17 +1563,17 @@ const DashboardProducts: React.FC = () => {
                           <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
                           
                           {idx === 0 ? (
-                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
-                              <Star size={10} className="fill-black" /> Cover
+                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow z-10">
+                              Cover
                             </span>
                           ) : (
                             <button 
                               type="button" 
                               onClick={() => handleSetExistingCoverImage(idx)}
-                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 shadow z-10"
                               title="Make this the cover photo"
                             >
-                              <Star size={9} /> Set Cover
+                              Set Cover
                             </button>
                           )}
 
@@ -1616,17 +1616,17 @@ const DashboardProducts: React.FC = () => {
                           <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
                           
                           {existingImages.length === 0 && idx === 0 ? (
-                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
-                              <Star size={10} className="fill-black" /> Cover Photo
+                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow z-10">
+                              Cover
                             </span>
                           ) : (
                             <button 
                               type="button" 
                               onClick={() => handleSetCoverImage(idx)}
-                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                              className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 shadow z-10"
                               title="Set as cover photo"
                             >
-                              <Star size={9} /> Set Cover
+                              Set Cover
                             </button>
                           )}
 
@@ -1677,8 +1677,8 @@ const DashboardProducts: React.FC = () => {
                         onDrop={handleDrop}
                         className={`relative aspect-square rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-3 text-center cursor-pointer group select-none ${
                           dragOver 
-                            ? 'border-brand-500 bg-brand-500/10 scale-[1.02]' 
-                            : 'border-brand-500/70 dark:border-brand-500/70 hover:border-brand-500 dark:hover:border-brand-500 bg-neutral-50/50 dark:bg-[#141414] hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
+                            ? 'border-neutral-400 dark:border-neutral-500 bg-neutral-100/50 dark:bg-neutral-800/50 scale-[1.02]' 
+                            : 'border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 bg-neutral-50/50 dark:bg-[#141414] hover:bg-neutral-100/60 dark:hover:bg-[#181818]'
                         }`}
                       >
                         <input
@@ -1714,9 +1714,6 @@ const DashboardProducts: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
                             A+ Content (From the Manufacturer)
-                          </span>
-                          <span className="text-[11px] font-semibold text-amber-500 dark:text-amber-400">
-                            Enhanced Story
                           </span>
                         </div>
                         <p className="text-xs text-neutral-500">
