@@ -433,7 +433,10 @@ const { showPrompt } = useDialog();
                             : `@${order.buyer || 'Customer'}`}
                         </span>
 
-                        <StatusBadge status={order.status} size="sm" />
+                        {/* Standard Status Badge - Mobile Only */}
+                        <span className="md:hidden inline-flex">
+                          <StatusBadge status={order.status} size="sm" />
+                        </span>
 
                         {order.delivery_info?.is_pos && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
@@ -471,6 +474,11 @@ const { showPrompt } = useDialog();
 
                   {/* Actions & Chevron */}
                   <div className={`flex items-center gap-2 md:w-auto shrink-0 justify-between md:justify-end ${nextStatus || !order.delivery_info?.is_pos ? 'w-full mt-2 md:mt-0' : 'w-auto'}`}>
+                    {/* Desktop Status Badge */}
+                    <div className="hidden md:flex items-center shrink-0">
+                      <StatusBadge status={order.status} size="sm" />
+                    </div>
+
                     {(nextStatus || !order.delivery_info?.is_pos) && (
                       <div className="flex items-center gap-2 flex-wrap flex-1 md:flex-initial">
                         {nextStatus && (
