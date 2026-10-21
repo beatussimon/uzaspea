@@ -511,7 +511,7 @@ const OrdersPage: React.FC = () => {
                           )}
                         </div>
                         {order.items?.length > 1 && (
-                          <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-md sm:rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
+                          <div className="absolute -bottom-1 -right-1 bg-neutral-800 dark:bg-neutral-700 text-white text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-md sm:rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
                             +{order.items.length - 1}
                           </div>
                         )}
@@ -519,11 +519,11 @@ const OrdersPage: React.FC = () => {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                          <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                          <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                             Order #{order.id}
                           </span>
                           {order.is_bulk_order && (
-                            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest px-1.5 py-0.5 rounded border border-amber-500/40 bg-transparent">
+                            <span className="text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-widest px-1.5 py-0.5 rounded border border-gray-300 dark:border-neutral-700 bg-transparent">
                               Bulk Order
                             </span>
                           )}
@@ -880,7 +880,7 @@ const OrdersPage: React.FC = () => {
                                         <ExternalLink size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                                       </Link>
                                       {item.variant_name && (
-                                        <span className="inline-block px-1.5 py-0.5 mt-0.5 text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded uppercase tracking-wider">
+                                        <span className="inline-block px-1.5 py-0.5 mt-0.5 text-[10px] font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 rounded uppercase tracking-wider">
                                           {item.variant_name}
                                         </span>
                                       )}
