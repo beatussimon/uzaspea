@@ -93,8 +93,8 @@ export default function ProductVariantsModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] border border-surface-border dark:border-surface-dark-border overflow-hidden animate-scale-in">
-        <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/50 dark:bg-[#161616]/50 flex items-center justify-between">
+      <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] border-0 overflow-hidden animate-scale-in">
+        <div className="p-4 bg-surface-muted/50 dark:bg-[#161616]/50 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-gray-900 dark:text-white">Manage Product Variants</h2>
             <p className="text-2xs text-gray-400">Configure size, color, material, and price differences</p>
