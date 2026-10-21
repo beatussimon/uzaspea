@@ -736,7 +736,7 @@ const DashboardProducts: React.FC = () => {
     try {
       await api.patch(`/api/products/${product.slug}/`, { pos_only: nextVal });
       invalidateProductCache(product.slug);
-      toast.success(nextVal ? t('product_set_pos_only', 'Product set to POS Only') : t('product_set_public', 'Product is now Public'));
+      toast.success(nextVal ? t('product_set_pos', 'Product set to POS') : t('product_set_public', 'Product is now Public'));
     } catch {
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, pos_only: !nextVal } : p));
       toast.error(t('failed_update_visibility', 'Failed to update visibility'));
@@ -903,7 +903,7 @@ const DashboardProducts: React.FC = () => {
               {([
                 { key: 'all' as const, label: t('all', 'All') },
                 { key: 'published' as const, label: t('published', 'Published') },
-                { key: 'pos_only' as const, label: t('pos_only', 'POS Only') },
+                { key: 'pos_only' as const, label: t('pos', 'POS') },
                 { key: 'drafts' as const, label: t('drafts', 'Drafts') },
               ]).map((tab) => {
                 const isActive = filterStatus === tab.key;
@@ -948,7 +948,7 @@ const DashboardProducts: React.FC = () => {
           </div>
 
           {/* Mobile Row 2 / Desktop Right: (Desktop: Search + Category + Condition; Mobile: Category + Condition) */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none md:flex-row md:items-center md:gap-2">
+          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
             {/* Search Box on Desktop (hidden on mobile) */}
             <div className="relative hidden md:block w-48 lg:w-64">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -971,26 +971,32 @@ const DashboardProducts: React.FC = () => {
               )}
             </div>
 
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-8 px-2.5 sm:px-3 text-xs font-semibold w-auto min-w-0 md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition shrink-0"
-            >
-              <option value="">All Categories</option>
-              {flatCategories.map((c: any) => (
-                <option key={c.slug} value={c.slug}>{c.name}</option>
-              ))}
-            </select>
+            <div className="relative w-full md:w-auto md:min-w-[140px]">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full h-8 pl-3 pr-8 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition appearance-none"
+              >
+                <option value="">All Categories</option>
+                {flatCategories.map((c: any) => (
+                  <option key={c.slug} value={c.slug}>{c.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
 
-            <select
-              value={filterCondition}
-              onChange={(e) => setFilterCondition(e.target.value)}
-              className="h-8 px-2.5 sm:px-3 text-xs font-semibold w-auto min-w-0 md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition shrink-0"
-            >
-              <option value="">Any Condition</option>
-              <option value="New">New</option>
-              <option value="Used">Used</option>
-            </select>
+            <div className="relative w-full md:w-auto md:min-w-[110px]">
+              <select
+                value={filterCondition}
+                onChange={(e) => setFilterCondition(e.target.value)}
+                className="w-full h-8 pl-3 pr-8 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition appearance-none"
+              >
+                <option value="">Any Condition</option>
+                <option value="New">New</option>
+                <option value="Used">Used</option>
+              </select>
+              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       )}
@@ -3638,9 +3644,9 @@ const DashboardProducts: React.FC = () => {
                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50'
                         : 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700'
                     }`}
-                    title={product.pos_only ? "Currently POS Only. Click to make Public" : "Currently Public. Click to make POS Only"}
+                    title={product.pos_only ? "Currently POS. Click to make Public" : "Currently Public. Click to make POS"}
                   >
-                    {product.pos_only ? '📟 POS Only' : '🌐 Public'}
+                    {product.pos_only ? '📟 POS' : '🌐 Public'}
                   </button>
                   <button
                     type="button"
