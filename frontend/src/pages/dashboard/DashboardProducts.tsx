@@ -948,7 +948,7 @@ const DashboardProducts: React.FC = () => {
           </div>
 
           {/* Mobile Row 2 / Desktop Right: (Desktop: Search + Category + Condition; Mobile: Category + Condition) */}
-          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none md:flex-row md:items-center md:gap-2">
             {/* Search Box on Desktop (hidden on mobile) */}
             <div className="relative hidden md:block w-48 lg:w-64">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -974,7 +974,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-8 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
+              className="h-8 px-2.5 sm:px-3 text-xs font-semibold w-auto min-w-0 md:min-w-[140px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition shrink-0"
             >
               <option value="">All Categories</option>
               {flatCategories.map((c: any) => (
@@ -985,7 +985,7 @@ const DashboardProducts: React.FC = () => {
             <select
               value={filterCondition}
               onChange={(e) => setFilterCondition(e.target.value)}
-              className="h-8 px-3 text-xs font-semibold w-full md:w-auto md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition"
+              className="h-8 px-2.5 sm:px-3 text-xs font-semibold w-auto min-w-0 md:min-w-[110px] rounded-full bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 truncate cursor-pointer transition shrink-0"
             >
               <option value="">Any Condition</option>
               <option value="New">New</option>
