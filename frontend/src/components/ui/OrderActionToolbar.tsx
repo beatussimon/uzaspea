@@ -73,10 +73,10 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
         <button
           type="button"
           onClick={handleMessageClick}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-brand-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-gray-900 dark:hover:text-white`}
           title={`Message @${username}`}
         >
-          <MessageSquare size={size === 'sm' ? 13 : 15} className="text-brand-500" />
+          <MessageSquare size={size === 'sm' ? 13 : 15} className="text-gray-500 dark:text-gray-400" />
           <span>{messageLabel}</span>
         </button>
       )}
@@ -86,10 +86,10 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
         <a
           href={telLink}
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-emerald-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-gray-900 dark:hover:text-white`}
           title={`Call ${phone}`}
         >
-          <Phone size={size === 'sm' ? 13 : 15} className="text-emerald-500" />
+          <Phone size={size === 'sm' ? 13 : 15} className="text-gray-500 dark:text-gray-400" />
           <span>{phoneLabel}</span>
         </a>
       )}
@@ -101,10 +101,10 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-blue-500`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-gray-900 dark:hover:text-white`}
           title="Open directions in Google Maps"
         >
-          <Navigation size={size === 'sm' ? 13 : 15} className="text-blue-500" />
+          <Navigation size={size === 'sm' ? 13 : 15} className="text-gray-500 dark:text-gray-400" />
           <span>{locationLabel}</span>
         </a>
       )}
