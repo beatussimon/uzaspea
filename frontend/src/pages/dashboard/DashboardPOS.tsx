@@ -1123,7 +1123,7 @@ const DashboardPOS: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="relative bg-surface-muted/40 dark:bg-[#161616] w-full max-w-sm rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border border-surface-border dark:border-surface-dark-border print:shadow-none print:rounded-none print:max-h-none print:h-auto print:max-w-none"
+            className="relative bg-surface-muted/40 dark:bg-[#161616] w-full max-w-sm rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border-0 print:shadow-none print:rounded-none print:max-h-none print:h-auto print:max-w-none"
           >
             <button 
               onClick={() => setReceiptData(null)} 
@@ -1185,8 +1185,7 @@ const DashboardPOS: React.FC = () => {
                 <div className="border-t border-b border-dashed border-gray-400 py-2 mb-3">
                   <div className="flex font-bold text-xs mb-1">
                     <span className="flex-1">{t('item', 'Item')}</span>
-                    <span className="w-10 text-center">{t('qty', 'Qty')}</span>
-                    <span className="w-16 text-right">{t('amount', 'Amt')}</span>
+                    <span className="text-right">{t('amount', 'Amt')}</span>
                   </div>
                   
                   {(receiptData.items || receiptData.orderitem_set || []).map((item: any, i: number) => {
@@ -1280,11 +1279,11 @@ const DashboardPOS: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-3 border-t border-surface-border dark:border-neutral-800 flex justify-center gap-2 print-hidden shrink-0">
+            <div className="p-3 flex justify-center gap-2 print-hidden shrink-0">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white border border-white/10 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white border-0 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <Printer size={14} /> {t('print_receipt', 'Print Receipt')}
               </button>
