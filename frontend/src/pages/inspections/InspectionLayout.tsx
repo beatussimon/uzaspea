@@ -2111,12 +2111,16 @@ const MyInspections: React.FC = () => {
 
                       {/* Status Badge & Chevron */}
                       <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                        <Badge
-                          text={STATUS_LABELS[req.status] || req.status}
-                          className={STATUS_COLORS[req.status] || 'text-gray-500 dark:text-gray-400'}
-                        />
-                        {req.has_report && req.status !== 'report_ready' && (
-                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded hidden sm:inline-block">
+                        {req.status !== 'published' && (
+                          <Badge
+                            text={STATUS_LABELS[req.status] || req.status}
+                            className={STATUS_COLORS[req.status] || 'text-gray-500 dark:text-gray-400'}
+                          />
+                        )}
+                        {(req.status === 'published' || req.has_report) && (
+                          <span className={`text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded ${
+                            req.status !== 'published' ? 'hidden sm:inline-block' : 'inline-block'
+                          }`}>
                             Report ready
                           </span>
                         )}
@@ -2142,8 +2146,8 @@ const MyInspections: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Secondary Report indicator if not report_ready and mobile */}
-                    {req.has_report && req.status !== 'report_ready' && (
+                    {/* Secondary Report indicator if not published and mobile */}
+                    {req.has_report && req.status !== 'published' && (
                       <div className="mt-1.5 sm:hidden">
                         <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-transparent px-1.5 py-0.5 rounded inline-block">
                           Report ready
