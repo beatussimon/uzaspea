@@ -22,7 +22,8 @@ from .models import (
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
     MobileNetwork, VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername
+    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername,
+    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem
 )
 from .serializers import (
     ProductSerializer, ProductListSerializer, CategorySerializer, ProductReviewSerializer, 
@@ -32,10 +33,15 @@ from .serializers import (
     SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer,
     MobileNetworkSerializer, VehicleMakeSerializer, VehicleModelSerializer, VehicleSerializer,
     BrandSerializer, ReferenceProductSerializer, PasswordResetRequestStaffSerializer,
-    ReservedUsernameSerializer
+    ReservedUsernameSerializer, StoreLocationSerializer, StoreLocationBriefSerializer,
+    LocationStockSerializer, LocationStockBatchUpdateSerializer, RegisterSessionSerializer,
+    StockTransferSerializer, StockTransferItemSerializer
 )
 
-from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission, IsSuperUser
+from uzachuo.permissions import (
+    IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission,
+    IsSuperUser, IsActiveBusinessOwner, get_user_location_scope
+)
 from django.db.models import Prefetch
 from django.db import transaction
 
@@ -999,6 +1005,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
         today = timezone.now().date()
 
+        loc_param = request.query_params.get('location_id')
+        selected_location_id = None
+        if loc_param and loc_param != 'all':
+            try:
+                cand_id = int(loc_param)
+                from marketplace.models import StoreLocation
+                if StoreLocation.objects.filter(id=cand_id, owner=stats_user).exists() or user.is_superuser:
+                    selected_location_id = cand_id
+                    orders = orders.filter(fulfillment_location_id=cand_id)
+            except (ValueError, TypeError):
+                selected_location_id = None
+
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
         
@@ -1032,6 +1050,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             product__seller=stats_user, 
             order__in=paid_orders
         )
+        if selected_location_id:
+            base_order_items = base_order_items.filter(order__fulfillment_location_id=selected_location_id)
         
         total_orders_count = paid_orders.count()
         total_revenue = float(base_order_items.aggregate(total=Sum(django_models.F('price') * django_models.F('quantity')))['total'] or 0)
@@ -1228,9 +1248,47 @@ class ProductViewSet(viewsets.ModelViewSet):
             })
 
         # --- Stock alerts (stock <= 3) --- always visible
-        low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
-        for ls in low_stock:
-            ls['price'] = float(ls['price'])
+        if selected_location_id:
+            from marketplace.models import LocationStock
+            loc_low_stock = list(
+                LocationStock.objects.filter(location_id=selected_location_id, quantity__lte=3)
+                .select_related('product')
+                .values('product__name', 'product__slug', 'quantity', 'price_override', 'product__price')[:10]
+            )
+            low_stock = [
+                {
+                    'name': ls['product__name'],
+                    'slug': ls['product__slug'],
+                    'stock': ls['quantity'],
+                    'price': float(ls['price_override'] if ls['price_override'] is not None else (ls['product__price'] or 0)),
+                }
+                for ls in loc_low_stock
+            ]
+        else:
+            low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
+            for ls in low_stock:
+                ls['price'] = float(ls['price'])
+
+        # --- Location breakdown (for Business accounts when all locations or roll-up viewed) ---
+        location_breakdown = []
+        if is_business:
+            from marketplace.models import StoreLocation
+            user_locations = {loc.id: loc.name for loc in StoreLocation.objects.filter(owner=stats_user, is_active=True)}
+            loc_items = (
+                OrderItem.objects.filter(product__seller=stats_user, order__in=paid_orders)
+                .values('order__fulfillment_location_id')
+                .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True))
+                .order_by('-rev')
+            )
+            for item in loc_items:
+                lid = item['order__fulfillment_location_id']
+                lname = user_locations.get(lid, 'Main Store' if not lid else f'Branch #{lid}')
+                location_breakdown.append({
+                    'location_id': lid,
+                    'name': lname,
+                    'revenue': float(item['rev'] or 0),
+                    'orders': item['count'],
+                })
 
         # --- Order status breakdown --- always visible
         status_counts = {}
@@ -1292,6 +1350,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'stock_alerts': low_stock,
             'products_summary': products_summary,
             'has_advanced_analytics': is_business,
+            'location_breakdown': location_breakdown,
+            'selected_location': selected_location_id,
             'commission_paid': commission_paid,
             'commission_rate': commission_rate_val,
             'store_profile': store_profile,
@@ -1824,6 +1884,22 @@ class OrderViewSet(viewsets.ModelViewSet):
         if exclude_statuses:
             excluded = exclude_statuses.split(',')
             qs = qs.exclude(status__in=excluded)
+
+        # Location Scoping & Filtering for incoming seller orders
+        if (role == 'seller' or order_type == 'incoming'):
+            loc_param = self.request.query_params.get('location_id')
+            if loc_param and loc_param != 'all':
+                try:
+                    qs = qs.filter(fulfillment_location_id=int(loc_param))
+                except (ValueError, TypeError):
+                    pass
+            elif not user.is_superuser:
+                from marketplace.models import TeamMember
+                tm = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True).first()
+                if tm and not tm.all_locations_access:
+                    from uzachuo.permissions import get_user_location_scope
+                    allowed_ids, _ = get_user_location_scope(user)
+                    qs = qs.filter(fulfillment_location_id__in=allowed_ids)
             
         return qs.select_related(
             'user', 'user__profile', 'promo_code'
@@ -1871,6 +1947,40 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         order = serializer.save(user=self.request.user)
+
+        # Smart Hybrid Fulfillment Routing: auto-assign nearest active branch if not explicitly chosen
+        if not order.fulfillment_location_id:
+            try:
+                first_item = order.orderitem_set.select_related('product__seller').first()
+                if first_item and first_item.product and first_item.product.seller:
+                    seller = first_item.product.seller
+                    from marketplace.models import StoreLocation
+                    seller_locations = StoreLocation.objects.filter(owner=seller, is_active=True)
+
+                    routed_location = None
+                    buyer_lat = order.delivery_latitude
+                    buyer_lng = order.delivery_longitude
+                    if buyer_lat and buyer_lng and seller_locations.filter(latitude__isnull=False, longitude__isnull=False).exists():
+                        import math
+                        min_dist = float('inf')
+                        for loc in seller_locations.filter(latitude__isnull=False, longitude__isnull=False):
+                            dlat = math.radians(float(loc.latitude) - float(buyer_lat))
+                            dlon = math.radians(float(loc.longitude) - float(buyer_lng))
+                            a = math.sin(dlat / 2)**2 + math.cos(math.radians(float(buyer_lat))) * math.cos(math.radians(float(loc.latitude))) * math.sin(dlon / 2)**2
+                            dist = 2 * 6371.0 * math.asin(math.sqrt(a))
+                            if dist < min_dist:
+                                min_dist = dist
+                                routed_location = loc
+
+                    if not routed_location:
+                        routed_location = seller_locations.filter(is_main=True).first() or seller_locations.first()
+
+                    if routed_location:
+                        order.fulfillment_location = routed_location
+                        order.save(update_fields=['fulfillment_location'])
+            except Exception:
+                pass
+
         # Notify sellers of incoming new order
         try:
             seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
@@ -2104,6 +2214,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             from uzachuo.permissions import get_effective_sellers
             sellers = get_effective_sellers(user)
             
+            # Resolve POS fulfillment branch location
+            req_loc_id = request.data.get('location_id') or request.data.get('fulfillment_location_id')
+            allowed_loc_ids, active_loc = get_user_location_scope(user, req_loc_id)
+            if not active_loc and req_loc_id:
+                active_loc = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
+
             total_amount = 0
             order_items = []
             
@@ -2129,15 +2245,34 @@ class OrderViewSet(viewsets.ModelViewSet):
                         variant = ProductVariant.objects.get(id=variant_id, product=product)
                     except ProductVariant.DoesNotExist:
                         return Response({'error': f'Variant ID {variant_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Fallback location resolution to seller main store if still None
+                if not active_loc:
+                    active_loc = StoreLocation.objects.filter(owner=product.seller, is_main=True).first() or StoreLocation.objects.filter(owner=product.seller).first()
                 
-                stock_available = variant.stock if variant else (
-                    sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
-                )
+                # Check location-specific stock if active_loc is known
+                loc_stock = None
+                if active_loc:
+                    loc_stock = LocationStock.objects.select_for_update().filter(
+                        location=active_loc, product=product, variant=variant
+                    ).first()
+
+                if loc_stock:
+                    stock_available = loc_stock.quantity
+                else:
+                    stock_available = variant.stock if variant else (
+                        sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
+                    )
                 
                 if stock_available < quantity:
-                    return Response({'error': f'Insufficient stock for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
+                    loc_label = f" at {active_loc.name}" if active_loc else ""
+                    return Response({'error': f'Insufficient stock{loc_label} for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
                 
-                price = variant.final_price if variant else product.price
+                if loc_stock and loc_stock.price_override is not None and not product.requires_quote:
+                    price = loc_stock.price_override
+                else:
+                    price = variant.final_price if variant else product.price
+
                 if product.requires_quote:
                     if 'price' in item_data:
                         try:
@@ -2151,7 +2286,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'product': product,
                     'variant': variant,
                     'quantity': quantity,
-                    'price': price
+                    'price': price,
+                    'loc_stock': loc_stock
                 })
                 
             promo_code_str = (request.data.get('promo_code') or '').strip()
@@ -2209,12 +2345,21 @@ class OrderViewSet(viewsets.ModelViewSet):
             }
             if promo_obj:
                 delivery_info['promo_code'] = promo_obj.code
+            if active_loc:
+                delivery_info['location_id'] = active_loc.id
+                delivery_info['location_name'] = active_loc.name
+                delivery_info['location_address'] = active_loc.address_line
+                delivery_info['location_phone'] = active_loc.phone
+                open_session = RegisterSession.objects.filter(location=active_loc, status='open').first()
+                if open_session:
+                    delivery_info['register_session_id'] = open_session.id
             
             order = Order.objects.create(
                 user=user,
                 status='COMPLETED',
                 shipping_method='PICKUP',
                 fulfillment_type='SELLER_PICKUP',  # CRIT-5: POS orders are always seller-side pickups
+                fulfillment_location=active_loc,
                 shipping_fee=0,
                 delivery_info=delivery_info,
                 promo_code=promo_obj,
@@ -2229,15 +2374,26 @@ class OrderViewSet(viewsets.ModelViewSet):
                     quantity=item['quantity'],
                     price=item['price']
                 )
-                if item['variant']:
-                    item['variant'].stock = max(0, item['variant'].stock - item['quantity'])
-                    if item['variant'].stock <= 0:
-                        item['variant'].is_available = False
-                    item['variant'].save(update_fields=['stock', 'is_available'])
-                item['product'].stock = max(0, item['product'].stock - item['quantity'])
-                if item['product'].stock <= 0:
-                    item['product'].is_available = False
-                item['product'].save(update_fields=['stock', 'is_available'])
+                loc_stock = item.get('loc_stock')
+                if not loc_stock and active_loc:
+                    loc_stock = LocationStock.objects.select_for_update().filter(
+                        location=active_loc, product=item['product'], variant=item['variant']
+                    ).first()
+
+                if loc_stock:
+                    loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item['quantity'])))
+                    loc_stock.save(update_fields=['quantity'])
+                    # LocationStock.save() automatically triggers sync_parent_product_stock!
+                else:
+                    if item['variant']:
+                        item['variant'].stock = max(0, item['variant'].stock - item['quantity'])
+                        if item['variant'].stock <= 0:
+                            item['variant'].is_available = False
+                        item['variant'].save(update_fields=['stock', 'is_available'])
+                    item['product'].stock = max(0, item['product'].stock - item['quantity'])
+                    if item['product'].stock <= 0:
+                        item['product'].is_available = False
+                    item['product'].save(update_fields=['stock', 'is_available'])
                 
             order.update_total()
             
@@ -3031,6 +3187,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if sub_claims.get('subscription_active') and sub_claims.get('last_tier'):
             data['tier'] = sub_claims['last_tier']
 
+        # Multi-location & assigned locations scope
+        allowed_loc_ids, active_loc = get_user_location_scope(self.user)
+        loc_qs = StoreLocation.objects.filter(id__in=allowed_loc_ids, is_active=True)
+        locations_data = [
+            {'id': l.id, 'name': l.name, 'is_main': l.is_main, 'city': l.city, 'address': l.address_line, 'phone': l.phone}
+            for l in loc_qs
+        ]
+        data['assigned_locations'] = locations_data
+        data['active_location'] = {
+            'id': active_loc.id, 'name': active_loc.name, 'is_main': active_loc.is_main, 'city': active_loc.city
+        } if active_loc else None
+        data['is_multi_location'] = len(locations_data) > 1
+
         return data
 
     @classmethod
@@ -3108,7 +3277,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token[k] = v
         if sub_claims.get('subscription_active') and sub_claims.get('last_tier'):
             token['tier'] = sub_claims['last_tier']
-            
+
+        # Multi-location token claims
+        allowed_loc_ids, active_loc = get_user_location_scope(user)
+        token['assigned_location_ids'] = allowed_loc_ids
+        token['active_location_id'] = active_loc.id if active_loc else None
+        token['is_multi_location'] = len(allowed_loc_ids) > 1
+
         return token
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -5355,15 +5530,30 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if instance.owner != self.request.user:
             from rest_framework import exceptions
-            raise exceptions.PermissionDenied("Only the team owner can modify team member permissions.")
+            raise exceptions.PermissionDenied("Only the team owner can modify team member settings.")
             
         before = dict(instance.permissions)
+        before_locs = set(instance.assigned_locations.values_list('id', flat=True))
+        before_all = instance.all_locations_access
+
         updated = serializer.save()
+        after_locs = set(updated.assigned_locations.values_list('id', flat=True))
+        after_all = updated.all_locations_access
+
         from .models import TeamMemberAuditLog
-        TeamMemberAuditLog.objects.create(
-            owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
-            action='permissions_changed', detail={'before': before, 'after': dict(updated.permissions)}
-        )
+        if before != dict(updated.permissions):
+            TeamMemberAuditLog.objects.create(
+                owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
+                action='permissions_changed', detail={'before': before, 'after': dict(updated.permissions)}
+            )
+        if before_locs != after_locs or before_all != after_all:
+            TeamMemberAuditLog.objects.create(
+                owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
+                action='location_access_changed', detail={
+                    'before': {'all_locations_access': before_all, 'locations': list(before_locs)},
+                    'after': {'all_locations_access': after_all, 'locations': list(after_locs)}
+                }
+            )
 
     @decorators.action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
@@ -6384,3 +6574,386 @@ def tanzania_regions(request):
         {"name": "Kaskazini Unguja", "lat": -5.9333, "lng": 39.3000},
     ]
     return Response(regions)
+
+
+# =============================================================================
+# MULTI-LOCATION & MULTI-BRANCH VIEWSETS
+# =============================================================================
+
+class StoreLocationViewSet(viewsets.ModelViewSet):
+    """
+    CRUD and inventory operations for physical store locations / branches.
+    Public visitors can view active locations for a seller.
+    Business owners can manage their own locations.
+    Team members have access according to their location assignments.
+    """
+    serializer_class = StoreLocationSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'inventory']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        seller_id = self.request.query_params.get('seller_id')
+        seller_slug = self.request.query_params.get('seller_slug')
+
+        # Public exploration for a specific seller
+        if seller_id or seller_slug:
+            qs = StoreLocation.objects.filter(is_active=True)
+            if seller_id:
+                qs = qs.filter(owner_id=seller_id)
+            if seller_slug:
+                qs = qs.filter(owner__username=seller_slug)
+            return qs.order_by('-is_main', 'name')
+
+        if not user or not user.is_authenticated:
+            return StoreLocation.objects.filter(is_active=True).order_by('-is_main', 'name')
+
+        # Superuser: view all
+        if user.is_superuser:
+            return StoreLocation.objects.all().order_by('-is_main', 'name')
+
+        # Authenticated user location scope
+        allowed_ids, _ = get_user_location_scope(user)
+        return StoreLocation.objects.filter(id__in=allowed_ids).order_by('-is_main', 'name')
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # Enforce Business Tier subscription check if creating >1 location
+        existing_count = StoreLocation.objects.filter(owner=user).count()
+        is_business = (
+            getattr(getattr(user, 'profile', None), 'tier', None) == 'business' or
+            user.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+            user.is_superuser
+        )
+        if existing_count >= 1 and not is_business:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(
+                "Operating multiple store branches requires an active Uzaspea Business tier subscription."
+            )
+        serializer.save(owner=user)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if instance.owner != user and not user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the store owner can delete this branch.")
+        if instance.is_main:
+            other_loc = StoreLocation.objects.filter(owner=instance.owner).exclude(pk=instance.pk).first()
+            if other_loc:
+                other_loc.is_main = True
+                other_loc.save(update_fields=['is_main'])
+        instance.delete()
+
+    @action(detail=True, methods=['get'])
+    def inventory(self, request, pk=None):
+        """Retrieve paginated stock levels for this specific location."""
+        location = self.get_object()
+        qs = LocationStock.objects.filter(location=location).select_related('product', 'variant')
+        
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(product__name__icontains=search) | Q(product__sku__icontains=search))
+
+        category_id = request.query_params.get('category')
+        if category_id:
+            qs = qs.filter(product__category_id=category_id)
+
+        low_stock = request.query_params.get('low_stock')
+        if low_stock in ['true', '1', 'True']:
+            qs = qs.filter(quantity__lte=models.F('low_stock_threshold'))
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = LocationStockSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = LocationStockSerializer(qs, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='batch-stock', permission_classes=[permissions.IsAuthenticated])
+    @transaction.atomic
+    def batch_stock(self, request, pk=None):
+        """Batch update stock quantities and regional price overrides for this location."""
+        location = self.get_object()
+        user = request.user
+
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='manage_products')
+        if not (user.is_superuser or location.owner == user or location.owner_id in sellers):
+            return Response({'error': 'You do not have permission to modify inventory at this branch.'}, status=403)
+
+        serializer = LocationStockBatchUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        items = serializer.validated_data['items']
+
+        updated_count = 0
+        for item in items:
+            stock_id = item.get('stock_id')
+            product_id = item.get('product_id')
+            variant_id = item.get('variant_id')
+            qty = Decimal(str(item.get('quantity', 0)))
+            price_override = item.get('price_override')
+            low_threshold = item.get('low_stock_threshold')
+
+            if stock_id:
+                loc_stock = LocationStock.objects.select_for_update().filter(id=stock_id, location=location).first()
+            elif product_id:
+                loc_stock = LocationStock.objects.select_for_update().filter(
+                    location=location, product_id=product_id, variant_id=variant_id
+                ).first()
+                if not loc_stock:
+                    try:
+                        product = Product.objects.get(id=product_id, seller=location.owner)
+                        variant = ProductVariant.objects.get(id=variant_id, product=product) if variant_id else None
+                        loc_stock = LocationStock.objects.create(
+                            location=location, product=product, variant=variant, quantity=qty
+                        )
+                    except (Product.DoesNotExist, ProductVariant.DoesNotExist):
+                        continue
+            else:
+                continue
+
+            if loc_stock:
+                loc_stock.quantity = max(Decimal('0.00'), qty)
+                if price_override is not None and price_override != '':
+                    loc_stock.price_override = Decimal(str(price_override))
+                elif price_override == '':
+                    loc_stock.price_override = None
+                if low_threshold is not None:
+                    loc_stock.low_stock_threshold = int(low_threshold)
+                loc_stock.save()
+                updated_count += 1
+
+        return Response({
+            'message': f'Successfully updated {updated_count} stock records at {location.name}.',
+            'location_id': location.id
+        })
+
+    @action(detail=True, methods=['post'], url_path='set-main', permission_classes=[permissions.IsAuthenticated])
+    def set_main(self, request, pk=None):
+        location = self.get_object()
+        if location.owner != request.user and not request.user.is_superuser:
+            return Response({'error': 'Only the business owner can set the primary location.'}, status=403)
+        location.is_main = True
+        location.save()
+        return Response({'message': f"'{location.name}' is now the primary HQ location."})
+
+
+class LocationStockViewSet(viewsets.ModelViewSet):
+    """View and update LocationStock entries."""
+    serializer_class = LocationStockSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return LocationStock.objects.all().select_related('location', 'product', 'variant')
+        allowed_ids, _ = get_user_location_scope(user)
+        return LocationStock.objects.filter(location_id__in=allowed_ids).select_related('location', 'product', 'variant')
+
+
+class RegisterSessionViewSet(viewsets.ModelViewSet):
+    """
+    POS Cash Drawer Register Shifts.
+    Supports shift open, shift close with counted cash and variance calculation.
+    """
+    serializer_class = RegisterSessionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return RegisterSession.objects.all().select_related('location', 'opened_by', 'closed_by')
+        allowed_ids, _ = get_user_location_scope(user)
+        return RegisterSession.objects.filter(location_id__in=allowed_ids).select_related('location', 'opened_by', 'closed_by')
+
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Returns the currently active open session for the requested branch or user."""
+        location_id = request.query_params.get('location_id')
+        allowed_ids, active_loc = get_user_location_scope(request.user, location_id)
+        target_loc_id = location_id or (active_loc.id if active_loc else None)
+        if not target_loc_id:
+            return Response({'active_session': None})
+
+        session = RegisterSession.objects.filter(location_id=target_loc_id, status='open').first()
+        if not session:
+            return Response({'active_session': None})
+        return Response({'active_session': RegisterSessionSerializer(session).data})
+
+    @action(detail=False, methods=['post'], url_path='open-shift')
+    def open_shift(self, request):
+        location_id = request.data.get('location_id')
+        opening_float = Decimal(str(request.data.get('opening_float', 0)))
+        notes = request.data.get('notes', '')
+
+        allowed_ids, active_loc = get_user_location_scope(request.user, location_id)
+        target_loc_id = location_id or (active_loc.id if active_loc else None)
+        if not target_loc_id or int(target_loc_id) not in allowed_ids:
+            return Response({'error': 'You do not have permission for this register location.'}, status=403)
+
+        loc = StoreLocation.objects.get(id=target_loc_id)
+        existing = RegisterSession.objects.filter(location=loc, status='open').first()
+        if existing:
+            return Response({
+                'error': f"Shift #{existing.id} is already open at {loc.name} by {existing.opened_by.username}."
+            }, status=400)
+
+        session = RegisterSession.objects.create(
+            location=loc,
+            opened_by=request.user,
+            opening_float=opening_float,
+            status='open',
+            notes=notes
+        )
+        return Response(RegisterSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='close-shift')
+    def close_shift(self, request, pk=None):
+        session = self.get_object()
+        if session.status != 'open':
+            return Response({'error': 'This shift session is already closed.'}, status=400)
+
+        closing_cash = Decimal(str(request.data.get('closing_cash_counted', 0)))
+        notes = request.data.get('notes', '')
+
+        from django.db.models import Sum
+        cash_sales = Order.objects.filter(
+            fulfillment_location=session.location,
+            order_date__gte=session.opened_at,
+            status='COMPLETED',
+            shipping_method='PICKUP'
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+
+        expected = session.opening_float + cash_sales
+        variance = closing_cash - expected
+
+        session.closing_cash_counted = closing_cash
+        session.expected_cash = expected
+        session.cash_variance = variance
+        session.status = 'closed'
+        session.closed_by = request.user
+        session.closed_at = timezone.now()
+        if notes:
+            session.notes = f"{session.notes}\n[Close]: {notes}".strip()
+        session.save()
+
+        return Response(RegisterSessionSerializer(session).data)
+
+
+class StockTransferViewSet(viewsets.ModelViewSet):
+    """Inter-branch stock transfer dispatch, reception, and cancellation."""
+    serializer_class = StockTransferSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return StockTransfer.objects.all().select_related('source_location', 'destination_location', 'owner')
+        allowed_ids, _ = get_user_location_scope(user)
+        return StockTransfer.objects.filter(
+            Q(owner=user) | Q(source_location_id__in=allowed_ids) | Q(destination_location_id__in=allowed_ids)
+        ).select_related('source_location', 'destination_location', 'owner').distinct().order_by('-created_at')
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        user = self.request.user
+        items_data = self.request.data.get('items', [])
+        if not items_data:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'items': 'At least one product line item is required for stock transfer.'})
+
+        transfer = serializer.save(owner=user, status='draft')
+        for item in items_data:
+            StockTransferItem.objects.create(
+                transfer=transfer,
+                product_id=item['product_id'],
+                variant_id=item.get('variant_id'),
+                quantity_dispatched=Decimal(str(item['quantity_dispatched'])),
+                notes=item.get('notes', '')
+            )
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def dispatch(self, request, pk=None):
+        """Dispatch inventory from source location, decrementing source stock atomically."""
+        transfer = self.get_object()
+        if transfer.status != 'draft':
+            return Response({'error': f"Cannot dispatch transfer in '{transfer.status}' status."}, status=400)
+
+        for item in transfer.items.all():
+            source_stock = LocationStock.objects.select_for_update().filter(
+                location=transfer.source_location, product=item.product, variant=item.variant
+            ).first()
+            if not source_stock or source_stock.quantity < item.quantity_dispatched:
+                avail = source_stock.quantity if source_stock else 0
+                return Response({
+                    'error': f"Insufficient stock at {transfer.source_location.name} for {item.product.name}. Available: {avail}, Dispatched: {item.quantity_dispatched}"
+                }, status=400)
+
+            source_stock.quantity -= item.quantity_dispatched
+            source_stock.save(update_fields=['quantity'])
+
+        transfer.status = 'in_transit'
+        transfer.dispatched_by = request.user
+        transfer.dispatched_at = timezone.now()
+        transfer.save()
+        return Response(StockTransferSerializer(transfer).data)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def receive(self, request, pk=None):
+        """Receive inventory at destination location, crediting destination stock atomically."""
+        transfer = self.get_object()
+        if transfer.status != 'in_transit':
+            return Response({'error': f"Cannot receive transfer in '{transfer.status}' status. Transfer must be in transit."}, status=400)
+
+        received_quantities = request.data.get('quantities', {})
+        for item in transfer.items.all():
+            qty_received = Decimal(str(received_quantities.get(str(item.id), item.quantity_dispatched)))
+            item.quantity_received = qty_received
+            item.save(update_fields=['quantity_received'])
+
+            dest_stock, _ = LocationStock.objects.select_for_update().get_or_create(
+                location=transfer.destination_location,
+                product=item.product,
+                variant=item.variant,
+                defaults={'quantity': Decimal('0.00')}
+            )
+            dest_stock.quantity += qty_received
+            dest_stock.save(update_fields=['quantity'])
+
+        transfer.status = 'completed'
+        transfer.received_by = request.user
+        transfer.received_at = timezone.now()
+        transfer.save()
+        return Response(StockTransferSerializer(transfer).data)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def cancel(self, request, pk=None):
+        """Cancel transfer. If in_transit, reverses dispatched stock back to source location."""
+        transfer = self.get_object()
+        if transfer.status == 'completed':
+            return Response({'error': 'Cannot cancel a completed stock transfer.'}, status=400)
+        if transfer.status == 'cancelled':
+            return Response({'error': 'Transfer is already cancelled.'}, status=400)
+
+        if transfer.status == 'in_transit':
+            for item in transfer.items.all():
+                source_stock, _ = LocationStock.objects.select_for_update().get_or_create(
+                    location=transfer.source_location,
+                    product=item.product,
+                    variant=item.variant,
+                    defaults={'quantity': Decimal('0.00')}
+                )
+                source_stock.quantity += item.quantity_dispatched
+                source_stock.save(update_fields=['quantity'])
+
+        transfer.status = 'cancelled'
+        transfer.save(update_fields=['status'])
+        return Response(StockTransferSerializer(transfer).data)
+

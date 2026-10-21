@@ -1,6 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import api, { setLogoutCallback, decodeJwtPayload } from '../api';
 
+export interface StoreLocationBrief {
+  id: number;
+  name: string;
+  slug?: string;
+  is_main: boolean;
+  city?: string;
+  district?: string;
+  address?: string;
+  address_line?: string;
+  phone?: string;
+}
+
 interface User {
   user_id: number;
   username: string;
@@ -30,6 +42,9 @@ interface User {
   team_permissions?: Record<string, boolean>;
   terms_accepted?: boolean;
   profile_picture?: string | null;
+  assigned_locations?: StoreLocationBrief[];
+  active_location?: StoreLocationBrief | null;
+  is_multi_location?: boolean;
 }
 
 interface AuthContextType {
@@ -38,6 +53,10 @@ interface AuthContextType {
   login: (tokens: { access: string; refresh: string }, userData: any) => void;
   logout: () => void;
   acceptTerms: () => void;
+  activeLocation: StoreLocationBrief | null;
+  setActiveLocation: (loc: StoreLocationBrief | null) => void;
+  assignedLocations: StoreLocationBrief[];
+  isMultiLocation: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,6 +110,19 @@ const getStoredUser = (): User | null => {
     team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
     terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
     profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
+    assigned_locations: (() => {
+      try {
+        const stored = localStorage.getItem('assigned_locations');
+        return stored ? JSON.parse(stored) : (payload.assigned_locations || []);
+      } catch { return []; }
+    })(),
+    active_location: (() => {
+      try {
+        const stored = localStorage.getItem('active_location');
+        return stored ? JSON.parse(stored) : (payload.active_location || null);
+      } catch { return null; }
+    })(),
+    is_multi_location: payload.is_multi_location === true || localStorage.getItem('is_multi_location') === 'true',
   };
 };
 
@@ -186,6 +218,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
     () => !!localStorage.getItem('access_token')
   );
+  const [activeLocation, setActiveLocationState] = useState<StoreLocationBrief | null>(() => {
+    try {
+      const stored = localStorage.getItem('active_location');
+      return stored ? JSON.parse(stored) : (getStoredUser()?.active_location || null);
+    } catch {
+      return null;
+    }
+  });
+
+  const setActiveLocation = (loc: StoreLocationBrief | null) => {
+    setActiveLocationState(loc);
+    if (loc) {
+      localStorage.setItem('active_location', JSON.stringify(loc));
+    } else {
+      localStorage.removeItem('active_location');
+    }
+  };
+
+  const assignedLocations = useMemo(() => {
+    return user?.assigned_locations || [];
+  }, [user]);
+
+  const isMultiLocation = useMemo(() => {
+    return (user?.is_multi_location || assignedLocations.length > 1) ?? false;
+  }, [user, assignedLocations]);
 
   useEffect(() => {
     setLogoutCallback(logout);
@@ -283,6 +340,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (payload.last_tier) localStorage.setItem('last_tier', payload.last_tier);
       if (payload.last_tier_name) localStorage.setItem('last_tier_name', payload.last_tier_name);
       if (payload.profile_picture) localStorage.setItem('profile_picture', payload.profile_picture);
+      if (payload.assigned_locations) localStorage.setItem('assigned_locations', JSON.stringify(payload.assigned_locations));
+      if (payload.active_location) {
+        localStorage.setItem('active_location', JSON.stringify(payload.active_location));
+        setActiveLocationState(payload.active_location);
+      }
+      if (payload.is_multi_location !== undefined) localStorage.setItem('is_multi_location', String(payload.is_multi_location));
     } else {
       localStorage.setItem('user_id', String(userData.user_id));
       localStorage.setItem('username', userData.username);
@@ -304,6 +367,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
       localStorage.setItem('terms_accepted', String(userData.terms_accepted || false));
       if (userData.profile_picture) localStorage.setItem('profile_picture', userData.profile_picture);
+      if (userData.assigned_locations) localStorage.setItem('assigned_locations', JSON.stringify(userData.assigned_locations));
+      if (userData.active_location) {
+        localStorage.setItem('active_location', JSON.stringify(userData.active_location));
+        setActiveLocationState(userData.active_location);
+      }
+      if (userData.is_multi_location !== undefined) localStorage.setItem('is_multi_location', String(userData.is_multi_location));
     }
     
     setUser(getStoredUser());
@@ -318,6 +387,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (theme) localStorage.setItem('theme', theme);
     if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
     if (lang) localStorage.setItem('uzaspea_language', lang);
+    setActiveLocationState(null);
     setIsAuthenticated(false);
   };
 
@@ -328,7 +398,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const contextValue = useMemo(() => ({ isAuthenticated, user, login, logout, acceptTerms }), [isAuthenticated, user]);
+  const contextValue = useMemo(() => ({
+    isAuthenticated,
+    user,
+    login,
+    logout,
+    acceptTerms,
+    activeLocation,
+    setActiveLocation,
+    assignedLocations,
+    isMultiLocation
+  }), [isAuthenticated, user, activeLocation, assignedLocations, isMultiLocation]);
 
   return (
     <AuthContext.Provider value={contextValue}>

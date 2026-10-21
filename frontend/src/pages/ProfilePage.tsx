@@ -4,7 +4,8 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
-  CheckCircle, Plus, Package, Search, Clock, MessageSquare
+  CheckCircle, Plus, Package, Search, Clock, MessageSquare,
+  Phone, ExternalLink
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -38,7 +39,8 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [followStatus, setFollowStatus] = useState({ following: false, followers_count: 0, following_count: 0 });
-  const [activeTab, setActiveTab] = useState<'listings' | 'demands' | 'about'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'demands' | 'about' | 'branches'>('listings');
+  const [branches, setBranches] = useState<any[]>([]);
   const [demandFilter, setDemandFilter] = useState<'all' | 'mine' | 'voted' | 'fulfilled'>('all');
   
   const [isEditing, setIsEditing] = useState(false);
@@ -135,6 +137,7 @@ const ProfilePage: React.FC = () => {
         api.get(`/api/profiles/${username}/`, { signal }),
         api.get(`/api/products/?seller=${username}`, { signal }),
         api.get(`/api/product-requests/?seller_username=${username}`, { signal }),
+        api.get(`/api/locations/?seller_slug=${username}`, { signal }),
       ];
 
       if (currentUser) {
@@ -178,9 +181,17 @@ const ProfilePage: React.FC = () => {
         if (!signal?.aborted) setProductRequests([]);
       }
 
-      // 4. Follow Status
-      if (currentUser && results[3]?.status === 'fulfilled') {
-        setFollowStatus(results[3].value.data);
+      // 4. Store Branches
+      if (results[3].status === 'fulfilled' && results[3].value?.data) {
+        const bList = results[3].value.data.results || results[3].value.data || [];
+        setBranches(Array.isArray(bList) ? bList : []);
+      } else {
+        if (!signal?.aborted) setBranches([]);
+      }
+
+      // 5. Follow Status
+      if (currentUser && results[4]?.status === 'fulfilled') {
+        setFollowStatus(results[4].value.data);
       }
     } catch (err: any) {
       if (!signal?.aborted) {
@@ -655,6 +666,27 @@ const ProfilePage: React.FC = () => {
                 />
               )}
             </button>
+
+            {branches.length > 0 && (
+              <button
+                onClick={() => setActiveTab('branches')}
+                className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                  activeTab === 'branches' 
+                    ? 'text-black dark:text-white font-black' 
+                    : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+                }`}
+              >
+                <MapPin size={15} className="shrink-0" />
+                <span>Our Branches ({branches.length})</span>
+                {activeTab === 'branches' && (
+                  <motion.div
+                    layoutId="profile-nav-indicator"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center gap-6 px-4">
@@ -1031,6 +1063,90 @@ const ProfilePage: React.FC = () => {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* Branches Tab Content */}
+        {isSellerProfile && activeTab === 'branches' && (
+          <div className="pt-2 max-w-5xl mx-auto px-4 sm:px-0 space-y-6">
+            <div className="text-center max-w-md mx-auto space-y-1">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                <MapPin className="text-brand-600" size={18} />
+                <span>Store Locations & Branches</span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Visit any of our retail branches for in-person shopping, order pickup, or after-sales assistance.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {branches.map((b: any) => (
+                <div
+                  key={b.id}
+                  className={`p-5 rounded-3xl border bg-white dark:bg-neutral-900 shadow-xs space-y-3.5 ${
+                    b.is_main
+                      ? 'border-brand-500/50 ring-1 ring-brand-500/20'
+                      : 'border-surface-border dark:border-surface-dark-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                          {b.name}
+                        </h3>
+                        {b.is_main && (
+                          <span className="text-4xs uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold">
+                            HQ Store
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1">
+                        <MapPin size={13} className="shrink-0 text-brand-600 mt-0.5" />
+                        <span>{b.address_line}{b.district ? `, ${b.district}` : ''}, <strong>{b.city}</strong></span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2 border-t border-gray-100 dark:border-neutral-800 flex items-center gap-2">
+                    {b.phone && (
+                      <a
+                        href={`tel:${b.phone}`}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white text-xs font-bold hover:bg-gray-200 transition"
+                      >
+                        <Phone size={13} />
+                        <span>Call Store</span>
+                      </a>
+                    )}
+                    {b.whatsapp && (
+                      <a
+                        href={`https://wa.me/${b.whatsapp.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition"
+                      >
+                        <MessageSquare size={13} />
+                        <span>WhatsApp</span>
+                      </a>
+                    )}
+                    <a
+                      href={
+                        b.latitude && b.longitude
+                          ? `https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${b.name}, ${b.address_line}, ${b.city}`)}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl border border-gray-200 dark:border-neutral-700 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition"
+                      title="Open in Google Maps"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

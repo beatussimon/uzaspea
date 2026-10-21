@@ -148,6 +148,24 @@ export const CheckoutPage: React.FC = () => {
     notes: '',
   });
 
+  const [sellerBranches, setSellerBranches] = useState<any[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (merchant) {
+      api.get(`/api/locations/?seller_slug=${merchant}`)
+        .then(res => {
+          const list = res.data.results || res.data || [];
+          if (Array.isArray(list) && list.length > 0) {
+            setSellerBranches(list);
+            const mainBranch = list.find((b: any) => b.is_main) || list[0];
+            if (mainBranch) setSelectedBranchId(mainBranch.id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [merchant]);
+
   const currentUsername = localStorage.getItem('username') || undefined;
   const { location: userLoc, ensureLocation } = useUserLocation();
 
@@ -1086,6 +1104,7 @@ export const CheckoutPage: React.FC = () => {
         delivery_info: deliveryPayload,
         delivery_latitude: roundedLat,
         delivery_longitude: roundedLng,
+        fulfillment_location: selectedBranchId || undefined,
       };
 
       const res = await api.post('/api/orders/', orderData);
@@ -1784,6 +1803,53 @@ export const CheckoutPage: React.FC = () => {
                 <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
                   {t('speed_note', 'Determines transit priority and delivery fee when processed at the warehouse hub.')}
                 </p>
+              </div>
+            )}
+
+            {/* Store Branch Collection Selector (Click & Collect) */}
+            {(shippingMethod === 'PICKUP' || fulfillmentType === 'SELLER_PICKUP') && sellerBranches.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                <label className="block text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                  Select Collection Branch (In-Store Pickup)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {sellerBranches.map((branch) => {
+                    const isSelected = selectedBranchId === branch.id;
+                    return (
+                      <div
+                        key={branch.id}
+                        onClick={() => setSelectedBranchId(branch.id)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/20 ring-1 ring-brand-500'
+                            : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-neutral-900 dark:text-white flex items-center gap-1.5">
+                              <MapPin size={12} className={isSelected ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-400'} />
+                              {branch.name}
+                            </span>
+                            {branch.is_main && (
+                              <span className="text-4xs uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-extrabold">
+                                HQ
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-3xs text-neutral-500 dark:text-neutral-400">
+                            {branch.address_line}{branch.district ? `, ${branch.district}` : ''}, {branch.city}
+                          </p>
+                        </div>
+                        {branch.phone && (
+                          <div className="pt-1.5 text-3xs text-neutral-400 flex items-center gap-1">
+                            <span>Tel: {branch.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
+import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check, MapPin } from 'lucide-react';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
+import { LocationSelector } from '../../components/dashboard/LocationSelector';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { printElement } from '../../utils/printHelper';
@@ -43,7 +44,7 @@ import { classifyApiError, type ClassifiedError } from '../../utils/errorUtils';
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, activeLocation } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
@@ -78,6 +79,7 @@ const DashboardOverview: React.FC = () => {
     const params = new URLSearchParams();
     if (dateRange.startDate) params.append('start_date', dateRange.startDate);
     if (dateRange.endDate) params.append('end_date', dateRange.endDate);
+    if (activeLocation?.id) params.append('location_id', String(activeLocation.id));
     params.append('top_limit', '50');
     if (params.toString()) url += `?${params.toString()}`;
 
@@ -90,7 +92,7 @@ const DashboardOverview: React.FC = () => {
         setFetchError(classifyApiError(err));
       })
       .finally(() => setLoading(false));
-  }, [dateRange]);
+  }, [dateRange, activeLocation]);
 
   useEffect(() => {
     fetchStats();
@@ -174,6 +176,7 @@ const DashboardOverview: React.FC = () => {
             {t('store_analytics', 'Store Analytics')}
           </h1>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+            <LocationSelector />
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <button 
               type="button"
@@ -721,6 +724,55 @@ const DashboardOverview: React.FC = () => {
           ) : <p className="px-5 py-8 text-center text-gray-400 text-xs">All products well-stocked 🎉</p>}
         </div>
       </div>
+
+      {/* Multi-Branch Performance Widget (Business Tier HQ Consolidated View) */}
+      {stats?.location_breakdown && stats.location_breakdown.length > 0 && !activeLocation && (
+        <div className="card overflow-hidden !border-none !rounded-2xl p-5 bg-white dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border shadow-xs print-hide">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <MapPin size={16} className="text-brand-600 dark:text-brand-400" />
+                Branch Performance & Sales Contribution
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Consolidated revenue and fulfillment volume by physical store branch
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
+              {stats.location_breakdown.length} Branches Active
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {stats.location_breakdown.map((b: any, idx: number) => {
+              const sharePct = stats.total_revenue > 0 ? Math.round((b.revenue / stats.total_revenue) * 100) : 0;
+              return (
+                <div key={b.location_id || idx} className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800 bg-gray-50/60 dark:bg-neutral-950/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
+                      {b.name}
+                    </span>
+                    <span className="text-2xs font-extrabold px-1.5 py-0.5 rounded bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
+                      {sharePct}% of sales
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm font-black text-gray-900 dark:text-white">
+                      TSh {Number(b.revenue || 0).toLocaleString()}
+                    </span>
+                    <span className="text-2xs text-gray-500 font-medium">
+                      {b.orders} orders
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-neutral-800 overflow-hidden">
+                    <div className="h-full bg-brand-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(sharePct, 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Items Sold List */}
       {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (

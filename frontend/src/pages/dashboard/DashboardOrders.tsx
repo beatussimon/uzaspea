@@ -7,6 +7,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../context/AuthContext';
+import { LocationSelector } from '../../components/dashboard/LocationSelector';
 import { useDialog } from '../../components/ui/Dialogs';
 import { Spinner } from '../../components/ui/Spinner';
 import { StatusBadge } from '../../components/ui/StatusBadge';
@@ -59,7 +61,8 @@ export const getStatusExplanation = (status: string, fulfillmentType?: string) =
 
 const DashboardOrders: React.FC = () => {
   const { t } = useTranslation();
-const { showPrompt } = useDialog();
+  const { activeLocation } = useAuth();
+  const { showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -124,7 +127,11 @@ const { showPrompt } = useDialog();
     } else {
       setLoadingMore(true);
     }
-    api.get(`/api/orders/incoming/?page=${p}&exclude_statuses=REQUESTED_INVOICE,INVOICE_GENERATED`)
+    let url = `/api/orders/incoming/?page=${p}&exclude_statuses=REQUESTED_INVOICE,INVOICE_GENERATED`;
+    if (activeLocation?.id) {
+      url += `&location_id=${activeLocation.id}`;
+    }
+    api.get(url)
       .then(res => {
         const data = res.data.results || res.data;
         const incoming = Array.isArray(data) ? data : [];
@@ -145,7 +152,7 @@ const { showPrompt } = useDialog();
         setLoading(false);
         setLoadingMore(false);
       });
-  }, []);
+  }, [activeLocation]);
 
   useEffect(() => {
     fetchOrders(1, true);
@@ -288,6 +295,7 @@ const { showPrompt } = useDialog();
             </h1>
 
           <div className="flex items-center gap-2 shrink-0">
+            <LocationSelector />
             <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               {t('live_view', 'Live View')}
@@ -437,6 +445,13 @@ const { showPrompt } = useDialog();
                         <span className="md:hidden inline-flex">
                           <StatusBadge status={order.status} size="sm" />
                         </span>
+
+                        {order.fulfillment_location_name && (
+                          <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                            <MapPin size={9} />
+                            {order.fulfillment_location_name}
+                          </span>
+                        )}
 
                         {order.delivery_info?.is_pos && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
