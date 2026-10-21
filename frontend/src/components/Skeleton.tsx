@@ -825,4 +825,123 @@ export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ clas
   </div>
 );
 
+/**
+ * Promotions Campaign Row List Skeleton (matching DashboardPromotions horizontal cards)
+ */
+export const PromotionsCampaignListSkeleton: React.FC<{
+  count?: number;
+  className?: string;
+}> = ({ count = 3, className }) => (
+  <div className={cn('space-y-2.5', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div 
+        key={i} 
+        className="card !border-none p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-white dark:bg-[#111111] rounded-xl shadow-2xs"
+      >
+        {/* Left: Product Thumbnail & Details */}
+        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+          <Skeleton className="w-12 h-12 rounded-lg shrink-0" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Skeleton className="h-4 w-40 max-w-[50%] rounded" />
+              <Skeleton className="h-3.5 w-24 rounded" />
+            </div>
+            <Skeleton className="h-3 w-64 max-w-[85%] rounded" />
+            <div className="flex items-center gap-2 text-[11px] mt-1">
+              <Skeleton className="h-2.5 w-20 rounded" />
+              <Skeleton className="h-2.5 w-28 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Duration, Price & Status Pill */}
+        <div className="flex items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-2 lg:pt-0">
+          <div className="space-y-1 text-left lg:text-right min-w-[85px]">
+            <Skeleton className="h-3.5 w-16 rounded lg:ml-auto" />
+            <Skeleton className="h-3.5 w-20 rounded lg:ml-auto" />
+          </div>
+          <div className="min-w-[125px] flex justify-center lg:justify-start">
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * Full Promotions Page Skeleton (Tab-aware skeleton matching DashboardPromotions)
+ */
+export const PromotionsSkeleton: React.FC<{
+  tab?: 'sponsored' | 'coupons' | 'referrals';
+  className?: string;
+}> = ({ tab = 'sponsored', className }) => (
+  <div className={cn('space-y-6', className)}>
+    {/* 4 KPI Cards matching grid-cols-2 lg:grid-cols-4 */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="card !border-none p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Skeleton className="w-3.5 h-3.5 rounded-full shrink-0" />
+            <Skeleton className="h-3 w-24 rounded" />
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <Skeleton className="h-5 w-24 rounded" />
+            <Skeleton className="h-3 w-10 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Main Tab Bar Skeletons */}
+    <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
+      <Skeleton className="h-8 w-44 rounded-full shrink-0" />
+      <Skeleton className="h-8 w-36 rounded-full shrink-0" />
+      <Skeleton className="h-8 w-48 rounded-full shrink-0" />
+    </div>
+
+    {tab === 'sponsored' && (
+      <div className="space-y-4">
+        {/* Campaign Filter Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+            <Skeleton className="h-7 w-28 rounded-full shrink-0" />
+            <Skeleton className="h-7 w-24 rounded-full shrink-0" />
+            <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+            <Skeleton className="h-7 w-28 rounded-full shrink-0" />
+          </div>
+          <Skeleton className="h-7 w-20 rounded-btn shrink-0" />
+        </div>
+
+        {/* Campaign List */}
+        <PromotionsCampaignListSkeleton count={3} />
+      </div>
+    )}
+
+    {tab === 'coupons' && (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-7 w-48 rounded-full" />
+          <Skeleton className="h-7 w-32 rounded-btn" />
+        </div>
+        <TableSkeleton rows={4} cols={7} />
+      </div>
+    )}
+
+    {tab === 'referrals' && (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-7 w-48 rounded-full" />
+          <Skeleton className="h-7 w-32 rounded-btn" />
+        </div>
+        <TableSkeleton rows={4} cols={7} />
+      </div>
+    )}
+  </div>
+);
+
 export default Skeleton;
