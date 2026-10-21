@@ -3539,9 +3539,16 @@ const DashboardProducts: React.FC = () => {
               <div className="flex-1 min-w-0 space-y-1.5">
                 {/* Row 1: Title & Stock status */}
                 <div className="flex items-center justify-between gap-1.5">
-                  <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-white truncate" title={product.name}>
-                    {product.name}
-                  </h4>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-white truncate" title={product.name}>
+                      {product.name}
+                    </h4>
+                    {Boolean(product.has_a_plus_content) && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                        A+ Content
+                      </span>
+                    )}
+                  </div>
                   {product.is_draft ? (
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
@@ -3552,17 +3559,7 @@ const DashboardProducts: React.FC = () => {
                       <span className={`w-1.5 h-1.5 rounded-full ${
                         product.stock === 0 ? 'bg-red-500' : product.stock <= 3 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`} />
-                      {product.stock === 0 ? 'Out' : product.stock <= 3 ? 'Low' : 'In Stock'}
-                    </span>
-                  )}
-                  {Boolean(product.has_a_plus_content) && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                      A+ Content
-                    </span>
-                  )}
-                  {Boolean(product.pos_only) && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                      POS Only
+                      {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
                     </span>
                   )}
                 </div>
