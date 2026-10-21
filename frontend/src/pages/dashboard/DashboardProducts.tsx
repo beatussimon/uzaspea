@@ -1003,8 +1003,8 @@ const DashboardProducts: React.FC = () => {
       {/* Batch Upload Modal */}
       {showBatchModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border-0">
-            <div className="p-5 flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border-0 p-5 space-y-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-base font-bold text-gray-900 dark:text-white">
                 Batch Import Products
               </h3>
@@ -1013,7 +1013,7 @@ const DashboardProducts: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-5 space-y-4 text-xs">
+            <div className="space-y-4 text-xs">
               <p className="text-gray-500 dark:text-gray-400">
                 Upload a CSV file with your products. Ensure your CSV includes columns: Name, Description, Price, Stock, Category ID, SKU, and Condition.
               </p>
@@ -1025,11 +1025,11 @@ const DashboardProducts: React.FC = () => {
               />
             </div>
 
-            <div className="p-4 bg-surface-muted dark:bg-[#161616] flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowBatchModal(false)}
-                className="px-3.5 py-1.5 text-xs font-bold rounded-btn bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 text-gray-800 dark:text-white border-0 transition cursor-pointer"
+                className="px-3.5 py-1.5 text-xs font-bold rounded-btn text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-0 transition cursor-pointer bg-transparent"
               >
                 Cancel
               </button>
