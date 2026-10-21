@@ -794,22 +794,18 @@ const ProductList = () => {
                       {activePills.length > 0 && (
                         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                           {activePills.map((pill) => (
-                            <div
+                            <button
                               key={pill.id}
-                              className="flex items-center gap-1 sm:gap-1.5 py-0.5 text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 text-gray-800 dark:text-gray-200"
+                              type="button"
+                              onClick={pill.onRemove}
+                              className="flex items-center gap-1 sm:gap-1.5 py-0.5 text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 text-gray-800 dark:text-gray-200 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
+                              title={`Click to remove ${pill.label ? `${pill.label}: ` : ''}${pill.value}`}
                             >
                               {pill.label && (
                                 <span className="opacity-60 font-medium">{pill.label}:</span>
                               )}
                               <span>{pill.value}</span>
-                              <button
-                                onClick={pill.onRemove}
-                                className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
-                                aria-label={`Remove ${pill.label} filter`}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}
