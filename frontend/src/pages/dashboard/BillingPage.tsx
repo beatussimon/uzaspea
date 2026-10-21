@@ -997,22 +997,22 @@ const { showConfirm } = useDialog();
                 </div>
               ) : (
                 <form onSubmit={handlePaySubmit} className="space-y-4 text-xs">
-                  <div className="p-3.5 rounded-btn bg-brand-500/10 space-y-2 border-0">
+                  <div className="space-y-2 py-1">
                     {selectedInvoice ? (
                       <>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Invoice Period</p>
+                            <p className="text-3xs text-gray-400 font-bold uppercase tracking-wider">Invoice Period</p>
                             <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
                           </div>
                           <div className="text-right">
                             <p className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">Total Due</p>
-                            <p className="font-extrabold text-brand-600 dark:text-brand-400 text-base mt-0.5">
+                            <p className="font-extrabold text-gray-900 dark:text-white text-base mt-0.5">
                               TSh {Number(selectedInvoice.total_amount_due ?? (Number(selectedInvoice.total_commission || 0) + Number(selectedInvoice.subscription_fee || 0))).toLocaleString()}
                             </p>
                           </div>
                         </div>
-                        <div className="pt-2 flex items-center justify-between text-2xs text-gray-600 dark:text-gray-300">
+                        <div className="pt-2 flex items-center justify-between text-2xs text-gray-500 dark:text-gray-400">
                           <span>Subscription: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.subscription_fee || 0).toLocaleString()}</strong></span>
                           <span>Commission: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.total_commission || 0).toLocaleString()}</strong></span>
                         </div>
@@ -1020,12 +1020,12 @@ const { showConfirm } = useDialog();
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Subscription</p>
+                          <p className="text-3xs text-gray-400 font-bold uppercase tracking-wider">Subscription</p>
                           <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{selectedSubscription?.tier?.name} Plan</h4>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xs text-gray-400">Renewal Due</p>
-                          <p className="font-extrabold text-brand-600 dark:text-brand-400 text-sm mt-0.5">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
+                          <p className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">Renewal Due</p>
+                          <p className="font-extrabold text-gray-900 dark:text-white text-base mt-0.5">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     )}
