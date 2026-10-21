@@ -1280,37 +1280,58 @@ const location = useLocation();
                         {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
                       </label>
                       {selectedProduct ? (
-                        <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white dark:bg-[#1A1A1A] transition shadow-2xs">
-                          <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-[#121212]">
-                            <SafeImage
-                              src={selectedProduct.images?.[0]?.image || selectedProduct.image}
-                              alt={selectedProduct.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded">
-                                {renewingCampaign ? t('item_to_renew', 'Item to Renew') : t('item_selected_for_boost', 'Item Selected for Boost')}
-                              </span>
+                        <div className="p-3.5 rounded-xl bg-white dark:bg-[#1A1A1A] transition shadow-2xs">
+                          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-[#121212]">
+                              <SafeImage
+                                src={selectedProduct.images?.[0]?.image || selectedProduct.image}
+                                alt={selectedProduct.name}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                            <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
-                              {selectedProduct.name}
-                            </h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                                  {renewingCampaign ? t('item_to_renew', 'Item to Renew') : t('item_selected_for_boost', 'Item Selected for Boost')}
+                                </span>
+                              </div>
+                              <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                {selectedProduct.name}
+                              </h4>
+                              {/* Desktop Details */}
+                              <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                TSh {parseInt(selectedProduct.price || 0).toLocaleString()} • {selectedProduct.category_name || selectedProduct.category || 'Product'} • Stock: {selectedProduct.stock}
+                              </p>
+                            </div>
+                            {/* Desktop Change Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedProduct(null);
+                                setForm(prev => ({ ...prev, product: '' }));
+                              }}
+                              className="hidden sm:inline-flex px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
+                            >
+                              Change
+                            </button>
+                          </div>
+
+                          {/* Mobile Bottom Row: Details on left, Change button on right */}
+                          <div className="flex sm:hidden items-center justify-between gap-2 mt-2 pt-0.5 text-xs">
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 min-w-0 truncate">
                               TSh {parseInt(selectedProduct.price || 0).toLocaleString()} • {selectedProduct.category_name || selectedProduct.category || 'Product'} • Stock: {selectedProduct.stock}
                             </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedProduct(null);
+                                setForm(prev => ({ ...prev, product: '' }));
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
+                            >
+                              Change
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedProduct(null);
-                              setForm(prev => ({ ...prev, product: '' }));
-                            }}
-                            className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
-                          >
-                            Change
-                          </button>
                         </div>
                       ) : products.length === 0 ? (
                         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
