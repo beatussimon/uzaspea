@@ -977,10 +977,9 @@ const { showConfirm } = useDialog();
       {/* Pay Invoice Modal */}
       {showPayModal && (selectedInvoice || selectedSubscription) && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white dark:bg-[#121212] rounded-card max-w-lg w-full overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border animate-scale-in my-8">
-            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Wallet className="text-brand-500" size={18} />
+          <div className="bg-white dark:bg-[#121212] rounded-card max-w-lg w-full overflow-hidden shadow-2xl border-0 animate-scale-in my-8">
+            <div className="p-5 pb-2 flex justify-between items-center">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">
                 {selectedInvoice ? 'Pay Monthly Invoice' : 'Renew Subscription'}
               </h3>
               <button
@@ -991,14 +990,14 @@ const { showConfirm } = useDialog();
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="p-5 pt-2">
               {loadingPaymentData ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="md" />
                 </div>
               ) : (
                 <form onSubmit={handlePaySubmit} className="space-y-4 text-xs">
-                  <div className="p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20 space-y-2">
+                  <div className="p-3.5 rounded-btn bg-brand-500/10 space-y-2 border-0">
                     {selectedInvoice ? (
                       <>
                         <div className="flex items-center justify-between">
@@ -1013,7 +1012,7 @@ const { showConfirm } = useDialog();
                             </p>
                           </div>
                         </div>
-                        <div className="pt-2 border-t border-brand-500/15 flex items-center justify-between text-2xs text-gray-600 dark:text-gray-300">
+                        <div className="pt-2 flex items-center justify-between text-2xs text-gray-600 dark:text-gray-300">
                           <span>Subscription: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.subscription_fee || 0).toLocaleString()}</strong></span>
                           <span>Commission: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.total_commission || 0).toLocaleString()}</strong></span>
                         </div>
@@ -1041,8 +1040,8 @@ const { showConfirm } = useDialog();
                     ) : (
                       <div className="space-y-2">
                         {adminLipa.map((lipa: any) => (
-                          <div key={lipa.id} className="flex items-center gap-3 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border rounded-btn p-2.5">
-                            <div className={`rounded-lg bg-white dark:bg-[#121212] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-surface-dark-border ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
+                          <div key={lipa.id} className="flex items-center gap-3 bg-surface-muted dark:bg-[#161616] border-0 rounded-btn p-2.5">
+                            <div className={`rounded-lg bg-white dark:bg-[#121212] flex items-center justify-center overflow-hidden shrink-0 border-0 ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
                               {lipa.network_logo ? (
                                 <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                               ) : (
@@ -1057,7 +1056,7 @@ const { showConfirm } = useDialog();
                             <button
                               type="button"
                               onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Copied!'); }}
-                              className="ml-auto btn-ghost text-3xs py-0.5 px-2 border border-surface-border dark:border-surface-dark-border rounded"
+                              className="ml-auto text-3xs py-1 px-2.5 rounded-btn bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 font-semibold transition border-0"
                             >
                               Copy
                             </button>
@@ -1076,12 +1075,12 @@ const { showConfirm } = useDialog();
                         value={refId}
                         onChange={(e) => setRefId(e.target.value)}
                         placeholder="e.g. PP260618.1746"
-                        className="input text-xs py-2 w-full"
+                        className="w-full px-3.5 py-2.5 text-xs rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-0"
                       />
                     </div>
                     <div>
                       <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Receipt Screenshot</label>
-                      <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-btn cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition">
+                      <label className="flex flex-col items-center justify-center w-full h-24 border-0 rounded-btn cursor-pointer bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#1c1c1c] transition">
                         <div className="flex flex-col items-center justify-center pt-2 pb-3">
                           <Upload size={18} className="text-gray-400 mb-1" />
                           <p className="text-2xs text-gray-500 dark:text-gray-400 text-center px-4">
