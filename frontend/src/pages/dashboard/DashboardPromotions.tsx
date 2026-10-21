@@ -103,6 +103,7 @@ const location = useLocation();
   // Sponsored Listing Form State
   const [showForm, setShowForm] = useState(false);
   const [formStep, setFormStep] = useState<1 | 2>(1);
+  const [renewingCampaign, setRenewingCampaign] = useState<any | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(() => (location.state as any)?.boostedProduct || null);
   const [form, setForm] = useState({ 
     product: (location.state as any)?.boostedProduct ? String((location.state as any).boostedProduct.id) : '', 
@@ -423,18 +424,38 @@ const location = useLocation();
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const handleStartReboost = (productId: number | string) => {
+  const handleStartReboost = (campaign: any) => {
+    const prodId = campaign?.product || campaign?.product_details?.id;
+    const prod = (campaign?.product_details && (campaign.product_details.id || campaign.product_details.name))
+      ? campaign.product_details
+      : (products.find((p: any) => String(p.id) === String(prodId)) || null);
+
+    setSelectedProduct(prod);
+    setRenewingCampaign(campaign);
     setForm({
-      product: String(productId),
-      title: '',
-      description: '',
-      duration_days: 7
+      product: String(prod?.id || prodId || ''),
+      title: campaign?.title || (prod?.name ? `Boost: ${prod.name}` : ''),
+      description: campaign?.description || '',
+      duration_days: campaign?.duration_days || 7
     });
     setRefId('');
     setProofFile(null);
     setProofPreview(null);
     setFormStep(1);
     setShowForm(true);
+    setActiveTab('sponsored');
+
+    if (!prod && prodId) {
+      api.get(`/api/products/${prodId}/`).then(res => {
+        setSelectedProduct(res.data);
+        setForm(prev => ({
+          ...prev,
+          product: String(res.data.id),
+          title: prev.title || `Boost: ${res.data.name}`
+        }));
+      }).catch(() => {});
+    }
+
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -484,9 +505,15 @@ const location = useLocation();
       await api.post('/api/sponsored/', fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success(t('promotion_submitted_success', 'Promotion request submitted. Staff will review and activate your placement.'));
+      toast.success(
+        renewingCampaign
+          ? t('renewal_submitted_success', 'Renewal request submitted. Staff will review and activate your placement.')
+          : t('promotion_submitted_success', 'Promotion request submitted. Staff will review and activate your placement.')
+      );
       setShowForm(false);
       setFormStep(1);
+      setRenewingCampaign(null);
+      setSelectedProduct(null);
       setForm({ product: '', title: '', description: '', duration_days: 7 });
       setRefId('');
       setProofFile(null);
@@ -1078,7 +1105,14 @@ const location = useLocation();
               <Button
                 size="sm"
                 onClick={() => {
-                  if (showForm) setFormStep(1);
+                  if (showForm) {
+                    setFormStep(1);
+                    setRenewingCampaign(null);
+                  } else {
+                    setRenewingCampaign(null);
+                    setSelectedProduct(null);
+                    setForm({ product: '', title: '', description: '', duration_days: 7 });
+                  }
                   setShowForm(!showForm);
                 }}
                 className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
@@ -1232,10 +1266,12 @@ const location = useLocation();
                   <div className="bg-neutral-50 dark:bg-[#121212] rounded-2xl p-4 sm:p-4.5 space-y-4">
                     <div className="pb-1">
                       <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
-                        {t('campaign_setup', 'Campaign Setup')}
+                        {renewingCampaign ? t('renew_campaign_setup', 'Renew Placement Setup') : t('campaign_setup', 'Campaign Setup')}
                       </h4>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                        {t('campaign_setup_desc', 'Select inventory item, choose duration package, and customize your copy.')}
+                        {renewingCampaign
+                          ? t('renew_campaign_setup_desc', 'Review your product, placement duration, and optional headlines for renewal.')
+                          : t('campaign_setup_desc', 'Select inventory item, choose duration package, and customize your copy.')}
                       </p>
                     </div>
 
@@ -1256,7 +1292,7 @@ const location = useLocation();
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded">
-                                Item Selected for Boost
+                                {renewingCampaign ? t('item_to_renew', 'Item to Renew') : t('item_selected_for_boost', 'Item Selected for Boost')}
                               </span>
                             </div>
                             <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
@@ -1554,7 +1590,9 @@ const location = useLocation();
                       disabled={submitting} 
                       className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
                     >
-                      {submitting ? t('submitting', 'Submitting...') : t('submit_request', 'Submit Request')}
+                      {submitting
+                        ? t('submitting', 'Submitting...')
+                        : (renewingCampaign ? t('submit_renewal_request', 'Submit Renewal Request') : t('submit_request', 'Submit Request'))}
                     </Button>
                   </div>
                 </>
@@ -1770,7 +1808,7 @@ const location = useLocation();
                         {(status === 'expired' || status === 'rejected') && (
                           <button
                             type="button"
-                            onClick={() => handleStartReboost(p.product)}
+                            onClick={() => handleStartReboost(p)}
                             className="w-full py-1.5 px-3 text-xs font-semibold rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                           >
                             <span>{t('renew', 'Renew')}</span>
