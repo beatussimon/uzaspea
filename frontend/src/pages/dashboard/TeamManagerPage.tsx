@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Users, Plus, Search, X, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Search, X, Eye, EyeOff, MapPin } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardGridSkeleton } from '../../components/Skeleton';
@@ -31,6 +31,9 @@ interface TeamMember {
   contact_phone?: string;
   notes?: string;
   created_at: string;
+  all_locations_access?: boolean;
+  assigned_locations?: number[];
+  assigned_locations_details?: { id: number; name: string; is_main: boolean; city?: string }[];
 }
 
 interface AuditEntry {
@@ -43,6 +46,9 @@ interface AuditEntry {
   action: string;
   detail: Record<string, any>;
   created_at: string;
+  all_locations_access?: boolean;
+  assigned_locations?: number[];
+  assigned_locations_details?: { id: number; name: string; is_main: boolean; city?: string }[];
 }
 
 const ROLE_PRESETS: Record<string, { label: string; description: string; permissions: Record<string, boolean> }> = {
@@ -143,6 +149,13 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [locations, setLocations] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/api/locations/').then(res => {
+      setLocations(res.data.results || res.data || []);
+    }).catch(() => {});
+  }, []);
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -161,6 +174,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
   const [formNotes, setFormNotes] = useState('');
   const [formRolePreset, setFormRolePreset] = useState('orders_coordinator');
   const [formPerms, setFormPerms] = useState<Record<string, boolean>>(ROLE_PRESETS.orders_coordinator.permissions);
+  const [formAllLocations, setFormAllLocations] = useState(true);
+  const [formAssignedLocations, setFormAssignedLocations] = useState<number[]>([]);
 
   // Password Reset Modal
   const [resetModalMember, setResetModalMember] = useState<TeamMember | null>(null);
@@ -172,6 +187,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
   const [editModalMember, setEditModalMember] = useState<TeamMember | null>(null);
   const [editRolePreset, setEditRolePreset] = useState('custom');
   const [editPerms, setEditPerms] = useState<Record<string, boolean>>({});
+  const [editAllLocations, setEditAllLocations] = useState(true);
+  const [editAssignedLocations, setEditAssignedLocations] = useState<number[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Transfer Role Modal
@@ -230,6 +247,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
     setFormNotes('');
     setFormRolePreset('orders_coordinator');
     setFormPerms(ROLE_PRESETS.orders_coordinator.permissions);
+    setFormAllLocations(true);
+    setFormAssignedLocations([]);
   };
 
   const handleCreateMember = async (e: React.FormEvent) => {
@@ -534,6 +553,18 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                           <span className={member.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}>
                             {member.is_active ? 'Active' : 'Suspended'}
                           </span>
+                        </span>
+                      </div>
+
+                      {/* Branch Scope Badge */}
+                      <div className="text-3xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 pt-1">
+                        <MapPin className="w-3 h-3 text-primary-600 dark:text-primary-400 shrink-0" />
+                        <span>
+                          {member.all_locations_access
+                            ? 'All Branches'
+                            : (member.assigned_locations_details && member.assigned_locations_details.length > 0)
+                              ? member.assigned_locations_details.map(d => d.name).join(', ')
+                              : 'Main Store Only'}
                         </span>
                       </div>
 
@@ -862,6 +893,58 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                 </div>
               </div>
 
+              {/* Branch / Location Scoping */}
+              {locations.length > 1 && (
+                <div className="space-y-1.5 pt-2">
+                  <label className="block text-gray-700 dark:text-gray-300 font-medium text-xs">
+                    Store Branch Access
+                  </label>
+                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={formAllLocations}
+                        onChange={(e) => {
+                          setFormAllLocations(e.target.checked);
+                          if (e.target.checked) setFormAssignedLocations([]);
+                        }}
+                        className="rounded text-brand-500 focus:ring-brand-500"
+                      />
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                        Full Access to All Locations (Current & Future)
+                      </span>
+                    </label>
+
+                    {!formAllLocations && (
+                      <div className="pl-6 pt-1 space-y-1.5 border-t border-gray-200 dark:border-neutral-800">
+                        <p className="text-3xs text-gray-500 uppercase font-semibold tracking-wider">
+                          Select Permitted Branches:
+                        </p>
+                        {locations.map(loc => (
+                          <label key={loc.id} className="flex items-center gap-2 cursor-pointer select-none py-0.5">
+                            <input
+                              type="checkbox"
+                              checked={formAssignedLocations.includes(loc.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormAssignedLocations([...formAssignedLocations, loc.id]);
+                                } else {
+                                  setFormAssignedLocations(formAssignedLocations.filter(id => id !== loc.id));
+                                }
+                              }}
+                              className="rounded text-brand-500 focus:ring-brand-500"
+                            />
+                            <span className="text-xs text-gray-800 dark:text-gray-200">
+                              {loc.name} {loc.is_main ? '(HQ)' : ''} — <span className="text-gray-400">{loc.city}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-border dark:border-surface-dark-border">
                 <Button
@@ -1006,6 +1089,58 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   ))}
                 </div>
               </div>
+
+              {/* Branch / Location Scoping in Edit Modal */}
+              {locations.length > 1 && (
+                <div className="space-y-1.5 pt-2">
+                  <label className="block text-gray-700 dark:text-gray-300 font-medium text-xs">
+                    Store Branch Access
+                  </label>
+                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={editAllLocations}
+                        onChange={(e) => {
+                          setEditAllLocations(e.target.checked);
+                          if (e.target.checked) setEditAssignedLocations([]);
+                        }}
+                        className="rounded text-brand-500 focus:ring-brand-500"
+                      />
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                        Full Access to All Locations (Current & Future)
+                      </span>
+                    </label>
+
+                    {!editAllLocations && (
+                      <div className="pl-6 pt-1 space-y-1.5 border-t border-gray-200 dark:border-neutral-800">
+                        <p className="text-3xs text-gray-500 uppercase font-semibold tracking-wider">
+                          Select Permitted Branches:
+                        </p>
+                        {locations.map(loc => (
+                          <label key={loc.id} className="flex items-center gap-2 cursor-pointer select-none py-0.5">
+                            <input
+                              type="checkbox"
+                              checked={editAssignedLocations.includes(loc.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditAssignedLocations([...editAssignedLocations, loc.id]);
+                                } else {
+                                  setEditAssignedLocations(editAssignedLocations.filter(id => id !== loc.id));
+                                }
+                              }}
+                              className="rounded text-brand-500 focus:ring-brand-500"
+                            />
+                            <span className="text-xs text-gray-800 dark:text-gray-200">
+                              {loc.name} {loc.is_main ? '(HQ)' : ''} — <span className="text-gray-400">{loc.city}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setEditModalMember(null)}>

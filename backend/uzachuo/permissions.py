@@ -279,3 +279,70 @@ class IsSellerOrAbove(permissions.BasePermission):
         ).exists()
 
 
+def get_user_location_scope(user, requested_location_id=None):
+    """
+    Returns (allowed_location_ids, active_location) for the given user.
+    - Superusers: can access any location.
+    - Business Owners: can access all their own active locations.
+    - Team Members:
+        * If all_locations_access=True: all of the owner's active locations.
+        * If specific assigned_locations: only those assigned IDs.
+    """
+    if not user or not user.is_authenticated:
+        return ([], None)
+
+    from marketplace.models import StoreLocation, TeamMember
+
+    if user.is_superuser:
+        all_ids = list(StoreLocation.objects.filter(is_active=True).values_list('id', flat=True))
+        active = None
+        if requested_location_id:
+            active = StoreLocation.objects.filter(id=requested_location_id, is_active=True).first()
+        if not active and all_ids:
+            active = StoreLocation.objects.filter(id=all_ids[0]).first()
+        return (all_ids, active)
+
+    # Check if user is a store owner
+    owned_locs = list(StoreLocation.objects.filter(owner=user, is_active=True).values_list('id', flat=True))
+    if owned_locs:
+        active = None
+        if requested_location_id and int(requested_location_id) in owned_locs:
+            active = StoreLocation.objects.filter(owner=user, id=requested_location_id, is_active=True).first()
+        if not active:
+            active = StoreLocation.objects.filter(owner=user, is_main=True, is_active=True).first() or StoreLocation.objects.filter(owner=user, id=owned_locs[0]).first()
+        return (owned_locs, active)
+
+    # Check active team memberships
+    memberships = TeamMember.objects.filter(
+        user=user, invitation_status='accepted', is_active=True
+    ).prefetch_related('assigned_locations')
+
+    allowed_ids = set()
+    for tm in memberships:
+        owner = tm.owner
+        is_owner_business = (
+            getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+            owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+            owner.is_superuser
+        )
+        if not is_owner_business:
+            continue
+
+        if tm.all_locations_access:
+            owner_locs = StoreLocation.objects.filter(owner=owner, is_active=True).values_list('id', flat=True)
+            allowed_ids.update(owner_locs)
+        else:
+            assigned = tm.assigned_locations.filter(is_active=True).values_list('id', flat=True)
+            allowed_ids.update(assigned)
+
+    allowed_list = list(allowed_ids)
+    active = None
+    if requested_location_id and int(requested_location_id) in allowed_list:
+        active = StoreLocation.objects.filter(id=requested_location_id, is_active=True).first()
+    elif allowed_list:
+        active = StoreLocation.objects.filter(id__in=allowed_list, is_main=True, is_active=True).first() or StoreLocation.objects.filter(id=allowed_list[0]).first()
+
+    return (allowed_list, active)
+
+
+

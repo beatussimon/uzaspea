@@ -3,7 +3,7 @@ import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, CalendarDays, Banknote, Tag } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, CalendarDays, Banknote, Tag, MapPin, Check } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -476,9 +476,10 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
 };
 
 const DashboardPOS: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeLocation, setActiveLocation, assignedLocations } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -503,6 +504,14 @@ const DashboardPOS: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const receiptScrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-set default active location if not already selected
+  useEffect(() => {
+    if (!activeLocation && assignedLocations && assignedLocations.length > 0) {
+      const main = assignedLocations.find(l => l.is_main) || assignedLocations[0];
+      setActiveLocation(main);
+    }
+  }, [activeLocation, assignedLocations]);
+
   useEffect(() => {
     if (receiptData && receiptScrollRef.current) {
       receiptScrollRef.current.scrollTop = 0;
@@ -514,15 +523,52 @@ const DashboardPOS: React.FC = () => {
     const endpoint = `/api/products/?mine=true&is_draft=false&page=1&page_size=100`;
 
     api.get(endpoint)
-      .then((res) => {
+      .then(async (res) => {
         let prods = res.data.results || res.data;
         if (Array.isArray(prods)) {
-          prods = prods.map((p: any) => ({
-            ...p,
-            variants: Array.isArray(p.variants)
-              ? p.variants.filter((v: any) => v.is_available !== false)
-              : []
-          }));
+          if (activeLocation?.id) {
+            try {
+              const invRes = await api.get(`/api/locations/${activeLocation.id}/inventory/?page_size=250`);
+              const stockMap = new Map();
+              const invItems = invRes.data.results || invRes.data || [];
+              invItems.forEach((it: any) => {
+                const key = `${it.product}_${it.variant || 'none'}`;
+                stockMap.set(key, it);
+              });
+
+              prods = prods.map((p: any) => {
+                const baseStock = stockMap.get(`${p.id}_none`);
+                const effectiveStock = baseStock !== undefined ? parseFloat(baseStock.quantity) : p.stock;
+                const effectivePrice = (baseStock && baseStock.price_override) ? baseStock.price_override : p.price;
+                
+                const variants = Array.isArray(p.variants)
+                  ? p.variants.filter((v: any) => v.is_available !== false).map((v: any) => {
+                      const varStock = stockMap.get(`${p.id}_${v.id}`);
+                      return {
+                        ...v,
+                        stock: varStock !== undefined ? parseFloat(varStock.quantity) : v.stock,
+                        final_price: (varStock && varStock.price_override) ? varStock.price_override : v.final_price
+                      };
+                    })
+                  : [];
+                return {
+                  ...p,
+                  stock: effectiveStock,
+                  price: effectivePrice,
+                  variants
+                };
+              });
+            } catch (e) {
+              console.error('Failed to overlay location inventory', e);
+            }
+          } else {
+            prods = prods.map((p: any) => ({
+              ...p,
+              variants: Array.isArray(p.variants)
+                ? p.variants.filter((v: any) => v.is_available !== false)
+                : []
+            }));
+          }
           setProducts(prods);
         }
       })
@@ -532,7 +578,7 @@ const DashboardPOS: React.FC = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [activeLocation?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -725,6 +771,7 @@ const DashboardPOS: React.FC = () => {
         amount_paid: amountPaid ? parseFloat(amountPaid) : null,
         promo_code: appliedPromo ? appliedPromo.code : null,
         discount_amount: discountAmount,
+        location_id: activeLocation?.id || null,
         items: cart.map(item => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
@@ -817,16 +864,65 @@ const DashboardPOS: React.FC = () => {
       {/* Header & Tab Switcher */}
       <header className="space-y-1.5 sm:space-y-2">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-              {t('point_of_sale', 'Point of Sale (POS)')}
-            </h1>
-            <p 
-              className="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm truncate mt-0.5"
-              title={t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
-            >
-              {t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
-            </p>
+          <div className="min-w-0 flex items-center gap-2.5 sm:gap-3 flex-wrap">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                {t('point_of_sale', 'Point of Sale (POS)')}
+              </h1>
+              <p 
+                className="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm truncate mt-0.5"
+                title={t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
+              >
+                {t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
+              </p>
+            </div>
+
+            {/* Terminal Branch Selector / Badge */}
+            {assignedLocations && assignedLocations.length > 1 ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 border border-primary-200/80 dark:border-primary-800/60 shadow-2xs hover:bg-primary-100 dark:hover:bg-primary-900/50 transition cursor-pointer"
+                  title={t('switch_branch', 'Switch terminal branch')}
+                >
+                  <MapPin size={12} className="text-primary-600 dark:text-primary-400 shrink-0" />
+                  <span className="truncate max-w-[130px] sm:max-w-[170px]">{activeLocation?.name || t('all_locations', 'Main Store')}</span>
+                  <ChevronDown size={11} className={`opacity-60 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {locationDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setLocationDropdownOpen(false)} />
+                    <div className="absolute left-0 top-full mt-1.5 w-56 bg-white dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-in fade-in duration-150">
+                      <div className="px-3 py-1.5 text-3xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-neutral-800">
+                        {t('terminal_location', 'Terminal Branch')}
+                      </div>
+                      {assignedLocations.map(loc => (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveLocation(loc);
+                            setLocationDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-gray-50 dark:hover:bg-neutral-800/80 transition cursor-pointer ${
+                            activeLocation?.id === loc.id ? 'font-bold text-primary-600 dark:text-primary-400 bg-primary-50/50 dark:bg-primary-950/20' : 'text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <span className="truncate">{loc.name} {loc.is_main ? `(${t('main_hq', 'HQ')})` : ''}</span>
+                          {activeLocation?.id === loc.id && <Check size={12} className="shrink-0 text-primary-600 dark:text-primary-400" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (activeLocation || assignedLocations[0]) ? (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-neutral-700/60 shadow-2xs">
+                <MapPin size={11} className="text-primary-600 dark:text-primary-400 shrink-0" />
+                <span className="truncate max-w-[140px]">{activeLocation?.name || assignedLocations[0]?.name}</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-end md:justify-start gap-1.5 sm:gap-2 w-full md:w-auto shrink-0">
@@ -1169,10 +1265,22 @@ const DashboardPOS: React.FC = () => {
                   `}
                 </style>
 
-                {/* Logo Area */}
+                {/* Logo & Branch Area */}
                 <div className="text-center mb-3">
                   <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-1.5" style={{ maxWidth: '96px', maxHeight: '42px' }} />
-                  <p className="text-[10px] text-gray-500">{t('pos_receipt_tagline', 'Premium Quality Products')}</p>
+                  <p className="font-bold text-xs text-gray-900 uppercase">
+                    {receiptData?.delivery_info?.location_name || activeLocation?.name || user?.business_name || 'Uzaspea Store'}
+                  </p>
+                  {(receiptData?.delivery_info?.location_address || activeLocation?.address) && (
+                    <p className="text-[10px] text-gray-600 mt-0.5">
+                      {receiptData?.delivery_info?.location_address || activeLocation?.address}
+                    </p>
+                  )}
+                  {(receiptData?.delivery_info?.location_phone || activeLocation?.phone) && (
+                    <p className="text-[10px] text-gray-600">
+                      Tel: {receiptData?.delivery_info?.location_phone || activeLocation?.phone}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">

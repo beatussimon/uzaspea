@@ -10,7 +10,8 @@ from .models import (
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication, SellerSiteVisit,
     TeamMember, TeamMemberAuditLog, StoreImage, ProductPriceTier, ProductRequest,
     VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername
+    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername,
+    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem
 )
 
 
@@ -496,6 +497,33 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     distance = serializers.FloatField(read_only=True, required=False, allow_null=True)
     can_review = serializers.SerializerMethodField()
     is_sponsored = serializers.SerializerMethodField()
+    branch_availability = serializers.SerializerMethodField(read_only=True)
+
+    def get_branch_availability(self, obj):
+        from marketplace.models import LocationStock
+        stocks = LocationStock.objects.filter(
+            product=obj,
+            variant__isnull=True,
+            location__is_active=True
+        ).select_related('location')
+
+        if not stocks.exists():
+            return []
+
+        result = []
+        for s in stocks:
+            result.append({
+                'location_id': s.location.id,
+                'location_name': s.location.name,
+                'city': s.location.city,
+                'district': s.location.district,
+                'is_main': s.location.is_main,
+                'quantity': float(s.quantity),
+                'price': float(s.effective_price),
+                'has_override': s.price_override is not None,
+                'in_stock': s.quantity > 0,
+            })
+        return result
 
     def get_is_sponsored(self, obj):
         if hasattr(obj, 'annotated_is_sponsored'):
@@ -519,6 +547,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude', 'distance',
                   'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
                   'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details',
+                  'branch_availability',
                   'has_a_plus_content', 'a_plus_content']
         read_only_fields = ['seller', 'slug']
 
@@ -1254,6 +1283,7 @@ class OrderSerializer(serializers.ModelSerializer):
     promo_code_code = serializers.CharField(source='promo_code.code', read_only=True)
     promo_code_details = serializers.SerializerMethodField(read_only=True)
     discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    fulfillment_location_name = serializers.CharField(source='fulfillment_location.name', read_only=True, default=None)
     
     class Meta:
         model = Order
@@ -1261,6 +1291,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'delivery_latitude', 'delivery_longitude',
+            'fulfillment_location', 'fulfillment_location_name',
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
@@ -2248,6 +2279,12 @@ class SellerSiteVisitSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
 
+class StoreLocationBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreLocation
+        fields = ['id', 'name', 'slug', 'is_main', 'is_active', 'city', 'district', 'address_line', 'phone']
+
+
 class TeamMemberSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -2259,6 +2296,10 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     
     user_details = serializers.SerializerMethodField(read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
+    assigned_locations = serializers.PrimaryKeyRelatedField(
+        queryset=StoreLocation.objects.all(), many=True, required=False
+    )
+    assigned_locations_details = StoreLocationBriefSerializer(source='assigned_locations', many=True, read_only=True)
 
     class Meta:
         model = TeamMember
@@ -2266,7 +2307,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'id', 'owner', 'owner_username', 'user', 'username', 'password',
             'email', 'first_name', 'last_name', 'phone_number', 'create_user',
             'user_details', 'permissions', 'invitation_status', 'is_active',
-            'role_preset', 'created_by_owner', 'contact_phone', 'notes', 'created_at'
+            'role_preset', 'created_by_owner', 'contact_phone', 'notes', 'created_at',
+            'all_locations_access', 'assigned_locations', 'assigned_locations_details'
         ]
         read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_by_owner', 'created_at']
 
@@ -2358,6 +2400,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         role_preset = validated_data.get('role_preset', 'custom')
         contact_phone = validated_data.get('contact_phone') or phone_number
         notes = validated_data.get('notes', '')
+        all_locations_access = validated_data.pop('all_locations_access', False)
+        assigned_locations = validated_data.pop('assigned_locations', [])
 
         from django.contrib.auth import get_user_model
         from .models import push_notification, TeamMemberAuditLog
@@ -2389,15 +2433,22 @@ class TeamMemberSerializer(serializers.ModelSerializer):
                 role_preset=role_preset,
                 created_by_owner=True,
                 contact_phone=contact_phone,
-                notes=notes
+                notes=notes,
+                all_locations_access=all_locations_access
             )
+            if assigned_locations:
+                member.assigned_locations.set(assigned_locations)
 
             TeamMemberAuditLog.objects.create(
                 owner=owner,
                 target_user=user,
                 performed_by=owner,
                 action='user_created',
-                detail={'permissions': permissions, 'role_preset': role_preset, 'created_by_owner': True}
+                detail={
+                    'permissions': permissions, 'role_preset': role_preset,
+                    'created_by_owner': True, 'all_locations_access': all_locations_access,
+                    'assigned_locations': [loc.id for loc in assigned_locations]
+                }
             )
             return member
         else:
@@ -2412,8 +2463,11 @@ class TeamMemberSerializer(serializers.ModelSerializer):
                 role_preset=role_preset,
                 created_by_owner=False,
                 contact_phone=contact_phone,
-                notes=notes
+                notes=notes,
+                all_locations_access=all_locations_access
             )
+            if assigned_locations:
+                member.assigned_locations.set(assigned_locations)
 
             try:
                 push_notification(
@@ -2429,7 +2483,11 @@ class TeamMemberSerializer(serializers.ModelSerializer):
                 target_user=user,
                 performed_by=owner,
                 action='invited',
-                detail={'permissions': permissions, 'role_preset': role_preset}
+                detail={
+                    'permissions': permissions, 'role_preset': role_preset,
+                    'all_locations_access': all_locations_access,
+                    'assigned_locations': [loc.id for loc in assigned_locations]
+                }
             )
             return member
 
@@ -2583,4 +2641,150 @@ class ReservedUsernameSerializer(serializers.ModelSerializer):
         if not ok:
             raise serializers.ValidationError(err)
         return val
+
+
+# =============================================================================
+# MULTI-LOCATION & MULTI-BRANCH SERIALIZERS
+# =============================================================================
+
+class StoreLocationSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(source='owner.username', read_only=True)
+    inventory_count = serializers.SerializerMethodField(read_only=True)
+    assigned_staff_count = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = StoreLocation
+        fields = [
+            'id', 'owner', 'owner_username', 'name', 'slug', 'is_main',
+            'is_active', 'phone', 'whatsapp', 'address_line', 'city',
+            'district', 'latitude', 'longitude', 'operating_hours',
+            'override_lipa_number', 'inventory_count', 'assigned_staff_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'owner', 'slug', 'created_at', 'updated_at']
+
+    def get_inventory_count(self, obj):
+        return obj.inventory.filter(quantity__gt=0).count()
+
+    def get_assigned_staff_count(self, obj):
+        return obj.assigned_team_members.filter(is_active=True).count()
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+        
+        # Check Business Tier subscription if creating more than 1 location
+        is_business = (
+            getattr(getattr(user, 'profile', None), 'tier', None) == 'business' or
+            user.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+            user.is_superuser
+        )
+        if not is_business and self.instance is None:
+            existing_count = StoreLocation.objects.filter(owner=user).count()
+            if existing_count >= 1:
+                raise serializers.ValidationError(
+                    "Operating multiple store branches is an exclusive Business tier feature. Please upgrade to Uzaspea Business to create additional locations."
+                )
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data['owner'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class LocationStockSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+    product_image = serializers.SerializerMethodField(read_only=True)
+    variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    effective_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    master_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = LocationStock
+        fields = [
+            'id', 'location', 'location_name', 'product', 'product_name',
+            'product_slug', 'product_sku', 'product_image', 'variant', 'variant_name',
+            'quantity', 'low_stock_threshold', 'price_override',
+            'effective_price', 'master_price', 'updated_at'
+        ]
+        read_only_fields = ['id', 'updated_at']
+
+    def get_product_image(self, obj):
+        img = obj.product.images.first()
+        return img.image.url if img and img.image else None
+
+
+class LocationStockBatchUpdateSerializer(serializers.Serializer):
+    items = serializers.ListField(
+        child=serializers.DictField(),
+        allow_empty=False
+    )
+
+    def validate_items(self, items):
+        for item in items:
+            if 'product_id' not in item and 'stock_id' not in item:
+                raise serializers.ValidationError("Each item must provide either 'stock_id' or 'product_id'.")
+            if 'quantity' not in item:
+                raise serializers.ValidationError("Each item must specify 'quantity'.")
+        return items
+
+
+class RegisterSessionSerializer(serializers.ModelSerializer):
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    opened_by_username = serializers.CharField(source='opened_by.username', read_only=True)
+    closed_by_username = serializers.CharField(source='closed_by.username', read_only=True, allow_null=True)
+
+    class Meta:
+        model = RegisterSession
+        fields = [
+            'id', 'location', 'location_name', 'opened_by', 'opened_by_username',
+            'closed_by', 'closed_by_username', 'opening_float',
+            'closing_cash_counted', 'expected_cash', 'cash_variance',
+            'status', 'notes', 'opened_at', 'closed_at'
+        ]
+        read_only_fields = ['id', 'opened_by', 'closed_by', 'expected_cash', 'cash_variance', 'opened_at', 'closed_at']
+
+
+class StockTransferItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = StockTransferItem
+        fields = [
+            'id', 'transfer', 'product', 'product_name',
+            'variant', 'variant_name', 'quantity_dispatched',
+            'quantity_received', 'notes'
+        ]
+        read_only_fields = ['id']
+
+
+class StockTransferSerializer(serializers.ModelSerializer):
+    source_location_name = serializers.CharField(source='source_location.name', read_only=True)
+    destination_location_name = serializers.CharField(source='destination_location.name', read_only=True)
+    items = StockTransferItemSerializer(many=True, read_only=True)
+    dispatched_by_username = serializers.CharField(source='dispatched_by.username', read_only=True, allow_null=True)
+    received_by_username = serializers.CharField(source='received_by.username', read_only=True, allow_null=True)
+
+    class Meta:
+        model = StockTransfer
+        fields = [
+            'id', 'owner', 'source_location', 'source_location_name',
+            'destination_location', 'destination_location_name',
+            'status', 'tracking_number', 'notes', 'items',
+            'dispatched_by', 'dispatched_by_username', 'dispatched_at',
+            'received_by', 'received_by_username', 'received_at',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'owner', 'tracking_number', 'dispatched_by', 'dispatched_at',
+            'received_by', 'received_at', 'created_at', 'updated_at'
+        ]
+
 

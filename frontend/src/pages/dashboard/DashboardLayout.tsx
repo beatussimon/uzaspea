@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, ArrowDownToLine } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, ArrowDownToLine, MapPin, ArrowLeftRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { useAuth, useUserRoles } from '../../context/AuthContext';
@@ -18,6 +18,8 @@ import MyTeamPage from './MyTeamPage';
 import DashboardPOS from './DashboardPOS';
 import ProductRequestsBoard from './ProductRequestsBoard';
 import InvoicesPage from './InvoicesPage';
+import BranchesManagerPage from './BranchesManagerPage';
+import StockTransfersPage from './StockTransfersPage';
 import SubscriptionExpiredView from './SubscriptionExpiredView';
 
 // ============ Dashboard Layout ============
@@ -427,6 +429,8 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/pos', label: t('point_of_sale', 'Point of Sale'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/billing', label: t('billing_commission', 'Billing & Commission'), icon: Wallet, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/payment-numbers', label: t('payment_numbers', 'Payment Numbers'), icon: CreditCard, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/branches', label: t('store_branches', 'Store Branches'), icon: MapPin, show: isBusiness },
+    { path: '/dashboard/transfers', label: t('stock_transfers', 'Stock Transfers'), icon: ArrowLeftRight, show: isBusiness || (isWorker && perms.manage_products) },
     { path: '/dashboard/team', label: t('team_members', 'Team Members'), icon: Shield, show: isBusiness },
     { path: '/dashboard/my-team', label: t('teams', 'Teams'), icon: Shield, show: isWorker },
   ];
@@ -805,6 +809,8 @@ const DashboardLayout: React.FC = () => {
           <Route path="promotions" element={(!isWorker || perms.manage_products) ? <DashboardPromotions /> : <Navigate to="/dashboard" replace />} />
           <Route path="billing" element={(!isWorker || perms.view_analytics) ? <BillingPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="payment-numbers" element={(!isWorker || perms.view_analytics) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
+          {isBusiness && <Route path="branches" element={<BranchesManagerPage />} />}
+          {(isBusiness || (isWorker && perms.manage_products)) && <Route path="transfers" element={<StockTransfersPage />} />}
           {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
           {isWorker && <Route path="my-team" element={<MyTeamPage />} />}
           <Route path="settings" element={<SettingsPage />} />

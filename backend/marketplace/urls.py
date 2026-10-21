@@ -18,7 +18,8 @@ from .api_views import (
     ProductRequestViewSet, SellerAnalyticsView,
     VehicleMakeViewSet, VehicleModelViewSet, VehicleViewSet,
     BrandViewSet, ReferenceProductViewSet,
-    ReservedUsernameStaffViewSet, CheckUsernameView
+    ReservedUsernameStaffViewSet, CheckUsernameView,
+    StoreLocationViewSet, LocationStockViewSet, RegisterSessionViewSet, StockTransferViewSet
 )
 
 from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
@@ -62,6 +63,10 @@ router.register(r'price-alerts', PriceAlertViewSet, basename='price-alert')
 router.register(r'disputes', DisputeViewSet, basename='dispute')
 router.register(r'delivery-zones', DeliveryZoneViewSet, basename='delivery-zone')
 router.register(r'variants', ProductVariantViewSet, basename='variant')
+router.register(r'locations', StoreLocationViewSet, basename='location')
+router.register(r'location-stocks', LocationStockViewSet, basename='location-stock')
+router.register(r'register-sessions', RegisterSessionViewSet, basename='register-session')
+router.register(r'stock-transfers', StockTransferViewSet, basename='stock-transfer')
 router.register(r'staff-admin/password-requests', PasswordResetRequestStaffViewSet, basename='staff-password-request')
 router.register(r'staff-admin/reserved-usernames', ReservedUsernameStaffViewSet, basename='staff-reserved-usernames')
 urlpatterns = [

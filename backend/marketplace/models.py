@@ -427,6 +427,9 @@ class Product(models.Model):
             else:
                 raise exc
 
+        if not kwargs.get('raw'):
+            sync_seller_main_store_stock(self)
+
     def __str__(self):
         return self.name
 
@@ -814,6 +817,11 @@ class Order(models.Model):
     is_bulk_order = models.BooleanField(default=False, db_index=True)
     delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    fulfillment_location = models.ForeignKey(
+        'StoreLocation', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='orders',
+        help_text="The physical store location that fulfilled or will fulfill this order"
+    )
 
     def __str__(self):
         return f"Order #{self.id} by {self.user.username}"
@@ -1395,6 +1403,8 @@ class ProductVariant(models.Model):
         super().save(*args, **kwargs)
         if self.image:
             convert_and_save_image(self, 'image', max_width=1000)
+        if not kwargs.get('raw'):
+            sync_seller_main_store_stock(self.product, self)
 
     def __str__(self):
         return f'{self.product.name} — {self.name}'
@@ -1773,6 +1783,303 @@ def invalidate_category_cache(sender, instance, **kwargs):
         cache.clear()
 
 
+# =============================================================================
+# MULTI-LOCATION & MULTI-BRANCH INVENTORY MODELS
+# =============================================================================
+
+def sync_parent_product_stock(product, variant=None):
+    """
+    Syncs master Product.stock and ProductVariant.stock with the sum of all LocationStock entries.
+    Ensures zero regressions for catalog queries while keeping multi-location stock accurate.
+    """
+    from django.db.models import Sum
+    if not product or not product.pk:
+        return
+    if variant and variant.pk:
+        total_var = LocationStock.objects.filter(variant=variant).aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+        ProductVariant.objects.filter(pk=variant.pk).update(
+            stock=int(total_var),
+            is_available=(total_var > 0)
+        )
+    
+    if product.variants.exists():
+        total_prod = LocationStock.objects.filter(product=product, variant__isnull=False).aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+    else:
+        total_prod = LocationStock.objects.filter(product=product, variant__isnull=True).aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+        
+    Product.objects.filter(pk=product.pk).update(
+        stock=total_prod,
+        is_available=(total_prod > 0)
+    )
+
+
+def sync_seller_main_store_stock(product, variant=None):
+    """
+    For sellers with a single location (Main Store), automatically keep LocationStock
+    synchronized with Product.stock or ProductVariant.stock.
+    """
+    try:
+        seller = getattr(product, 'seller', None)
+        if not seller:
+            return
+        # Find or create Main Store
+        main_loc = StoreLocation.objects.filter(owner=seller, is_main=True).first()
+        if not main_loc:
+            main_loc = StoreLocation.objects.filter(owner=seller).first()
+            if not main_loc:
+                profile = getattr(seller, 'profile', None)
+                addr = profile.location if profile and profile.location else "Dar es Salaam, Tanzania"
+                phone = profile.phone_number if profile and profile.phone_number else ""
+                main_loc = StoreLocation.objects.create(
+                    owner=seller,
+                    name="Main Store",
+                    is_main=True,
+                    is_active=True,
+                    address_line=addr,
+                    phone=phone,
+                    city="Dar es Salaam"
+                )
+
+        total_locations = StoreLocation.objects.filter(owner=seller).count()
+        if total_locations <= 1:
+            qty = variant.stock if variant else product.stock
+            LocationStock.objects.update_or_create(
+                location=main_loc,
+                product=product,
+                variant=variant,
+                defaults={'quantity': qty}
+            )
+        else:
+            has_stock_record = LocationStock.objects.filter(product=product, variant=variant).exists()
+            if not has_stock_record:
+                qty = variant.stock if variant else product.stock
+                LocationStock.objects.create(
+                    location=main_loc,
+                    product=product,
+                    variant=variant,
+                    quantity=qty
+                )
+    except Exception as e:
+        logger.warning(f"Failed to sync main store stock for product {getattr(product, 'id', None)}: {e}")
+
+
+class StoreLocation(models.Model):
+    """
+    Represents a physical branch, sub-store, or warehouse of a seller/business.
+    Single-store sellers have 1 default 'Main Store' (is_main=True).
+    Multi-branch operations are exclusive to Business tier subscribers.
+    """
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='store_locations')
+    name = models.CharField(max_length=150, help_text="e.g. 'Kariakoo Flagship', 'Sinza Mori Branch'")
+    slug = models.SlugField(max_length=160, blank=True)
+    is_main = models.BooleanField(default=False, help_text="HQ / primary business location. Exactly one per seller.")
+    is_active = models.BooleanField(default=True, help_text="Whether this branch is active and accepting orders.")
+    phone = models.CharField(max_length=30, blank=True, help_text="Direct phone line for this branch.")
+    whatsapp = models.CharField(max_length=30, blank=True, help_text="WhatsApp contact number for this branch.")
+    address_line = models.CharField(max_length=255, help_text="Street address / landmark")
+    city = models.CharField(max_length=100, default='Dar es Salaam')
+    district = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    operating_hours = models.JSONField(
+        default=dict, blank=True,
+        help_text="Weekly opening hours, e.g. {'mon': {'open': '08:00', 'close': '18:00', 'closed': false}, ...}"
+    )
+    override_lipa_number = models.ForeignKey(
+        'LipaNumber', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='store_locations',
+        help_text="Optional local till/paybill override for this physical branch."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_main', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'slug'], name='uniq_owner_location_slug')
+        ]
+        indexes = [
+            models.Index(fields=['owner', 'is_active']),
+            models.Index(fields=['city', 'district']),
+        ]
+
+    def __str__(self):
+        main_tag = " (Main)" if self.is_main else ""
+        return f"{self.name}{main_tag} — {self.owner.username}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "branch"
+            slug = base_slug
+            idx = 1
+            while StoreLocation.objects.filter(owner=self.owner, slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{idx}"
+                idx += 1
+            self.slug = slug
+
+        if self.is_main and self.owner_id:
+            # Enforce single main store per owner
+            StoreLocation.objects.filter(owner=self.owner, is_main=True).exclude(pk=self.pk).update(is_main=False)
+        elif not self.is_main and self.owner_id:
+            # If owner has no other main store, this one must be main
+            has_other_main = StoreLocation.objects.filter(owner=self.owner, is_main=True).exclude(pk=self.pk).exists()
+            if not has_other_main and not StoreLocation.objects.filter(owner=self.owner).exclude(pk=self.pk).exists():
+                self.is_main = True
+
+        super().save(*args, **kwargs)
+
+
+class LocationStock(models.Model):
+    """
+    Inventory allocation for a specific product / variant at a specific store location.
+    Supports optional price override for regional pricing differences.
+    """
+    location = models.ForeignKey(StoreLocation, on_delete=models.CASCADE, related_name='inventory')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='location_stocks')
+    variant = models.ForeignKey(
+        'ProductVariant', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='location_stocks'
+    )
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    low_stock_threshold = models.IntegerField(default=5)
+    price_override = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Optional branch-specific price. Inherits master product price when null."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['product__name', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['location', 'product'],
+                condition=models.Q(variant__isnull=True),
+                name='uniq_location_product_null_variant'
+            ),
+            models.UniqueConstraint(
+                fields=['location', 'product', 'variant'],
+                condition=models.Q(variant__isnull=False),
+                name='uniq_location_product_variant'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['location', 'product']),
+            models.Index(fields=['product', 'quantity']),
+        ]
+
+    def __str__(self):
+        v_tag = f" ({self.variant.name})" if self.variant else ""
+        return f"{self.product.name}{v_tag} @ {self.location.name}: {self.quantity}"
+
+    @property
+    def effective_price(self):
+        if self.price_override is not None:
+            return self.price_override
+        if self.variant:
+            return self.variant.final_price
+        return self.product.price
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not kwargs.get('raw'):
+            sync_parent_product_stock(self.product, self.variant)
+
+    def delete(self, *args, **kwargs):
+        prod = self.product
+        var = self.variant
+        res = super().delete(*args, **kwargs)
+        sync_parent_product_stock(prod, var)
+        return res
+
+
+class RegisterSession(models.Model):
+    """
+    Cash drawer / shift management for a branch POS register.
+    Tracks opening float, cash collections, card/mobile collections, and cash variance.
+    """
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+    ]
+    location = models.ForeignKey(StoreLocation, on_delete=models.CASCADE, related_name='register_sessions')
+    opened_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='opened_register_sessions')
+    closed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='closed_register_sessions')
+    opening_float = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Cash in register at shift start")
+    closing_cash_counted = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Actual cash counted at shift close")
+    expected_cash = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Opening float + cash sales during shift")
+    cash_variance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Difference (closing_cash_counted - expected_cash)")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
+    notes = models.TextField(blank=True)
+    opened_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-opened_at']
+        indexes = [
+            models.Index(fields=['location', 'status']),
+            models.Index(fields=['opened_by', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Shift #{self.id} @ {self.location.name} ({self.status}) by {self.opened_by.username}"
+
+
+class StockTransfer(models.Model):
+    """
+    Inter-branch inventory transfer manifest.
+    Manages stock dispatch from source location and receipt at destination location.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('in_transit', 'In Transit'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stock_transfers')
+    source_location = models.ForeignKey(StoreLocation, on_delete=models.PROTECT, related_name='outgoing_transfers')
+    destination_location = models.ForeignKey(StoreLocation, on_delete=models.PROTECT, related_name='incoming_transfers')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    tracking_number = models.CharField(max_length=64, blank=True, unique=True, null=True)
+    notes = models.TextField(blank=True)
+    dispatched_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='transfers_dispatched')
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    received_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='transfers_received')
+    received_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['owner', 'status']),
+            models.Index(fields=['source_location', 'status']),
+            models.Index(fields=['destination_location', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Transfer #{self.id} ({self.source_location.name} -> {self.destination_location.name}): {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.tracking_number and not self.pk:
+            self.tracking_number = f"TRF-{secrets.token_hex(4).upper()}"
+        super().save(*args, **kwargs)
+
+
+class StockTransferItem(models.Model):
+    """
+    Individual SKU line item inside an inter-branch StockTransfer.
+    """
+    transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='transfer_items')
+    variant = models.ForeignKey('ProductVariant', on_delete=models.CASCADE, null=True, blank=True, related_name='transfer_items')
+    quantity_dispatched = models.DecimalField(max_digits=12, decimal_places=2)
+    quantity_received = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    notes = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"{self.quantity_dispatched}x {self.product.name} in Transfer #{self.transfer_id}"
+
+
 TEAM_ROLE_PRESETS = {
     'store_manager': {
         'label': 'Store Manager',
@@ -1923,6 +2230,13 @@ class TeamMember(models.Model):
     role_preset = models.CharField(max_length=30, blank=True, help_text="Optional label of the role preset this member was invited under, for display purposes only. The `permissions` field is always the actual source of truth.")
     created_by_owner = models.BooleanField(default=False, help_text="True if the user account was directly provisioned by the business owner.")
     contact_phone = models.CharField(max_length=30, blank=True, help_text="Optional direct phone number for team member.")
+    all_locations_access = models.BooleanField(default=False, help_text="True if team member has access to all branches.")
+    assigned_locations = models.ManyToManyField(
+        StoreLocation,
+        blank=True,
+        related_name='assigned_team_members',
+        help_text="Specific store locations this team member is permitted to operate in."
+    )
     notes = models.TextField(blank=True, help_text="Internal notes by the business owner regarding this team member.")
     created_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
@@ -1944,6 +2258,7 @@ class TeamMemberAuditLog(models.Model):
         ('suspended', 'Suspended'),
         ('reactivated', 'Reactivated'),
         ('transferred', 'Role Transferred'),
+        ('location_access_changed', 'Location Access Changed'),
         ('removed', 'Removed'),
     ]
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_audit_entries')
