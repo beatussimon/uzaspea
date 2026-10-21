@@ -255,8 +255,8 @@ def for_you(ctx, per_shelf=None, even=True, min_items=None):
         cands = _entries(sim, config.W_SIMILAR, 'because_viewed') + \
             _entries(comp, config.W_COMPLEMENT, 'because_viewed', factor=0.8)
         plans.append({'id': f"because_{a['id']}", 'kind': 'because_viewed',
-                      'title': f"Because you viewed {a['name'][:40]}",
-                      'subtitle': 'Similar items and things that go with it',
+                      'title': f"More like {a['name'][:40]}",
+                      'subtitle': 'Similar items and accessories',
                       'category_slug': a['category__slug'] or '', 'cands': cands})
 
     if ctx.recent_ids:
