@@ -1127,7 +1127,7 @@ const DashboardPOS: React.FC = () => {
           >
             <button 
               onClick={() => setReceiptData(null)} 
-              className="absolute top-3 right-3 text-neutral-400 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full backdrop-blur-xs transition z-30 print-hidden cursor-pointer"
+              className="absolute top-3 right-3 text-neutral-400 hover:text-white transition z-30 print-hidden cursor-pointer p-1"
               aria-label="Close"
             >
               <X size={16} />
