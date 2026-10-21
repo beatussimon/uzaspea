@@ -3643,7 +3643,7 @@ const DashboardProducts: React.FC = () => {
                     onClick={() => handleTogglePosOnly(product)}
                     className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition shrink-0 flex items-center gap-1 ${
                       product.pos_only
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                        ? 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300'
                         : 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700'
                     }`}
                     title={product.pos_only ? "Currently POS. Click to make Public" : "Currently Public. Click to make POS"}
@@ -3653,7 +3653,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(product.slug)}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-600 hover:text-white rounded-lg transition shrink-0 ml-auto"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-gray-100 dark:bg-neutral-800 hover:bg-red-500/15 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-300 rounded-lg transition shrink-0 ml-auto"
                   >
                     Delete
                   </button>
