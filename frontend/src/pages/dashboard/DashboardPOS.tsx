@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, CalendarDays, Banknote, Tag } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
-import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { TableSkeleton, POSProductGridSkeleton } from '../../components/Skeleton';
@@ -82,16 +81,22 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
             <input 
               type="date" 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="input pl-8 py-1 text-xs"
+              className="pl-8 pr-3 py-1.5 text-xs font-semibold rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
             />
           </div>
           {dateFilter && (
-            <Button variant="outline" size="sm" onClick={() => setDateFilter('')} className="text-xs">{t('clear', 'Clear')}</Button>
+            <button 
+              type="button" 
+              onClick={() => setDateFilter('')} 
+              className="px-2.5 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition"
+            >
+              {t('clear', 'Clear')}
+            </button>
           )}
         </div>
       </div>
@@ -146,9 +151,13 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                       {change > 0 ? `TSh ${change.toLocaleString()}` : '—'}
                     </td>
                     <td className="p-3 text-center">
-                      <Button variant="outline" size="sm" onClick={() => onPrint(order)} className="text-2xs py-1 px-2.5 h-7 font-bold">
+                      <button
+                        type="button"
+                        onClick={() => onPrint(order)}
+                        className="inline-flex items-center text-2xs py-1 px-2.5 h-7 font-bold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-transparent border-0 cursor-pointer transition"
+                      >
                         <Printer size={12} className="mr-1" /> {t('view_receipt', 'View Receipt')}
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 );
