@@ -36,7 +36,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { KpiCard } from '../../components/ui/KpiCard';
 import SafeImage from '../../components/SafeImage';
-import { Skeleton, KpiGridSkeleton, TableSkeleton, CardGridSkeleton } from '../../components/Skeleton';
+import { Skeleton, KpiGridSkeleton, TableSkeleton, PromotionsCampaignListSkeleton } from '../../components/Skeleton';
 
 interface BoostPlan {
   days: number;
@@ -1097,66 +1097,66 @@ const location = useLocation();
       {/* KPI Metrics Row & Main Tab Bar (Temporarily hidden while creating new for better UI/UX) */}
       {!isCreating && (
         <>
-      {/* KPI Metrics Row */}
-      {initialLoading ? (
-        <KpiGridSkeleton count={4} cols={4} />
-      ) : (
-        activeTab === 'referrals' ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label={t('referral_sales', 'Referral Sales')}
-              value={`TSh ${Math.round(referralSummary.total_sales || 0).toLocaleString()}`}
-              icon={TrendingUp}
-            />
-            <KpiCard
-              label={t('commission_owed', 'Commission Owed')}
-              value={`TSh ${Math.round(referralSummary.total_commission_owed || 0).toLocaleString()}`}
-              icon={Ticket}
-            />
-            <KpiCard
-              label={t('commission_paid', 'Commission Paid')}
-              value={`TSh ${Math.round(referralSummary.total_commission_paid || 0).toLocaleString()}`}
-              icon={CheckCircle2}
-            />
-            <KpiCard
-              label={t('referral_orders', 'Referral Orders')}
-              value={referralSummary.total_orders || referralConversions.length}
-              icon={Package}
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label={t('active_placements', 'Active Placements')}
-              value={activeCampaignsCount}
-              sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
-              icon={Megaphone}
-            />
-            <KpiCard
-              label={t('active_coupons', 'Active Coupons')}
-              value={activeCouponsCount}
-              icon={Ticket}
-            />
-            <KpiCard
-              label={t('total_redemptions', 'Coupon Uses')}
-              value={totalRedemptions}
-              icon={TrendingUp}
-            />
-            <KpiCard
-              label={t('total_inventory', 'Store Products')}
-              value={products.length}
-              icon={Package}
-            />
-          </div>
-        )
-      )}
-
+      {/* KPI Metrics Row */}
+      {initialLoading ? (
+        <KpiGridSkeleton count={4} cols={4} className="!grid-cols-2 lg:!grid-cols-4 !gap-3" />
+      ) : (
+        activeTab === 'referrals' ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('referral_sales', 'Referral Sales')}
+              value={`TSh ${Math.round(referralSummary.total_sales || 0).toLocaleString()}`}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('commission_owed', 'Commission Owed')}
+              value={`TSh ${Math.round(referralSummary.total_commission_owed || 0).toLocaleString()}`}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('commission_paid', 'Commission Paid')}
+              value={`TSh ${Math.round(referralSummary.total_commission_paid || 0).toLocaleString()}`}
+              icon={CheckCircle2}
+            />
+            <KpiCard
+              label={t('referral_orders', 'Referral Orders')}
+              value={referralSummary.total_orders || referralConversions.length}
+              icon={Package}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              label={t('active_placements', 'Active Placements')}
+              value={activeCampaignsCount}
+              sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
+              icon={Megaphone}
+            />
+            <KpiCard
+              label={t('active_coupons', 'Active Coupons')}
+              value={activeCouponsCount}
+              icon={Ticket}
+            />
+            <KpiCard
+              label={t('total_redemptions', 'Coupon Uses')}
+              value={totalRedemptions}
+              icon={TrendingUp}
+            />
+            <KpiCard
+              label={t('total_inventory', 'Store Products')}
+              value={products.length}
+              icon={Package}
+            />
+          </div>
+        )
+      )}
+
       {/* Main Tab Bar */}
       {initialLoading ? (
         <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
-          <Skeleton className="h-7 w-36 rounded-full" />
-          <Skeleton className="h-7 w-28 rounded-full" />
-          <Skeleton className="h-7 w-40 rounded-full" />
+          <Skeleton className="h-8 w-44 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-36 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-48 rounded-full shrink-0" />
         </div>
       ) : (
         <div className="flex items-center gap-2 pb-1 overflow-x-auto scrollbar-none">
@@ -1212,7 +1212,7 @@ const location = useLocation();
             </span>
           </button>
         </div>
-      )}
+      )}
         </>
       )}
 
@@ -1566,13 +1566,13 @@ const location = useLocation();
           {initialLoading ? (
             <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <Skeleton className="h-6 w-28 rounded-full" />
-                <Skeleton className="h-6 w-24 rounded-full" />
-                <Skeleton className="h-6 w-20 rounded-full" />
-                <Skeleton className="h-6 w-28 rounded-full" />
+                <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+                <Skeleton className="h-7 w-28 rounded-full shrink-0" />
+                <Skeleton className="h-7 w-24 rounded-full shrink-0" />
+                <Skeleton className="h-7 w-20 rounded-full shrink-0" />
+                <Skeleton className="h-7 w-28 rounded-full shrink-0" />
               </div>
-              <Skeleton className="h-7 w-20 rounded-lg" />
+              <Skeleton className="h-7 w-20 rounded-lg shrink-0" />
             </div>
           ) : (
             <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
@@ -1617,7 +1617,7 @@ const location = useLocation();
 
           {/* Campaign List Grid */}
           {initialLoading ? (
-            <CardGridSkeleton count={3} cols={3} />
+            <PromotionsCampaignListSkeleton count={3} />
           ) : filteredPromotions.length === 0 ? (
             <EmptyState
               icon={Megaphone}
@@ -1869,7 +1869,7 @@ const location = useLocation();
           </div>
 
           {initialLoading ? (
-            <TableSkeleton rows={3} cols={5} />
+            <TableSkeleton rows={4} cols={7} />
           ) : promoCodes.length === 0 ? (
             <EmptyState
               icon={Ticket}
