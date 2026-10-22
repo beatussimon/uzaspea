@@ -1111,9 +1111,9 @@ const GlobalSearchModal: React.FC = () => {
                                 {item.type === 'product' && (
                                   <div className="shrink-0 flex items-center gap-3 pr-2">
                                     <div className="text-right">
-                                      <p className="font-bold text-sm text-brand-600 dark:text-brand-400">
+                                      <p className="font-bold text-sm text-neutral-900 dark:text-white">
                                         {item.price ? Number(item.price).toLocaleString() : 'Negotiable'}
-                                        {item.price && <span className="text-[10px] ml-1 font-normal text-neutral-500">TZS</span>}
+                                        {item.price && <span className="text-[10px] ml-1 font-normal text-neutral-500 dark:text-neutral-400">TZS</span>}
                                       </p>
                                     </div>
                                     <button
@@ -1132,7 +1132,7 @@ const GlobalSearchModal: React.FC = () => {
                                         }
                                         addToCart(item);
                                       }}
-                                      className="p-2 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 hover:bg-brand-500/20 transition-colors"
+                                      className="p-2 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white transition-colors"
                                       aria-label="Add to cart"
                                       title="Add to cart"
                                     >
