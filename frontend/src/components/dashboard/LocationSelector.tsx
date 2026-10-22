@@ -30,6 +30,30 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
     }
   }, [isBusiness, isTeamMember, user]);
 
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ right: 0 });
+
+  // Calculate dropdown positioning to prevent cutoff on mobile
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const menuWidth = 264;
+      const padding = 12;
+
+      // If aligning right causes menu to extend beyond left screen edge
+      if (rect.right - menuWidth < padding) {
+        if (rect.left + menuWidth <= window.innerWidth - padding) {
+          setMenuStyle({ left: 0, right: 'auto' });
+        } else {
+          // Clamp so that menu's left edge is at least `padding` from viewport left
+          const clampOffset = padding - rect.left;
+          setMenuStyle({ left: `${clampOffset}px`, right: 'auto' });
+        }
+      } else {
+        setMenuStyle({ right: 0, left: 'auto' });
+      }
+    }
+  }, [isOpen]);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -94,7 +118,10 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl bg-white dark:bg-[#141414] border-0 shadow-2xl z-50 p-2 animate-fade-in focus:outline-hidden space-y-1">
+        <div 
+          style={menuStyle}
+          className="absolute mt-2 w-64 max-w-[calc(100vw-24px)] rounded-2xl bg-white dark:bg-[#141414] border-0 shadow-2xl z-50 p-2 animate-fade-in focus:outline-hidden space-y-1"
+        >
           <div className="px-2.5 py-1.5">
             <p className="text-3xs uppercase font-bold tracking-wider text-gray-400 dark:text-neutral-500">
               Filter by Store Branch
