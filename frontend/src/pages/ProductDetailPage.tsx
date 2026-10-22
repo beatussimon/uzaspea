@@ -2442,43 +2442,6 @@ const ProductDetailPage: React.FC = () => {
                     );
                   })()}
                 </div>
-
-                {/* Branch Stock Availability Accordion */}
-                {product.branch_availability && product.branch_availability.length > 1 && (
-                  <div className="w-full mt-3 p-3 rounded-2xl bg-gray-50/80 dark:bg-neutral-900/60 border border-gray-200/80 dark:border-neutral-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white">
-                      <span className="flex items-center gap-1.5">
-                        <MapPin size={13} className="text-brand-600 dark:text-brand-400" />
-                        Available across {product.branch_availability.filter(b => b.in_stock).length} of {product.branch_availability.length} Store Branches
-                      </span>
-                    </div>
-                    <div className="divide-y divide-gray-100 dark:divide-neutral-800 text-xs">
-                      {product.branch_availability.map((b) => (
-                        <div key={b.location_id} className="py-1.5 flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${b.in_stock ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-neutral-700'}`} />
-                            <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{b.location_name}</span>
-                            {b.is_main && (
-                              <span className="text-4xs uppercase px-1 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold shrink-0">
-                                HQ
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {b.has_override && (
-                              <span className="text-2xs font-bold text-brand-600 dark:text-brand-400">
-                                TSh {Number(b.price).toLocaleString()}
-                              </span>
-                            )}
-                            <span className={`text-2xs font-bold ${b.in_stock ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
-                              {b.in_stock ? `${b.quantity} in stock` : 'Out of stock'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )
           ) : (
@@ -2486,6 +2449,43 @@ const ProductDetailPage: React.FC = () => {
                 <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-full cursor-not-allowed text-xs">
                   {t('out_of_stock')}
                 </button>
+              </div>
+            )}
+
+            {/* Branch Stock Availability Accordion */}
+            {product.branch_availability && product.branch_availability.length > 1 && (
+              <div className="w-full mt-2 p-3 rounded-2xl bg-gray-50/80 dark:bg-neutral-900/60 border border-gray-200/80 dark:border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={13} className="text-brand-600 dark:text-brand-400" />
+                    Available across {product.branch_availability.filter(b => b.in_stock).length} of {product.branch_availability.length} Store Branches
+                  </span>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-neutral-800 text-xs">
+                  {product.branch_availability.map((b) => (
+                    <div key={b.location_id} className="py-1.5 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${b.in_stock ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-neutral-700'}`} />
+                        <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{b.location_name}</span>
+                        {b.is_main && (
+                          <span className="text-4xs uppercase px-1 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold shrink-0">
+                            HQ
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {b.has_override && (
+                          <span className="text-2xs font-bold text-brand-600 dark:text-brand-400">
+                            TSh {Number(b.price).toLocaleString()}
+                          </span>
+                        )}
+                        <span className={`text-2xs font-bold ${b.in_stock ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                          {b.in_stock ? `${b.quantity} in stock` : 'Out of stock'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
