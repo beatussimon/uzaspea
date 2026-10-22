@@ -299,14 +299,14 @@ export const BranchesManagerPage: React.FC = () => {
                         {loc.name}
                       </h3>
                       {loc.is_main && (
-                        <span className="sm:hidden inline-flex items-center text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300">
+                        <span className="sm:hidden inline-flex items-center text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 translate-y-0.5">
                           HQ
                         </span>
                       )}
                     </div>
 
                     <span
-                      className={`inline-flex items-center text-3xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      className={`inline-flex items-center text-3xs font-bold px-2 py-0.5 rounded-full shrink-0 translate-y-0.5 ${
                         loc.is_active
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                           : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400'
