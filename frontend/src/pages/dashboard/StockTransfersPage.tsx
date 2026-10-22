@@ -362,12 +362,12 @@ export const StockTransfersPage: React.FC = () => {
                     {/* Routing */}
                     <div className="flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-gray-200 pt-0.5">
                       <span className="flex items-center gap-1 text-gray-600 dark:text-neutral-400">
-                        <MapPin size={12} className="text-brand-500" />
+                        <MapPin size={12} className="text-gray-400 dark:text-neutral-500" />
                         {t.source_location_name}
                       </span>
                       <ArrowRight size={13} className="text-gray-400" />
                       <span className="flex items-center gap-1 text-gray-900 dark:text-white font-bold">
-                        <MapPin size={12} className="text-purple-500" />
+                        <MapPin size={12} className="text-gray-400 dark:text-neutral-500" />
                         {t.destination_location_name}
                       </span>
                     </div>
@@ -390,7 +390,7 @@ export const StockTransfersPage: React.FC = () => {
 
                 {/* Collapsible Details Manifest */}
                 {isExpanded && (
-                  <div className="p-4 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/40 dark:bg-neutral-950/40 space-y-4">
+                  <div className="p-4 border-0 space-y-4">
                     {t.notes && (
                       <p className="text-xs text-gray-600 dark:text-neutral-400 italic">
                         &ldquo;{t.notes}&rdquo;
@@ -398,7 +398,7 @@ export const StockTransfersPage: React.FC = () => {
                     )}
 
                     {/* Itemized Table */}
-                    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-neutral-800">
+                    <div className="overflow-x-auto rounded-xl border-0">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-gray-100 dark:bg-neutral-800 text-3xs font-bold uppercase tracking-wider text-gray-500">
                           <tr>
@@ -408,7 +408,7 @@ export const StockTransfersPage: React.FC = () => {
                             <th className="px-3 py-2">Notes</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
+                        <tbody className="bg-white dark:bg-neutral-900">
                           {(t.items || []).map((item, idx) => (
                             <tr key={item.id || idx}>
                               <td className="px-3 py-2.5 font-semibold text-gray-900 dark:text-white">
@@ -694,8 +694,8 @@ export const StockTransfersPage: React.FC = () => {
       {/* Receive Modal */}
       {receiveModalOpen && selectedTransfer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl max-w-lg w-full p-6 space-y-4 border border-surface-border dark:border-surface-dark-border shadow-2xl animate-fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-neutral-800">
+          <div className="bg-white dark:bg-neutral-900 rounded-3xl max-w-lg w-full p-6 space-y-4 border-0 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between pb-2 border-0">
               <div>
                 <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <CheckCircle2 className="text-emerald-600" size={18} />
@@ -718,7 +718,7 @@ export const StockTransfersPage: React.FC = () => {
               Verify the quantities physically received at this branch. Stock will be credited immediately.
             </p>
 
-            <div className="rounded-xl border border-gray-200 dark:border-neutral-800 overflow-hidden">
+            <div className="rounded-xl border-0 overflow-hidden">
               <table className="w-full text-xs text-left">
                 <thead className="bg-gray-100 dark:bg-neutral-800 text-3xs uppercase font-bold text-gray-500">
                   <tr>
@@ -727,7 +727,7 @@ export const StockTransfersPage: React.FC = () => {
                     <th className="px-3 py-2 text-center w-28">Received Qty</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                <tbody>
                   {(selectedTransfer.items || []).map((item) => (
                     <tr key={item.id}>
                       <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">
@@ -746,7 +746,7 @@ export const StockTransfersPage: React.FC = () => {
                             const val = Math.max(0, Number(e.target.value) || 0);
                             setReceiveQuantities({ ...receiveQuantities, [String(item.id)]: val });
                           }}
-                          className="w-20 px-2 py-1 text-center font-bold text-xs rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                          className="w-20 px-2 py-1 text-center font-bold text-xs rounded-lg border-0 bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white"
                         />
                       </td>
                     </tr>
@@ -755,7 +755,7 @@ export const StockTransfersPage: React.FC = () => {
               </table>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-neutral-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-0">
               <Button
                 type="button"
                 variant="ghost"
