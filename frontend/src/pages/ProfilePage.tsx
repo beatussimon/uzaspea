@@ -977,7 +977,7 @@ const ProfilePage: React.FC = () => {
             )}
           </div>
         ) : activeTab === 'about' ? (
-          <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-neutral-800 shadow-sm space-y-6">
+          <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 rounded-2xl p-6 md:p-8 border-0 shadow-none space-y-6">
             
             <div className="space-y-3">
               <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">Biography</h3>
