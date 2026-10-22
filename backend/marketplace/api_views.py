@@ -6588,6 +6588,7 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
     Team members have access according to their location assignments.
     """
     serializer_class = StoreLocationSerializer
+    lookup_value_regex = r'[0-9]+'
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'inventory']:
@@ -6851,6 +6852,8 @@ class StockTransferViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return StockTransfer.objects.none()
         if user.is_superuser:
             return StockTransfer.objects.all().select_related('source_location', 'destination_location', 'owner')
         allowed_ids, _ = get_user_location_scope(user)
@@ -6876,9 +6879,9 @@ class StockTransferViewSet(viewsets.ModelViewSet):
                 notes=item.get('notes', '')
             )
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], url_path='dispatch')
     @transaction.atomic
-    def dispatch(self, request, pk=None):
+    def dispatch_transfer(self, request, pk=None):
         """Dispatch inventory from source location, decrementing source stock atomically."""
         transfer = self.get_object()
         if transfer.status != 'draft':

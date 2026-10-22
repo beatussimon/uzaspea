@@ -976,7 +976,7 @@ const ProfilePage: React.FC = () => {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'about' ? (
           <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-neutral-800 shadow-sm space-y-6">
             
             <div className="space-y-3">
@@ -1064,7 +1064,7 @@ const ProfilePage: React.FC = () => {
             )}
 
           </div>
-        )}
+        ) : null}
 
         {/* Branches Tab Content */}
         {isSellerProfile && activeTab === 'branches' && (
