@@ -986,7 +986,7 @@ const ProfilePage: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-gray-100 dark:border-neutral-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('verification_status')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
@@ -1014,7 +1014,7 @@ const ProfilePage: React.FC = () => {
 
             {/* Store Showcase (Max 9 images) */}
             {(profile.tier === 'seller_pro' || profile.tier === 'business' || (profile.store_images && profile.store_images.length > 0)) && (
-              <div className="pt-6 border-t border-gray-100 dark:border-neutral-800 space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
                     {t('store_showcase')} ({(profile.store_images || []).length}/9)
