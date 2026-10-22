@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
@@ -46,6 +46,13 @@ export const BranchesManagerPage: React.FC = () => {
   const [locations, setLocations] = useState<StoreLocation[]>([]);
   const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
+
+  const filteredLocations = useMemo(() => {
+    if (filterStatus === 'active') return locations.filter(l => l.is_active);
+    if (filterStatus === 'suspended') return locations.filter(l => !l.is_active);
+    return locations;
+  }, [locations, filterStatus]);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -66,6 +73,7 @@ export const BranchesManagerPage: React.FC = () => {
   const [gettingGps, setGettingGps] = useState(false);
 
   const [locationText, setLocationText] = useState('');
+  const [locationDetail, setLocationDetail] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
   const [searchingLocation, setSearchingLocation] = useState(false);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
@@ -158,6 +166,7 @@ export const BranchesManagerPage: React.FC = () => {
     // Format simple: City, District, Street
     const formatted = [detectedCity, detectedDistrict, placeTitle].filter(Boolean).join(', ');
     setLocationText(formatted);
+    setLocationDetail(place.display_name || formatted);
     setShowLocationSuggestions(false);
     toast.success(`Location set: ${formatted}`);
   };
@@ -197,6 +206,7 @@ export const BranchesManagerPage: React.FC = () => {
     setIsMain(locations.length === 0);
     setOverrideLipa('');
     setLocationText('');
+    setLocationDetail('');
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     suppressSearchRef.current = true;
@@ -219,6 +229,8 @@ export const BranchesManagerPage: React.FC = () => {
     // Format simple: City, District, Street
     const formatted = [loc.city, loc.district, loc.address_line].filter(Boolean).join(', ');
     setLocationText(formatted);
+    const detail = [loc.address_line, loc.district, loc.city, 'Tanzania'].filter(Boolean).join(', ');
+    setLocationDetail(detail);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     suppressSearchRef.current = true;
@@ -254,7 +266,9 @@ export const BranchesManagerPage: React.FC = () => {
           // Format simple: City, District, Street
           const formatted = [detectedCity, detectedDistrict, detectedRoad].filter(Boolean).join(', ');
           suppressSearchRef.current = true;
-          setLocationText(formatted || res.data?.address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          const fullAddress = res.data?.address || res.data?.raw?.display_name || formatted;
+          setLocationText(formatted || fullAddress || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          setLocationDetail(fullAddress);
 
           toast.success(`GPS Location: ${formatted || detectedCity}`);
         } catch {
@@ -357,17 +371,36 @@ export const BranchesManagerPage: React.FC = () => {
       toast.error('You cannot delete your only store location.');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete "${loc.name}"? Historical orders will retain this branch identifier.`)) {
-      return;
-    }
 
-    try {
-      await api.delete(`/api/locations/${loc.id}/`);
-      toast.success(`Branch "${loc.name}" deleted`);
-      fetchLocations();
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to delete branch';
-      toast.error(msg);
+    if (loc.is_active) {
+      // Stage 1: Soft-delete / Move to Suspended
+      const confirmed = window.confirm(
+        `"${loc.name}" will not be permanently deleted. It will be deactivated and moved to Suspended where it can be restored anytime.\n\nProceed to move to Suspended?`
+      );
+      if (!confirmed) return;
+
+      try {
+        await api.patch(`/api/locations/${loc.id}/`, { is_active: false });
+        toast.success(`"${loc.name}" moved to Suspended`);
+        setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, is_active: false } : l));
+      } catch {
+        toast.error('Failed to suspend branch');
+      }
+    } else {
+      // Stage 2: Permanent deletion from Suspended
+      const confirmed = window.confirm(
+        `Permanently delete "${loc.name}"?\n\nThis action cannot be undone and will permanently remove this store location.`
+      );
+      if (!confirmed) return;
+
+      try {
+        await api.delete(`/api/locations/${loc.id}/`);
+        toast.success(`Branch "${loc.name}" permanently deleted`);
+        setLocations(prev => prev.filter(l => l.id !== loc.id));
+      } catch (err: any) {
+        const msg = err.response?.data?.detail || 'Failed to delete branch';
+        toast.error(msg);
+      }
     }
   };
 
@@ -397,6 +430,42 @@ export const BranchesManagerPage: React.FC = () => {
           Manage physical stores, sub-branches, assigned personnel, and localized POS terminals.
         </p>
       </header>
+
+      {/* Gray Filter Tabs */}
+      {locations.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { key: 'all', label: 'All', count: locations.length },
+            { key: 'active', label: 'Active', count: locations.filter(l => l.is_active).length },
+            { key: 'suspended', label: 'Suspended', count: locations.filter(l => !l.is_active).length },
+          ].map((tab) => {
+            const isActive = filterStatus === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterStatus(tab.key as any)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-gray-100 dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+                    isActive
+                      ? 'bg-white/20 dark:bg-black/20 text-inherit'
+                      : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Subscription Banner for non-business users */}
       {!isBusiness && (
@@ -429,9 +498,22 @@ export const BranchesManagerPage: React.FC = () => {
             onClick: openAddModal,
           }}
         />
+      ) : filteredLocations.length === 0 ? (
+        <div className="py-12 text-center space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            No {filterStatus} store branches found.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilterStatus('all')}
+            className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
+          >
+            Show All Branches
+          </button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {locations.map((loc) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filteredLocations.map((loc) => (
             <div
               key={loc.id}
               className={`rounded-2xl border-0 transition-all duration-200 bg-white dark:bg-[#161616] flex flex-col justify-between shadow-sm overflow-hidden ${
@@ -442,14 +524,23 @@ export const BranchesManagerPage: React.FC = () => {
                 {/* Header Row */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="font-bold text-base text-gray-900 dark:text-white">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <h3 className="font-bold text-base text-gray-900 dark:text-white truncate">
                         {loc.name}
                       </h3>
-                      {loc.is_main && (
-                        <span className="sm:hidden inline-flex items-center text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 translate-y-0.5">
+                      {loc.is_main ? (
+                        <span className="inline-flex items-center text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 translate-y-0.5 shrink-0">
                           HQ
                         </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSetMain(loc)}
+                          className="inline-flex items-center text-3xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 dark:bg-white/5 dark:hover:bg-white/10 dark:text-gray-400 dark:hover:text-white transition cursor-pointer translate-y-0.5 shrink-0"
+                          title="Promote to Primary HQ Branch"
+                        >
+                          Make HQ
+                        </button>
                       )}
                     </div>
 
@@ -475,9 +566,12 @@ export const BranchesManagerPage: React.FC = () => {
 
                 {/* Address & City */}
                 <div className="text-xs text-gray-600 dark:text-gray-300">
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2 min-w-0">
                     <MapPin size={14} className="text-gray-400 shrink-0 mt-0.5" />
-                    <span className="font-medium">
+                    <span
+                      className="font-medium line-clamp-1 truncate"
+                      title={`${loc.address_line}${loc.district ? `, ${loc.district}` : ''}, ${loc.city}`}
+                    >
                       {loc.address_line}{loc.district ? `, ${loc.district}` : ''}, <strong className="text-gray-900 dark:text-white">{loc.city}</strong>
                     </span>
                   </div>
@@ -502,23 +596,21 @@ export const BranchesManagerPage: React.FC = () => {
               </div>
 
               {/* Card Footer Actions */}
-              <div className="px-5 pb-4 pt-0 bg-transparent border-0 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Button
+              <div className="px-5 pb-4 pt-1 bg-transparent border-0 flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
                     onClick={() => openEditModal(loc)}
-                    className="h-7 text-xs px-2.5 flex items-center gap-1"
+                    className="h-7 text-xs px-2.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white flex items-center gap-1 transition whitespace-nowrap shrink-0 cursor-pointer font-medium"
                   >
                     <Edit2 size={12} />
                     <span>Edit</span>
-                  </Button>
+                  </button>
 
                   {loc.phone && (
                     <a
                       href={`tel:${loc.phone}`}
-                      className="h-7 w-7 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center transition"
+                      className="h-7 w-7 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center transition shrink-0"
                       title={`Call ${loc.phone}`}
                       aria-label={`Call ${loc.phone}`}
                     >
@@ -535,36 +627,23 @@ export const BranchesManagerPage: React.FC = () => {
                       }
                       target={loc.whatsapp ? "_blank" : undefined}
                       rel={loc.whatsapp ? "noopener noreferrer" : undefined}
-                      className="h-7 w-7 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center transition"
+                      className="h-7 w-7 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center transition shrink-0"
                       title={loc.whatsapp ? `WhatsApp ${loc.whatsapp}` : `Text ${loc.phone}`}
                       aria-label={loc.whatsapp ? `WhatsApp ${loc.whatsapp}` : `Text ${loc.phone}`}
                     >
                       <MessageSquare size={13} />
                     </a>
                   )}
-
-                  {!loc.is_main && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSetMain(loc)}
-                      className="h-7 text-xs px-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
-                      title="Promote to Primary HQ Branch"
-                    >
-                      Make HQ
-                    </Button>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => handleToggleActive(loc)}
-                    className={`text-2xs font-semibold px-2 py-1 rounded-lg transition cursor-pointer ${
+                    className={`h-7 text-xs font-semibold px-2.5 rounded-lg transition whitespace-nowrap shrink-0 cursor-pointer ${
                       loc.is_active
-                        ? 'text-gray-500 hover:text-red-600'
-                        : 'text-emerald-600 hover:text-emerald-700 font-bold'
+                        ? 'text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20'
+                        : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold'
                     }`}
                   >
                     {loc.is_active ? 'Suspend' : 'Activate'}
@@ -574,8 +653,8 @@ export const BranchesManagerPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleDelete(loc)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                      title="Delete branch"
+                      className="h-7 w-7 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition shrink-0 cursor-pointer"
+                      title={loc.is_active ? "Move to Suspended" : "Permanently Delete Branch"}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -656,12 +735,13 @@ export const BranchesManagerPage: React.FC = () => {
                       onChange={(e) => {
                         suppressSearchRef.current = false;
                         setLocationText(e.target.value);
+                        if (!e.target.value.trim()) setLocationDetail('');
                       }}
                       onFocus={() => {
                         if (locationSuggestions.length > 0) setShowLocationSuggestions(true);
                       }}
                       placeholder="e.g. Dar es Salaam, Ilala, Msimbazi Street"
-                      className="w-full pl-9 pr-8 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50 placeholder:text-gray-400"
+                      className="w-full pl-9 pr-8 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:outline-none focus:ring-0 placeholder:text-gray-400"
                     />
                     {searchingLocation && (
                       <div className="absolute right-3 text-gray-400">
@@ -670,9 +750,9 @@ export const BranchesManagerPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Autocomplete Suggestions Dropdown */}
+                  {/* Autocomplete Suggestions Dropdown (No outlines/borders) */}
                   {showLocationSuggestions && locationSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl max-h-56 overflow-y-auto p-1 space-y-0.5 border-0">
                       {locationSuggestions.map((p, idx) => {
                         const cityVal = p.city || p.region || 'Dar es Salaam';
                         const districtVal = p.district || '';
@@ -683,7 +763,7 @@ export const BranchesManagerPage: React.FC = () => {
                             key={p.place_id || idx}
                             type="button"
                             onClick={() => handleSelectLocationPlace(p)}
-                            className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-gray-100 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-white/5 last:border-0 flex items-start gap-2.5 transition cursor-pointer"
+                            className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-800 dark:text-gray-200 border-0 flex items-start gap-2.5 transition cursor-pointer"
                           >
                             <MapPin size={14} className="text-emerald-500 shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
@@ -700,6 +780,15 @@ export const BranchesManagerPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Selected Location Details Displayed Below */}
+                {locationDetail && (
+                  <div className="pt-0.5 px-0.5">
+                    <p className="text-3xs sm:text-2xs text-gray-500 dark:text-gray-400 leading-relaxed font-normal">
+                      {locationDetail}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Phone & Whatsapp */}
