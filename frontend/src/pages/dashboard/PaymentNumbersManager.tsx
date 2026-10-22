@@ -68,34 +68,35 @@ const PaymentNumbersManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
             Payment Numbers
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Configure mobile money (Lipa) numbers displayed to buyers for manual offline payments.
-          </p>
-        </div>
 
-        <Button
-          type="button"
-          size="sm"
-          variant={showForm || editingId ? 'outline' : 'default'}
-          onClick={() => {
-            if (showForm || editingId) {
-              setShowForm(false);
-              setEditingId(null);
-              setForm({ network: '', number: '', name: '' });
-            } else {
-              setShowForm(true);
-            }
-          }}
-          className="font-medium flex items-center gap-1.5 self-start sm:self-auto shrink-0"
-        >
-          {showForm || editingId ? <X size={14} /> : <Plus size={14} />}
-          <span>{showForm || editingId ? 'Close' : 'Add Payment Number'}</span>
-        </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={showForm || editingId ? 'outline' : 'default'}
+            onClick={() => {
+              if (showForm || editingId) {
+                setShowForm(false);
+                setEditingId(null);
+                setForm({ network: '', number: '', name: '' });
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-btn shadow-xs shrink-0 cursor-pointer"
+          >
+            {showForm || editingId ? <X size={14} /> : <Plus size={14} />}
+            <span className="sm:hidden">{showForm || editingId ? 'Close' : 'Add'}</span>
+            <span className="hidden sm:inline">{showForm || editingId ? 'Close' : 'Add Payment Number'}</span>
+          </Button>
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          Configure mobile money (Lipa) numbers displayed to buyers for manual offline payments.
+        </p>
       </header>
 
       {/* Form Card (Hidden by default; revealed via Add button or Edit action) */}

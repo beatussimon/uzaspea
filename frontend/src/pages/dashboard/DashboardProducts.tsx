@@ -772,10 +772,14 @@ const DashboardProducts: React.FC = () => {
   const [isPrintingReport, setIsPrintingReport] = useState(false);
   const [isPrintDropdownOpen, setIsPrintDropdownOpen] = useState(false);
   const printDropdownRef = React.useRef<HTMLDivElement>(null);
+  const mobilePrintDropdownRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (printDropdownRef.current && !printDropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideDesktop = printDropdownRef.current?.contains(target);
+      const insideMobile = mobilePrintDropdownRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
         setIsPrintDropdownOpen(false);
       }
     };
@@ -804,50 +808,135 @@ const DashboardProducts: React.FC = () => {
       {/* Screen Interactive UI */}
       <div className="print:hidden space-y-6">
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <header className="space-y-1.5">
+          {/* Top Row: Title + Desktop Actions / Mobile Add Button */}
+          <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
               {t('my_products', 'My Products')}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
-            </p>
+
+            {/* Desktop Action Buttons */}
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0"
+              >
+                <Package size={14} />
+                <span>Batch Import (CSV)</span>
+              </button>
+
+              {/* Simple Print Dropdown (Desktop) */}
+              <div className="relative" ref={printDropdownRef}>
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPrintDropdownOpen(prev => !prev);
+                  }}
+                  disabled={isPrintingReport}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+                  title="Print options"
+                >
+                  <Printer size={14} />
+                  <span>{isPrintingReport ? 'Printing...' : 'Print'}</span>
+                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${isPrintDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isPrintDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border-0 rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintDropdownOpen(false);
+                        handlePrintReport('inventory');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition"
+                    >
+                      Owner / Staff
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintDropdownOpen(false);
+                        handlePrintReport('customer');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition"
+                    >
+                      Customer Ready
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                onClick={() => {
+                  const nextShow = !showForm;
+                  setShowForm(nextShow);
+                  setEditingId(null);
+                  setExistingImages([]);
+                  setNewVariants([]);
+                  setForm(INITIAL_FORM);
+                  if (nextShow) {
+                    shouldJumpToEditRef.current = true;
+                    jumpToEdit();
+                  }
+                }}
+                disabled={user?.tier === 'customer'}
+                variant={showForm ? 'outline' : 'default'}
+                size="sm"
+                className="flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+              >
+                {showForm ? <X size={14} /> : <Plus size={14} />}
+                <span>{showForm ? 'Cancel' : t('add_new', 'Add New')}</span>
+              </Button>
+            </div>
+
+            {/* Mobile Add Button (Top Right) */}
+            <div className="sm:hidden shrink-0">
+              <Button
+                onClick={() => {
+                  const nextShow = !showForm;
+                  setShowForm(nextShow);
+                  setEditingId(null);
+                  setExistingImages([]);
+                  setNewVariants([]);
+                  setForm(INITIAL_FORM);
+                  if (nextShow) {
+                    shouldJumpToEditRef.current = true;
+                    jumpToEdit();
+                  }
+                }}
+                disabled={user?.tier === 'customer'}
+                variant={showForm ? 'outline' : 'default'}
+                size="sm"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-btn shadow-xs shrink-0 cursor-pointer"
+              >
+                {showForm ? <X size={14} /> : <Plus size={14} />}
+                <span>{showForm ? 'Cancel' : 'Add'}</span>
+              </Button>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {/* Subtitle */}
+          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+            {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
+          </p>
+
+          {/* Mobile Secondary Row: Batch Import + Print */}
+          <div className="flex sm:hidden items-center gap-2 pt-0.5">
             <button
               type="button"
               onClick={() => setShowBatchModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0"
             >
-              <Package size={14} />
+              <Package size={13} />
               <span>Batch Import (CSV)</span>
             </button>
-            <Button
-              onClick={() => {
-                const nextShow = !showForm;
-                setShowForm(nextShow);
-                setEditingId(null);
-                setExistingImages([]);
-                setNewVariants([]);
-                setForm(INITIAL_FORM);
-                if (nextShow) {
-                  shouldJumpToEditRef.current = true;
-                  jumpToEdit();
-                }
-              }}
-              disabled={user?.tier === 'customer'}
-              variant={showForm ? 'outline' : 'default'}
-              size="sm"
-              className="flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
-            >
-              <Plus size={14} />
-              {showForm ? 'Cancel' : t('add_new', 'Add New')}
-            </Button>
 
-            {/* Simple Print Dropdown */}
-            <div className="relative" ref={printDropdownRef}>
+            {/* Mobile Print Dropdown */}
+            <div className="relative" ref={mobilePrintDropdownRef}>
               <button 
                 type="button"
                 onClick={(e) => {
@@ -855,16 +944,16 @@ const DashboardProducts: React.FC = () => {
                   setIsPrintDropdownOpen(prev => !prev);
                 }}
                 disabled={isPrintingReport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0 disabled:opacity-50"
                 title="Print options"
               >
-                <Printer size={14} />
+                <Printer size={13} />
                 <span>{isPrintingReport ? 'Printing...' : 'Print'}</span>
-                <ChevronDown size={12} className={`text-gray-400 transition-transform ${isPrintDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={11} className={`text-gray-400 transition-transform ${isPrintDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isPrintDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border-0 rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
+                <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border-0 rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
                   <button
                     type="button"
                     onClick={() => {

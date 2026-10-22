@@ -3,7 +3,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   MapPin, Plus, Edit2, Trash2, Phone, MessageSquare, 
-  AlertCircle, Compass, Users, Package, Star
+  AlertCircle, Compass
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
