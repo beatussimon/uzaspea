@@ -124,7 +124,7 @@ export const TeamsOverview: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-              Store: <strong className="text-gray-900 dark:text-white font-medium">{teamInfo?.business_name || user?.business_name || `@${teamInfo?.owner_username || user?.team_owner_username}`}</strong>
+              Logged in as @{user?.username} • Store Owner: @{teamInfo?.owner_username || user?.team_owner_username || 'store'}
             </p>
           </div>
         </div>
