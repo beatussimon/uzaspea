@@ -482,10 +482,9 @@ export const StockTransfersPage: React.FC = () => {
                               variant="default"
                               size="sm"
                               onClick={() => openReceiveModal(t)}
-                              className="text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                              className="text-xs"
                             >
-                              <CheckCircle2 size={13} />
-                              <span>Accept & Receive Stock</span>
+                              Accept & Receive Stock
                             </Button>
                           </>
                         )}
