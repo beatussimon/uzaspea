@@ -433,16 +433,19 @@ const DashboardOrders: React.FC = () => {
 
                     <div className="flex-1 min-w-0 space-y-1">
                       {/* Top Header Row */}
-                      <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                          <span className="font-extrabold text-sm text-gray-900 dark:text-white shrink-0">
-                            Order #{order.id}
-                          </span>
-                          <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
-                            {order.delivery_info?.is_pos
-                              ? order.delivery_info?.customer_name || 'Walk-in Customer'
-                              : `@${order.buyer || 'Customer'}`}
-                          </span>
+                          {/* Order ID & Buyer Name - Always on same line */}
+                          <div className="flex items-center gap-1.5 min-w-0 shrink">
+                            <span className="font-extrabold text-sm text-gray-900 dark:text-white shrink-0 whitespace-nowrap">
+                              Order #{order.id}
+                            </span>
+                            <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
+                              {order.delivery_info?.is_pos
+                                ? order.delivery_info?.customer_name || 'Walk-in Customer'
+                                : `@${order.buyer || 'Customer'}`}
+                            </span>
+                          </div>
 
                           {order.fulfillment_location_name && (
                             <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
