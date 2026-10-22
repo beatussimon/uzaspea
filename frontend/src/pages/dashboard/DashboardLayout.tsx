@@ -18,7 +18,8 @@ import MyTeamPage from './MyTeamPage';
 import DashboardPOS from './DashboardPOS';
 import ProductRequestsBoard from './ProductRequestsBoard';
 import InvoicesPage from './InvoicesPage';
-import BranchesManagerPage from './BranchesManagerPage';
+import { StoreBranchesSkeleton } from '../../components/Skeleton';
+const BranchesManagerPage = React.lazy(() => import('./BranchesManagerPage'));
 import StockTransfersPage from './StockTransfersPage';
 import SubscriptionExpiredView from './SubscriptionExpiredView';
 
@@ -809,7 +810,16 @@ const DashboardLayout: React.FC = () => {
           <Route path="promotions" element={(!isWorker || perms.manage_products) ? <DashboardPromotions /> : <Navigate to="/dashboard" replace />} />
           <Route path="billing" element={(!isWorker || perms.view_analytics) ? <BillingPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="payment-numbers" element={(!isWorker || perms.view_analytics) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
-          {isBusiness && <Route path="branches" element={<BranchesManagerPage />} />}
+          {isBusiness && (
+            <Route
+              path="branches"
+              element={
+                <React.Suspense fallback={<StoreBranchesSkeleton count={3} />}>
+                  <BranchesManagerPage />
+                </React.Suspense>
+              }
+            />
+          )}
           {(isBusiness || (isWorker && perms.manage_products)) && <Route path="transfers" element={<StockTransfersPage />} />}
           {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
           {isWorker && <Route path="my-team" element={<MyTeamPage />} />}

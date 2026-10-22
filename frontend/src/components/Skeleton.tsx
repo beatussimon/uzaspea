@@ -743,6 +743,69 @@ export const PaymentNumbersSkeleton: React.FC<{ count?: number; className?: stri
 );
 
 /**
+ * Store Branches & Locations Card Grid Skeleton
+ * Matches exact layout of BranchesManagerPage cards:
+ * rounded-2xl bg-white dark:bg-[#161616] border-0, p-5 space-y-4,
+ * Title + HQ badge + Status, Address with MapPin, 2 metric pills,
+ * and borderless action footer.
+ */
+export const StoreBranchesSkeleton: React.FC<{
+  count?: number;
+  className?: string;
+}> = ({ count = 3, className }) => (
+  <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="rounded-2xl border-0 bg-white dark:bg-[#161616] flex flex-col justify-between shadow-sm overflow-hidden"
+      >
+        <div className="p-5 space-y-4">
+          {/* Header Row */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                <Skeleton className="h-5 w-36 rounded-md" />
+                <Skeleton className="h-4 w-10 rounded-full" />
+              </div>
+              <Skeleton className="h-3.5 w-14 rounded" />
+            </div>
+            <Skeleton className="h-3.5 w-24 rounded-full hidden sm:block mt-1" />
+          </div>
+
+          {/* Address & City */}
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-3.5 h-3.5 rounded-full shrink-0" />
+            <Skeleton className="h-3.5 w-48 rounded" />
+          </div>
+
+          {/* Metrics Pill Grid */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 space-y-1.5">
+              <Skeleton className="h-2.5 w-16 rounded" />
+              <Skeleton className="h-4 w-20 rounded" />
+            </div>
+            <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 space-y-1.5">
+              <Skeleton className="h-2.5 w-20 rounded" />
+              <Skeleton className="h-4 w-16 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Card Footer Actions */}
+        <div className="px-5 pb-4 pt-1 bg-transparent border-0 flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <Skeleton className="h-7 w-16 rounded-lg" />
+            <Skeleton className="h-7 w-7 rounded-lg" />
+            <Skeleton className="h-7 w-7 rounded-lg" />
+          </div>
+          <Skeleton className="h-7 w-20 rounded-lg" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
  * Demand Analytics Page Skeleton (5 KPI Cards + Chart Box + Table)
  */
 export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ className }) => (
