@@ -248,8 +248,7 @@ export const StockTransfersPage: React.FC = () => {
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <ArrowLeftRight className="text-brand-600 dark:text-brand-400" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Inter-Branch Stock Transfers
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
@@ -500,16 +499,15 @@ export const StockTransfersPage: React.FC = () => {
       {/* New Transfer Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl max-w-xl w-full p-6 space-y-5 border border-surface-border dark:border-surface-dark-border shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-neutral-800">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <ArrowLeftRight className="text-brand-600" size={18} />
-                <span>Create Inter-Branch Transfer</span>
+          <div className="bg-white dark:bg-[#141414] rounded-3xl max-w-xl w-full p-6 space-y-5 border-0 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-1 border-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                Create Inter-Branch Transfer
               </h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg p-1"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg p-1 cursor-pointer"
               >
                 &times;
               </button>
@@ -528,7 +526,7 @@ export const StockTransfersPage: React.FC = () => {
                       setSourceLoc(Number(e.target.value));
                       setLineItems([]);
                     }}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   >
                     {locations.map(loc => (
                       <option key={loc.id} value={loc.id}>
@@ -545,7 +543,7 @@ export const StockTransfersPage: React.FC = () => {
                   <select
                     value={destLoc}
                     onChange={(e) => setDestLoc(Number(e.target.value))}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   >
                     {locations.filter(l => l.id !== Number(sourceLoc)).map(loc => (
                       <option key={loc.id} value={loc.id}>
@@ -566,7 +564,7 @@ export const StockTransfersPage: React.FC = () => {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. Weekly replenishment for Sinza store"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                 />
               </div>
 
@@ -578,13 +576,13 @@ export const StockTransfersPage: React.FC = () => {
                 {loadingProducts ? (
                   <p className="text-xs text-gray-400">Loading branch inventory...</p>
                 ) : sourceProducts.length === 0 ? (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#1f1f1f] p-2.5 rounded-xl">
                     No available stock records found at the selected source branch.
                   </p>
                 ) : (
-                  <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-800 divide-y divide-gray-100 dark:divide-neutral-800">
+                  <div className="max-h-40 overflow-y-auto rounded-xl bg-gray-50 dark:bg-white/5 divide-y divide-gray-100/60 dark:divide-white/5 border-0">
                     {sourceProducts.map(p => (
-                      <div key={p.id} className="p-2 flex items-center justify-between text-xs hover:bg-gray-50 dark:hover:bg-neutral-800/50">
+                      <div key={p.id} className="p-2 flex items-center justify-between text-xs hover:bg-gray-100/60 dark:hover:bg-white/5">
                         <div>
                           <span className="font-semibold text-gray-900 dark:text-white">{p.product_name}</span>
                           <span className="text-3xs text-gray-400 ml-2">Stock: {p.quantity}</span>
@@ -592,7 +590,7 @@ export const StockTransfersPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleAddLineItem(p)}
-                          className="px-2.5 py-1 text-2xs font-bold rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-300 hover:bg-brand-100 cursor-pointer"
+                          className="px-2.5 py-1 text-2xs font-bold rounded-lg bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 cursor-pointer"
                         >
                           + Add Item
                         </button>
@@ -608,16 +606,16 @@ export const StockTransfersPage: React.FC = () => {
                   <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
                     Transfer Manifest ({lineItems.length} Products)
                   </span>
-                  <div className="rounded-xl border border-gray-200 dark:border-neutral-800 overflow-hidden">
+                  <div className="rounded-xl bg-gray-50 dark:bg-white/5 overflow-hidden border-0">
                     <table className="w-full text-xs text-left">
-                      <thead className="bg-gray-100 dark:bg-neutral-800 text-3xs uppercase font-bold text-gray-500">
+                      <thead className="bg-gray-100 dark:bg-white/10 text-3xs uppercase font-bold text-gray-500">
                         <tr>
                           <th className="px-3 py-2">Item</th>
                           <th className="px-3 py-2 w-28 text-center">Transfer Qty</th>
                           <th className="px-3 py-2 w-10"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                      <tbody className="divide-y divide-gray-100/60 dark:divide-white/5">
                         {lineItems.map((item, index) => (
                           <tr key={item.product_id}>
                             <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">
@@ -634,7 +632,7 @@ export const StockTransfersPage: React.FC = () => {
                                   const val = Math.max(1, Math.min(item.max_stock, Number(e.target.value) || 1));
                                   setLineItems(lineItems.map((it, idx) => idx === index ? { ...it, qty: val } : it));
                                 }}
-                                className="w-20 px-2 py-1 text-center font-bold text-xs rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                                className="w-20 px-2 py-1 text-center font-bold text-xs rounded-lg border-0 bg-white dark:bg-[#222222] text-gray-900 dark:text-white"
                               />
                             </td>
                             <td className="px-3 py-2 text-right">
@@ -655,7 +653,7 @@ export const StockTransfersPage: React.FC = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-neutral-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-0">
                 <Button
                   type="button"
                   variant="ghost"

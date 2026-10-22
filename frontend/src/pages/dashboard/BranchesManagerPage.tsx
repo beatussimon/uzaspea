@@ -229,8 +229,7 @@ export const BranchesManagerPage: React.FC = () => {
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <MapPin className="text-brand-600 dark:text-brand-400" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Store Branches & Locations
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
@@ -287,11 +286,9 @@ export const BranchesManagerPage: React.FC = () => {
           {locations.map((loc) => (
             <div
               key={loc.id}
-              className={`rounded-2xl border transition-all duration-200 bg-white dark:bg-neutral-900 flex flex-col justify-between shadow-xs overflow-hidden ${
-                loc.is_main
-                  ? 'border-brand-500/50 ring-1 ring-brand-500/20'
-                  : 'border-surface-border dark:border-surface-dark-border'
-              } ${!loc.is_active ? 'opacity-65 grayscale-20' : ''}`}
+              className={`rounded-2xl border-0 transition-all duration-200 bg-white dark:bg-[#161616] flex flex-col justify-between shadow-sm overflow-hidden ${
+                !loc.is_active ? 'opacity-65 grayscale-20' : ''
+              }`}
             >
               <div className="p-5 space-y-4">
                 {/* Header Row */}
@@ -302,8 +299,7 @@ export const BranchesManagerPage: React.FC = () => {
                         {loc.name}
                       </h3>
                       {loc.is_main && (
-                        <span className="inline-flex items-center gap-0.5 text-3xs font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                          <Star size={10} className="fill-amber-500 text-amber-500" />
+                        <span className="inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300">
                           HQ / Main Store
                         </span>
                       )}
@@ -361,31 +357,25 @@ export const BranchesManagerPage: React.FC = () => {
                 </div>
 
                 {/* Metrics Pill Grid */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-neutral-800">
-                  <div className="p-2 rounded-xl bg-gray-50 dark:bg-neutral-800/40 flex items-center gap-2">
-                    <Package size={14} className="text-brand-600 dark:text-brand-400 shrink-0" />
-                    <div>
-                      <div className="text-3xs text-gray-400 uppercase font-bold">Stock SKUs</div>
-                      <div className="text-xs font-bold text-gray-900 dark:text-white">
-                        {loc.inventory_count ?? 0} Listed
-                      </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5">
+                    <div className="text-3xs text-gray-400 uppercase font-bold">Stock SKUs</div>
+                    <div className="text-xs font-bold text-gray-900 dark:text-white mt-0.5">
+                      {loc.inventory_count ?? 0} Listed
                     </div>
                   </div>
 
-                  <div className="p-2 rounded-xl bg-gray-50 dark:bg-neutral-800/40 flex items-center gap-2">
-                    <Users size={14} className="text-purple-600 dark:text-purple-400 shrink-0" />
-                    <div>
-                      <div className="text-3xs text-gray-400 uppercase font-bold">Assigned Staff</div>
-                      <div className="text-xs font-bold text-gray-900 dark:text-white">
-                        {loc.assigned_staff_count ?? 0} Workers
-                      </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5">
+                    <div className="text-3xs text-gray-400 uppercase font-bold">Assigned Staff</div>
+                    <div className="text-xs font-bold text-gray-900 dark:text-white mt-0.5">
+                      {loc.assigned_staff_count ?? 0} Workers
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Card Footer Actions */}
-              <div className="p-3 bg-gray-50/70 dark:bg-neutral-950/40 border-t border-gray-100 dark:border-neutral-800 flex items-center justify-between gap-2">
+              <div className="p-3 bg-gray-50/70 dark:bg-white/5 border-0 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <Button
                     type="button"
@@ -404,7 +394,7 @@ export const BranchesManagerPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSetMain(loc)}
-                      className="h-7 text-xs px-2 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                      className="h-7 text-xs px-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                       title="Promote to Primary HQ Branch"
                     >
                       Make HQ
@@ -445,16 +435,15 @@ export const BranchesManagerPage: React.FC = () => {
       {/* Add / Edit Branch Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl max-w-lg w-full p-6 space-y-5 border border-surface-border dark:border-surface-dark-border shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-neutral-800">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin className="text-brand-600" size={18} />
-                <span>{editingLoc ? 'Edit Branch' : 'Create Store Branch'}</span>
+          <div className="bg-white dark:bg-[#141414] rounded-3xl max-w-lg w-full p-6 space-y-5 border-0 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-1 border-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {editingLoc ? 'Edit Branch' : 'Create Store Branch'}
               </h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg p-1"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg p-1 cursor-pointer"
               >
                 &times;
               </button>
@@ -472,7 +461,7 @@ export const BranchesManagerPage: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Sinza Mori Branch, Kariakoo Flagship"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                 />
               </div>
 
@@ -487,7 +476,7 @@ export const BranchesManagerPage: React.FC = () => {
                   value={addressLine}
                   onChange={(e) => setAddressLine(e.target.value)}
                   placeholder="e.g. Shekilango Road, Opposite Mori Plaza"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                 />
               </div>
 
@@ -500,7 +489,7 @@ export const BranchesManagerPage: React.FC = () => {
                   <select
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   >
                     {TANZANIA_CITIES.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -517,7 +506,7 @@ export const BranchesManagerPage: React.FC = () => {
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
                     placeholder="e.g. Kinondoni, Ilala, Ubungo"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                 </div>
               </div>
@@ -533,7 +522,7 @@ export const BranchesManagerPage: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. +255 712 345 678"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                 </div>
 
@@ -546,25 +535,24 @@ export const BranchesManagerPage: React.FC = () => {
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
                     placeholder="e.g. +255 789 123 456"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                 </div>
               </div>
 
               {/* GPS Coordinates */}
-              <div className="space-y-1.5 p-3 rounded-2xl bg-gray-50 dark:bg-neutral-800/40 border border-gray-200 dark:border-neutral-800">
+              <div className="space-y-1.5 p-3 rounded-2xl bg-gray-100 dark:bg-[#1a1a1a] border-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                    <Compass size={13} className="text-brand-600" />
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
                     GPS Coordinates (Smart Online Delivery Routing)
                   </span>
                   <button
                     type="button"
                     onClick={handleGetCurrentLocation}
                     disabled={gettingGps}
-                    className="text-3xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-3xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition cursor-pointer"
                   >
-                    {gettingGps ? 'Fetching GPS...' : '📍 Auto-detect GPS'}
+                    {gettingGps ? 'Fetching GPS...' : 'Auto-detect GPS'}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-1">
@@ -573,14 +561,14 @@ export const BranchesManagerPage: React.FC = () => {
                     value={lat}
                     onChange={(e) => setLat(e.target.value)}
                     placeholder="Latitude (-6.7725)"
-                    className="px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white font-mono"
+                    className="px-2.5 py-2 text-xs rounded-lg bg-white dark:bg-[#222222] border-0 text-gray-900 dark:text-white font-mono outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                   <input
                     type="text"
                     value={lng}
                     onChange={(e) => setLng(e.target.value)}
                     placeholder="Longitude (39.2412)"
-                    className="px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white font-mono"
+                    className="px-2.5 py-2 text-xs rounded-lg bg-white dark:bg-[#222222] border-0 text-gray-900 dark:text-white font-mono outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                 </div>
               </div>
@@ -594,7 +582,7 @@ export const BranchesManagerPage: React.FC = () => {
                   <select
                     value={overrideLipa}
                     onChange={(e) => setOverrideLipa(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
                   >
                     <option value="">Use Company Global Lipa Number</option>
                     {lipaNumbers.map((lp: any) => (
@@ -620,7 +608,7 @@ export const BranchesManagerPage: React.FC = () => {
               </label>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-neutral-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-0">
                 <Button
                   type="button"
                   variant="ghost"
