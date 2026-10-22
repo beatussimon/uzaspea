@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { CardGridSkeleton } from '../../components/Skeleton';
+import { StoreBranchesSkeleton } from '../../components/Skeleton';
 import { useUserRoles } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 
@@ -487,7 +487,7 @@ export const BranchesManagerPage: React.FC = () => {
 
       {/* Branch Cards Grid */}
       {loading ? (
-        <CardGridSkeleton count={3} />
+        <StoreBranchesSkeleton count={3} />
       ) : locations.length === 0 ? (
         <EmptyState
           icon={MapPin}
@@ -545,10 +545,10 @@ export const BranchesManagerPage: React.FC = () => {
                     </div>
 
                     <span
-                      className={`inline-flex items-center text-3xs font-bold px-2 py-0.5 rounded-full shrink-0 translate-y-0.5 ${
+                      className={`inline-flex items-center text-3xs font-bold shrink-0 translate-y-0.5 ${
                         loc.is_active
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                          : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-gray-500 dark:text-neutral-400'
                       }`}
                     >
                       {loc.is_active ? 'Active' : 'Suspended'}
