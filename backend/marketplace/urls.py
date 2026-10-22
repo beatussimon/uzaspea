@@ -96,6 +96,7 @@ urlpatterns = [
     path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),
     path('api/analytics/seller/', SellerAnalyticsView.as_view(), name='analytics-seller'),
     path('api/health/reverse_geocode/', reverse_geocode, name='reverse-geocode'),
+    path('api/reverse-geocode/', reverse_geocode, name='reverse-geocode-direct'),
     path('api/locations/regions/', tanzania_regions, name='tanzania-regions'),
     path('api/locations/search/', geocode_search, name='locations-search'),
     path('api/team-role-presets/', TeamRolePresetsView.as_view(), name='team-role-presets'),
