@@ -4208,7 +4208,11 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(following_profiles, many=True)
         return Response(serializer.data)
 
-    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @decorators.action(detail=True, methods=['post'], url_path='upload-store-image', permission_classes=[permissions.IsAuthenticated])
+    def upload_store_image_dash(self, request, **kwargs):
+        return self.upload_store_image(request, **kwargs)
+
+    @decorators.action(detail=True, methods=['post'], url_path='upload_store_image', permission_classes=[permissions.IsAuthenticated])
     def upload_store_image(self, request, **kwargs):
         profile = self.get_object()
         if profile.user != request.user and not request.user.is_staff:
@@ -4226,7 +4230,11 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         store_img = StoreImage.objects.create(profile=profile, image=image_file)
         return Response(StoreImageSerializer(store_img).data, status=status.HTTP_201_CREATED)
 
-    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @decorators.action(detail=True, methods=['post'], url_path='delete-store-image', permission_classes=[permissions.IsAuthenticated])
+    def delete_store_image_dash(self, request, **kwargs):
+        return self.delete_store_image(request, **kwargs)
+
+    @decorators.action(detail=True, methods=['post'], url_path='delete_store_image', permission_classes=[permissions.IsAuthenticated])
     def delete_store_image(self, request, **kwargs):
         profile = self.get_object()
         if profile.user != request.user and not request.user.is_staff:
