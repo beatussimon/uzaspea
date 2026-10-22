@@ -481,7 +481,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
               <input
                 type="text"
                 placeholder="Search members..."
-                className="input pl-8 py-1.5 text-xs w-full"
+                className="w-full pl-8 pr-4 py-1.5 text-xs font-medium rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -521,7 +521,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                 return (
                   <div
                     key={member.id}
-                    className={`card p-4 flex flex-col justify-between gap-3 hover:shadow-xs transition ${
+                    className={`card !border-none p-4 flex flex-col justify-between gap-3 hover:shadow-xs transition ${
                       !member.is_active ? 'opacity-70 border-red-500/30' : ''
                     }`}
                   >
@@ -589,7 +589,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-surface-border dark:border-surface-dark-border text-2xs">
+                    <div className="flex items-center justify-between pt-2.5 border-0 text-2xs">
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -700,9 +700,9 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
       {/* Modal: Add Team Member */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-2xl w-full max-w-lg p-6 space-y-5 my-8 shadow-xl">
+          <div className="bg-white dark:bg-[#0A0A0A] border-0 rounded-2xl w-full max-w-lg p-6 space-y-5 my-8 shadow-xl">
             
-            <div className="flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border pb-3">
+            <div className="flex items-center justify-between border-0 pb-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900 dark:text-white">
                   Add Team Member
@@ -876,7 +876,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                 <label className="block text-gray-700 dark:text-gray-300 font-medium">
                   Access & Permissions
                 </label>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border">
+                <div className="space-y-1.5 max-h-48 overflow-y-auto p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-xl border-0">
                   {PERMISSION_OPTIONS.map((p) => (
                     <label key={p.key} className="flex items-start gap-2.5 cursor-pointer py-1 select-none">
                       <input
@@ -900,7 +900,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <label className="block text-gray-700 dark:text-gray-300 font-medium text-xs">
                     Store Branch Access
                   </label>
-                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border space-y-2">
+                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-xl border-0 space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -917,7 +917,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                     </label>
 
                     {!formAllLocations && (
-                      <div className="pl-6 pt-1 space-y-1.5 border-t border-gray-200 dark:border-neutral-800">
+                      <div className="pl-6 pt-1 space-y-1.5 border-0">
                         <p className="text-3xs text-gray-500 uppercase font-semibold tracking-wider">
                           Select Permitted Branches:
                         </p>
@@ -947,7 +947,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
               )}
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-border dark:border-surface-dark-border">
+              <div className="flex items-center justify-end gap-3 pt-3 border-0">
                 <Button
                   type="button"
                   variant="ghost"
@@ -974,8 +974,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
       {/* Modal: Reset Password */}
       {resetModalMember && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border pb-3">
+          <div className="bg-white dark:bg-[#0A0A0A] border-0 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-0 pb-3">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Reset Password (@{resetModalMember.user_details.username})
               </h3>
@@ -1029,8 +1029,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
       {/* Modal: Edit Permissions */}
       {editModalMember && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border pb-3">
+          <div className="bg-white dark:bg-[#0A0A0A] border-0 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-0 pb-3">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Edit Access (@{editModalMember.user_details.username})
               </h3>
@@ -1067,7 +1067,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                 <label className="block text-gray-700 dark:text-gray-300 font-medium">
                   Permissions
                 </label>
-                <div className="space-y-1.5 max-h-56 overflow-y-auto p-2 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border">
+                <div className="space-y-1.5 max-h-56 overflow-y-auto p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-xl border-0">
                   {PERMISSION_OPTIONS.map((p) => (
                     <label key={p.key} className="flex items-start gap-2.5 cursor-pointer py-1 select-none">
                       <input
@@ -1097,7 +1097,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <label className="block text-gray-700 dark:text-gray-300 font-medium text-xs">
                     Store Branch Access
                   </label>
-                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-lg border border-surface-border dark:border-surface-dark-border space-y-2">
+                  <div className="p-2.5 bg-gray-50 dark:bg-neutral-900/50 rounded-xl border-0 space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -1114,7 +1114,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                     </label>
 
                     {!editAllLocations && (
-                      <div className="pl-6 pt-1 space-y-1.5 border-t border-gray-200 dark:border-neutral-800">
+                      <div className="pl-6 pt-1 space-y-1.5 border-0">
                         <p className="text-3xs text-gray-500 uppercase font-semibold tracking-wider">
                           Select Permitted Branches:
                         </p>
@@ -1143,7 +1143,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
+              <div className="flex items-center justify-end gap-2 pt-2 border-0">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setEditModalMember(null)}>
                   Cancel
                 </Button>
@@ -1159,8 +1159,8 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
       {/* Modal: Transfer Role */}
       {transferModalMember && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border pb-3">
+          <div className="bg-white dark:bg-[#0A0A0A] border-0 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-0 pb-3">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Transfer Role (@{transferModalMember.user_details.username})
               </h3>
