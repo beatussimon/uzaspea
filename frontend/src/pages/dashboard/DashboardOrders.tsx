@@ -435,33 +435,36 @@ const DashboardOrders: React.FC = () => {
                       {/* Top Header Row */}
                       <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                          {/* Order ID & Buyer Name - Always on same line */}
+                          {/* Order ID & Buyer / POS Badge - Always on same line */}
                           <div className="flex items-center gap-1.5 min-w-0 shrink">
                             <span className="font-extrabold text-sm text-gray-900 dark:text-white shrink-0 whitespace-nowrap">
                               Order #{order.id}
                             </span>
-                            <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
-                              {order.delivery_info?.is_pos
-                                ? order.delivery_info?.customer_name || 'Walk-in Customer'
-                                : `@${order.buyer || 'Customer'}`}
-                            </span>
+                            {order.delivery_info?.is_pos ? (
+                              <>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 inline-flex items-center gap-1 shrink-0">
+                                  <Receipt size={10} /> POS
+                                </span>
+                                <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none hidden sm:inline">
+                                  {order.delivery_info?.customer_name || 'Walk-in Customer'}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
+                                @{order.buyer || 'Customer'}
+                              </span>
+                            )}
                           </div>
 
                           {order.fulfillment_location_name && (
-                            <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                            <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 shrink-0">
                               <MapPin size={9} />
                               {order.fulfillment_location_name}
                             </span>
                           )}
 
-                          {order.delivery_info?.is_pos && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                              <Receipt size={10} /> POS
-                            </span>
-                          )}
-
                           {order.is_bulk_order && (
-                            <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 shrink-0">
                               {t('bulk_order', 'Bulk Order')}
                             </span>
                           )}
