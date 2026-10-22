@@ -708,8 +708,15 @@ const DashboardOverview: React.FC = () => {
                   {stats.stock_alerts.map((s: any, i: number) => (
                     <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
-                      <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white truncate max-w-[220px]" title={s.name}>
-                        {s.name}
+                      <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[220px]" title={s.name}>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate">{s.name}</span>
+                          {s.location_name && (
+                            <span className="text-[10px] text-gray-400 dark:text-neutral-500 font-normal truncate">
+                              {s.location_name}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-left whitespace-nowrap w-28">
                         <span className={`text-xs font-semibold ${s.stock === 0 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>

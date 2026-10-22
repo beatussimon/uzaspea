@@ -1005,6 +1005,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
         today = timezone.now().date()
 
+        # Check if user is a team member with restricted branch access
+        allowed_location_ids = None
+        if membership and not membership.all_locations_access:
+            allowed_location_ids = list(membership.assigned_locations.values_list('id', flat=True))
+
         loc_param = request.query_params.get('location_id')
         selected_location_id = None
         if loc_param and loc_param != 'all':
@@ -1012,10 +1017,15 @@ class ProductViewSet(viewsets.ModelViewSet):
                 cand_id = int(loc_param)
                 from marketplace.models import StoreLocation
                 if StoreLocation.objects.filter(id=cand_id, owner=stats_user).exists() or user.is_superuser:
+                    if allowed_location_ids is not None and cand_id not in allowed_location_ids:
+                        from rest_framework.exceptions import PermissionDenied
+                        raise PermissionDenied("You do not have access to view analytics for this location.")
                     selected_location_id = cand_id
                     orders = orders.filter(fulfillment_location_id=cand_id)
             except (ValueError, TypeError):
                 selected_location_id = None
+        elif allowed_location_ids is not None:
+            orders = orders.filter(fulfillment_location_id__in=allowed_location_ids)
 
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
@@ -1052,6 +1062,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         if selected_location_id:
             base_order_items = base_order_items.filter(order__fulfillment_location_id=selected_location_id)
+        elif allowed_location_ids is not None:
+            base_order_items = base_order_items.filter(order__fulfillment_location_id__in=allowed_location_ids)
         
         total_orders_count = paid_orders.count()
         total_revenue = float(base_order_items.aggregate(total=Sum(django_models.F('price') * django_models.F('quantity')))['total'] or 0)
@@ -1218,10 +1230,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         top_prods = (
             base_order_items
             .values('product__name', 'product__slug')
-            .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
+            .annotate(sold=Sum('quantity'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
             .order_by('-sold')[:top_limit]
         )
-        top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
+        top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': int(t['sold'] or 0), 'revenue': float(t['rev'] or 0)} for t in top_prods]
 
         # --- Category breakdown ---
         cat_data = (
@@ -1234,8 +1246,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # --- Items Sold List ---
         items_sold_list = []
-        items_sold_qs = base_order_items.select_related('product', 'order').order_by('-order__order_date')[:100]
+        items_sold_qs = base_order_items.select_related('product', 'order', 'order__fulfillment_location').order_by('-order__order_date')[:100]
         for item in items_sold_qs:
+            loc_label = item.order.fulfillment_location.name if item.order.fulfillment_location else 'Main Store'
             items_sold_list.append({
                 'id': item.id,
                 'date': item.order.order_date.isoformat(),
@@ -1244,7 +1257,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 'price': float(item.price),
                 'buying_price': float(item.product.buying_price) if item.product.buying_price is not None else None,
                 'total': float(item.price * item.quantity),
-                'status': item.order.status
+                'status': item.order.status,
+                'location_name': loc_label,
             })
 
         # --- Stock alerts (stock <= 3) --- always visible
@@ -1252,42 +1266,98 @@ class ProductViewSet(viewsets.ModelViewSet):
             from marketplace.models import LocationStock
             loc_low_stock = list(
                 LocationStock.objects.filter(location_id=selected_location_id, quantity__lte=3)
-                .select_related('product')
-                .values('product__name', 'product__slug', 'quantity', 'price_override', 'product__price')[:10]
+                .select_related('product', 'location')
+                .values('product__name', 'product__slug', 'quantity', 'price_override', 'product__price', 'location__name')[:30]
             )
             low_stock = [
                 {
                     'name': ls['product__name'],
                     'slug': ls['product__slug'],
-                    'stock': ls['quantity'],
+                    'stock': int(ls['quantity']),
                     'price': float(ls['price_override'] if ls['price_override'] is not None else (ls['product__price'] or 0)),
+                    'location_name': ls['location__name'],
                 }
                 for ls in loc_low_stock
             ]
         else:
-            low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
-            for ls in low_stock:
-                ls['price'] = float(ls['price'])
+            from marketplace.models import StoreLocation, LocationStock
+            user_loc_qs = StoreLocation.objects.filter(owner=stats_user, is_active=True)
+            if allowed_location_ids is not None:
+                user_loc_qs = user_loc_qs.filter(id__in=allowed_location_ids)
+
+            has_locations = user_loc_qs.exists()
+            if has_locations:
+                loc_low_stock = list(
+                    LocationStock.objects.filter(
+                        location__in=user_loc_qs,
+                        quantity__lte=3
+                    )
+                    .select_related('product', 'location')
+                    .values('product__name', 'product__slug', 'quantity', 'price_override', 'product__price', 'location__name')
+                    .order_by('quantity')[:30]
+                )
+                low_stock = [
+                    {
+                        'name': ls['product__name'],
+                        'slug': ls['product__slug'],
+                        'stock': int(ls['quantity']),
+                        'price': float(ls['price_override'] if ls['price_override'] is not None else (ls['product__price'] or 0)),
+                        'location_name': ls['location__name'],
+                    }
+                    for ls in loc_low_stock
+                ]
+
+                # Also include standalone products without LocationStock whose base stock <= 3
+                tracked_product_ids = LocationStock.objects.filter(location__in=user_loc_qs).values_list('product_id', flat=True)
+                standalone_low = list(
+                    products.exclude(id__in=tracked_product_ids).filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10]
+                )
+                for s in standalone_low:
+                    low_stock.append({
+                        'name': s['name'],
+                        'slug': s['slug'],
+                        'stock': int(s['stock']),
+                        'price': float(s['price'] or 0),
+                        'location_name': 'All Branches (HQ)',
+                    })
+            else:
+                low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:20])
+                for ls in low_stock:
+                    ls['stock'] = int(ls['stock'])
+                    ls['price'] = float(ls['price'])
+                    ls['location_name'] = None
 
         # --- Location breakdown (for Business accounts when all locations or roll-up viewed) ---
         location_breakdown = []
-        if is_business:
+        if is_business and not selected_location_id:
             from marketplace.models import StoreLocation
-            user_locations = {loc.id: loc.name for loc in StoreLocation.objects.filter(owner=stats_user, is_active=True)}
+            active_locs = list(StoreLocation.objects.filter(owner=stats_user, is_active=True).order_by('id'))
+            if allowed_location_ids is not None:
+                active_locs = [l for l in active_locs if l.id in allowed_location_ids]
+
             loc_items = (
-                OrderItem.objects.filter(product__seller=stats_user, order__in=paid_orders)
+                base_order_items
                 .values('order__fulfillment_location_id')
                 .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True))
-                .order_by('-rev')
             )
-            for item in loc_items:
-                lid = item['order__fulfillment_location_id']
-                lname = user_locations.get(lid, 'Main Store' if not lid else f'Branch #{lid}')
+            loc_data_map = {item['order__fulfillment_location_id']: item for item in loc_items}
+
+            for loc in active_locs:
+                entry = loc_data_map.get(loc.id, {'rev': 0, 'count': 0})
                 location_breakdown.append({
-                    'location_id': lid,
-                    'name': lname,
-                    'revenue': float(item['rev'] or 0),
-                    'orders': item['count'],
+                    'location_id': loc.id,
+                    'name': loc.name,
+                    'revenue': float(entry['rev'] or 0),
+                    'orders': entry['count'],
+                })
+            # Direct/online orders not bound to a physical branch
+            if None in loc_data_map and loc_data_map[None]['count'] > 0:
+                entry = loc_data_map[None]
+                location_breakdown.append({
+                    'location_id': None,
+                    'name': 'Main Store / Direct Delivery',
+                    'revenue': float(entry['rev'] or 0),
+                    'orders': entry['count'],
                 })
 
         # --- Order status breakdown --- always visible
