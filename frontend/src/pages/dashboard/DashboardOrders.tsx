@@ -410,7 +410,7 @@ const DashboardOrders: React.FC = () => {
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
                   className="relative p-3.5 sm:p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-3 sm:gap-4 justify-between items-start md:items-center select-none w-full min-w-0"
                 >
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-8 md:pr-0 w-full">
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full">
                     {/* Product Thumbnail */}
                     <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0">
                       <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] overflow-hidden flex items-center justify-center">
@@ -432,43 +432,48 @@ const DashboardOrders: React.FC = () => {
                     </div>
 
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <span className="font-extrabold text-sm text-gray-900 dark:text-white truncate">
-                          Order #{order.id}
-                        </span>
-                        <span className="text-2xs text-gray-400 truncate max-w-[140px] sm:max-w-none">
-                          {order.delivery_info?.is_pos
-                            ? order.delivery_info?.customer_name || 'Walk-in Customer'
-                            : `@${order.buyer || 'Customer'}`}
-                        </span>
+                      {/* Top Header Row */}
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                          <span className="font-extrabold text-sm text-gray-900 dark:text-white shrink-0">
+                            Order #{order.id}
+                          </span>
+                          <span className="text-2xs text-gray-400 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
+                            {order.delivery_info?.is_pos
+                              ? order.delivery_info?.customer_name || 'Walk-in Customer'
+                              : `@${order.buyer || 'Customer'}`}
+                          </span>
 
-                        {/* Standard Status Badge - Mobile Only */}
-                        <span className="md:hidden inline-flex">
+                          {order.fulfillment_location_name && (
+                            <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                              <MapPin size={9} />
+                              {order.fulfillment_location_name}
+                            </span>
+                          )}
+
+                          {order.delivery_info?.is_pos && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                              <Receipt size={10} /> POS
+                            </span>
+                          )}
+
+                          {order.is_bulk_order && (
+                            <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                              {t('bulk_order', 'Bulk Order')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Status Badge & Chevron - Mobile Only (Top Right) */}
+                        <div className="flex items-center gap-1.5 shrink-0 md:hidden ml-auto">
                           <StatusBadge status={order.status} size="sm" />
-                        </span>
-
-                        {order.fulfillment_location_name && (
-                          <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                            <MapPin size={9} />
-                            {order.fulfillment_location_name}
-                          </span>
-                        )}
-
-                        {order.delivery_info?.is_pos && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                            <Receipt size={10} /> POS
-                          </span>
-                        )}
-
-                        {order.is_bulk_order && (
-                          <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                            {t('bulk_order', 'Bulk Order')}
-                          </span>
-                        )}
-
-                        <span className="text-2xs font-extrabold text-gray-900 dark:text-white ml-auto md:ml-0 shrink-0">
-                          Total: TSh {(order.seller_subtotal || parseFloat(order.total_amount) || 0).toLocaleString()}
-                        </span>
+                          <div className="text-gray-400 p-0.5">
+                            <ChevronDown
+                              size={16}
+                              className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 sm:gap-3 text-2xs text-gray-400 flex-wrap min-w-0">
@@ -489,7 +494,11 @@ const DashboardOrders: React.FC = () => {
                   </div>
 
                   {/* Actions & Chevron */}
-                  <div className={`flex items-center gap-2 md:w-auto shrink-0 justify-between md:justify-end ${nextStatus || !order.delivery_info?.is_pos ? 'w-full mt-2 md:mt-0' : 'w-auto'}`}>
+                  <div
+                    className={`flex items-center gap-2 md:w-auto shrink-0 justify-between md:justify-end ${
+                      nextStatus || !order.delivery_info?.is_pos ? 'w-full mt-2 md:mt-0' : 'hidden md:flex'
+                    }`}
+                  >
                     {/* Desktop Status Badge */}
                     <div className="hidden md:flex items-center shrink-0">
                       <StatusBadge status={order.status} size="sm" />
@@ -555,7 +564,7 @@ const DashboardOrders: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-3.5 sm:top-4 right-3 sm:right-4 md:static shrink-0">
+                    <div className="hidden md:block p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition shrink-0">
                       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
