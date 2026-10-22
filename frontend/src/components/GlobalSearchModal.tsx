@@ -531,11 +531,11 @@ const GlobalSearchModal: React.FC = () => {
 
               <form 
                 onSubmit={handleSubmit} 
-                className="w-full max-w-2xl mx-auto relative flex items-center justify-center sm:border-b-2 sm:border-neutral-200 dark:sm:border-neutral-800 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
+                className="w-full max-w-2xl mx-auto relative flex items-center justify-center sm:border-b-2 sm:border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
                 style={{ outline: 'none', boxShadow: 'none' }}
               >
                 {/* Mobile-only centered search underline between left icons and right filter icon */}
-                <div className="sm:hidden absolute bottom-0 left-[68px] right-[40px] h-[2px] bg-neutral-200 dark:bg-neutral-800 pointer-events-none" />
+                <div className="sm:hidden absolute bottom-0 left-[68px] right-[40px] h-[2px] bg-brand-500 pointer-events-none" />
 
                 <input
                   ref={inputRef}
@@ -583,22 +583,22 @@ const GlobalSearchModal: React.FC = () => {
               </button>
             </div>
 
-            {/* Seller Scope Banner */}
+            {/* Seller Scope Banner (gray background, brand-colored text/links) */}
             {sellerScope && (
               <div className="w-full max-w-5xl mx-auto flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-neutral-100 dark:bg-neutral-900/80 border-b border-neutral-200/50 dark:border-neutral-800/50 shrink-0">
                 {sellerScope.avatar ? (
-                  <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-neutral-200 dark:ring-neutral-700" />
+                  <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-brand-500/20" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 text-xs font-bold uppercase">
+                  <div className="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
                     {sellerScope.username.charAt(0)}
                   </div>
                 )}
                 <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                  Searching in <span className="font-bold text-neutral-900 dark:text-white">@{sellerScope.username}</span>'s store
+                  Searching in <span className="font-bold text-brand-500">@{sellerScope.username}</span>'s store
                 </span>
                 <button
                   onClick={() => openSearch()}
-                  className="ml-auto text-xs font-bold text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:underline transition-colors whitespace-nowrap"
+                  className="ml-auto text-xs font-bold text-brand-500 hover:underline transition-colors whitespace-nowrap"
                 >
                   Search entire marketplace →
                 </button>
@@ -1111,9 +1111,9 @@ const GlobalSearchModal: React.FC = () => {
                                 {item.type === 'product' && (
                                   <div className="shrink-0 flex items-center gap-3 pr-2">
                                     <div className="text-right">
-                                      <p className="font-bold text-sm text-neutral-900 dark:text-white">
+                                      <p className="font-bold text-sm text-brand-600 dark:text-brand-400">
                                         {item.price ? Number(item.price).toLocaleString() : 'Negotiable'}
-                                        {item.price && <span className="text-[10px] ml-1 font-normal text-neutral-500 dark:text-neutral-400">TZS</span>}
+                                        {item.price && <span className="text-[10px] ml-1 font-normal text-neutral-500">TZS</span>}
                                       </p>
                                     </div>
                                     <button
@@ -1132,7 +1132,7 @@ const GlobalSearchModal: React.FC = () => {
                                         }
                                         addToCart(item);
                                       }}
-                                      className="p-2 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white transition-colors"
+                                      className="p-2 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 hover:bg-brand-500/20 transition-colors"
                                       aria-label="Add to cart"
                                       title="Add to cart"
                                     >
