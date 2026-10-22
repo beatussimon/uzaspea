@@ -171,18 +171,18 @@ const DashboardOverview: React.FC = () => {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[40px]">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 flex-nowrap min-w-0 min-h-[40px]">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap sm:truncate shrink-0">
             {t('store_analytics', 'Store Analytics')}
           </h1>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-nowrap">
             <LocationSelector />
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <button 
               type="button"
               onClick={handleExportPdf}
               disabled={isExporting}
-              className="inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white shrink-0 whitespace-nowrap cursor-pointer transition border-0 disabled:opacity-50 active:scale-[0.97]"
+              className="inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white shrink-0 whitespace-nowrap cursor-pointer transition border-0 disabled:opacity-50 active:scale-[0.97]"
               title="Export to PDF"
               aria-label="Export to PDF"
             >
