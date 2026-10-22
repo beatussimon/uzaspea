@@ -227,27 +227,27 @@ export const BranchesManagerPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Store Branches & Locations
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-              Manage physical stores, sub-branches, assigned personnel, and localized POS terminals.
-            </p>
-          </div>
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
+            <span className="sm:hidden">Store Branches</span>
+            <span className="hidden sm:inline">Store Branches & Locations</span>
+          </h1>
 
           <Button
             type="button"
             variant="default"
             size="sm"
             onClick={openAddModal}
-            className="flex items-center gap-1.5 shadow-xs"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-btn shadow-xs shrink-0 cursor-pointer"
           >
-            <Plus size={16} />
-            <span>Add Branch</span>
+            <Plus size={15} />
+            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">Add Branch</span>
           </Button>
         </div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          Manage physical stores, sub-branches, assigned personnel, and localized POS terminals.
+        </p>
       </header>
 
       {/* Subscription Banner for non-business users */}

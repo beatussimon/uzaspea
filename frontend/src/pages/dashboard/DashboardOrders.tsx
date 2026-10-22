@@ -289,20 +289,21 @@ const DashboardOrders: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('incoming_orders', 'Incoming Orders')}
-            </h1>
+        <div className="flex items-center justify-between gap-1.5 sm:gap-3 flex-nowrap min-w-0">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap sm:truncate shrink-0">
+            {t('incoming_orders', 'Incoming Orders')}
+          </h1>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             <LocationSelector />
-            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 sm:px-2.5 py-1 rounded-full capitalize flex items-center gap-1 sm:gap-1.5 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              {t('live_view', 'Live View')}
+              <span className="sm:hidden">Live</span>
+              <span className="hidden sm:inline">{t('live_view', 'Live View')}</span>
             </span>
           </div>
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
           {t('orders_desc', 'Track incoming customer orders, verify payments, manage shipments, and fulfill orders in real-time.')}
         </p>
       </header>
