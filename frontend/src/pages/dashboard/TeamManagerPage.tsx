@@ -524,7 +524,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <div
                     key={member.id}
                     className={`card !border-none p-4 flex flex-col justify-between gap-3 hover:shadow-xs transition ${
-                      !member.is_active ? 'opacity-70 border-red-500/30' : ''
+                      !member.is_active ? 'opacity-70' : ''
                     }`}
                   >
                     <div className="space-y-2">
@@ -561,7 +561,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
 
                       {/* Branch Scope Badge */}
                       <div className="text-3xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 pt-1">
-                        <MapPin className="w-3 h-3 text-primary-600 dark:text-primary-400 shrink-0" />
+                        <MapPin className="w-3 h-3 text-gray-400 dark:text-neutral-500 shrink-0" />
                         <span>
                           {member.all_locations_access
                             ? 'All Branches'
@@ -722,13 +722,13 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
             </div>
 
             {/* Mode switch */}
-            <div className="flex rounded-lg bg-gray-100 dark:bg-neutral-900 p-1 text-xs font-medium">
+            <div className="flex rounded-full bg-surface-muted dark:bg-[#161616] p-1 text-xs font-medium">
               <button
                 type="button"
                 onClick={() => setCreateMode('direct')}
-                className={`flex-1 py-1.5 rounded-md transition-colors ${
+                className={`flex-1 py-1.5 rounded-full transition-all ${
                   createMode === 'direct'
-                    ? 'bg-white dark:bg-[#111] text-gray-900 dark:text-white shadow-sm font-semibold'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs font-semibold'
                     : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
@@ -737,9 +737,9 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
               <button
                 type="button"
                 onClick={() => setCreateMode('invite')}
-                className={`flex-1 py-1.5 rounded-md transition-colors ${
+                className={`flex-1 py-1.5 rounded-full transition-all ${
                   createMode === 'invite'
-                    ? 'bg-white dark:bg-[#111] text-gray-900 dark:text-white shadow-sm font-semibold'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs font-semibold'
                     : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
@@ -759,7 +759,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                     type="text"
                     required
                     placeholder="e.g. juma_orders"
-                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                     value={formUsername}
                     onChange={(e) => setFormUsername(e.target.value)}
                   />
@@ -772,7 +772,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <input
                     type="email"
                     placeholder="juma@example.com"
-                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
                   />
@@ -791,7 +791,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                         type={showPassword ? 'text' : 'password'}
                         required
                         placeholder="••••••••"
-                        className="w-full px-3 py-2 pr-8 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                        className="w-full px-3 py-2 pr-8 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                         value={formPassword}
                         onChange={(e) => setFormPassword(e.target.value)}
                       />
@@ -813,7 +813,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="••••••••"
-                      className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                      className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                       value={formConfirmPassword}
                       onChange={(e) => setFormConfirmPassword(e.target.value)}
                     />
@@ -830,7 +830,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <input
                     type="text"
                     placeholder="Juma"
-                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                     value={formFirstName}
                     onChange={(e) => setFormFirstName(e.target.value)}
                   />
@@ -843,7 +843,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   <input
                     type="text"
                     placeholder="Mussa"
-                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                     value={formLastName}
                     onChange={(e) => setFormLastName(e.target.value)}
                   />
@@ -856,7 +856,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   Role
                 </label>
                 <select
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                   value={formRolePreset}
                   onChange={(e) => handleRolePresetChange(e.target.value)}
                 >
@@ -995,7 +995,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
@@ -1009,7 +1009,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                 />
@@ -1047,7 +1047,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   Role
                 </label>
                 <select
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                   value={editRolePreset}
                   onChange={(e) => {
                     const preset = e.target.value;
@@ -1184,7 +1184,7 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
                   type="text"
                   required
                   placeholder="e.g. new_employee"
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-[#111] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs bg-surface-muted dark:bg-[#161616] border-0 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
                   value={targetUsername}
                   onChange={(e) => setTargetUsername(e.target.value)}
                 />

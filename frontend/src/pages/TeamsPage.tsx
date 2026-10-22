@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { Shield, UserPlus, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+
 
 interface UserDetails {
   id: number;
@@ -97,12 +97,11 @@ export const TeamsPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       {/* Header */}
-      <div className="border-b border-gray-800 pb-4">
-        <h2 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-          <Shield className="text-amber-500" size={26} />
+      <div className="space-y-1">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           Business Teams
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-neutral-400">
           Review your business team invitations and active memberships
         </p>
       </div>
@@ -110,29 +109,29 @@ export const TeamsPage: React.FC = () => {
       {/* Pending Invitations Section */}
       {pending.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <UserPlus size={16} className="text-amber-500" />
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
             Pending Invitations ({pending.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {pending.map((inv) => (
-              <div key={inv.id} className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-2xl flex flex-col justify-between gap-4">
+              <div key={inv.id} className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 flex flex-col justify-between gap-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-bold text-white text-base">@{inv.owner_username}</h4>
-                      <p className="text-xs text-gray-500">Business Team Owner</p>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base">@{inv.owner_username}</h4>
+                      <p className="text-xs text-gray-500 dark:text-neutral-400">Business Team Owner</p>
                     </div>
-                    <span className="text-[10px] font-black uppercase bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded border border-amber-500/20">
+                    <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
                       {ROLE_LABELS[inv.role_preset] || 'Worker'}
                     </span>
                   </div>
                   
-                  <div className="pt-2 border-t border-gray-900 space-y-2">
-                    <p className="text-xs text-gray-400">Permissions to be granted:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(inv.permissions).map(([name, val]) => (
-                        <span key={name} className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${val ? ' text-green-500 border border-green-500/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
+                  <div className="space-y-1.5">
+                    <p className="text-2xs text-gray-400 dark:text-neutral-500">Permissions to be granted:</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-gray-600 dark:text-neutral-300">
+                      {Object.entries(inv.permissions).filter(([, val]) => val).map(([name], idx) => (
+                        <span key={name} className="inline-flex items-center">
+                          {idx > 0 && <span className="mr-2 text-gray-300 dark:text-neutral-700 select-none">•</span>}
                           {name.replace('_', ' ')}
                         </span>
                       ))}
@@ -140,21 +139,19 @@ export const TeamsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2 border-t border-gray-900 pt-3 mt-2">
+                <div className="flex gap-2 pt-2">
                   <button
                     disabled={actioning !== null}
                     onClick={() => handleAccept(inv.id)}
-                    className="flex-1 btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    className="flex-1 px-3 py-2 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-black text-xs font-semibold hover:opacity-90 transition flex items-center justify-center cursor-pointer"
                   >
-                    <CheckCircle size={14} />
                     {actioning === inv.id ? 'Processing...' : 'Accept'}
                   </button>
                   <button
                     disabled={actioning !== null}
                     onClick={() => handleDecline(inv.id)}
-                    className="flex-1 btn-ghost py-2.5 border-red-500 text-red-500  text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    className="flex-1 px-3 py-2 rounded-xl bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 text-xs font-semibold transition flex items-center justify-center cursor-pointer"
                   >
-                    <XCircle size={14} />
                     Decline
                   </button>
                 </div>
@@ -166,39 +163,38 @@ export const TeamsPage: React.FC = () => {
 
       {/* Active Memberships Section */}
       <div className="space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+        <h3 className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
           Active Team Memberships
         </h3>
         {accepted.length === 0 ? (
-          <div className="card p-8 text-center text-gray-500 border border-gray-800 bg-[#0a0a0a] rounded-2xl">
+          <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-8 text-center text-xs text-gray-500 dark:text-neutral-400">
             You do not belong to any active business teams as a worker.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {accepted.map((mem) => (
-              <div key={mem.id} className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-2xl flex flex-col justify-between gap-4">
+              <div key={mem.id} className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 flex flex-col justify-between gap-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-bold text-white text-base">@{mem.owner_username}</h4>
-                      <p className="text-xs text-gray-500">Business Team Owner</p>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base">@{mem.owner_username}</h4>
+                      <p className="text-xs text-gray-500 dark:text-neutral-400">Business Team Owner</p>
                     </div>
-                    <span className="text-[10px] font-black uppercase  text-green-500 px-2 py-0.5 rounded border border-green-500/20">
+                    <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
                       {ROLE_LABELS[mem.role_preset] || 'Worker'}
                     </span>
                   </div>
                   
-                  <p className="text-xs text-gray-400 leading-relaxed pt-2 border-t border-gray-900">
+                  <p className="text-xs text-gray-600 dark:text-neutral-400 leading-relaxed">
                     You are currently active in this team. Your permissions allow you to complete actions on behalf of the business owner.
                   </p>
                 </div>
 
                 <Link
                   to="/dashboard/my-team"
-                  className="w-full btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 mt-2"
+                  className="w-full px-4 py-2.5 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-black text-xs font-semibold hover:opacity-90 transition text-center mt-1"
                 >
-                  <span>Go to My Team Portal</span>
-                  <ArrowRight size={14} />
+                  Go to Team Portal
                 </Link>
               </div>
             ))}
