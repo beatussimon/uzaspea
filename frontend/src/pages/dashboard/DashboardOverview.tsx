@@ -758,7 +758,7 @@ const DashboardOverview: React.FC = () => {
                     <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
                       {b.name}
                     </span>
-                    <span className="text-2xs font-extrabold px-1.5 py-0.5 rounded bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
+                    <span className="text-2xs font-bold text-gray-400 dark:text-neutral-500">
                       {sharePct}% of sales
                     </span>
                   </div>
