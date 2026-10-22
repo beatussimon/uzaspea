@@ -1080,7 +1080,7 @@ const ProfilePage: React.FC = () => {
                       {b.name}
                     </h3>
                     {b.is_main && (
-                      <span className="text-4xs uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 font-extrabold">
+                      <span className="inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 tracking-wider">
                         HQ Store
                       </span>
                     )}
