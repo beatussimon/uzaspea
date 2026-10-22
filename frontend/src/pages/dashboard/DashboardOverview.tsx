@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check, MapPin } from 'lucide-react';
+import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
@@ -734,27 +734,26 @@ const DashboardOverview: React.FC = () => {
 
       {/* Multi-Branch Performance Widget (Business Tier HQ Consolidated View) */}
       {stats?.location_breakdown && stats.location_breakdown.length > 0 && !activeLocation && (
-        <div className="card overflow-hidden !border-none !rounded-2xl p-5 bg-white dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border shadow-xs print-hide">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin size={16} className="text-brand-600 dark:text-brand-400" />
+        <div className="overflow-hidden rounded-2xl p-4 sm:p-5 bg-white dark:bg-neutral-900 border-0 shadow-xs print-hide">
+          <div className="flex items-start sm:items-center justify-between gap-3 mb-3.5 sm:mb-4">
+            <div className="space-y-0.5 min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
                 Branch Performance & Sales Contribution
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="text-2xs sm:text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                 Consolidated revenue and fulfillment volume by physical store branch
               </p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
+            <span className="hidden sm:inline-block text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap shrink-0">
               {stats.location_breakdown.length} Branches Active
             </span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {stats.location_breakdown.map((b: any, idx: number) => {
               const sharePct = stats.total_revenue > 0 ? Math.round((b.revenue / stats.total_revenue) * 100) : 0;
               return (
-                <div key={b.location_id || idx} className="p-3.5 rounded-xl border border-gray-100 dark:border-neutral-800 bg-gray-50/60 dark:bg-neutral-950/40 space-y-2">
+                <div key={b.location_id || idx} className="p-3.5 rounded-xl border-0 bg-gray-50/80 dark:bg-neutral-950/60 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
                       {b.name}
