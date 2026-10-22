@@ -39,6 +39,7 @@ export default {
         'btn': '0.75rem',     /* 12px */
       },
       fontSize: {
+        '4xs': ['0.5rem', { lineHeight: '0.6875rem' }],   /* 8px */
         '3xs': ['0.5625rem', { lineHeight: '0.75rem' }],  /* 9px */
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],  /* 10px - restrict usage */
         'body-sm': ['0.875rem', { lineHeight: '1.25rem' }], /* 14px */
