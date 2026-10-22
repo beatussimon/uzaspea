@@ -330,10 +330,10 @@ export const StockTransfersPage: React.FC = () => {
             const totalUnits = (t.items || []).reduce((acc, i) => acc + Number(i.quantity_dispatched || 0), 0);
 
             const statusColors = {
-              draft: 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300',
-              in_transit: 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
-              completed: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-              cancelled: 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300',
+              draft: 'text-gray-600 dark:text-gray-400',
+              in_transit: 'text-amber-600 dark:text-amber-400',
+              completed: 'text-emerald-600 dark:text-emerald-400',
+              cancelled: 'text-red-600 dark:text-red-400',
             }[t.status];
 
             return (
@@ -351,7 +351,7 @@ export const StockTransfersPage: React.FC = () => {
                       <span className="font-extrabold text-sm text-gray-900 dark:text-white font-mono">
                         {t.tracking_number}
                       </span>
-                      <span className={`text-3xs font-bold uppercase px-2.5 py-0.5 rounded-full ${statusColors}`}>
+                      <span className={`text-3xs font-bold uppercase tracking-wider ${statusColors}`}>
                         {t.status.replace('_', ' ')}
                       </span>
                       <span className="text-3xs text-gray-400">
