@@ -734,8 +734,8 @@ const DashboardOverview: React.FC = () => {
 
       {/* Multi-Branch Performance Widget (Business Tier HQ Consolidated View) */}
       {stats?.location_breakdown && stats.location_breakdown.length > 0 && !activeLocation && (
-        <div className="overflow-hidden rounded-2xl p-4 sm:p-5 bg-white dark:bg-neutral-900 border-0 shadow-xs print-hide">
-          <div className="flex items-start sm:items-center justify-between gap-3 mb-3.5 sm:mb-4">
+        <div className="space-y-3 print-hide">
+          <div className="flex items-start sm:items-center justify-between gap-3 px-1">
             <div className="space-y-0.5 min-w-0">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
                 Branch Performance & Sales Contribution
@@ -753,7 +753,7 @@ const DashboardOverview: React.FC = () => {
             {stats.location_breakdown.map((b: any, idx: number) => {
               const sharePct = stats.total_revenue > 0 ? Math.round((b.revenue / stats.total_revenue) * 100) : 0;
               return (
-                <div key={b.location_id || idx} className="p-3.5 rounded-xl border-0 bg-gray-50/80 dark:bg-neutral-950/60 space-y-2">
+                <div key={b.location_id || idx} className="card !border-none p-3.5 sm:p-4 space-y-2.5 rounded-2xl">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
                       {b.name}
