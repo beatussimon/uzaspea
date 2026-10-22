@@ -977,17 +977,18 @@ const ProfilePage: React.FC = () => {
             )}
           </div>
         ) : activeTab === 'about' ? (
-          <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 rounded-2xl p-6 md:p-8 border-0 shadow-none space-y-6">
+          <div className="max-w-xl mx-auto space-y-3 sm:space-y-4">
             
-            <div className="space-y-3">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 border-0 shadow-none space-y-3">
               <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">Biography</h3>
               <p className="text-sm text-gray-700 dark:text-neutral-300 leading-relaxed">
                 {profile.bio || (isSellerProfile ? "No biography details provided by this seller." : "No biography details provided.")}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-1">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 border-0 shadow-none">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('verification_status')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                   {profile.is_verified ? (
@@ -1010,11 +1011,12 @@ const ProfilePage: React.FC = () => {
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{profile.phone_number}</p>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Store Showcase (Max 9 images) */}
             {(profile.tier === 'seller_pro' || profile.tier === 'business' || (profile.store_images && profile.store_images.length > 0)) && (
-              <div className="space-y-4">
+              <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 border-0 shadow-none space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
                     {t('store_showcase')} ({(profile.store_images || []).length}/9)
