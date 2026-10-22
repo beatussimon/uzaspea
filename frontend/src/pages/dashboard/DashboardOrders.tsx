@@ -286,17 +286,17 @@ const DashboardOrders: React.FC = () => {
   }, [orders, filterStatus, searchQuery]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0 max-w-full">
       {/* Header */}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-1.5 sm:gap-3 flex-nowrap min-w-0">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap sm:truncate shrink-0">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0 w-full">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
             {t('incoming_orders', 'Incoming Orders')}
           </h1>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <LocationSelector />
-            <span className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-btn text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 select-none">
+            <span className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-btn text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 select-none">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <span className="sm:hidden">Live</span>
               <span className="hidden sm:inline">{t('live_view', 'Live View')}</span>
@@ -309,9 +309,9 @@ const DashboardOrders: React.FC = () => {
       </header>
 
       {/* Filter Pills & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 w-full min-w-0 max-w-full">
         {/* Horizontal Scroll Pill Bar */}
-        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 w-full min-w-0 max-w-full scrollbar-none">
           {orderTabs.map((tab) => {
             const isActive = filterStatus === tab.key;
             return (
@@ -349,7 +349,7 @@ const DashboardOrders: React.FC = () => {
         </div>
 
         {/* Search Box */}
-        <div className="relative min-w-[220px]">
+        <div className="relative w-full sm:w-auto sm:min-w-[220px] shrink-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -403,16 +403,16 @@ const DashboardOrders: React.FC = () => {
               <div
                 key={order.id}
                 id={`order-${order.id}`}
-                className="card !border-none overflow-hidden transition-all duration-200"
+                className="card !border-none overflow-hidden transition-all duration-200 w-full min-w-0 max-w-full"
               >
                 {/* Collapsible Header */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="relative p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
+                  className="relative p-3.5 sm:p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-3 sm:gap-4 justify-between items-start md:items-center select-none w-full min-w-0"
                 >
-                  <div className="flex items-center gap-4 flex-1 min-w-0 pr-6 md:pr-0">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-8 md:pr-0 w-full">
                     {/* Product Thumbnail */}
-                    <div className="relative w-14 h-14 shrink-0">
+                    <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0">
                       <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] overflow-hidden flex items-center justify-center">
                         {itemsList[0]?.product_image ? (
                           <img
@@ -421,7 +421,7 @@ const DashboardOrders: React.FC = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <Package size={22} className="text-gray-400" />
+                          <Package size={20} className="text-gray-400" />
                         )}
                       </div>
                       {itemsList.length > 1 && (
@@ -432,11 +432,11 @@ const DashboardOrders: React.FC = () => {
                     </div>
 
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-extrabold text-sm text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="font-extrabold text-sm text-gray-900 dark:text-white truncate">
                           Order #{order.id}
                         </span>
-                        <span className="text-2xs text-gray-400">
+                        <span className="text-2xs text-gray-400 truncate max-w-[140px] sm:max-w-none">
                           {order.delivery_info?.is_pos
                             ? order.delivery_info?.customer_name || 'Walk-in Customer'
                             : `@${order.buyer || 'Customer'}`}
@@ -466,22 +466,22 @@ const DashboardOrders: React.FC = () => {
                           </span>
                         )}
 
-                        <span className="text-2xs font-extrabold text-gray-900 dark:text-white ml-auto md:ml-0">
+                        <span className="text-2xs font-extrabold text-gray-900 dark:text-white ml-auto md:ml-0 shrink-0">
                           Total: TSh {(order.seller_subtotal || parseFloat(order.total_amount) || 0).toLocaleString()}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-3 text-2xs text-gray-400 flex-wrap">
-                        <span className="flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200">
+                      <div className="flex items-center gap-2 sm:gap-3 text-2xs text-gray-400 flex-wrap min-w-0">
+                        <span className="font-medium text-gray-800 dark:text-gray-200 truncate max-w-full block">
                           {itemsList[0]?.product_name || 'Item'}
                           {itemsList.length > 1 ? ` (+${itemsList.length - 1} more)` : ''}
                         </span>
                         <span>•</span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Clock size={12} /> {fmtOrderDate(order.order_date)}
                         </span>
                         <span>•</span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Package size={12} /> {itemsList.length} {t('items', 'items')}
                         </span>
                       </div>
@@ -555,7 +555,7 @@ const DashboardOrders: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-4 right-4 md:static">
+                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-3.5 sm:top-4 right-3 sm:right-4 md:static shrink-0">
                       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
