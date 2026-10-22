@@ -3,7 +3,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   MapPin, Plus, Edit2, Trash2, Phone, MessageSquare, 
-  AlertCircle, Compass
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -326,39 +326,13 @@ export const BranchesManagerPage: React.FC = () => {
                 </div>
 
                 {/* Address & City */}
-                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                <div className="text-xs text-gray-600 dark:text-gray-300">
                   <div className="flex items-start gap-2">
                     <MapPin size={14} className="text-gray-400 shrink-0 mt-0.5" />
                     <span className="font-medium">
                       {loc.address_line}{loc.district ? `, ${loc.district}` : ''}, <strong className="text-gray-900 dark:text-white">{loc.city}</strong>
                     </span>
                   </div>
-
-                  {/* Phone / Whatsapp */}
-                  {(loc.phone || loc.whatsapp) && (
-                    <div className="flex items-center gap-3 pt-1 text-3xs text-gray-500">
-                      {loc.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone size={11} className="text-gray-400" />
-                          {loc.phone}
-                        </span>
-                      )}
-                      {loc.whatsapp && (
-                        <span className="flex items-center gap-1">
-                          <MessageSquare size={11} className="text-emerald-500" />
-                          {loc.whatsapp}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* GPS Coordinates */}
-                  {loc.latitude && loc.longitude && (
-                    <div className="text-3xs text-gray-400 flex items-center gap-1 font-mono pt-0.5">
-                      <Compass size={11} />
-                      <span>{loc.latitude}, {loc.longitude}</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Metrics Pill Grid */}
@@ -392,6 +366,34 @@ export const BranchesManagerPage: React.FC = () => {
                     <Edit2 size={12} />
                     <span>Edit</span>
                   </Button>
+
+                  {loc.phone && (
+                    <a
+                      href={`tel:${loc.phone}`}
+                      className="h-7 w-7 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center transition"
+                      title={`Call ${loc.phone}`}
+                      aria-label={`Call ${loc.phone}`}
+                    >
+                      <Phone size={13} />
+                    </a>
+                  )}
+
+                  {(loc.whatsapp || loc.phone) && (
+                    <a
+                      href={
+                        loc.whatsapp
+                          ? `https://wa.me/${loc.whatsapp.replace(/[^0-9]/g, '')}`
+                          : `sms:${loc.phone}`
+                      }
+                      target={loc.whatsapp ? "_blank" : undefined}
+                      rel={loc.whatsapp ? "noopener noreferrer" : undefined}
+                      className="h-7 w-7 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center transition"
+                      title={loc.whatsapp ? `WhatsApp ${loc.whatsapp}` : `Text ${loc.phone}`}
+                      aria-label={loc.whatsapp ? `WhatsApp ${loc.whatsapp}` : `Text ${loc.phone}`}
+                    >
+                      <MessageSquare size={13} />
+                    </a>
+                  )}
 
                   {!loc.is_main && (
                     <Button
