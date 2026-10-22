@@ -3,8 +3,7 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, FileText, Package, 
   Wallet, CreditCard, Shield, MessageSquare, 
-  Lightbulb, ChevronLeft, ChevronRight, AlertCircle, Store,
-  LogOut
+  Lightbulb, ChevronLeft, ChevronRight, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +24,7 @@ import MyTeamPage from '../dashboard/MyTeamPage';
 export const TeamsDashboardLayout: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const perms = user?.team_permissions || {};
@@ -99,39 +98,11 @@ export const TeamsDashboardLayout: React.FC = () => {
   const navItems = allNavItems.filter(item => item.show);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0">
+    <div className="max-w-7xl mx-auto p-4 flex flex-col gap-4 sm:gap-5 print:p-0 print:m-0">
       
-      {/* Header Bar */}
-      <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300 flex items-center justify-center shrink-0">
-            <Store className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                {user?.business_name || `@${user?.team_owner_username || 'business'}`}
-              </h2>
-              <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
-                {user?.team_role_label || 'Team Member'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
-              Logged in as @{user?.username} • Store Owner: @{user?.team_owner_username}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-colors"
-            title="Log out from team dashboard"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign out</span>
-          </button>
-        </div>
+      {/* Top Status Info */}
+      <div className="text-xs text-gray-500 dark:text-neutral-400">
+        Logged in as @{user?.username}{user?.team_role_label ? ` (${user.team_role_label})` : ''} • Store Owner: @{user?.team_owner_username}
       </div>
 
       {/* Warnings if suspended or inactive */}
