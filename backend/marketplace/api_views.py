@@ -6674,6 +6674,7 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         seller_id = self.request.query_params.get('seller_id')
         seller_slug = self.request.query_params.get('seller_slug')
+        is_active_param = self.request.query_params.get('is_active')
 
         # Public exploration for a specific seller
         if seller_id or seller_slug:
@@ -6689,11 +6690,20 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
 
         # Superuser: view all
         if user.is_superuser:
-            return StoreLocation.objects.all().order_by('-is_main', 'name')
+            qs = StoreLocation.objects.all()
+        else:
+            # Store owner can view and manage all their own locations (both active and suspended)
+            # Team members get their assigned locations
+            allowed_ids, _ = get_user_location_scope(user)
+            qs = StoreLocation.objects.filter(Q(owner=user) | Q(id__in=allowed_ids))
 
-        # Authenticated user location scope
-        allowed_ids, _ = get_user_location_scope(user)
-        return StoreLocation.objects.filter(id__in=allowed_ids).order_by('-is_main', 'name')
+        if is_active_param is not None:
+            if is_active_param.lower() in ['true', '1']:
+                qs = qs.filter(is_active=True)
+            elif is_active_param.lower() in ['false', '0']:
+                qs = qs.filter(is_active=False)
+
+        return qs.order_by('-is_main', 'name')
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -6710,6 +6720,14 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
                 "Operating multiple store branches requires an active Uzaspea Business tier subscription."
             )
         serializer.save(owner=user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = serializer.instance
+        if instance.owner != user and not user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the store owner can edit this branch.")
+        serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
