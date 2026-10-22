@@ -431,62 +431,64 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
         </p>
       </header>
 
-      {/* Tabs */}
-      <div data-horizontal-scroll="true" className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('members')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'members'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          <span>Members</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-            activeTab === 'members'
-              ? 'bg-white/20 dark:bg-black/20 text-inherit'
-              : 'bg-surface-border text-gray-500 dark:text-gray-400'
-          }`}>
-            {members.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('audit')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'audit'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          <span>Activity Log</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-            activeTab === 'audit'
-              ? 'bg-white/20 dark:bg-black/20 text-inherit'
-              : 'bg-surface-border text-gray-500 dark:text-gray-400'
-          }`}>
-            {auditLogs.length}
-          </span>
-        </button>
+      {/* Tabs & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'members'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <span>Members</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+              activeTab === 'members'
+                ? 'bg-white/20 dark:bg-black/20 text-inherit'
+                : 'bg-surface-border text-gray-500 dark:text-gray-400'
+            }`}>
+              {members.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('audit')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'audit'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <span>Activity Log</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+              activeTab === 'audit'
+                ? 'bg-white/20 dark:bg-black/20 text-inherit'
+                : 'bg-surface-border text-gray-500 dark:text-gray-400'
+            }`}>
+              {auditLogs.length}
+            </span>
+          </button>
+        </div>
+
+        {activeTab === 'members' && members.length > 0 && (
+          <div className="relative min-w-[200px] sm:w-56 shrink-0">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-4 py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
+            />
+          </div>
+        )}
       </div>
 
       {/* Tab: Members List */}
       {activeTab === 'members' && (
         <div className="space-y-4">
-          
-          {members.length > 0 && (
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search members..."
-                className="w-full pl-8 pr-4 py-1.5 text-xs font-medium rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          )}
 
           {loading && members.length === 0 ? (
             <CardGridSkeleton count={2} cols={2} />
