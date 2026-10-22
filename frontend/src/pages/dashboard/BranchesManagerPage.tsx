@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   MapPin, Plus, Edit2, Trash2, Phone, MessageSquare, 
-  AlertCircle
+  AlertCircle, Search, Loader2, Navigation, CheckCircle2
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -30,12 +30,6 @@ interface StoreLocation {
   assigned_staff_count?: number;
   created_at?: string;
 }
-
-const TANZANIA_CITIES = [
-  'Dar es Salaam', 'Arusha', 'Mwanza', 'Dodoma', 'Zanzibar', 
-  'Mbeya', 'Morogoro', 'Tanga', 'Tabora', 'Kigoma', 
-  'Iringa', 'Moshi', 'Musoma', 'Songea', 'Bukoba'
-];
 
 const DEFAULT_HOURS = {
   mon: { open: '08:00', close: '18:00', closed: false },
@@ -71,6 +65,96 @@ export const BranchesManagerPage: React.FC = () => {
   const [overrideLipa, setOverrideLipa] = useState<number | ''>('');
   const [gettingGps, setGettingGps] = useState(false);
 
+  // Search & Geocoding State
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [searchingLocation, setSearchingLocation] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const locationWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Autocomplete debounced query for Tanzania locations
+  useEffect(() => {
+    if (!locationQuery || locationQuery.trim().length < 2) {
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingLocation(true);
+      try {
+        let items: any[] = [];
+        try {
+          const res = await api.get('/api/locations/search/', { params: { q: locationQuery.trim() } });
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            items = res.data;
+          }
+        } catch {
+          // Proceed to Nominatim fallback below
+        }
+
+        if (items.length === 0) {
+          const directRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationQuery.trim())}&format=json&countrycodes=tz&addressdetails=1&limit=6`,
+            { headers: { 'Accept-Language': 'en', 'User-Agent': 'SokoniMax/1.0' } }
+          );
+          const data = await directRes.json();
+          items = (data || []).map((item: any) => {
+            const addr = item.address || {};
+            const detectedCity = addr.city || addr.town || addr.municipality || addr.state || '';
+            const detectedDistrict = addr.city_district || addr.county || addr.district || addr.suburb || '';
+            const road = addr.road || addr.pedestrian || addr.suburb || '';
+            return {
+              place_id: item.place_id,
+              display_name: item.display_name,
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon),
+              city: detectedCity,
+              district: detectedDistrict,
+              road: road,
+            };
+          });
+        }
+
+        setLocationSuggestions(items);
+        setShowLocationSuggestions(items.length > 0);
+      } catch {
+        setLocationSuggestions([]);
+      } finally {
+        setSearchingLocation(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [locationQuery]);
+
+  // Click outside to close suggestion dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (locationWrapperRef.current && !locationWrapperRef.current.contains(e.target as Node)) {
+        setShowLocationSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectLocationPlace = (place: any) => {
+    setLat(place.lat.toFixed(6));
+    setLng(place.lng.toFixed(6));
+    const detectedCity = place.city || place.region || 'Dar es Salaam';
+    setCity(detectedCity);
+    if (place.district) setDistrict(place.district);
+
+    const placeTitle = place.road || place.display_name.split(',')[0].trim();
+    const areaName = place.district ? `, ${place.district}` : '';
+    setAddressLine(`${placeTitle}${areaName}`);
+
+    setLocationQuery('');
+    setShowLocationSuggestions(false);
+    toast.success(`Location set: ${detectedCity}${place.district ? ` (${place.district})` : ''}`);
+  };
+
   const fetchLocations = () => {
     setLoading(true);
     Promise.all([
@@ -105,6 +189,9 @@ export const BranchesManagerPage: React.FC = () => {
     setLng('');
     setIsMain(locations.length === 0);
     setOverrideLipa('');
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
     setModalOpen(true);
   };
 
@@ -120,6 +207,9 @@ export const BranchesManagerPage: React.FC = () => {
     setLng(loc.longitude ? String(loc.longitude) : '');
     setIsMain(loc.is_main);
     setOverrideLipa(loc.override_lipa_number || '');
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
     setModalOpen(true);
   };
 
@@ -130,11 +220,34 @@ export const BranchesManagerPage: React.FC = () => {
     }
     setGettingGps(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude.toFixed(6));
-        setLng(pos.coords.longitude.toFixed(6));
-        setGettingGps(false);
-        toast.success('GPS coordinates retrieved!');
+      async (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
+        setLat(latitude.toFixed(6));
+        setLng(longitude.toFixed(6));
+
+        try {
+          const res = await api.get('/api/reverse-geocode/', {
+            params: { lat: latitude, lng: longitude }
+          });
+          const raw = res.data?.raw || {};
+          const detectedCity = raw.city || raw.town || raw.municipality || raw.state || 'Dar es Salaam';
+          const detectedDistrict = raw.city_district || raw.county || raw.district || raw.suburb || '';
+          const detectedRoad = raw.road || raw.pedestrian || raw.suburb || '';
+
+          if (detectedCity) setCity(detectedCity);
+          if (detectedDistrict) setDistrict(detectedDistrict);
+          if (detectedRoad) {
+            setAddressLine(detectedRoad + (detectedDistrict && detectedDistrict !== detectedRoad ? `, ${detectedDistrict}` : ''));
+          } else if (res.data?.address) {
+            setAddressLine(res.data.address);
+          }
+          toast.success(`GPS Location detected: ${detectedCity}${detectedDistrict ? ` (${detectedDistrict})` : ''}`);
+        } catch {
+          toast.success('GPS coordinates retrieved!');
+        } finally {
+          setGettingGps(false);
+        }
       },
       (err) => {
         setGettingGps(false);
@@ -472,49 +585,121 @@ export const BranchesManagerPage: React.FC = () => {
                 />
               </div>
 
-              {/* Address Line */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Street Address & Landmark *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
-                  placeholder="e.g. Shekilango Road, Opposite Mori Plaza"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
-                />
-              </div>
-
-              {/* City & District */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    City / Region
+              {/* Smart Location: Search or Auto GPS */}
+              <div ref={locationWrapperRef} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Location & GPS *
                   </label>
-                  <select
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
+                  <button
+                    type="button"
+                    onClick={handleGetCurrentLocation}
+                    disabled={gettingGps}
+                    className="inline-flex items-center gap-1.5 text-2xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg transition cursor-pointer"
                   >
-                    {TANZANIA_CITIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    {gettingGps ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>Detecting GPS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Navigation size={12} />
+                        <span>Auto-detect GPS</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    District
-                  </label>
-                  <input
-                    type="text"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="e.g. Kinondoni, Ilala, Ubungo"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
-                  />
+                {/* Search Input with Autocomplete (Like in search) */}
+                <div className="relative">
+                  <div className="relative flex items-center">
+                    <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={locationQuery}
+                      onChange={(e) => setLocationQuery(e.target.value)}
+                      onFocus={() => {
+                        if (locationSuggestions.length > 0) setShowLocationSuggestions(true);
+                      }}
+                      placeholder="Type city, area, or landmark... (e.g. Kariakoo, Arusha, Sinza)"
+                      className="w-full pl-9 pr-8 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50 placeholder:text-gray-400"
+                    />
+                    {searchingLocation && (
+                      <div className="absolute right-3 text-gray-400">
+                        <Loader2 size={13} className="animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Autocomplete Suggestions Dropdown */}
+                  {showLocationSuggestions && locationSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                      {locationSuggestions.map((p, idx) => (
+                        <button
+                          key={p.place_id || idx}
+                          type="button"
+                          onClick={() => handleSelectLocationPlace(p)}
+                          className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-gray-100 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-white/5 last:border-0 flex items-start gap-2.5 transition cursor-pointer"
+                        >
+                          <MapPin size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-gray-900 dark:text-white truncate">
+                              {p.road || p.display_name.split(',')[0]}
+                            </div>
+                            <div className="text-3xs text-gray-500 dark:text-gray-400 truncate">
+                              {p.display_name}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Derived Location Card & Specific Address */}
+                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#181818] border border-gray-200/60 dark:border-white/5 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-3xs font-bold uppercase tracking-wider text-gray-400">
+                        Region & District:
+                      </span>
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">
+                        {city || 'Not set'}
+                      </span>
+                      {district && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                          · {district}
+                        </span>
+                      )}
+                    </div>
+
+                    {lat && lng ? (
+                      <span className="inline-flex items-center gap-1 text-3xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 size={11} />
+                        <span>GPS Locked</span>
+                      </span>
+                    ) : (
+                      <span className="text-3xs text-amber-500 font-medium">
+                        Search or Auto-detect to set
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Street Address & Specific Landmark Detail Input */}
+                  <div>
+                    <label className="block text-3xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                      Street Address & Specific Landmark *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={addressLine}
+                      onChange={(e) => setAddressLine(e.target.value)}
+                      placeholder="e.g. Msimbazi Street / Congo St junction, Mori Plaza 2nd Floor"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#202020] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -543,39 +728,6 @@ export const BranchesManagerPage: React.FC = () => {
                     onChange={(e) => setWhatsapp(e.target.value)}
                     placeholder="e.g. +255 789 123 456"
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-100 dark:bg-[#1f1f1f] border-0 text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
-                  />
-                </div>
-              </div>
-
-              {/* GPS Coordinates */}
-              <div className="space-y-1.5 p-3 rounded-2xl bg-gray-100 dark:bg-[#1a1a1a] border-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                    GPS Coordinates (Smart Online Delivery Routing)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleGetCurrentLocation}
-                    disabled={gettingGps}
-                    className="text-3xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition cursor-pointer"
-                  >
-                    {gettingGps ? 'Fetching GPS...' : 'Auto-detect GPS'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <input
-                    type="text"
-                    value={lat}
-                    onChange={(e) => setLat(e.target.value)}
-                    placeholder="Latitude (-6.7725)"
-                    className="px-2.5 py-2 text-xs rounded-lg bg-white dark:bg-[#222222] border-0 text-gray-900 dark:text-white font-mono outline-none focus:ring-1 focus:ring-brand-500/50"
-                  />
-                  <input
-                    type="text"
-                    value={lng}
-                    onChange={(e) => setLng(e.target.value)}
-                    placeholder="Longitude (39.2412)"
-                    className="px-2.5 py-2 text-xs rounded-lg bg-white dark:bg-[#222222] border-0 text-gray-900 dark:text-white font-mono outline-none focus:ring-1 focus:ring-brand-500/50"
                   />
                 </div>
               </div>

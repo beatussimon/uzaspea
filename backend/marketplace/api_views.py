@@ -65,10 +65,10 @@ class TicketUserRateThrottle(UserRateThrottle):
     rate = '30/hour'
 
 class GeocodeAnonRateThrottle(AnonRateThrottle):
-    rate = '20/minute'
+    rate = '60/minute'
 
 class GeocodeUserRateThrottle(UserRateThrottle):
-    rate = '100/minute'
+    rate = '120/minute'
 
 class ForgotPasswordRateThrottle(AnonRateThrottle):
     scope = 'forgot_password'
@@ -158,6 +158,8 @@ def geocode_search(request):
         for item in data:
             addr = item.get('address', {})
             city = addr.get('city') or addr.get('town') or addr.get('municipality') or addr.get('suburb') or addr.get('state') or ''
+            district = addr.get('county') or addr.get('city_district') or addr.get('district') or addr.get('state_district') or ''
+            road = addr.get('road') or addr.get('pedestrian') or addr.get('suburb') or ''
             results.append({
                 'place_id': item.get('place_id'),
                 'display_name': item.get('display_name'),
@@ -165,6 +167,9 @@ def geocode_search(request):
                 'lng': float(item.get('lon')),
                 'city': city,
                 'region': addr.get('state') or addr.get('region') or '',
+                'district': district,
+                'road': road,
+                'raw': addr,
             })
         return Response(results)
     except requests.RequestException:
