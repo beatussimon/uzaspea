@@ -480,18 +480,33 @@ const ProductCard = memo(({
           {/* Price Bubble */}
           <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
             {product.requires_quote ? (
-              <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-xs sm:text-sm' : 'text-sm'} truncate leading-tight`}>
+              <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'} whitespace-nowrap leading-tight tracking-tight`}>
                 {t('price_on_request', 'Price on Request')}
               </span>
             ) : (
-              <>
-                {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
-                  <span className="text-[10px] text-gray-400 line-through font-medium truncate shrink-0">TSh {parseInt(product.price).toLocaleString()}</span>
-                )}
-                <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-xs sm:text-sm' : 'text-sm'} truncate leading-tight`}>
-                  TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
-                </span>
-              </>
+              (() => {
+                const effectiveNum = parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price, 10);
+                const effectiveStr = `TSh ${effectiveNum.toLocaleString()}`;
+                const hasSale = product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price);
+                const originalStr = `TSh ${parseInt(product.price, 10).toLocaleString()}`;
+                
+                return (
+                  <>
+                    {hasSale && (
+                      <span className="text-[9px] text-gray-400 line-through font-medium whitespace-nowrap shrink-0">{originalStr}</span>
+                    )}
+                    <span className={`font-black text-gray-900 dark:text-white leading-tight whitespace-nowrap tracking-tight ${
+                      effectiveStr.length > 13
+                        ? (compact ? 'text-[9.5px] sm:text-[10.5px]' : 'text-2xs sm:text-xs')
+                        : effectiveStr.length > 10
+                          ? (compact ? 'text-[10.5px] sm:text-xs' : 'text-xs sm:text-sm')
+                          : (compact ? 'text-xs sm:text-sm' : 'text-sm')
+                    }`}>
+                      {effectiveStr}
+                    </span>
+                  </>
+                );
+              })()
             )}
           </div>
 

@@ -1072,16 +1072,28 @@ const DashboardPOS: React.FC = () => {
                           </div>
 
                           {/* Price Bubble - Pure white text */}
-                          <div className="w-fit max-w-full px-2.5 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center gap-1 overflow-hidden">
-                            <span className="font-black text-white text-xs sm:text-sm tabular-nums leading-tight">
-                              TSh {parseInt(product.price).toLocaleString()}
-                            </span>
-                            {hasVariants && (
-                              <span className="text-3xs text-neutral-400 font-medium ml-0.5">
-                                ({product.variants!.length})
-                              </span>
-                            )}
-                          </div>
+                          {(() => {
+                            const priceNum = parseInt(product.price || '0', 10);
+                            const priceFormatted = `TSh ${priceNum.toLocaleString()}`;
+                            return (
+                              <div className="w-fit max-w-full px-2 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                                <span className={`font-black text-white tabular-nums leading-none tracking-tight whitespace-nowrap ${
+                                  priceFormatted.length >= 14
+                                    ? 'text-[10px] sm:text-2xs'
+                                    : priceFormatted.length >= 11
+                                      ? 'text-[11px] sm:text-xs'
+                                      : 'text-xs sm:text-sm'
+                                }`}>
+                                  {priceFormatted}
+                                </span>
+                                {hasVariants && (
+                                  <span className="text-[9px] text-neutral-400 font-medium ml-0.5 whitespace-nowrap shrink-0">
+                                    ({product.variants!.length})
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* In-Card Variation Selection Matrix Overlay */}
