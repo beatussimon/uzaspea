@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Shield, User, ClipboardList, CheckCircle } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardGridSkeleton } from '../../components/Skeleton';
 
@@ -123,16 +122,13 @@ const [membership, setMembership] = useState<TeamMember | null>(null);
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Shield className="text-brand-500" size={24} />
-            <span>My Team Details</span>
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Review your roles, responsibilities, and jobs in the team
-          </p>
-        </div>
+      <header className="space-y-1">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+          My Team Details
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          Review your roles, responsibilities, and jobs in the team
+        </p>
       </header>
 
       {loading ? (
@@ -153,34 +149,28 @@ const [membership, setMembership] = useState<TeamMember | null>(null);
           };
 
           return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Left Column: Role Details */}
-              <div className="md:col-span-2 space-y-6">
-                <div className="card p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-btn border border-brand-500/20">
-                      <ClipboardList size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900 dark:text-white">{roleInfo.label}</h3>
-                      <p className="text-2xs text-gray-400 font-mono">Assigned Role Preset</p>
-                    </div>
+              <div className="md:col-span-2 space-y-5">
+                <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 space-y-3">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">{roleInfo.label}</h3>
+                    <p className="text-2xs text-gray-400 dark:text-neutral-500">Assigned Role Preset</p>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed pt-2 border-t border-surface-border dark:border-surface-dark-border">
+                  <p className="text-xs text-gray-600 dark:text-neutral-300 leading-relaxed">
                     {roleInfo.description}
                   </p>
                 </div>
 
-                <div className="card p-5 space-y-3">
-                  <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle size={14} className="text-brand-500" />
+                <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 space-y-3">
+                  <h4 className="text-2xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
                     Role Responsibilities & Tasks
                   </h4>
-                  <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                  <div className="space-y-2">
                     {roleInfo.tasks.map((task, idx) => (
-                      <div key={idx} className="py-2.5 flex items-start gap-2.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5 shrink-0" />
-                        <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">{task}</p>
+                      <div key={idx} className="flex items-start gap-2.5 text-xs text-gray-700 dark:text-neutral-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-neutral-600 mt-1.5 shrink-0" />
+                        <span className="font-normal">{task}</span>
                       </div>
                     ))}
                   </div>
@@ -188,43 +178,36 @@ const [membership, setMembership] = useState<TeamMember | null>(null);
               </div>
 
               {/* Right Column: Business / Owner details */}
-              <div className="space-y-6">
-                <div className="card p-5 space-y-3">
-                  <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider">
+              <div className="space-y-5">
+                <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 space-y-3">
+                  <h4 className="text-2xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
                     Business Information
                   </h4>
-                  <div className="pt-2 border-t border-surface-border dark:border-surface-dark-border space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-surface-muted dark:bg-[#161616] rounded-btn text-gray-500 border border-surface-border dark:border-surface-dark-border">
-                        <User size={16} />
-                      </div>
-                      <div>
-                        <p className="text-3xs text-gray-400 uppercase tracking-wider font-bold">Business Owner</p>
-                        <p className="text-xs text-gray-900 dark:text-white font-bold">@{membership.owner_username}</p>
-                      </div>
+                  <div className="space-y-2.5">
+                    <div>
+                      <p className="text-3xs text-gray-400 dark:text-neutral-500 uppercase tracking-wider font-semibold">Store Owner</p>
+                      <p className="text-xs text-gray-900 dark:text-white font-bold">@{membership.owner_username}</p>
                     </div>
 
-                    <div className="pt-2 text-3xs text-gray-400 leading-relaxed border-t border-surface-border dark:border-surface-dark-border">
+                    <div className="text-3xs text-gray-400 dark:text-neutral-500 leading-relaxed">
                       Joined on {new Date(membership.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
 
-                <div className="card p-5 space-y-3">
-                  <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 space-y-3">
+                  <h4 className="text-2xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
                     System Permissions
                   </h4>
-                  <div className="space-y-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
+                  <div className="space-y-2">
                     {Object.entries(membership.permissions).map(([name, val]) => (
                       <div key={name} className="flex justify-between items-center text-xs">
-                        <span className="text-gray-600 dark:text-gray-300 capitalize text-2xs font-medium">{name.replace('_', ' ')}</span>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
-                          val
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                          {val ? 'Enabled' : 'Disabled'}
+                        <span className="text-gray-600 dark:text-neutral-300 capitalize text-2xs font-normal">{name.replace('_', ' ')}</span>
+                        <span className="inline-flex items-center gap-1.5 text-2xs font-medium">
+                          <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-neutral-600'}`} />
+                          <span className={val ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-neutral-500'}>
+                            {val ? 'Enabled' : 'Disabled'}
+                          </span>
                         </span>
                       </div>
                     ))}

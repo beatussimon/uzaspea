@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   CreditCard, ShoppingCart, FileText, Package, MessageSquare, 
-  Wallet, Lightbulb, Phone, ArrowRight, CheckCircle2 
+  Wallet, Lightbulb, Phone 
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -112,19 +112,19 @@ export const TeamsOverview: React.FC = () => {
     <div className="space-y-6">
       
       {/* Welcome Card */}
-      <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-5 sm:p-6">
+      <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-gray-950 dark:text-white">
                 Welcome back, {user?.first_name || user?.username}
               </h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400">
+              <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
                 {teamInfo?.role_label || user?.team_role_label || 'Team Member'}
               </span>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Store: <strong className="text-gray-900 dark:text-white">{teamInfo?.business_name || user?.business_name || `@${teamInfo?.owner_username || user?.team_owner_username}`}</strong>
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+              Store: <strong className="text-gray-900 dark:text-white font-medium">{teamInfo?.business_name || user?.business_name || `@${teamInfo?.owner_username || user?.team_owner_username}`}</strong>
             </p>
           </div>
         </div>
@@ -132,41 +132,34 @@ export const TeamsOverview: React.FC = () => {
 
       {/* Available Operations */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          Your Assigned Modules
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
+          Assigned Modules
         </h2>
 
         {loading ? (
           <CardGridSkeleton count={3} cols={3} />
         ) : modules.length === 0 ? (
-          <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-8 text-center text-sm text-gray-500">
+          <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-8 text-center text-xs text-gray-500 dark:text-neutral-400">
             No active modules assigned to your account. Contact your store manager to update your permissions.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {modules.map((m, idx) => (
               <Link
                 key={idx}
                 to={m.path}
-                className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-brand-500/50 rounded-xl p-4 flex flex-col justify-between group transition-all"
+                className="bg-surface-card dark:bg-[#0F0F0F] hover:bg-surface-muted/60 dark:hover:bg-[#161616] rounded-2xl p-5 flex flex-col justify-between gap-3 group transition-colors"
               >
-                <div className="space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center">
-                    <m.icon className="w-4 h-4" />
-                  </div>
+                <div className="space-y-2.5">
+                  <m.icon className="w-5 h-5 text-gray-400 dark:text-neutral-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
                   <div>
-                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white transition-colors">
                       {m.title}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
                       {m.desc}
                     </p>
                   </div>
-                </div>
-
-                <div className="flex items-center text-xs font-medium text-brand-500 mt-4 pt-2 border-t border-surface-border dark:border-surface-dark-border gap-1">
-                  <span>Open</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>
             ))}
@@ -176,14 +169,14 @@ export const TeamsOverview: React.FC = () => {
 
       {/* Responsibilities list if available */}
       {teamInfo?.role_tasks && teamInfo.role_tasks.length > 0 && (
-        <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 sm:p-6 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
             Role Duties & Responsibilities
           </h2>
           <div className="space-y-2">
             {teamInfo.role_tasks.map((task, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
-                <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0" />
+              <div key={i} className="flex items-start gap-2.5 text-xs text-gray-700 dark:text-neutral-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-neutral-600 mt-1.5 shrink-0" />
                 <span>{task}</span>
               </div>
             ))}

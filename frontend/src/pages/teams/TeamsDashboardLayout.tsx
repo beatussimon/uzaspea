@@ -102,21 +102,21 @@ export const TeamsDashboardLayout: React.FC = () => {
     <div className="max-w-7xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0">
       
       {/* Header Bar */}
-      <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
-            <Store className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300 flex items-center justify-center shrink-0">
+            <Store className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-gray-900 dark:text-white">
                 {user?.business_name || `@${user?.team_owner_username || 'business'}`}
               </h2>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400">
+              <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
                 {user?.team_role_label || 'Team Member'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
               Logged in as @{user?.username} • Store Owner: @{user?.team_owner_username}
             </p>
           </div>
@@ -125,9 +125,10 @@ export const TeamsDashboardLayout: React.FC = () => {
         <div className="flex items-center gap-2 self-end sm:self-center">
           <button
             onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-colors"
+            title="Log out from team dashboard"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
             <span>Sign out</span>
           </button>
         </div>
@@ -135,7 +136,7 @@ export const TeamsDashboardLayout: React.FC = () => {
 
       {/* Warnings if suspended or inactive */}
       {isSuspended && (
-        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400 p-4 rounded-xl flex items-center gap-3">
+        <div className="bg-red-500/10 text-red-600 dark:text-red-400 p-4 rounded-2xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <div className="text-xs">
             <h4 className="font-semibold">Team Access Suspended</h4>
@@ -145,7 +146,7 @@ export const TeamsDashboardLayout: React.FC = () => {
       )}
 
       {isOwnerSubInactive && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 p-4 rounded-xl flex items-center gap-3">
+        <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 p-4 rounded-2xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <div className="text-xs">
             <h4 className="font-semibold">Business Plan Expired</h4>
@@ -159,11 +160,11 @@ export const TeamsDashboardLayout: React.FC = () => {
         
         {/* Sidebar */}
         <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[68px]' : 'lg:w-56'} transition-all duration-200 shrink-0`}>
-          <nav className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-2 space-y-1 relative h-full">
+          <nav className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-2 space-y-1 relative h-full">
             
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 shadow-sm z-10"
+              className="hidden lg:flex absolute -right-3 top-4 bg-surface-muted dark:bg-[#161616] rounded-full p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 shadow-xs z-10"
               title={isSidebarCollapsed ? t('expand', 'Expand') : t('collapse', 'Collapse')}
             >
               {isSidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
@@ -178,10 +179,10 @@ export const TeamsDashboardLayout: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-xl text-xs font-medium transition-colors ${
                     isActive
-                      ? 'bg-brand-500 text-white dark:text-black font-semibold shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black font-semibold shadow-xs'
+                      : 'text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white hover:bg-surface-muted/60 dark:hover:bg-[#161616]'
                   }`}
                   title={isSidebarCollapsed ? item.label : undefined}
                 >
