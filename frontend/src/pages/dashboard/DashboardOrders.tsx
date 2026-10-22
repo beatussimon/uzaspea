@@ -296,8 +296,8 @@ const DashboardOrders: React.FC = () => {
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             <LocationSelector />
-            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 sm:px-2.5 py-1 rounded-full capitalize flex items-center gap-1 sm:gap-1.5 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-btn text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <span className="sm:hidden">Live</span>
               <span className="hidden sm:inline">{t('live_view', 'Live View')}</span>
             </span>

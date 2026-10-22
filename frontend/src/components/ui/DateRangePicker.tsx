@@ -143,7 +143,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
                     value={customStart}
                     max={customEnd || getToday()}
                     onChange={(e) => setCustomStart(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border border-surface-border dark:border-surface-dark-border rounded-lg text-xs text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border-0 rounded-lg text-xs text-gray-900 dark:text-white outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -154,7 +154,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
                     min={customStart}
                     max={getToday()}
                     onChange={(e) => setCustomEnd(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border border-surface-border dark:border-surface-dark-border rounded-lg text-xs text-gray-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                    className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] border-0 rounded-lg text-xs text-gray-900 dark:text-white outline-none transition-colors"
                   />
                 </div>
               </div>
