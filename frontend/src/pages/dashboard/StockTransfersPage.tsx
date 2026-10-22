@@ -246,52 +246,55 @@ export const StockTransfersPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Inter-Branch Stock Transfers
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-              Move inventory between retail branches and warehouses with full dispatch and receipt auditing.
-            </p>
-          </div>
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
+            <span className="sm:hidden">Stock Transfers</span>
+            <span className="hidden sm:inline">Inter-Branch Stock Transfers</span>
+          </h1>
 
           <Button
             type="button"
             variant="default"
             size="sm"
             onClick={handleOpenNewModal}
-            className="flex items-center gap-1.5 shadow-xs"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-btn shadow-xs shrink-0 cursor-pointer"
           >
-            <Plus size={16} />
-            <span>New Transfer</span>
+            <Plus size={15} />
+            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">New Transfer</span>
           </Button>
         </div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          Move inventory between retail branches and warehouses with full dispatch and receipt auditing.
+        </p>
       </header>
 
       {/* Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1 overflow-x-auto p-1 rounded-xl bg-gray-100 dark:bg-neutral-800/60 max-w-full">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           {[
             { key: 'all', label: 'All Transfers' },
             { key: 'draft', label: 'Draft' },
             { key: 'in_transit', label: 'In Transit' },
             { key: 'completed', label: 'Completed' },
             { key: 'cancelled', label: 'Cancelled' },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setFilterStatus(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                filterStatus === tab.key
-                  ? 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-white shadow-xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          ].map(tab => {
+            const isActive = filterStatus === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterStatus(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative min-w-[200px]">
@@ -301,7 +304,7 @@ export const StockTransfersPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search transfer # or branch..."
-            className="w-full pl-8 pr-4 py-1.5 text-xs rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500"
+            className="w-full pl-8 pr-4 py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
           />
         </div>
       </div>
