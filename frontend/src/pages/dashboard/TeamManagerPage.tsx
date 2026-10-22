@@ -407,27 +407,28 @@ const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
     <div className="space-y-6">
       
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Team Members
-            </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Add staff and assign what parts of your store they can manage.
-          </p>
-        </div>
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
+            Team Members
+          </h1>
 
-        <Button
-          onClick={() => {
-            resetForm();
-            setIsAddModalOpen(true);
-          }}
-          size="sm"
-          className="font-bold flex items-center gap-1.5"
-        >
-          <Plus size={14} />
-          Add Member
-        </Button>
+          <Button
+            onClick={() => {
+              resetForm();
+              setIsAddModalOpen(true);
+            }}
+            size="sm"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-btn shadow-xs shrink-0 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">Add Member</span>
+          </Button>
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          Add staff and assign what parts of your store they can manage.
+        </p>
       </header>
 
       {/* Tabs */}
