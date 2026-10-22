@@ -65,23 +65,32 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
     setIsOpen(false);
   };
 
-  const displayText = activeLocation 
-    ? `${activeLocation.name}${activeLocation.is_main ? ' (HQ)' : ''}`
+  const desktopText = activeLocation 
+    ? activeLocation.name 
     : 'All Branches (HQ)';
+
+  const mobileText = activeLocation 
+    ? activeLocation.name 
+    : 'All (HQ)';
 
   return (
     <div className={`relative inline-block text-left ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-btn text-xs font-bold bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 transition-all duration-200 active:scale-[0.97] cursor-pointer select-none"
-        title="Switch active branch context"
+        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-btn text-xs font-bold bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 transition-all duration-200 active:scale-[0.97] cursor-pointer select-none shrink-0"
+        title={desktopText}
       >
-        <MapPin size={14} className="text-gray-500 dark:text-gray-400 shrink-0" />
-        <span className="max-w-[140px] sm:max-w-[180px] truncate">
-          {displayText}
+        <MapPin size={13} className="text-gray-500 dark:text-gray-400 shrink-0" />
+        {/* Mobile Text: 'All (HQ)' or just branch name */}
+        <span className="sm:hidden max-w-[65px] xs:max-w-[85px] truncate">
+          {mobileText}
         </span>
-        <ChevronDown size={13} className={`shrink-0 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        {/* Desktop Text: 'All Branches (HQ)' or just branch name */}
+        <span className="hidden sm:inline max-w-[150px] truncate">
+          {desktopText}
+        </span>
+        <ChevronDown size={12} className={`shrink-0 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -93,7 +102,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
           </div>
 
           <div className="py-0.5 max-h-60 overflow-y-auto space-y-0.5">
-            {/* All Branches option (Consolidated) */}
+            {/* All Branches option */}
             <button
               type="button"
               onClick={() => handleSelect(null)}
@@ -105,7 +114,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
             >
               <div className="flex items-center gap-2 truncate">
                 <Store size={14} className="text-gray-400 dark:text-neutral-400 shrink-0" />
-                <span className="truncate">All Branches (Consolidated HQ)</span>
+                <span className="truncate">All Branches (HQ)</span>
               </div>
               {activeLocation === null && <Check size={14} className="text-gray-900 dark:text-white shrink-0" />}
             </button>
