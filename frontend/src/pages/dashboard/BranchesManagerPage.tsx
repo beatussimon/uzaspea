@@ -293,24 +293,26 @@ export const BranchesManagerPage: React.FC = () => {
               <div className="p-5 space-y-4">
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-0.5">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <h3 className="font-bold text-base text-gray-900 dark:text-white">
                         {loc.name}
                       </h3>
                       {loc.is_main && (
-                        <span className="inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300">
-                          HQ / Main Store
-                        </span>
+                        <>
+                          <span className="sm:hidden inline-flex items-center text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300">
+                            HQ
+                          </span>
+                          <span className="hidden sm:inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300">
+                            HQ / Main Store
+                          </span>
+                        </>
                       )}
                     </div>
-                    <p className="text-3xs text-gray-400 font-mono">
-                      slug: {loc.slug}
-                    </p>
                   </div>
 
                   <span
-                    className={`inline-flex items-center text-3xs font-bold px-2 py-0.5 rounded-full ${
+                    className={`inline-flex items-center text-3xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
                       loc.is_active
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                         : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400'
@@ -375,7 +377,7 @@ export const BranchesManagerPage: React.FC = () => {
               </div>
 
               {/* Card Footer Actions */}
-              <div className="p-3 bg-gray-50/70 dark:bg-white/5 border-0 flex items-center justify-between gap-2">
+              <div className="px-5 pb-4 pt-0 bg-transparent border-0 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <Button
                     type="button"
