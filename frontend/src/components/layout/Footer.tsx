@@ -30,7 +30,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="mt-auto border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-gray-800 transition-all duration-300">
+    <footer className="mt-auto bg-white dark:bg-gray-800 transition-all duration-300">
       {/* Collapsed state — single line */}
       <div
         className="container-page flex items-center justify-between h-12 cursor-pointer select-none"
