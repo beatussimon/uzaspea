@@ -140,7 +140,14 @@ const DashboardProducts: React.FC = () => {
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
   const [, setLocStatus] = useState('');
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('uzaspea_categories_cache');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<Array<{ url: string; file: File; aspectStatus: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -475,7 +482,11 @@ const DashboardProducts: React.FC = () => {
   useEffect(() => {
     fetchProducts(1, true);
     api.get('/api/categories/')
-      .then((res) => setCategories(res.data.results || res.data))
+      .then((res) => {
+        const fresh = res.data.results || res.data || [];
+        setCategories(fresh);
+        try { sessionStorage.setItem('uzaspea_categories_cache', JSON.stringify(fresh)); } catch {}
+      })
       .catch(() => {});
       
     if (window.location.hash === '#new') {
@@ -1038,7 +1049,7 @@ const DashboardProducts: React.FC = () => {
                     key={tab.key}
                     type="button"
                     onClick={() => setFilterStatus(tab.key)}
-                    className={`h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                    className={`h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold transition-colors flex items-center gap-1 whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
                         : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -1074,9 +1085,9 @@ const DashboardProducts: React.FC = () => {
           </div>
 
           {/* Mobile Row 2 / Desktop Right: (Desktop: Search + Category + Condition; Mobile: Category + Condition) */}
-          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
+          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2 shrink-0">
             {/* Search Box on Desktop (hidden on mobile) */}
-            <div className="relative hidden md:block w-48 lg:w-64">
+            <div className="relative hidden md:block w-44 lg:w-56 shrink-0">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
@@ -1097,7 +1108,7 @@ const DashboardProducts: React.FC = () => {
               )}
             </div>
 
-            <div className="relative w-full md:w-auto md:min-w-[140px]">
+            <div className="relative w-full md:w-36 lg:w-40 shrink-0">
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
@@ -1111,7 +1122,7 @@ const DashboardProducts: React.FC = () => {
               <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
 
-            <div className="relative w-full md:w-auto md:min-w-[110px]">
+            <div className="relative w-full md:w-28 lg:w-32 shrink-0">
               <select
                 value={filterCondition}
                 onChange={(e) => setFilterCondition(e.target.value)}
