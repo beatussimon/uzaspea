@@ -5,7 +5,7 @@ import {
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
   CheckCircle, Plus, Package, Search, Clock, MessageSquare,
-  Phone, ExternalLink
+  Phone, ExternalLink, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -46,7 +46,54 @@ const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
-  const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
+  const [selectedLightboxIndex, setSelectedLightboxIndex] = useState<number | null>(null);
+  const [lightboxTouchStartX, setLightboxTouchStartX] = useState<number | null>(null);
+
+  const storeImages = useMemo(() => profile?.store_images || [], [profile?.store_images]);
+  const hasMultipleImages = storeImages.length > 1;
+
+  const handlePrevLightbox = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (selectedLightboxIndex === null || storeImages.length <= 1) return;
+    setSelectedLightboxIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : storeImages.length - 1));
+  };
+
+  const handleNextLightbox = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (selectedLightboxIndex === null || storeImages.length <= 1) return;
+    setSelectedLightboxIndex((prev) => (prev !== null && prev < storeImages.length - 1 ? prev + 1 : 0));
+  };
+
+  useEffect(() => {
+    if (selectedLightboxIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setSelectedLightboxIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : storeImages.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setSelectedLightboxIndex((prev) => (prev !== null && prev < storeImages.length - 1 ? prev + 1 : 0));
+      } else if (e.key === 'Escape') {
+        setSelectedLightboxIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedLightboxIndex, storeImages.length]);
+
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    setLightboxTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleLightboxTouchEnd = (e: React.TouchEvent) => {
+    if (lightboxTouchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = lightboxTouchStartX - touchEndX;
+    if (diff > 50) {
+      handleNextLightbox();
+    } else if (diff < -50) {
+      handlePrevLightbox();
+    }
+    setLightboxTouchStartX(null);
+  };
 
   // Modal states for followers/following
   const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
@@ -345,6 +392,7 @@ const ProfilePage: React.FC = () => {
     try {
       await api.post(`/api/profiles/${username}/delete-store-image/`, { image_id: imageId });
       toast.success('Picture removed from showcase!', { id: 'store_delete' });
+      if (selectedLightboxIndex !== null) setSelectedLightboxIndex(null);
       fetchProfile();
     } catch {
       toast.error('Failed to remove picture', { id: 'store_delete' });
@@ -1034,15 +1082,15 @@ const ProfilePage: React.FC = () => {
                   )}
                 </div>
 
-                {(profile.store_images || []).length === 0 ? (
+                {storeImages.length === 0 ? (
                   <p className="text-xs text-gray-400 dark:text-neutral-600 italic">No showcase pictures uploaded yet.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
-                    {(profile.store_images || []).map((img: any) => (
+                    {storeImages.map((img: any, idx: number) => (
                       <div 
                         key={img.id} 
                         className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-[#141414] group flex items-center justify-center rounded-xl border-0 cursor-pointer"
-                        onClick={() => setSelectedLightboxImage(img.image)}
+                        onClick={() => setSelectedLightboxIndex(idx)}
                       >
                         <img 
                           src={img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`} 
@@ -1263,27 +1311,112 @@ const ProfilePage: React.FC = () => {
       </Modal>
 
       {/* Lightbox Modal */}
-      {selectedLightboxImage && (
+      {selectedLightboxIndex !== null && storeImages[selectedLightboxIndex] && (
         <div 
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setSelectedLightboxImage(null)}
+          className="fixed inset-0 z-50 bg-black/92 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-5 select-none"
+          onClick={() => setSelectedLightboxIndex(null)}
+          onTouchStart={handleLightboxTouchStart}
+          onTouchEnd={handleLightboxTouchEnd}
         >
-          <div className="relative max-w-3xl max-h-[85vh] w-full h-full flex items-center justify-center animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <img 
-              src={selectedLightboxImage.startsWith('http') ? selectedLightboxImage : `${API_BASE_URL}${selectedLightboxImage}`} 
-              alt="Store Showcase Preview" 
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-xl" 
-            />
+          {/* Top Bar: Counter & Close */}
+          <div 
+            className="w-full max-w-5xl flex items-center justify-between px-2 pt-1 pb-2 z-20 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-white/80 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full tracking-wider">
+                {selectedLightboxIndex + 1} / {storeImages.length}
+              </span>
+            </div>
+
             <button 
               type="button"
-              className="absolute -top-10 right-0 sm:top-4 sm:right-4 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors animate-fade-in"
-              onClick={() => setSelectedLightboxImage(null)}
+              className="p-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-full transition-all cursor-pointer shadow-lg"
+              onClick={() => setSelectedLightboxIndex(null)}
+              title="Close (Esc)"
+              aria-label="Close lightbox"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
+              <X size={20} strokeWidth={2.5} />
             </button>
           </div>
+
+          {/* Center Stage: Left Arrow, Main Image, Right Arrow */}
+          <div 
+            className="relative flex-1 w-full max-w-5xl flex items-center justify-center min-h-0 overflow-hidden my-1 sm:my-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left Chevron Button */}
+            {hasMultipleImages && (
+              <button 
+                type="button"
+                onClick={handlePrevLightbox}
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 active:scale-95 text-white rounded-full backdrop-blur-md transition-all shadow-xl border border-white/15 cursor-pointer flex items-center justify-center"
+                title="Previous (Left Arrow)"
+                aria-label="Previous image"
+              >
+                <ChevronLeft size={24} className="sm:w-7 sm:h-7" strokeWidth={2.5} />
+              </button>
+            )}
+
+            {/* Main Image */}
+            <img 
+              key={storeImages[selectedLightboxIndex]?.id || selectedLightboxIndex}
+              src={
+                storeImages[selectedLightboxIndex]?.image?.startsWith('http') 
+                  ? storeImages[selectedLightboxIndex].image 
+                  : `${API_BASE_URL}${storeImages[selectedLightboxIndex].image}`
+              } 
+              alt="Store Showcase Preview" 
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-xl animate-scale-in" 
+            />
+
+            {/* Right Chevron Button */}
+            {hasMultipleImages && (
+              <button 
+                type="button"
+                onClick={handleNextLightbox}
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 active:scale-95 text-white rounded-full backdrop-blur-md transition-all shadow-xl border border-white/15 cursor-pointer flex items-center justify-center"
+                title="Next (Right Arrow)"
+                aria-label="Next image"
+              >
+                <ChevronRight size={24} className="sm:w-7 sm:h-7" strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnail Strip */}
+          {hasMultipleImages && (
+            <div 
+              className="w-full max-w-2xl flex items-center justify-center px-4 py-1 shrink-0 z-20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 sm:gap-2.5 max-w-full overflow-x-auto no-scrollbar p-1">
+                {storeImages.map((item: any, idx: number) => {
+                  const isActive = idx === selectedLightboxIndex;
+                  const imgSrc = item.image.startsWith('http') ? item.image : `${API_BASE_URL}${item.image}`;
+                  return (
+                    <button
+                      key={item.id || idx}
+                      type="button"
+                      onClick={() => setSelectedLightboxIndex(idx)}
+                      className={`relative aspect-square w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden shrink-0 transition-all duration-200 cursor-pointer ${
+                        isActive 
+                          ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-105 opacity-100 shadow-md' 
+                          : 'opacity-40 hover:opacity-85 hover:scale-100'
+                      }`}
+                      title={`View picture ${idx + 1}`}
+                    >
+                      <img 
+                        src={imgSrc} 
+                        alt={`Thumbnail ${idx + 1}`} 
+                        className="w-full h-full object-cover select-none pointer-events-none" 
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
