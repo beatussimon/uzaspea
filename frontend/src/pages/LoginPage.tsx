@@ -3,10 +3,10 @@ import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
-import { FormField } from '../components/ui/Input';
+import { FloatingInput } from '../components/ui/FloatingInput';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
@@ -14,7 +14,6 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -157,41 +156,27 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              <FormField
+            <form onSubmit={handleLogin} className="space-y-6">
+              <FloatingInput
                 id="username"
-                label={t('username')}
+                label={t('email_or_username', 'Username or email')}
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={t('username')}
-                className="border-0 border-transparent dark:border-transparent bg-gray-100 dark:bg-neutral-800/60 focus-visible:ring-brand-500 focus-visible:border-transparent"
+                autoComplete="username"
               />
 
-              <div className="flex flex-col gap-1.5 w-full">
-                <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                  {t('password')}
-                </label>
-                <div className="relative w-full">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    className="flex h-10 w-full rounded-btn border-0 border-transparent bg-gray-100 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50 dark:border-transparent dark:bg-neutral-800/60 dark:text-white pr-10"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
+              <FloatingInput
+                id="password"
+                type="password"
+                label={t('password', 'Password')}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                showPasswordToggle
+              />
 
               <Button
                 type="submit"
