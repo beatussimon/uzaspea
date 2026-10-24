@@ -579,8 +579,8 @@ const DashboardLayout: React.FC = () => {
 
             {/* Store QR Code at bottom of mobile drawer */}
             {user?.username && (
-              <div className="pt-3 mt-4 text-center select-none space-y-2">
-                <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
+              <div className="pt-3 mt-4 px-3 select-none space-y-2">
+                <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
                   <QRCodeSVG
                     value={`${window.location.origin}/${user.username}`}
                     size={104}
@@ -595,16 +595,16 @@ const DashboardLayout: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="space-y-1 pt-1 text-center">
+                <div className="space-y-1.5 pt-1 text-left flex flex-col items-start">
                   <button
                     type="button"
                     onClick={() => {
                       downloadStoreQrCode();
                       closeMobileMenuAnimated();
                     }}
-                    className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
                   >
-                    <ArrowDownToLine size={12} className="shrink-0" />
+                    <ArrowDownToLine size={13} className="shrink-0" />
                     <span>Download QR</span>
                   </button>
                   <Link
@@ -728,8 +728,8 @@ const DashboardLayout: React.FC = () => {
           {user?.username && (
             <div className="pt-2">
               {!isSidebarCollapsed ? (
-                <div className="py-2 px-1 space-y-2 text-center select-none">
-                  <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
+                <div className="py-2 px-3 space-y-2 select-none">
+                  <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
                     <QRCodeSVG
                       id="store-sidebar-qr-svg"
                       value={`${window.location.origin}/${user.username}`}
@@ -745,13 +745,13 @@ const DashboardLayout: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div className="space-y-1 pt-1 text-center">
+                  <div className="space-y-1.5 pt-1 text-left flex flex-col items-start">
                     <button
                       type="button"
                       onClick={downloadStoreQrCode}
-                      className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
                     >
-                      <ArrowDownToLine size={12} className="shrink-0" />
+                      <ArrowDownToLine size={13} className="shrink-0" />
                       <span>Download QR</span>
                     </button>
                     <a
