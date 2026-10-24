@@ -148,7 +148,7 @@ const RegisterPage: React.FC = () => {
           </h1>
         </div>
 
-        <div className="card overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           {/* Progress Bar */}
           <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
             <motion.div 

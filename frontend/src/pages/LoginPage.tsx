@@ -133,12 +133,7 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* The Card */}
-        <div className="card overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
-          {/* Top Brand Accent Bar (matching Create Account progress visual) */}
-          <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
-            <div className="h-full bg-brand-500 w-full" />
-          </div>
-
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
             {/* Section Subheader (matching Create Account section header) */}
             <div className="text-center mb-8">
@@ -171,6 +166,7 @@ const LoginPage: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder={t('username')}
+                className="border-0 border-transparent dark:border-transparent bg-gray-100 dark:bg-neutral-800/60 focus-visible:ring-brand-500 focus-visible:border-transparent"
               />
 
               <div className="flex flex-col gap-1.5 w-full">
@@ -182,7 +178,7 @@ const LoginPage: React.FC = () => {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     required
-                    className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-dark-border dark:bg-[#111] dark:text-white pr-10"
+                    className="flex h-10 w-full rounded-btn border-0 border-transparent bg-gray-100 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50 dark:border-transparent dark:bg-neutral-800/60 dark:text-white pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
