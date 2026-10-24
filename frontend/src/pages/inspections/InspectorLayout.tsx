@@ -957,7 +957,7 @@ const ChecklistForm: React.FC<{
           />
           <div className="flex flex-wrap gap-2">
             <select
-              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-850 text-gray-900 dark:text-white rounded-lg"
+              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-lg"
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
             >
@@ -968,7 +968,7 @@ const ChecklistForm: React.FC<{
               <option value="media">Photo / Attachment</option>
             </select>
             <select
-              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-850 text-gray-900 dark:text-white rounded-lg"
+              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-lg"
               value={newSeverity}
               onChange={(e) => setNewSeverity(e.target.value)}
             >

@@ -1039,18 +1039,24 @@ const ProfilePage: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     {(profile.store_images || []).map((img: any) => (
-                      <div key={img.id} className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-neutral-850/60 group flex items-center justify-center border-0 rounded-none">
+                      <div 
+                        key={img.id} 
+                        className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-[#141414] group flex items-center justify-center rounded-xl border-0 cursor-pointer"
+                        onClick={() => setSelectedLightboxImage(img.image)}
+                      >
                         <img 
                           src={img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`} 
                           alt="Store Showcase" 
-                          className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform duration-200"
-                          onClick={() => setSelectedLightboxImage(img.image)}
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200 select-none"
                         />
                         {isOwner && (
                           <button 
                             type="button"
-                            onClick={() => handleStoreImageDelete(img.id)}
-                            className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition opacity-0 group-hover:opacity-100 shadow-md flex items-center justify-center z-10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStoreImageDelete(img.id);
+                            }}
+                            className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition opacity-90 sm:opacity-0 sm:group-hover:opacity-100 shadow-md flex items-center justify-center z-10 cursor-pointer"
                             title="Delete Picture"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -1266,7 +1272,7 @@ const ProfilePage: React.FC = () => {
             <img 
               src={selectedLightboxImage.startsWith('http') ? selectedLightboxImage : `${API_BASE_URL}${selectedLightboxImage}`} 
               alt="Store Showcase Preview" 
-              className="max-w-full max-h-full object-contain shadow-2xl" 
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-xl" 
             />
             <button 
               type="button"
