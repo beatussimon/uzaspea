@@ -3196,6 +3196,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         from django.contrib.auth.models import User
         username = attrs.get('username')
         password = attrs.get('password')
+        if username and '@' in username:
+            email_user = User.objects.filter(email__iexact=username.strip()).first()
+            if email_user:
+                attrs['username'] = email_user.username
+                username = email_user.username
         try:
             user = User.objects.get(username=username)
             if not user.is_active and user.check_password(password):
