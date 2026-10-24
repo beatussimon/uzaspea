@@ -44,7 +44,7 @@ class ProductSitemap(Sitemap):
         return obj.updated_at
 
     def location(self, obj):
-        return f'/product/{obj.slug}'
+        return f'/product/{obj.url_slug}'
 
 class SellerSitemap(Sitemap):
     changefreq = 'weekly'

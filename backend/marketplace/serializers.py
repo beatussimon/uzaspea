@@ -20,7 +20,7 @@ class ProductRequestSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
     category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
     fulfilled_product_id = serializers.IntegerField(source='fulfilled_product.id', read_only=True, allow_null=True)
-    fulfilled_product_slug = serializers.CharField(source='fulfilled_product.slug', read_only=True, allow_null=True)
+    fulfilled_product_slug = serializers.CharField(source='fulfilled_product.url_slug', read_only=True, allow_null=True)
     has_voted = serializers.SerializerMethodField()
     votes_count = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
@@ -248,10 +248,12 @@ class ReferenceProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
     products_count = serializers.SerializerMethodField()
+    public_id = serializers.CharField(read_only=True)
+    url_slug = serializers.CharField(read_only=True)
     
     class Meta:
         model = ReferenceProduct
-        fields = ['id', 'name', 'slug', 'brand', 'brand_name', 'category', 'category_name', 'image', 'structured_specs', 'is_verified', 'created_by_username', 'created_at', 'products_count']
+        fields = ['id', 'name', 'slug', 'public_id', 'url_slug', 'brand', 'brand_name', 'category', 'category_name', 'image', 'structured_specs', 'is_verified', 'created_by_username', 'created_at', 'products_count']
 
     def get_products_count(self, obj):
         if hasattr(obj, 'products_count_annotated'):
@@ -484,6 +486,8 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
 
     brand_details = BrandSerializer(source='brand', read_only=True)
     reference_product_details = ReferenceProductSerializer(source='reference_product', read_only=True)
+    public_id = serializers.CharField(read_only=True)
+    url_slug = serializers.CharField(read_only=True)
 
     has_inspection = serializers.SerializerMethodField()  # FIX B-19
     inspection_verdict = serializers.SerializerMethodField()  # FIX B-19
@@ -539,7 +543,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft', 'pos_only',
+        fields = ['id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft', 'pos_only',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
@@ -549,7 +553,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
                   'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details',
                   'branch_availability',
                   'has_a_plus_content', 'a_plus_content']
-        read_only_fields = ['seller', 'slug']
+        read_only_fields = ['seller', 'slug', 'public_id', 'url_slug']
 
     def to_internal_value(self, data):
         import json
@@ -837,11 +841,13 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
     inspection_verdict = serializers.SerializerMethodField()
     has_post_inspection_changes = serializers.SerializerMethodField()
     distance = serializers.FloatField(read_only=True, required=False, allow_null=True)
+    public_id = serializers.CharField(read_only=True)
+    url_slug = serializers.CharField(read_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
+            'id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
             'is_available', 'is_draft', 'pos_only', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
             'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug',
             'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',

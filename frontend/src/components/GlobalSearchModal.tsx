@@ -1032,7 +1032,7 @@ const GlobalSearchModal: React.FC = () => {
                         <div className="space-y-1">
                           {suggestions.map(item => {
                             const isAccount = item.type === 'account';
-                            const targetUrl = isAccount ? `/${item.username}` : `/product/${item.slug || item.id}`;
+                            const targetUrl = isAccount ? `/${item.username}` : `/product/${item.url_slug || item.slug || item.id}`;
                             const targetState = isAccount ? undefined : {
                               backgroundLocation: location.pathname.startsWith('/product/') ? undefined : location,
                               initialProduct: item

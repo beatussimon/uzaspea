@@ -1,5 +1,8 @@
 import json
+import re
 from decimal import Decimal
+
+PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-f]{12})$", re.IGNORECASE)
 from datetime import timedelta, datetime, date
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
@@ -197,16 +200,31 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         from django.http import Http404
-        from django.db.models import Q
         queryset = self.filter_queryset(self.get_queryset())
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
         lookup_val = self.kwargs.get(lookup_url_kwarg)
         
         if lookup_val is not None:
-            if str(lookup_val).isdigit():
-                obj = queryset.filter(Q(id=int(lookup_val)) | Q(slug=lookup_val)).first()
-            else:
-                obj = queryset.filter(slug=lookup_val).first()
+            obj = None
+            lookup_str = str(lookup_val).strip()
+
+            # 1. Match 12-char public_id pattern (e.g. "toyota-brake-pad-8f4b2a9e64c1" or "8f4b2a9e64c1")
+            match = PUBLIC_ID_REGEX.match(lookup_str)
+            if match:
+                pub_id = match.group('public_id').lower()
+                obj = queryset.filter(public_id=pub_id).first()
+
+            # 2. Integer ID fallback
+            if not obj and lookup_str.isdigit():
+                obj = queryset.filter(id=int(lookup_str)).first()
+
+            # 3. Direct public_id match fallback
+            if not obj and len(lookup_str) == 12:
+                obj = queryset.filter(public_id=lookup_str.lower()).first()
+
+            # 4. Legacy full slug fallback (e.g. "toyota-brake-pad" without public_id)
+            if not obj:
+                obj = queryset.filter(slug=lookup_str).first()
                 
             if obj is not None:
                 self.check_object_permissions(self.request, obj)
@@ -6647,6 +6665,42 @@ class ReferenceProductViewSet(viewsets.ModelViewSet):
     queryset = ReferenceProduct.objects.select_related('brand', 'category').all()
     serializer_class = ReferenceProductSerializer
     search_fields = ['name', 'brand__name']
+    lookup_field = 'pk'
+
+    def get_object(self):
+        from django.http import Http404
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field or 'pk'
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+        if not lookup_val:
+            raise Http404("Reference product not found")
+
+        lookup_str = str(lookup_val).strip()
+        obj = None
+
+        # 1. Match 12-char public_id pattern
+        match = PUBLIC_ID_REGEX.match(lookup_str)
+        if match:
+            pub_id = match.group('public_id').lower()
+            obj = queryset.filter(public_id=pub_id).first()
+
+        # 2. Integer ID fallback
+        if not obj and lookup_str.isdigit():
+            obj = queryset.filter(id=int(lookup_str)).first()
+
+        # 3. Direct public_id match fallback
+        if not obj and len(lookup_str) == 12:
+            obj = queryset.filter(public_id=lookup_str.lower()).first()
+
+        # 4. Slug fallback
+        if not obj:
+            obj = queryset.filter(slug=lookup_str).first()
+
+        if obj is not None:
+            self.check_object_permissions(self.request, obj)
+            return obj
+
+        raise Http404("Reference product not found")
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

@@ -345,10 +345,12 @@ const ProductCard = memo(({
     }
   };
 
+  const productTargetSlug = product.url_slug || (product.public_id ? `${product.slug}-${product.public_id}` : product.slug);
+
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = `${window.location.origin}/product/${product.slug}`;
+    const url = `${window.location.origin}/product/${productTargetSlug}`;
     if (navigator.share) {
       try { await navigator.share({ title: product.name, url }); } catch {}
     } else {
@@ -361,7 +363,7 @@ const ProductCard = memo(({
     return (
       <div className={`group relative card border-0 overflow-hidden flex flex-row items-center p-2 gap-4 hover:shadow-card-hover transition-all ${className}`}>
         <Link 
-          to={`/product/${product.slug}`} 
+          to={`/product/${productTargetSlug}`} 
           {...bgState} 
           onClick={handleRecClick}
           className="flex flex-row items-center gap-4 flex-1 min-w-0"
@@ -443,7 +445,7 @@ const ProductCard = memo(({
   return (
     <div className={`group relative card border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${sizingClasses}`}>
       <Link 
-        to={`/product/${product.slug}`} 
+        to={`/product/${productTargetSlug}`} 
         {...bgState} 
         onClick={handleRecClick}
         className="relative flex-1 flex flex-col h-full w-full"
