@@ -34,11 +34,15 @@ interface CartItem {
   max_stock: number;
 }
 
-const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
+interface POSHistoryProps {
+  onPrint: (order: any) => void;
+  dateFilter: string;
+}
+
+const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateFilter }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState('');
 
   useEffect(() => {
     fetchHistory();
@@ -74,34 +78,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 
   return (
     <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-transparent flex items-center justify-between gap-3 min-w-0">
-        <div className="min-w-0 pr-1">
-          <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate">{t('sales_history', 'Sales History')}</h2>
-          <p className="text-2xs text-gray-500 dark:text-gray-400 truncate">{t('sales_history_desc', 'View past walk-in customers and printed invoices')}</p>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="relative shrink-0">
-            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={13} />
-            <input 
-              type="date" 
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-7 pr-2 sm:pl-8 sm:pr-3 py-1.5 text-xs font-semibold rounded-btn bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
-            />
-          </div>
-          {dateFilter && (
-            <button 
-              type="button" 
-              onClick={() => setDateFilter('')} 
-              className="px-2 py-1.5 sm:px-2.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition shrink-0"
-            >
-              {t('clear', 'Clear')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl">
         <table className="w-full text-left text-xs whitespace-nowrap">
           <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
             <tr>
@@ -479,6 +456,7 @@ const DashboardPOS: React.FC = () => {
   const { user, activeLocation, setActiveLocation, assignedLocations } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
+  const [historyDateFilter, setHistoryDateFilter] = useState('');
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -925,7 +903,7 @@ const DashboardPOS: React.FC = () => {
             ) : null}
           </div>
 
-          <div className="flex items-center justify-end md:justify-start gap-1.5 sm:gap-2 w-full md:w-auto shrink-0">
+          <div className="flex items-center justify-between sm:justify-end md:justify-start gap-1.5 sm:gap-2 w-full md:w-auto shrink-0">
             {activeTab === 'sale' && (
               <div className="relative flex-1 min-w-0 md:w-60 lg:w-64 md:flex-initial">
                 <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
@@ -944,6 +922,29 @@ const DashboardPOS: React.FC = () => {
                     aria-label="Clear search"
                   >
                     <X size={11} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <div className="relative shrink-0">
+                  <CalendarDays className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={13} />
+                  <input 
+                    type="date" 
+                    value={historyDateFilter}
+                    onChange={(e) => setHistoryDateFilter(e.target.value)}
+                    className="pl-7 pr-2 sm:pl-8 sm:pr-3 py-1 sm:py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                </div>
+                {historyDateFilter && (
+                  <button 
+                    type="button" 
+                    onClick={() => setHistoryDateFilter('')} 
+                    className="px-2 py-1 sm:py-1.5 sm:px-2.5 text-xs font-bold rounded-full bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition shrink-0"
+                  >
+                    {t('clear', 'Clear')}
                   </button>
                 )}
               </div>
@@ -1229,7 +1230,7 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
       ) : (
-        <POSHistory onPrint={(order) => setReceiptData(order)} />
+        <POSHistory onPrint={(order) => setReceiptData(order)} dateFilter={historyDateFilter} />
       )}
 
       {/* 58mm/80mm Thermal Receipt Modal */}
