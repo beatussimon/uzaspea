@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -16,6 +16,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { OrderActionToolbar } from '../../components/ui/OrderActionToolbar';
 import { CardListSkeleton } from '../../components/Skeleton';
+import { ReceiptModal } from '../../components/orders/ReceiptModal';
 import { cn } from '../../lib/utils';
 
 // ============ Incoming Orders (Seller) ============
@@ -75,6 +76,7 @@ const DashboardOrders: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
   
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
@@ -399,6 +401,12 @@ const DashboardOrders: React.FC = () => {
             const isDeliveryPayment = order.status === 'PENDING_DELIVERY_VERIFICATION';
             const hasPendingPayment = isMainPayment || isDeliveryPayment;
 
+            const unpaidStatuses = ['CART', 'CHECKOUT', 'REQUESTED_INVOICE', 'INVOICE_GENERATED', 'BUYER_COUNTERED', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CANCELLED'];
+            const hasVerifiedPayment = Array.isArray(order.payments) && order.payments.some((p: any) => p.status === 'VERIFIED');
+            const isPosOrder = Boolean(order.delivery_info?.is_pos || order.delivery_method === 'POS');
+            const isOrderPaid = order.status !== 'CANCELLED' && (!unpaidStatuses.includes(order.status) || hasVerifiedPayment || isPosOrder);
+            const footerRowCount = 2 + (order.promo_code_code ? 1 : 0) + (order.shipping_fee > 0 ? 1 : 0);
+
             return (
               <div
                 key={order.id}
@@ -674,7 +682,22 @@ const DashboardOrders: React.FC = () => {
                         </tbody>
                         <tfoot>
                           <tr>
-                            <td colSpan={2} />
+                            <td colSpan={2} rowSpan={footerRowCount} className="align-bottom pb-1 px-1">
+                              {isOrderPaid && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedReceiptOrder({ ...order, items: itemsList });
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-neutral-100 dark:bg-[#161616] dark:hover:bg-[#202020] dark:text-neutral-200 dark:hover:text-white transition cursor-pointer border-0 border-none outline-none focus:outline-none"
+                                  title="View Receipt"
+                                >
+                                  <Printer size={13} className="shrink-0" />
+                                  <span>View Receipt</span>
+                                </button>
+                              )}
+                            </td>
                             <td className="pt-3 pb-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
                               Subtotal
                             </td>
@@ -684,7 +707,6 @@ const DashboardOrders: React.FC = () => {
                           </tr>
                           {order.promo_code_code && (
                             <tr>
-                              <td colSpan={2} />
                               <td className="py-1 px-2 text-right text-2xs text-emerald-500 font-medium whitespace-nowrap">
                                 Promo ({order.promo_code_code})
                               </td>
@@ -695,7 +717,6 @@ const DashboardOrders: React.FC = () => {
                           )}
                           {order.shipping_fee > 0 && (
                             <tr>
-                              <td colSpan={2} />
                               <td className="py-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
                                 Shipping Fee
                               </td>
@@ -705,7 +726,6 @@ const DashboardOrders: React.FC = () => {
                             </tr>
                           )}
                           <tr>
-                            <td colSpan={2} />
                             <td className="pt-2 pb-1 px-2 text-right text-xs font-bold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
                               Total
                             </td>
@@ -857,6 +877,14 @@ const DashboardOrders: React.FC = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Thermal Receipt Modal */}
+      {selectedReceiptOrder && (
+        <ReceiptModal
+          order={selectedReceiptOrder}
+          onClose={() => setSelectedReceiptOrder(null)}
+        />
       )}
     </div>
   );
