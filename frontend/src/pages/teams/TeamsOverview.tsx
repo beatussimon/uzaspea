@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   CreditCard, ShoppingCart, FileText, Package, MessageSquare, 
-  Wallet, Lightbulb, Phone 
+  Wallet, Lightbulb, Phone, MapPin 
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,10 @@ interface TeamInfo {
   is_team_member: boolean;
   owner_username?: string;
   business_name?: string;
+  store_name?: string;
+  location_name?: string;
+  assigned_locations?: { id: number; name: string; city?: string }[];
+  all_locations_access?: boolean;
   role_preset?: string;
   role_label?: string;
   role_description?: string;
@@ -40,7 +44,12 @@ export const TeamsOverview: React.FC = () => {
       .finally(() => setLoading(false));
   }, [user]);
 
-  const perms = teamInfo?.permissions || user?.team_permissions || {};
+  const rawPerms = (teamInfo?.permissions || user?.team_permissions || {}) as Record<string, boolean>;
+  const perms: Record<string, boolean> = {
+    ...rawPerms,
+    access_pos: !!(rawPerms.access_pos || rawPerms.pos_access),
+    pos_access: !!(rawPerms.access_pos || rawPerms.pos_access),
+  };
 
   const modules = [
     {
@@ -48,21 +57,21 @@ export const TeamsOverview: React.FC = () => {
       desc: 'View customer orders and update fulfillment status',
       path: '/teams-dashboard/orders',
       icon: ShoppingCart,
-      show: perms.manage_orders
+      show: !!perms.manage_orders
     },
     {
       title: 'Invoices & Quotes',
       desc: 'Create, issue, and manage customer invoices',
       path: '/teams-dashboard/invoices',
       icon: FileText,
-      show: perms.manage_invoices
+      show: !!perms.manage_invoices
     },
     {
       title: 'Point of Sale (POS)',
       desc: 'In-store barcode register and instant checkout',
       path: '/teams-dashboard/pos',
       icon: ShoppingCart,
-      show: perms.access_pos
+      show: !!(perms.access_pos || perms.pos_access)
     },
     {
       title: 'Payment Approvals',
@@ -108,6 +117,9 @@ export const TeamsOverview: React.FC = () => {
     }
   ].filter(m => m.show);
 
+  const storeName = teamInfo?.store_name || teamInfo?.business_name || user?.business_name;
+  const locationName = teamInfo?.location_name || (teamInfo?.assigned_locations && teamInfo.assigned_locations.length > 0 ? teamInfo.assigned_locations[0].name : undefined);
+
   return (
     <div className="space-y-6">
       
@@ -127,6 +139,23 @@ export const TeamsOverview: React.FC = () => {
               Logged in as @{user?.username} • Store Owner: @{teamInfo?.owner_username || user?.team_owner_username || 'store'}
             </p>
           </div>
+
+          {/* Far Right: Store Name & Location (Desktop) */}
+          {(storeName || locationName) && (
+            <div className="hidden sm:flex flex-col sm:items-end text-right shrink-0">
+              {storeName && (
+                <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
+                  {storeName}
+                </div>
+              )}
+              {locationName && (
+                <div className="text-xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 sm:justify-end mt-0.5 font-medium">
+                  <MapPin size={12} className="shrink-0 text-gray-400 dark:text-neutral-500" />
+                  <span>{locationName}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -166,23 +195,6 @@ export const TeamsOverview: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Responsibilities list if available */}
-      {teamInfo?.role_tasks && teamInfo.role_tasks.length > 0 && (
-        <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 sm:p-6 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">
-            Role Duties & Responsibilities
-          </h2>
-          <div className="space-y-2">
-            {teamInfo.role_tasks.map((task, i) => (
-              <div key={i} className="flex items-start gap-2.5 text-xs text-gray-700 dark:text-neutral-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-neutral-600 mt-1.5 shrink-0" />
-                <span>{task}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
     </div>
   );

@@ -2086,7 +2086,7 @@ TEAM_ROLE_PRESETS = {
         'permissions': {
             'manage_orders': True, 'manage_products': True, 'manage_messages': True,
             'manage_invoices': True, 'manage_payments': True, 'manage_logistics': True,
-            'access_pos': True, 'view_analytics': True, 'manage_requests': True,
+            'access_pos': True, 'pos_access': True, 'view_analytics': True, 'manage_requests': True,
             'manage_payment_numbers': True, 'manage_billing': True
         },
         'description': 'Full delegated management over all store workflows, product inventory, incoming orders, payments, invoices, chat, POS, and analytics.',
@@ -2144,12 +2144,28 @@ TEAM_ROLE_PRESETS = {
             'Track live transit and shipment milestones'
         ]
     },
+    'cashier': {
+        'label': 'Cashier / POS',
+        'permissions': {
+            'manage_orders': True, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': False, 'manage_payments': False, 'manage_logistics': False,
+            'access_pos': True, 'pos_access': True, 'view_analytics': False, 'manage_requests': False,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Operates point of sale cash registers, handles fast barcode/catalog checkout, processes cash/mobile payments, and prints sales receipts.',
+        'tasks': [
+            'Operate in-store Point of Sale terminal',
+            'Lookup products, barcodes, and calculate instant totals',
+            'Collect cash and mobile money payments',
+            'Issue digital and printable sales receipts'
+        ]
+    },
     'cashier_pos': {
         'label': 'POS Cashier',
         'permissions': {
             'manage_orders': True, 'manage_products': False, 'manage_messages': False,
             'manage_invoices': False, 'manage_payments': False, 'manage_logistics': False,
-            'access_pos': True, 'view_analytics': False, 'manage_requests': False,
+            'access_pos': True, 'pos_access': True, 'view_analytics': False, 'manage_requests': False,
             'manage_payment_numbers': False, 'manage_billing': False
         },
         'description': 'Operates point of sale cash registers, handles fast barcode/catalog checkout, processes cash/mobile payments, and prints sales receipts.',

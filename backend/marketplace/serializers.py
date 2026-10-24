@@ -2312,6 +2312,16 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_by_owner', 'created_at']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        perms = data.get('permissions')
+        if isinstance(perms, dict):
+            if perms.get('access_pos') or perms.get('pos_access'):
+                perms['access_pos'] = True
+                perms['pos_access'] = True
+            data['permissions'] = perms
+        return data
+
     def get_user_details(self, obj):
         profile = getattr(obj.user, 'profile', None)
         return {

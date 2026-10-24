@@ -25,6 +25,20 @@ interface TeamMember {
   created_at: string;
 }
 
+const PERMISSION_LABELS: Record<string, string> = {
+  manage_orders: 'Incoming Orders',
+  manage_invoices: 'Invoices & Quotes',
+  access_pos: 'Point of Sale (POS)',
+  manage_payments: 'Payment Approvals',
+  manage_products: 'Products & Stock',
+  manage_messages: 'Customer Messages',
+  manage_requests: 'Product Requests',
+  manage_logistics: 'Delivery & Shipping',
+  manage_payment_numbers: 'Payment Numbers',
+  manage_billing: 'Billing & Ledger',
+  view_analytics: 'Sales Reports',
+};
+
 const ROLE_DETAILS: Record<string, { label: string; description: string; tasks: string[] }> = {
   store_manager: {
     label: 'Store Manager',
@@ -200,17 +214,21 @@ const [membership, setMembership] = useState<TeamMember | null>(null);
                     System Permissions
                   </h4>
                   <div className="space-y-2">
-                    {Object.entries(membership.permissions).map(([name, val]) => (
-                      <div key={name} className="flex justify-between items-center text-xs">
-                        <span className="text-gray-600 dark:text-neutral-300 capitalize text-2xs font-normal">{name.replace('_', ' ')}</span>
-                        <span className="inline-flex items-center gap-1.5 text-2xs font-medium">
-                          <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-neutral-600'}`} />
-                          <span className={val ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-neutral-500'}>
-                            {val ? 'Enabled' : 'Disabled'}
+                    {Object.entries(membership.permissions)
+                      .filter(([name]) => name !== 'pos_access')
+                      .map(([name, val]) => (
+                        <div key={name} className="flex justify-between items-center text-xs">
+                          <span className="text-gray-600 dark:text-neutral-300 text-2xs font-normal">
+                            {PERMISSION_LABELS[name] || name.replace(/_/g, ' ')}
                           </span>
-                        </span>
-                      </div>
-                    ))}
+                          <span className="inline-flex items-center gap-1.5 text-2xs font-medium">
+                            <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-neutral-600'}`} />
+                            <span className={val ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-neutral-500'}>
+                              {val ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 </div>
               </div>
