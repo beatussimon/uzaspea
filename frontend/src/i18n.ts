@@ -1,7 +1,11 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import HttpBackend from 'i18next-http-backend';
+
+import en from './locales/en/translation.json';
+import sw from './locales/sw/translation.json';
+import fr from './locales/fr/translation.json';
+import zh from './locales/zh/translation.json';
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'sw', label: 'Kiswahili', nativeLabel: 'Kiswahili', flag: '🇹🇿', region: 'Tanzania' },
@@ -13,17 +17,19 @@ export const SUPPORTED_LANGUAGES = [
 export type SupportedLanguageCode = typeof SUPPORTED_LANGUAGES[number]['code'];
 
 i18n
-  .use(HttpBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    resources: {
+      en: { translation: en },
+      sw: { translation: sw },
+      fr: { translation: fr },
+      zh: { translation: zh },
+    },
     supportedLngs: ['sw', 'en', 'fr', 'zh'],
     nonExplicitSupportedLngs: true,
     load: 'languageOnly',
     fallbackLng: 'en',
-    backend: {
-      loadPath: '/locales/{{lng}}/translation.json',
-    },
     // Language detection order: localStorage first so user choice persists across reloads,
     // then navigator (browser language), then default 'en'.
     detection: {
