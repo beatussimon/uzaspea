@@ -58,7 +58,7 @@ const ROLE_PRESETS: Record<string, { label: string; description: string; permiss
     permissions: { 
       manage_orders: true, manage_products: true, manage_messages: true, 
       manage_invoices: true, manage_payments: true, manage_logistics: true, 
-      access_pos: true, view_analytics: true, manage_requests: true, 
+      access_pos: true, pos_access: true, view_analytics: true, manage_requests: true, 
       manage_payment_numbers: true, manage_billing: true 
     }
   },
@@ -68,7 +68,7 @@ const ROLE_PRESETS: Record<string, { label: string; description: string; permiss
     permissions: { 
       manage_orders: false, manage_products: false, manage_messages: false, 
       manage_invoices: true, manage_payments: true, manage_logistics: false, 
-      access_pos: false, view_analytics: true, manage_requests: false, 
+      access_pos: false, pos_access: false, view_analytics: true, manage_requests: false, 
       manage_payment_numbers: true, manage_billing: true 
     }
   },
@@ -78,7 +78,7 @@ const ROLE_PRESETS: Record<string, { label: string; description: string; permiss
     permissions: { 
       manage_orders: true, manage_products: false, manage_messages: false, 
       manage_invoices: true, manage_payments: false, manage_logistics: false, 
-      access_pos: false, view_analytics: false, manage_requests: false, 
+      access_pos: false, pos_access: false, view_analytics: false, manage_requests: false, 
       manage_payment_numbers: false, manage_billing: false 
     }
   },
@@ -88,7 +88,17 @@ const ROLE_PRESETS: Record<string, { label: string; description: string; permiss
     permissions: { 
       manage_orders: true, manage_products: false, manage_messages: false, 
       manage_invoices: false, manage_payments: false, manage_logistics: true, 
-      access_pos: false, view_analytics: false, manage_requests: false, 
+      access_pos: false, pos_access: false, view_analytics: false, manage_requests: false, 
+      manage_payment_numbers: false, manage_billing: false 
+    }
+  },
+  cashier: {
+    label: 'Cashier (POS)',
+    description: 'Operate in-store Point of Sale register, barcode checkout, and receipt printing.',
+    permissions: { 
+      manage_orders: true, manage_products: false, manage_messages: false, 
+      manage_invoices: false, manage_payments: false, manage_logistics: false, 
+      access_pos: true, pos_access: true, view_analytics: false, manage_requests: false, 
       manage_payment_numbers: false, manage_billing: false 
     }
   },
@@ -98,7 +108,7 @@ const ROLE_PRESETS: Record<string, { label: string; description: string; permiss
     permissions: { 
       manage_orders: true, manage_products: false, manage_messages: false, 
       manage_invoices: false, manage_payments: false, manage_logistics: false, 
-      access_pos: true, view_analytics: false, manage_requests: false, 
+      access_pos: true, pos_access: true, view_analytics: false, manage_requests: false, 
       manage_payment_numbers: false, manage_billing: false 
     }
   },

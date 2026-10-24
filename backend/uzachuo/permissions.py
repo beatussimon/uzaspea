@@ -128,8 +128,12 @@ def get_effective_sellers(user, required_permission=None, include_self=True):
         if not is_owner_business:
             continue
         if required_permission:
-            if isinstance(tm.permissions, dict) and tm.permissions.get(required_permission, False):
-                valid_owners.append(tm.owner_id)
+            if isinstance(tm.permissions, dict):
+                has_perm = tm.permissions.get(required_permission, False)
+                if not has_perm and required_permission in ('access_pos', 'pos_access'):
+                    has_perm = bool(tm.permissions.get('access_pos') or tm.permissions.get('pos_access'))
+                if has_perm:
+                    valid_owners.append(tm.owner_id)
         else:
             valid_owners.append(tm.owner_id)
 
@@ -157,6 +161,8 @@ def check_team_permission(user, owner_id, permission_name):
             invitation_status='accepted', 
             is_active=True
         )
+        if permission_name in ('access_pos', 'pos_access'):
+            return bool(member.permissions.get('access_pos') or member.permissions.get('pos_access'))
         return bool(member.permissions.get(permission_name, False))
     except TeamMember.DoesNotExist:
         return False

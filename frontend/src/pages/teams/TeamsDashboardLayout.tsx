@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, FileText, Package, 
-  Wallet, CreditCard, Shield, MessageSquare, 
+  Wallet, CreditCard, MessageSquare, 
   Lightbulb, ChevronLeft, ChevronRight, AlertCircle, Menu
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -259,7 +259,12 @@ export const TeamsDashboardLayout: React.FC = () => {
     };
   }, [isSidebarCollapsed]);
 
-  const perms = user?.team_permissions || {};
+  const rawPerms = (user?.team_permissions || {}) as Record<string, boolean>;
+  const perms: Record<string, boolean> = {
+    ...rawPerms,
+    access_pos: !!(rawPerms.access_pos || rawPerms.pos_access),
+    pos_access: !!(rawPerms.access_pos || rawPerms.pos_access),
+  };
   const isSuspended = user?.is_team_suspended;
   const isOwnerSubInactive = user?.is_owner_subscription_active === false;
 
@@ -287,7 +292,7 @@ export const TeamsDashboardLayout: React.FC = () => {
       path: '/teams-dashboard/pos', 
       label: t('point_of_sale', 'Point of Sale'), 
       icon: ShoppingCart, 
-      show: !!perms.access_pos 
+      show: !!(perms.access_pos || perms.pos_access) 
     },
     { 
       path: '/teams-dashboard/products', 
@@ -318,12 +323,6 @@ export const TeamsDashboardLayout: React.FC = () => {
       label: t('billing_ledger', 'Billing & Ledger'), 
       icon: Wallet, 
       show: !!perms.manage_billing 
-    },
-    { 
-      path: '/teams-dashboard/my-role', 
-      label: t('my_role_profile', 'My Role'), 
-      icon: Shield, 
-      show: true 
     },
   ];
 
@@ -508,7 +507,7 @@ export const TeamsDashboardLayout: React.FC = () => {
             
             <Route 
               path="pos/*" 
-              element={perms.access_pos ? <DashboardPOS /> : <TeamsAccessDenied requiredPermission="access_pos" moduleName="Point of Sale" />} 
+              element={(perms.access_pos || perms.pos_access) ? <DashboardPOS /> : <TeamsAccessDenied requiredPermission="access_pos" moduleName="Point of Sale" />} 
             />
             
             <Route 

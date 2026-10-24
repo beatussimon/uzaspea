@@ -82,6 +82,17 @@ def seed():
         }
     )
 
+    SellerApplication.objects.update_or_create(
+        user=u1,
+        defaults={
+            'requested_tier': biz_tier,
+            'business_name': 'Kilimanjaro Tech Hub',
+            'business_region': 'Dar es Salaam',
+            'business_address': 'Msimbazi Street / Congo St junction, Kariakoo',
+            'status': 'approved',
+        }
+    )
+
     # Branches for Kilimanjaro Tech
     kariakoo_loc, _ = StoreLocation.objects.update_or_create(
         owner=u1,
@@ -308,7 +319,7 @@ def seed():
             'invitation_status': 'accepted',
             'is_active': True,
             'all_locations_access': False,
-            'permissions': {'manage_orders': True, 'pos_access': True, 'view_analytics': False, 'manage_products': False}
+            'permissions': {'manage_orders': True, 'access_pos': True, 'view_analytics': False, 'manage_products': False}
         }
     )
     tm1.assigned_locations.set([sinza_loc])
@@ -349,6 +360,17 @@ def seed():
             'is_active': True,
             'start_date': timezone.now() - datetime.timedelta(days=20),
             'end_date': timezone.now() + datetime.timedelta(days=365),
+        }
+    )
+
+    SellerApplication.objects.update_or_create(
+        user=u2,
+        defaults={
+            'requested_tier': biz_tier,
+            'business_name': 'Serengeti Luxury Apparel',
+            'business_region': 'Dar es Salaam',
+            'business_address': 'Slipway Waterfront, Masaki',
+            'status': 'approved',
         }
     )
 

@@ -3235,15 +3235,39 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             role_preset = member_record.role_preset or 'custom'
             role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
 
+            from .models import SellerApplication, StoreLocation
+            seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
+            actual_store_name = (
+                (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
+                (owner.get_full_name().strip() if owner.get_full_name() else None) or
+                owner.username.replace('_', ' ').title()
+            )
+            assigned_locs = list(member_record.assigned_locations.filter(is_active=True).values('id', 'name', 'city'))
+            if member_record.all_locations_access:
+                loc_label = "All Locations"
+            elif assigned_locs:
+                loc_label = assigned_locs[0]['name']
+                if assigned_locs[0].get('city') and assigned_locs[0]['city'].lower() not in loc_label.lower():
+                    loc_label += f" • {assigned_locs[0]['city']}"
+            else:
+                main_loc = StoreLocation.objects.filter(owner=owner, is_main=True, is_active=True).values('id', 'name', 'city').first()
+                loc_label = main_loc['name'] if main_loc else (getattr(getattr(owner, 'profile', None), 'location', None) or 'Main Branch')
+
             data['is_team_member'] = True
             data['team_owner_id'] = owner.id
             data['team_owner_username'] = owner.username
-            data['business_name'] = getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username
+            data['business_name'] = actual_store_name
+            data['team_store_name'] = actual_store_name
+            data['team_location_name'] = loc_label
             data['team_role_preset'] = role_preset
             data['team_role_label'] = role_label
             data['is_team_suspended'] = not member_record.is_active
             data['is_owner_subscription_active'] = is_owner_business
-            data['team_permissions'] = member_record.permissions if (member_record.is_active and is_owner_business) else {}
+            raw_perms = dict(member_record.permissions) if (member_record.is_active and is_owner_business and isinstance(member_record.permissions, dict)) else {}
+            if raw_perms.get('access_pos') or raw_perms.get('pos_access'):
+                raw_perms['access_pos'] = True
+                raw_perms['pos_access'] = True
+            data['team_permissions'] = raw_perms
             if data.get('tier') == 'customer':
                 data['tier'] = 'worker'
         else:
@@ -3325,15 +3349,39 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             role_preset = member_record.role_preset or 'custom'
             role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
 
+            from .models import SellerApplication, StoreLocation
+            seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
+            actual_store_name = (
+                (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
+                (owner.get_full_name().strip() if owner.get_full_name() else None) or
+                owner.username.replace('_', ' ').title()
+            )
+            assigned_locs = list(member_record.assigned_locations.filter(is_active=True).values('id', 'name', 'city'))
+            if member_record.all_locations_access:
+                loc_label = "All Locations"
+            elif assigned_locs:
+                loc_label = assigned_locs[0]['name']
+                if assigned_locs[0].get('city') and assigned_locs[0]['city'].lower() not in loc_label.lower():
+                    loc_label += f" • {assigned_locs[0]['city']}"
+            else:
+                main_loc = StoreLocation.objects.filter(owner=owner, is_main=True, is_active=True).values('id', 'name', 'city').first()
+                loc_label = main_loc['name'] if main_loc else (getattr(getattr(owner, 'profile', None), 'location', None) or 'Main Branch')
+
             token['is_team_member'] = True
             token['team_owner_id'] = owner.id
             token['team_owner_username'] = owner.username
-            token['business_name'] = getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username
+            token['business_name'] = actual_store_name
+            token['team_store_name'] = actual_store_name
+            token['team_location_name'] = loc_label
             token['team_role_preset'] = role_preset
             token['team_role_label'] = role_label
             token['is_team_suspended'] = not member_record.is_active
             token['is_owner_subscription_active'] = is_owner_business
-            token['team_permissions'] = member_record.permissions if (member_record.is_active and is_owner_business) else {}
+            raw_perms = dict(member_record.permissions) if (member_record.is_active and is_owner_business and isinstance(member_record.permissions, dict)) else {}
+            if raw_perms.get('access_pos') or raw_perms.get('pos_access'):
+                raw_perms['access_pos'] = True
+                raw_perms['pos_access'] = True
+            token['team_permissions'] = raw_perms
             if token.get('tier') == 'customer':
                 token['tier'] = 'worker'
         else:
@@ -5830,18 +5878,51 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             'tasks': []
         })
 
+        raw_perms = dict(member.permissions) if (member.is_active and is_owner_business and isinstance(member.permissions, dict)) else {}
+        if raw_perms.get('access_pos') or raw_perms.get('pos_access'):
+            raw_perms['access_pos'] = True
+            raw_perms['pos_access'] = True
+
+        from .models import SellerApplication, StoreLocation
+        seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
+        actual_store_name = (
+            (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
+            (owner.get_full_name().strip() if owner.get_full_name() else None) or
+            owner.username.replace('_', ' ').title()
+        )
+        assigned_locs = list(member.assigned_locations.filter(is_active=True).values('id', 'name', 'city', 'district', 'address_line', 'is_main'))
+        if member.all_locations_access:
+            loc_label = "All Locations"
+        elif assigned_locs:
+            first_loc = assigned_locs[0]
+            loc_label = first_loc['name']
+            if first_loc.get('city') and first_loc['city'].lower() not in loc_label.lower():
+                loc_label += f" • {first_loc['city']}"
+        else:
+            main_loc = StoreLocation.objects.filter(owner=owner, is_main=True, is_active=True).values('id', 'name', 'city').first()
+            if main_loc:
+                loc_label = main_loc['name']
+                if main_loc.get('city') and main_loc['city'].lower() not in loc_label.lower():
+                    loc_label += f" • {main_loc['city']}"
+            else:
+                loc_label = getattr(getattr(owner, 'profile', None), 'location', None) or 'Main Branch'
+
         return Response({
             'is_team_member': True,
             'membership_id': member.id,
             'owner_id': owner.id,
             'owner_username': owner.username,
-            'business_name': getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username,
+            'business_name': actual_store_name,
+            'store_name': actual_store_name,
+            'location_name': loc_label,
+            'assigned_locations': assigned_locs,
+            'all_locations_access': member.all_locations_access,
             'business_email': owner.email,
             'role_preset': role_preset,
             'role_label': preset_info.get('label'),
             'role_description': preset_info.get('description'),
             'role_tasks': preset_info.get('tasks', []),
-            'permissions': member.permissions if (member.is_active and is_owner_business) else {},
+            'permissions': raw_perms,
             'is_active': member.is_active,
             'is_owner_subscription_active': is_owner_business,
             'created_at': member.created_at.isoformat(),
