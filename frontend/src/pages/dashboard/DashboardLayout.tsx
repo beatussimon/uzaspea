@@ -580,7 +580,7 @@ const DashboardLayout: React.FC = () => {
             {/* Store QR Code at bottom of mobile drawer */}
             {user?.username && (
               <div className="pt-3 mt-4 px-3 select-none space-y-2">
-                <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
+                <div className="bg-white p-3 rounded-none border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
                   <QRCodeSVG
                     value={`${window.location.origin}/${user.username}`}
                     size={104}
@@ -729,7 +729,7 @@ const DashboardLayout: React.FC = () => {
             <div className="pt-2">
               {!isSidebarCollapsed ? (
                 <div className="py-2 px-3 space-y-2 select-none">
-                  <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
+                  <div className="bg-white p-3 rounded-none border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs w-fit">
                     <QRCodeSVG
                       id="store-sidebar-qr-svg"
                       value={`${window.location.origin}/${user.username}`}
