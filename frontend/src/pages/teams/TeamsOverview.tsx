@@ -57,6 +57,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'View customer orders and update fulfillment status',
       path: '/teams-dashboard/orders',
       icon: ShoppingCart,
+      color: 'text-blue-500 dark:text-blue-400',
       show: !!perms.manage_orders
     },
     {
@@ -64,6 +65,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'Create, issue, and manage customer invoices',
       path: '/teams-dashboard/invoices',
       icon: FileText,
+      color: 'text-emerald-500 dark:text-emerald-400',
       show: !!perms.manage_invoices
     },
     {
@@ -71,6 +73,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'In-store barcode register and instant checkout',
       path: '/teams-dashboard/pos',
       icon: ShoppingCart,
+      color: 'text-purple-500 dark:text-purple-400',
       show: !!(perms.access_pos || perms.pos_access)
     },
     {
@@ -78,6 +81,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'Verify buyer mobile payments and receipts',
       path: '/teams-dashboard/payments',
       icon: CreditCard,
+      color: 'text-teal-500 dark:text-teal-400',
       show: perms.manage_payments
     },
     {
@@ -85,6 +89,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'Update inventory, prices, and product listings',
       path: '/teams-dashboard/products',
       icon: Package,
+      color: 'text-orange-500 dark:text-orange-400',
       show: perms.manage_products
     },
     {
@@ -92,6 +97,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'Review customer item requests',
       path: '/teams-dashboard/product-requests',
       icon: Lightbulb,
+      color: 'text-yellow-400 dark:text-yellow-300',
       show: perms.manage_requests || perms.manage_products
     },
     {
@@ -99,6 +105,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'Reply to customer chats and support inquiries',
       path: '/teams-dashboard/messages',
       icon: MessageSquare,
+      color: 'text-sky-500 dark:text-sky-400',
       show: perms.manage_messages
     },
     {
@@ -106,6 +113,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'View store Lipa numbers',
       path: '/teams-dashboard/payment-numbers',
       icon: Phone,
+      color: 'text-indigo-500 dark:text-indigo-400',
       show: perms.manage_payment_numbers
     },
     {
@@ -113,6 +121,7 @@ export const TeamsOverview: React.FC = () => {
       desc: 'View platform commission statements and fees',
       path: '/teams-dashboard/billing',
       icon: Wallet,
+      color: 'text-rose-500 dark:text-rose-400',
       show: perms.manage_billing
     }
   ].filter(m => m.show);
@@ -179,7 +188,7 @@ export const TeamsOverview: React.FC = () => {
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2.5">
-                    <m.icon className="w-5 h-5 text-gray-400 dark:text-neutral-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors shrink-0" />
+                    <m.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${m.color}`} />
                     <h3 className="font-semibold text-sm text-gray-900 dark:text-white transition-colors">
                       {m.title}
                     </h3>
