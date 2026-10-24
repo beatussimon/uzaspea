@@ -821,6 +821,11 @@ const DashboardProducts: React.FC = () => {
     return 'Other Items';
   }, [flatCategories]);
 
+  const formatCategoryName = useCallback((cat: string) => {
+    if (!cat) return '';
+    return cat.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  }, []);
+
   const categorizedPrintProducts = useMemo(() => {
     if (!products || products.length === 0) return [];
     return [...products].sort((a, b) => {
@@ -3828,13 +3833,21 @@ const DashboardProducts: React.FC = () => {
                 return (
                   <React.Fragment key={product.id}>
                     {isNewCategory && (
-                      <tr key={`cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                        <td className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300`}></td>
+                      <tr 
+                        key={`cat-${currentCat}`} 
+                        className="!border-t-0 border-t-0"
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderTop: 'hidden' }}
+                      >
+                        <td 
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300 !border-t-0`}
+                          style={{ borderTop: 'hidden' }}
+                        ></td>
                         <td 
                           colSpan={6} 
-                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-medium text-xs text-gray-500 border-b border-gray-300 !border-t-0`}
+                          style={{ borderTop: 'hidden' }}
                         >
-                          {currentCat}
+                          {formatCategoryName(currentCat)}
                         </td>
                       </tr>
                     )}
@@ -3920,13 +3933,21 @@ const DashboardProducts: React.FC = () => {
                 return (
                   <React.Fragment key={`cust-${product.id}`}>
                     {isNewCategory && (
-                      <tr key={`cust-cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                        <td className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300`}></td>
+                      <tr 
+                        key={`cust-cat-${currentCat}`} 
+                        className="!border-t-0 border-t-0"
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderTop: 'hidden' }}
+                      >
+                        <td 
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300 !border-t-0`}
+                          style={{ borderTop: 'hidden' }}
+                        ></td>
                         <td 
                           colSpan={5} 
-                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-medium text-xs text-gray-500 border-b border-gray-300 !border-t-0`}
+                          style={{ borderTop: 'hidden' }}
                         >
-                          {currentCat}
+                          {formatCategoryName(currentCat)}
                         </td>
                       </tr>
                     )}
