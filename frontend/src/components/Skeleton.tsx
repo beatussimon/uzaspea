@@ -743,6 +743,34 @@ export const PaymentNumbersSkeleton: React.FC<{ count?: number; className?: stri
 );
 
 /**
+ * Assigned Modules Card Grid Skeleton
+ * Matches exact layout of TeamsOverview assigned modules cards:
+ * rounded-2xl bg-surface-card dark:bg-[#0F0F0F] p-5, inline icon (w-5 h-5) + Title,
+ * single/multi-line description, 3-column responsive grid.
+ */
+export const AssignedModulesSkeleton: React.FC<{
+  count?: number;
+  className?: string;
+}> = ({ count = 6, className }) => (
+  <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 flex flex-col justify-between gap-3"
+      >
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="w-5 h-5 rounded-md shrink-0" />
+            <Skeleton className="h-4 w-32 rounded-md" />
+          </div>
+          <Skeleton className="h-3.5 w-4/5 rounded-md mt-1" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
  * Store Branches & Locations Card Grid Skeleton
  * Matches exact layout of BranchesManagerPage cards:
  * rounded-2xl bg-white dark:bg-[#161616] border-0, p-5 space-y-4,
