@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, CalendarDays, Banknote, Tag, MapPin, Check } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, Banknote, Tag, MapPin, Check } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { TableSkeleton, POSProductGridSkeleton } from '../../components/Skeleton';
 import { getVariantDimensions, isColorValue } from '../../utils/variantUtils';
+import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 
 interface Product {
   id: number;
@@ -36,21 +37,21 @@ interface CartItem {
 
 interface POSHistoryProps {
   onPrint: (order: any) => void;
-  dateFilter: string;
+  dateRange: DateRange;
 }
 
-const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateFilter }) => {
+const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = () => {
+  const fetchHistory = useCallback(() => {
     setLoading(true);
-    api.get('/api/orders/incoming/?is_pos=true')
+    let url = '/api/orders/incoming/?is_pos=true';
+    if (dateRange.startDate) url += `&start_date=${dateRange.startDate}`;
+    if (dateRange.endDate) url += `&end_date=${dateRange.endDate}`;
+
+    api.get(url)
       .then(res => {
         setOrders(res.data.results || res.data);
       })
@@ -59,20 +60,26 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateFilter }) => {
         toast.error(t('failed_to_load_pos_history', 'Failed to load POS history'));
       })
       .finally(() => setLoading(false));
-  };
+  }, [dateRange.startDate, dateRange.endDate, t]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const filteredOrders = useMemo(() => {
-    if (!dateFilter) return orders;
+    if (!dateRange.startDate && !dateRange.endDate) return orders;
     return orders.filter(o => {
       if (!o.order_date) return false;
       try {
         const oDateStr = new Date(o.order_date).toISOString().slice(0, 10);
-        return oDateStr === dateFilter || o.order_date.startsWith(dateFilter);
+        if (dateRange.startDate && oDateStr < dateRange.startDate) return false;
+        if (dateRange.endDate && oDateStr > dateRange.endDate) return false;
+        return true;
       } catch (e) {
-        return o.order_date.startsWith(dateFilter);
+        return true;
       }
     });
-  }, [orders, dateFilter]);
+  }, [orders, dateRange.startDate, dateRange.endDate]);
 
   if (loading) return <TableSkeleton rows={5} cols={6} />;
 
@@ -456,7 +463,11 @@ const DashboardPOS: React.FC = () => {
   const { user, activeLocation, setActiveLocation, assignedLocations } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
-  const [historyDateFilter, setHistoryDateFilter] = useState('');
+  const [historyDateRange, setHistoryDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+    label: t('all_time', 'All Time'),
+  });
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -928,26 +939,11 @@ const DashboardPOS: React.FC = () => {
             )}
 
             {activeTab === 'history' && (
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                <div className="relative shrink-0">
-                  <CalendarDays className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={13} />
-                  <input 
-                    type="date" 
-                    value={historyDateFilter}
-                    onChange={(e) => setHistoryDateFilter(e.target.value)}
-                    className="pl-7 pr-2 sm:pl-8 sm:pr-3 py-1 sm:py-1.5 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
-                  />
-                </div>
-                {historyDateFilter && (
-                  <button 
-                    type="button" 
-                    onClick={() => setHistoryDateFilter('')} 
-                    className="px-2 py-1 sm:py-1.5 sm:px-2.5 text-xs font-bold rounded-full bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white border-0 cursor-pointer transition shrink-0"
-                  >
-                    {t('clear', 'Clear')}
-                  </button>
-                )}
-              </div>
+              <DateRangePicker 
+                value={historyDateRange} 
+                onChange={setHistoryDateRange} 
+                buttonClassName="rounded-full !py-1 sm:!py-1.5 text-xs font-semibold"
+              />
             )}
 
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -1230,7 +1226,7 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
       ) : (
-        <POSHistory onPrint={(order) => setReceiptData(order)} dateFilter={historyDateFilter} />
+        <POSHistory onPrint={(order) => setReceiptData(order)} dateRange={historyDateRange} />
       )}
 
       {/* 58mm/80mm Thermal Receipt Modal */}

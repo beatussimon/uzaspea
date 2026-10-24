@@ -2829,6 +2829,20 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order_id_filter:
             orders = orders.filter(id=order_id_filter)
 
+        start_date_str = request.query_params.get('start_date')
+        if start_date_str:
+            try:
+                orders = orders.filter(order_date__date__gte=datetime.strptime(start_date_str, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        end_date_str = request.query_params.get('end_date')
+        if end_date_str:
+            try:
+                orders = orders.filter(order_date__date__lte=datetime.strptime(end_date_str, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
         page = self.paginate_queryset(orders)
         
         def format_order(order):
