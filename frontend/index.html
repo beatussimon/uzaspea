@@ -38,6 +38,7 @@
           var isDark = saved === 'dark' || (!saved && prefersDark);
           var root = document.documentElement;
           var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+          var isHome = window.location.pathname === '/';
 
           if (isDark) {
             root.classList.add('dark');
@@ -45,11 +46,11 @@
             if (metaThemeColor) metaThemeColor.setAttribute('content', '#000000');
           } else {
             root.classList.remove('dark');
-            root.style.backgroundColor = '#ffffff';
-            if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
+            root.style.backgroundColor = isHome ? '#000000' : '#ffffff';
+            if (metaThemeColor) metaThemeColor.setAttribute('content', isHome ? '#000000' : '#ffffff');
           }
 
-          if (window.location.pathname === '/') {
+          if (isHome) {
             root.classList.add('is-home');
           }
         } catch (e) {}
@@ -73,41 +74,54 @@
         color: #111827;
         color-scheme: light;
       }
+      html.is-home, html.is-home body {
+        background-color: #000000 !important;
+      }
 
-      /* Homepage-only instant navbar skeleton */
+      /* Homepage-only instant navbar skeleton (pixel-perfect mobile & desktop) */
       #home-nav-skeleton {
         display: none;
       }
       html.is-home #home-nav-skeleton {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: block;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 56px;
-        padding: 0 16px;
-        box-sizing: border-box;
         z-index: 50;
         pointer-events: none;
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+
+      .hnav-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 80rem; /* max-w-7xl */
+        margin: 0 auto;
+        height: 56px; /* h-14 */
+        padding: 0 16px; /* px-4 */
+        box-sizing: border-box;
+      }
+      @media (min-width: 640px) {
+        .hnav-container {
+          padding: 0 24px; /* sm:px-6 */
+        }
       }
       @media (min-width: 768px) {
-        html.is-home #home-nav-skeleton {
-          height: 80px;
-          padding: 0 32px;
+        .hnav-container {
+          height: 80px; /* md:h-20 */
+          padding: 0 32px; /* md:px-8 */
         }
       }
 
       .hnav-pulse {
         border-radius: 9999px;
         animation: hnav-pulse-anim 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-      html.dark .hnav-pulse {
-        background-color: rgba(255, 255, 255, 0.08);
-      }
-      html:not(.dark) .hnav-pulse {
-        background-color: rgba(0, 0, 0, 0.06);
+        background-color: rgba(255, 255, 255, 0.09);
+        flex-shrink: 0;
       }
 
       @keyframes hnav-pulse-anim {
@@ -115,12 +129,26 @@
         50% { opacity: 0.25; }
       }
 
+      /* Left items: Hidden on mobile (<768px), matching Navbar.tsx hidden md:inline-flex */
       .hnav-left {
-        display: flex;
+        display: none;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         flex: 1;
+        max-width: calc(50% - 80px);
       }
+      @media (min-width: 768px) {
+        .hnav-left {
+          display: flex;
+        }
+      }
+
+      .hnav-pill-sm {
+        width: 52px;
+        height: 24px;
+      }
+
+      /* Center Logo: Exact match for mobile h-14 (56px) and desktop md:h-16 (64px) */
       .hnav-center {
         position: absolute;
         left: 50%;
@@ -128,39 +156,78 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 20;
       }
       .hnav-logo {
-        height: 38px;
+        height: 56px; /* h-14 */
         width: auto;
-        opacity: 0.9;
+        opacity: 0.95;
         display: block;
+        object-fit: contain;
       }
       @media (min-width: 768px) {
         .hnav-logo {
-          height: 48px;
+          height: 64px; /* md:h-16 */
         }
       }
+
+      /* Right items: 2 circular buttons on mobile, extra actions on desktop */
       .hnav-right {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 10px;
+        gap: 4px; /* gap-1 on mobile */
         flex: 1;
+        max-width: calc(50% - 80px);
+        z-index: 10;
+      }
+      @media (min-width: 1024px) {
+        .hnav-right {
+          gap: 8px; /* gap-2 on lg */
+          max-width: 380px;
+        }
+      }
+
+      .hnav-circle {
+        width: 36px;
+        height: 36px;
+      }
+
+      .hnav-desktop-only {
+        display: none;
+      }
+      @media (min-width: 1024px) {
+        .hnav-desktop-only {
+          display: block;
+        }
+      }
+
+      .hnav-pill-btn {
+        width: 68px;
+        height: 32px;
       }
     </style>
   </head>
   <body>
     <div id="root">
       <div id="home-nav-skeleton">
-        <div class="hnav-left">
-          <div class="hnav-pulse" style="width: 52px; height: 26px;"></div>
-        </div>
-        <div class="hnav-center">
-          <img src="/logo_dark.png" alt="SokoniMax" class="hnav-logo" />
-        </div>
-        <div class="hnav-right">
-          <div class="hnav-pulse" style="width: 32px; height: 32px;"></div>
-          <div class="hnav-pulse" style="width: 32px; height: 32px;"></div>
+        <div class="hnav-container">
+          <div class="hnav-left">
+            <div class="hnav-pulse hnav-pill-sm"></div>
+            <div class="hnav-pulse hnav-pill-sm"></div>
+          </div>
+          <div class="hnav-center">
+            <img src="/logo_dark.png" alt="SokoniMax" class="hnav-logo" />
+          </div>
+          <div class="hnav-right">
+            <!-- Mobile and desktop right action placeholders (Search & Notifications) -->
+            <div class="hnav-pulse hnav-circle"></div>
+            <div class="hnav-pulse hnav-circle"></div>
+            <!-- Desktop only actions -->
+            <div class="hnav-pulse hnav-circle hnav-desktop-only"></div>
+            <div class="hnav-pulse hnav-circle hnav-desktop-only"></div>
+            <div class="hnav-pulse hnav-pill-btn hnav-desktop-only"></div>
+          </div>
         </div>
       </div>
     </div>
