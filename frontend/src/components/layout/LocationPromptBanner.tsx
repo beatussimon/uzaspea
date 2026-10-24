@@ -12,7 +12,7 @@ export const LocationPromptBanner: React.FC = () => {
   return (
     <aside
       aria-label="Location notice"
-      className="relative w-full max-w-[330px] sm:w-[330px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
+      className="relative w-full max-w-[330px] sm:w-[330px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up text-left"
     >
       <div>
         <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 leading-snug pr-6">
@@ -22,12 +22,12 @@ export const LocationPromptBanner: React.FC = () => {
           {t('set_location_desc', 'Get accurate delivery fees, discover nearby pickup hubs, and enjoy faster checkout in Tanzania.')}
         </p>
 
-        <div className="flex items-center justify-center">
+        <div>
           <button
             type="button"
             onClick={() => requestLocation()}
             disabled={isLocating}
-            className="btn-primary text-xs font-bold py-2 px-4 rounded-btn flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 disabled:opacity-50"
+            className="btn-primary w-full text-xs font-bold py-2.5 px-4 rounded-btn flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {isLocating && <Loader2 size={13} className="animate-spin" />}
             <span>{isLocating ? t('locating', 'Locating...') : t('allow_location', 'Allow Location')}</span>
@@ -38,10 +38,10 @@ export const LocationPromptBanner: React.FC = () => {
       <button
         type="button"
         onClick={dismissPrompt}
-        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-full p-1.5 transition-colors"
+        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 transition-colors"
         aria-label="Dismiss"
       >
-        <X size={14} />
+        <X size={16} />
       </button>
     </aside>
   );

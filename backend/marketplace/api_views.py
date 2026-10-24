@@ -23,7 +23,8 @@ from .models import (
     Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
     MobileNetwork, VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
     Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername,
-    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem
+    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem,
+    SellerApplication
 )
 from .serializers import (
     ProductSerializer, ProductListSerializer, CategorySerializer, ProductReviewSerializer, 
@@ -3249,7 +3250,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             role_preset = member_record.role_preset or 'custom'
             role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
 
-            from .models import SellerApplication, StoreLocation
             seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
             actual_store_name = (
                 (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
@@ -3363,7 +3363,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             role_preset = member_record.role_preset or 'custom'
             role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
 
-            from .models import SellerApplication, StoreLocation
             seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
             actual_store_name = (
                 (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
@@ -5897,7 +5896,6 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             raw_perms['access_pos'] = True
             raw_perms['pos_access'] = True
 
-        from .models import SellerApplication, StoreLocation
         seller_app = SellerApplication.objects.filter(user=owner, status='approved').order_by('-id').first() or SellerApplication.objects.filter(user=owner).order_by('-id').first()
         actual_store_name = (
             (seller_app.business_name.strip() if seller_app and seller_app.business_name else None) or
