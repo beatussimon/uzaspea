@@ -85,7 +85,7 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
 
   return (
     <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-      <div className="overflow-x-auto rounded-xl">
+      <div className="overflow-x-auto">
         <table className="w-full text-left text-xs whitespace-nowrap">
           <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
             <tr>
