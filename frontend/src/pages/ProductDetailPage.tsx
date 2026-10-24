@@ -48,6 +48,8 @@ interface ProductData {
   id: number;
   name: string;
   slug: string;
+  public_id?: string;
+  url_slug?: string;
   description: string;
   price: string;
   stock: number;
@@ -808,8 +810,9 @@ const ProductDetailPage: React.FC = () => {
         setProduct(prodData);
         setIsHydrating(false);
         setPageError(null);
-        if (prodData?.slug && prodData.slug !== slug && /^\d+$/.test(slug)) {
-          window.history.replaceState(null, '', `/product/${prodData.slug}`);
+        const targetSlug = prodData?.url_slug || prodData?.slug;
+        if (targetSlug && targetSlug !== slug) {
+          window.history.replaceState(null, '', `/product/${targetSlug}`);
         }
         setLikeCount(prodData.like_count);
         setLiked(prodData.is_liked || false);
@@ -1405,7 +1408,7 @@ const ProductDetailPage: React.FC = () => {
     },
     "offers": {
       "@type": "Offer",
-      "url": `${siteUrl}/product/${product.slug}`,
+      "url": `${siteUrl}/product/${product.url_slug || product.slug}`,
       "priceCurrency": "TZS",
       "price": activePrice,
       "priceValidUntil": "2027-12-31",
@@ -1448,7 +1451,7 @@ const ProductDetailPage: React.FC = () => {
         "@type": "ListItem",
         "position": product.category_parent_slug ? 5 : 4,
         "name": product.name,
-        "item": `${siteUrl}/product/${product.slug}`
+        "item": `${siteUrl}/product/${product.url_slug || product.slug}`
       }
     ]
   };
@@ -1463,6 +1466,7 @@ const ProductDetailPage: React.FC = () => {
         description={product.description ? product.description.substring(0, 160).replace(/\n/g, ' ') : `Buy ${product.name} on SokoniMax Tanzania.`}
         image={currentImageSrc || '/logo.png'}
         type="product"
+        canonicalUrl={`${siteUrl}/product/${product.url_slug || product.slug}`}
         price={activePrice}
         priceCurrency="TZS"
         availability={product.stock > 0 ? 'in stock' : 'out of stock'}

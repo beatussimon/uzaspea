@@ -117,7 +117,7 @@ export function setCachedProduct(slugOrId: string | number, data: any) {
   productCache[key] = entry;
   touchKey(key);
 
-  // Also cache by ID if given a slug with an ID or vice-versa
+  // Also cache by ID, url_slug, and public_id
   if (data.id && String(data.id) !== key) {
     productCache[String(data.id)] = entry;
     touchKey(String(data.id));
@@ -125,6 +125,14 @@ export function setCachedProduct(slugOrId: string | number, data: any) {
   if (data.slug && data.slug !== key) {
     productCache[data.slug] = entry;
     touchKey(data.slug);
+  }
+  if (data.url_slug && data.url_slug !== key) {
+    productCache[data.url_slug] = entry;
+    touchKey(data.url_slug);
+  }
+  if (data.public_id && data.public_id !== key) {
+    productCache[data.public_id] = entry;
+    touchKey(data.public_id);
   }
 
   writeSessionCache(key, data);
@@ -144,6 +152,14 @@ export function seedProductsCache(products: any[]) {
     if (p.slug) {
       productCache[p.slug] = entry;
       touchKey(p.slug);
+    }
+    if (p.url_slug) {
+      productCache[p.url_slug] = entry;
+      touchKey(p.url_slug);
+    }
+    if (p.public_id) {
+      productCache[p.public_id] = entry;
+      touchKey(p.public_id);
     }
     if (p.id) {
       productCache[String(p.id)] = entry;

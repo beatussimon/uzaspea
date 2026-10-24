@@ -231,7 +231,7 @@ const CartPage: React.FC = () => {
                     key={item.productId}
                     className="flex items-start sm:items-center gap-3 sm:gap-4"
                   >
-                    <Link to={`/product/${item.slug}`} className="shrink-0">
+                    <Link to={`/product/${item.url_slug || item.slug}`} className="shrink-0">
                       <SafeImage
                         src={item.image}
                         alt={item.name}
@@ -245,7 +245,7 @@ const CartPage: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <Link
-                            to={`/product/${item.slug}`}
+                            to={`/product/${item.url_slug || item.slug}`}
                             className="font-bold text-gray-900 dark:text-white line-clamp-1 hover:text-brand-500 dark:hover:text-brand-500 transition text-sm"
                             title={item.name}
                           >

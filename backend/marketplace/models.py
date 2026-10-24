@@ -16,6 +16,11 @@ import secrets
 logger = logging.getLogger(__name__)
 
 
+def generate_public_id():
+    """Generates a URL-safe 12-char hex string for public entity identifiers."""
+    return secrets.token_hex(6)
+
+
 def validate_image(image):
     """FIX D-06: validate image size and format."""
     max_size_mb = 5
@@ -170,7 +175,8 @@ class Brand(models.Model):
 
 class ReferenceProduct(models.Model):
     name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True, blank=True)
+    public_id = models.CharField(max_length=12, unique=True, db_index=True, default=generate_public_id, editable=False)
+    slug = models.SlugField(max_length=255, blank=True, db_index=True)
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='reference_products')
     category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='reference_products')
     
@@ -185,28 +191,25 @@ class ReferenceProduct(models.Model):
         ordering = ['name']
         unique_together = ('brand', 'name')
 
+    @property
+    def url_slug(self):
+        brand_name = self.brand.name if getattr(self, 'brand', None) else ""
+        base = self.slug or slugify(f"{brand_name} {self.name}".strip()) or "ref-product"
+        pub = self.public_id or ""
+        return f"{base}-{pub}" if pub else base
+
+    def get_absolute_url(self):
+        return f"/reference-product/{self.url_slug}"
+
     def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = generate_public_id()
         if not self.slug:
             from django.utils.text import slugify
-            base = slugify(f"{self.brand.name} {self.name}") or "ref-product"
+            brand_name = self.brand.name if getattr(self, 'brand', None) else ""
+            base = slugify(f"{brand_name} {self.name}".strip()) or "ref-product"
             self.slug = base
-
-        from django.db import IntegrityError, transaction
-        try:
-            with transaction.atomic():
-                super().save(*args, **kwargs)
-        except IntegrityError:
-            from django.utils.text import slugify
-            base = slugify(f"{self.brand.name} {self.name}") or "ref-product"
-            n = 1
-            while True:
-                self.slug = f'{base}-{n}'
-                try:
-                    with transaction.atomic():
-                        super().save(*args, **kwargs)
-                    break
-                except IntegrityError:
-                    n += 1
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.brand.name} {self.name}"
@@ -308,7 +311,8 @@ class Product(models.Model):
     )
 
     name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True, blank=True)
+    public_id = models.CharField(max_length=12, unique=True, db_index=True, default=generate_public_id, editable=False)
+    slug = models.SlugField(max_length=255, blank=True, db_index=True)
     sku = models.CharField(max_length=100, blank=True, null=True, help_text="Part code, SKU, or serial number")
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -370,7 +374,15 @@ class Product(models.Model):
             models.Index(fields=['is_available', 'is_draft', 'pos_only', 'stock', '-created_at']),
         ]
 
+    @property
+    def url_slug(self):
+        base = self.slug or slugify(self.name) or "product"
+        pub = self.public_id or ""
+        return f"{base}-{pub}" if pub else base
+
     def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = generate_public_id()
         if not self.slug:
             from django.utils.text import slugify
             base = slugify(self.name) or "product"
@@ -403,29 +415,7 @@ class Product(models.Model):
                 if not self.location_name:
                     self.location_name = "Dar es Salaam, Tanzania"
 
-        from django.db import IntegrityError, transaction
-        try:
-            with transaction.atomic():
-                super().save(*args, **kwargs)
-        except IntegrityError as exc:
-            err_str = str(exc).lower()
-            if 'slug' not in err_str and 'unique' not in err_str:
-                raise exc
-            from django.utils.text import slugify
-            base = slugify(self.name) or "product"
-            n = 1
-            while n < 100:
-                self.slug = f'{base}-{n}'
-                try:
-                    with transaction.atomic():
-                        super().save(*args, **kwargs)
-                    break
-                except IntegrityError as e2:
-                    if 'slug' not in str(e2).lower() and 'unique' not in str(e2).lower():
-                        raise e2
-                    n += 1
-            else:
-                raise exc
+        super().save(*args, **kwargs)
 
         if not kwargs.get('raw'):
             sync_seller_main_store_stock(self)
@@ -434,7 +424,7 @@ class Product(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return f"/product/{self.slug}"
+        return f"/product/{self.url_slug}"
 
     def average_rating(self):
         reviews = self.reviews.all()

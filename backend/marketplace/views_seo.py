@@ -63,6 +63,9 @@ class SeoRenderView(APIView):
                 username = path.strip('/')
                 html_content = self.render_seller_or_fallback(username, raw_path)
 
+            if isinstance(html_content, HttpResponse):
+                return html_content
+
             # Cache successful response for 30 minutes
             cache.set(cache_key, html_content, 1800)
             return HttpResponse(html_content, content_type="text/html; charset=utf-8")
@@ -76,17 +79,37 @@ class SeoRenderView(APIView):
             return HttpResponse(fallback_html, content_type="text/html; charset=utf-8")
 
     def render_product(self, slug, raw_path):
-        product = Product.objects.filter(
-            slug=slug, 
+        import re
+        from django.http import HttpResponsePermanentRedirect
+        PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-f]{12})$", re.IGNORECASE)
+
+        qs = Product.objects.filter(
             is_available=True, 
             is_draft=False,
             pos_only=False
-        ).select_related('category', 'category__parent', 'seller', 'seller__profile', 'brand').prefetch_related('images').first()
+        ).select_related('category', 'category__parent', 'seller', 'seller__profile', 'brand').prefetch_related('images')
+
+        product = None
+        match = PUBLIC_ID_REGEX.match(slug)
+        if match:
+            pub_id = match.group('public_id').lower()
+            product = qs.filter(public_id=pub_id).first()
+
+        if not product and len(slug) == 12:
+            product = qs.filter(public_id=slug.lower()).first()
+
+        if not product:
+            product = qs.filter(slug=slug).first()
 
         if not product:
             return self.render_404(raw_path)
 
-        canonical_url = f"{SITE_URL}/product/{product.slug}"
+        # 301 Permanent Redirect if accessed via legacy or mismatched slug
+        canonical_path = f"/product/{product.url_slug}"
+        if raw_path.split('?')[0].rstrip('/') != canonical_path.rstrip('/'):
+            return HttpResponsePermanentRedirect(f"{SITE_URL}{canonical_path}")
+
+        canonical_url = f"{SITE_URL}{canonical_path}"
         primary_image = product.images.first()
         if primary_image and primary_image.image:
             image_url = primary_image.image.url
@@ -269,7 +292,7 @@ class SeoRenderView(APIView):
         # Fetch top 12 featured products for crawler discovery
         products = Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False).order_by('-created_at')[:12]
         links_html = "".join([
-            f'<li><a href="/product/{p.slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
+            f'<li><a href="/product/{p.url_slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
             for p in products
         ])
 
@@ -388,7 +411,7 @@ class SeoRenderView(APIView):
 
             products = Product.objects.filter(seller=user, is_available=True, is_draft=False, pos_only=False)[:10]
             prod_links = "".join([
-                f'<li><a href="/product/{p.slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
+                f'<li><a href="/product/{p.url_slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
                 for p in products
             ])
 

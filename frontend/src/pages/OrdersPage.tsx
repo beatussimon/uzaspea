@@ -873,7 +873,7 @@ const OrdersPage: React.FC = () => {
                                 <div key={item.id} className={`py-2 flex gap-4 ${isLast ? '' : 'border-b border-gray-200 dark:border-gray-700'}`}>
                                   <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-bold shrink-0">{item.quantity}×</div>
                                   <div className="min-w-0 flex-1 pt-0.5">
-                                      <Link to={`/product/${item.product_slug || item.slug || item.product}`} onClick={(e) => e.stopPropagation()} className="group flex items-center gap-1.5 w-fit max-w-full">
+                                      <Link to={`/product/${item.product_url_slug || item.product_slug || item.url_slug || item.slug || item.product}`} onClick={(e) => e.stopPropagation()} className="group flex items-center gap-1.5 w-fit max-w-full">
                                         <h5 className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
                                           {item.product_name || item.name}
                                         </h5>

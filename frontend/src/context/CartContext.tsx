@@ -12,6 +12,8 @@ interface CartItem {
   quantity: number;
   image: string;
   slug: string;
+  url_slug?: string;
+  public_id?: string;
   seller_id?: number;
   seller_username?: string;
   category?: string;
@@ -121,6 +123,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           quantity,
           image: firstImage,
           slug: product.slug,
+          url_slug: product.url_slug || (product.public_id ? `${product.slug}-${product.public_id}` : product.slug),
+          public_id: product.public_id,
           seller_id: product.seller || product.seller_id,
           seller_username: product.seller_username,
           category: product.category_name,
