@@ -4,7 +4,7 @@ import { Check, ChevronDown, Globe } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '../../i18n';
 
 interface LanguageSelectorProps {
-  variant?: 'navbar-dropdown' | 'mobile-segmented' | 'drawer-list';
+  variant?: 'navbar-dropdown' | 'mobile-segmented' | 'drawer-list' | 'auth-inline';
   className?: string;
   onSelect?: () => void;
 }
@@ -94,6 +94,61 @@ export const LanguageFlag: React.FC<{ code: string; className?: string }> = ({
   }
 };
 
+export interface AuthLanguageOption {
+  code: SupportedLanguageCode;
+  label: string;
+  name: string;
+}
+
+export const AUTH_LANGUAGES: AuthLanguageOption[] = [
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'fr', label: 'FR', name: 'Français' },
+  { code: 'zh', label: 'CH', name: '中文' },
+  { code: 'sw', label: 'SW', name: 'Kiswahili' },
+];
+
+/**
+ * Quick 4-language switcher row (EN, FR, CH, SW) with SVG flags for auth forms.
+ * Minimalist: flag + language text only, no box/underlay or background shades.
+ */
+export const AuthLanguageSelector: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { i18n } = useTranslation();
+  const rawLang = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
+  const currentLang = (['en', 'fr', 'zh', 'sw'].includes(rawLang) ? rawLang : 'en') as SupportedLanguageCode;
+
+  const handleLanguageChange = (code: SupportedLanguageCode) => {
+    i18n.changeLanguage(code);
+    localStorage.setItem('uzaspea_language', code);
+    localStorage.setItem('i18nextLng', code);
+    document.documentElement.lang = code;
+  };
+
+  return (
+    <div className={`flex items-center justify-center gap-3.5 sm:gap-4 ${className}`}>
+      {AUTH_LANGUAGES.map((lang) => {
+        const isActive = currentLang === lang.code;
+        return (
+          <button
+            key={lang.code}
+            type="button"
+            onClick={() => handleLanguageChange(lang.code)}
+            title={lang.name}
+            aria-label={`Switch language to ${lang.name} (${lang.label})`}
+            className={`inline-flex items-center gap-1.5 py-0.5 px-0.5 bg-transparent border-0 outline-none cursor-pointer transition-opacity duration-150 ${
+              isActive
+                ? 'opacity-100 font-bold text-brand-500 dark:text-brand-400'
+                : 'opacity-50 hover:opacity-100 font-medium text-gray-500 dark:text-neutral-400'
+            }`}
+          >
+            <LanguageFlag code={lang.code} className="w-4 h-3 rounded-[2px]" />
+            <span className="text-[11px] uppercase tracking-wider font-bold">{lang.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   variant = 'navbar-dropdown',
   className = '',
@@ -109,6 +164,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
   const handleLanguageChange = (code: SupportedLanguageCode) => {
     i18n.changeLanguage(code);
+    localStorage.setItem('uzaspea_language', code);
+    localStorage.setItem('i18nextLng', code);
+    document.documentElement.lang = code;
     setOpen(false);
     onSelect?.();
   };
@@ -122,6 +180,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // 0. Auth Inline Row (EN, FR, CH, SW)
+  if (variant === 'auth-inline') {
+    return <AuthLanguageSelector className={className} />;
+  }
 
   // 1. Mobile Segmented Control (inline pills)
   if (variant === 'mobile-segmented') {
