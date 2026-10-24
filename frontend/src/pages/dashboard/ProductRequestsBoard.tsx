@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, Printer, DollarSign, Edit, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -877,7 +877,7 @@ const ProductRequestsBoard: React.FC = () => {
                       <th scope="col" className="p-3 text-center whitespace-nowrap w-24">
                         Visibility
                       </th>
-                      <th scope="col" className="p-3 text-right whitespace-nowrap w-72 min-w-[280px]">Actions</th>
+                      <th scope="col" className="p-3 text-right whitespace-nowrap w-52">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -976,7 +976,7 @@ const ProductRequestsBoard: React.FC = () => {
                                 />
                               </button>
                             </td>
-                            <td className="p-3 text-right align-middle whitespace-nowrap w-72 min-w-[280px]">
+                            <td className="p-3 text-right align-middle whitespace-nowrap w-52">
                               <div className="flex justify-end gap-1.5 items-center">
                                 <Button 
                                   type="button"
@@ -1035,27 +1035,29 @@ const ProductRequestsBoard: React.FC = () => {
                                     onClick={() => setActionDropdownId(actionDropdownId === req.id ? null : req.id)}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-semibold bg-neutral-900 hover:bg-black text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                                   >
-                                    <ArrowRightCircle size={12} className="shrink-0" />
                                     <span>Convert</span>
                                     <ChevronDown size={12} className={`transition-transform duration-200 ${actionDropdownId === req.id ? 'rotate-180' : ''}`} />
                                   </button>
 
                                   {actionDropdownId === req.id && (
-                                    <div className="absolute inset-x-0 top-full mt-1 w-full rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg z-50 p-0.5 flex flex-col whitespace-normal animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                                    <div className="absolute right-0 top-full mt-1 min-w-[130px] rounded-xl bg-white dark:bg-[#1c1c1c] border-0 shadow-2xl z-50 p-1 flex flex-col whitespace-normal animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setActionDropdownId(null);
                                           handleConvert(req);
                                         }}
-                                        className="w-full text-center px-1 py-1 rounded text-[9.5px] font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 transition cursor-pointer whitespace-nowrap tracking-tight"
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer whitespace-nowrap"
                                       >
                                         Convert to Product
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleCancelDemand(req)}
-                                        className="w-full text-center px-1 py-1 rounded text-[9.5px] font-semibold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer whitespace-nowrap tracking-tight"
+                                        onClick={() => {
+                                          setActionDropdownId(null);
+                                          handleCancelDemand(req);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer whitespace-nowrap"
                                       >
                                         Cancel Demand
                                       </button>
@@ -1275,7 +1277,13 @@ const ProductRequestsBoard: React.FC = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingRequestId ? "Edit Demand Card" : "Create Product in Making"}>
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); resetForm(); }} 
+        title={editingRequestId ? "Edit Demand Card" : "Create Product in Making"}
+        className="!border-0 !border-none shadow-2xl bg-white dark:bg-[#121212]"
+        headerClassName="!border-b-0 border-b-0 pb-1"
+      >
         <form onSubmit={handleCreateRequest} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Build a demand card that looks exactly like a product. Once demand is high enough, you can seamlessly add it to your inventory!
@@ -1290,6 +1298,7 @@ const ProductRequestsBoard: React.FC = () => {
               onChange={(e) => setNewReqName(e.target.value)}
               required
               placeholder="e.g. iPhone 16 Pro Max Case"
+              className="border-0 dark:border-0 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
@@ -1305,6 +1314,7 @@ const ProductRequestsBoard: React.FC = () => {
                   value={newReqPrice}
                   onChange={(e) => setNewReqPrice(e.target.value)}
                   placeholder="0.00"
+                  className="border-0 dark:border-0 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500"
                 />
               </div>
               <div className="space-y-1">
@@ -1318,13 +1328,14 @@ const ProductRequestsBoard: React.FC = () => {
                   value={newReqBuyingPrice}
                   onChange={(e) => setNewReqBuyingPrice(e.target.value)}
                   placeholder="0.00"
+                  className="border-0 dark:border-0 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
               <select
-                className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-brand-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                className="w-full px-4 py-2.5 border-0 rounded-xl focus:ring-2 focus:ring-brand-500 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white outline-none cursor-pointer"
                 value={newReqCategory}
                 onChange={(e) => setNewReqCategory(e.target.value)}
               >
@@ -1339,7 +1350,7 @@ const ProductRequestsBoard: React.FC = () => {
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Condition</label>
               <select
-                className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-brand-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                className="w-full px-4 py-2.5 border-0 rounded-xl focus:ring-2 focus:ring-brand-500 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white outline-none cursor-pointer"
                 value={newReqCondition}
                 onChange={(e) => setNewReqCondition(e.target.value)}
               >
@@ -1354,7 +1365,7 @@ const ProductRequestsBoard: React.FC = () => {
                   id="reqQuote"
                   checked={newReqRequiresQuote}
                   onChange={(e) => setNewReqRequiresQuote(e.target.checked)}
-                  className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500"
+                  className="w-4 h-4 text-brand-500 border-0 bg-neutral-200 dark:bg-neutral-700 rounded focus:ring-brand-500"
                 />
                 <label htmlFor="reqQuote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Requires Quote
@@ -1366,7 +1377,7 @@ const ProductRequestsBoard: React.FC = () => {
                   id="reqVisible"
                   checked={newReqIsVisible}
                   onChange={(e) => setNewReqIsVisible(e.target.checked)}
-                  className="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-500"
+                  className="w-4 h-4 text-emerald-500 border-0 bg-neutral-200 dark:bg-neutral-700 rounded focus:ring-emerald-500"
                 />
                 <label htmlFor="reqVisible" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Visible in Upcoming Requests
@@ -1380,7 +1391,7 @@ const ProductRequestsBoard: React.FC = () => {
               Description (Optional)
             </label>
             <textarea
-              className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-brand-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              className="w-full px-4 py-2.5 border-0 rounded-xl focus:ring-2 focus:ring-brand-500 bg-neutral-100 dark:bg-neutral-800/80 text-gray-900 dark:text-white outline-none resize-none"
               rows={3}
               value={newReqDesc}
               onChange={(e) => setNewReqDesc(e.target.value)}
@@ -1401,11 +1412,11 @@ const ProductRequestsBoard: React.FC = () => {
             />
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+          <div className="flex justify-end gap-3 mt-6 pt-2 border-0 dark:border-0">
+            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={creating} className="whitespace-nowrap text-sm">
+            <Button type="submit" loading={creating} className="whitespace-nowrap text-sm border-0">
               {editingRequestId ? 'Save Changes' : 'Create Demand'}
             </Button>
           </div>
