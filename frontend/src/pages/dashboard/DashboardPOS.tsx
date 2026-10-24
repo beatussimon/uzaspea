@@ -3,7 +3,7 @@ import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, Banknote, Tag, MapPin, Check } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, Banknote, Tag, MapPin, Check, Loader2 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -44,27 +44,73 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchHistory = useCallback(() => {
-    setLoading(true);
-    let url = '/api/orders/incoming/?is_pos=true';
+  const fetchHistory = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    let url = `/api/orders/incoming/?is_pos=true&page=${p}`;
     if (dateRange.startDate) url += `&start_date=${dateRange.startDate}`;
     if (dateRange.endDate) url += `&end_date=${dateRange.endDate}`;
 
     api.get(url)
       .then(res => {
-        setOrders(res.data.results || res.data);
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) {
+          setOrders(incoming);
+        } else {
+          setOrders(prev => {
+            const ids = new Set(prev.map(o => o.id));
+            return [...prev, ...incoming.filter(o => !ids.has(o.id))];
+          });
+        }
+        setHasMore(Boolean(res.data?.next));
       })
       .catch(err => {
         console.error(err);
-        toast.error(t('failed_to_load_pos_history', 'Failed to load POS history'));
+        if (reset) {
+          toast.error(t('failed_to_load_pos_history', 'Failed to load POS history'));
+        }
+        setHasMore(false);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
   }, [dateRange.startDate, dateRange.endDate, t]);
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(1, true);
   }, [fetchHistory]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchHistory(nextPage, false);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchHistory]);
 
   const filteredOrders = useMemo(() => {
     if (!dateRange.startDate && !dateRange.endDate) return orders;
@@ -150,6 +196,21 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
           </tbody>
         </table>
       </div>
+
+      {loadingMore && (
+        <div className="flex justify-center items-center py-4 gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+          <Loader2 size={16} className="animate-spin text-brand-500" />
+          <span>{t('loading_more_sales', 'Loading more sales...')}</span>
+        </div>
+      )}
+
+      {!hasMore && orders.length > 15 && (
+        <p className="text-center py-4 text-2xs text-gray-400 font-medium">
+          {t('end_of_sales_history', 'End of sales history')}
+        </p>
+      )}
+
+      <div ref={sentinelRef} className="h-4" />
     </div>
   );
 };
