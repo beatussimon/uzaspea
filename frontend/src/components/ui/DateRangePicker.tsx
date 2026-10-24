@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../../lib/utils';
 
 export type DateRange = {
   startDate: string | null;
@@ -11,9 +12,11 @@ export type DateRange = {
 interface DateRangePickerProps {
   value: DateRange;
   onChange: (range: DateRange) => void;
+  className?: string;
+  buttonClassName?: string;
 }
 
-export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChange }) => {
+export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChange, className, buttonClassName }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [customStart, setCustomStart] = useState(value.startDate || '');
@@ -117,11 +120,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
   };
 
   return (
-    <div className="relative shrink-0" ref={dropdownRef}>
+    <div className={cn("relative shrink-0", className)} ref={dropdownRef}>
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] border-0 rounded-btn text-xs font-bold text-gray-900 dark:text-white transition-all duration-200 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer select-none"
+        className={cn(
+          "flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] border-0 rounded-btn text-xs font-bold text-gray-900 dark:text-white transition-all duration-200 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer select-none",
+          buttonClassName
+        )}
       >
         <Calendar size={14} className="text-gray-500 dark:text-gray-400 shrink-0" />
         <span>{value.label}</span>
