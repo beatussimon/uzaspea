@@ -1426,14 +1426,14 @@ const ProductRequestsBoard: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse table-fixed mt-6">
             <thead>
               <tr className="border-b border-gray-300 text-black">
-                <th className="py-2 px-1 w-10 font-bold">S/N</th>
-                <th className="py-2 px-2 w-44 font-bold">PRODUCT</th>
-                <th className="py-2 px-2 w-32 font-bold">CATEGORY</th>
-                <th className="py-2 px-2 w-16 font-bold text-center">VOTES</th>
-                <th className="py-2 px-2 w-28 font-bold text-right">EST. COST (TSH)</th>
-                <th className="py-2 px-2 w-28 font-bold text-right">EST. PRICE (TSH)</th>
-                <th className="py-2 px-2 w-28 font-bold text-right">PROJ. PROFIT (TSH)</th>
-                <th className="py-2 px-2 w-20 font-bold text-center">STATUS</th>
+                <th className="py-2 px-1 font-bold" style={{ width: '5%' }}>S/N</th>
+                <th className="py-2 px-2 font-bold" style={{ width: '27%' }}>PRODUCT</th>
+                <th className="py-2 px-2 font-bold" style={{ width: '14%' }}>CATEGORY</th>
+                <th className="py-2 px-2 font-bold text-center" style={{ width: '7%' }}>VOTES</th>
+                <th className="py-2 px-2 font-bold text-right" style={{ width: '12%' }}>EST. COST (TSH)</th>
+                <th className="py-2 px-2 font-bold text-right" style={{ width: '12%' }}>EST. PRICE (TSH)</th>
+                <th className="py-2 px-2 font-bold text-right" style={{ width: '13%' }}>PROJ. PROFIT (TSH)</th>
+                <th className="py-2 px-2 font-bold text-center" style={{ width: '10%' }}>STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -1455,19 +1455,19 @@ const ProductRequestsBoard: React.FC = () => {
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
               <tr className="border-t border-gray-300 font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-bold">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-bold whitespace-nowrap">
                   {totalMissedCost.toLocaleString()} TZS
                 </td>
               </tr>
               <tr className="font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-bold">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-bold whitespace-nowrap">
                   {projectedRevenue.toLocaleString()} TZS
                 </td>
               </tr>
               <tr className="font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-bold">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-bold whitespace-nowrap">
                   {potentialProfit.toLocaleString()} TZS
                 </td>
               </tr>
