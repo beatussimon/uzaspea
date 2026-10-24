@@ -53,19 +53,25 @@ const ForgotPasswordPage: React.FC = () => {
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
           <div>
             {/* Header Block (INSIDE the card) */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-8 sm:mb-9">
               <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
                 {t('reset_password', 'Reset Password')}
               </h1>
             </div>
 
             {!submitted ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 {rateLimitError && (
                   <div className="p-3 rounded-btn bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs leading-relaxed">
                     {rateLimitError}
                   </div>
                 )}
+
+                <div className="h-12 flex items-center justify-center text-center px-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                    {t('enter_registered_email_desc', 'Enter your registered email address or username to receive a password reset link.')}
+                  </p>
+                </div>
 
                 <FloatingInput
                   id="identifier"
@@ -82,7 +88,7 @@ const ForgotPasswordPage: React.FC = () => {
                   type="submit"
                   loading={loading}
                   disabled={!!rateLimitError}
-                  className="w-full flex items-center justify-center gap-2 mt-2"
+                  className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
                 >
                   {t('send_reset_link', 'Send Reset Link')}
                 </Button>
@@ -138,7 +144,7 @@ const ForgotPasswordPage: React.FC = () => {
 
           <div>
             {/* Bottom Switch Link (INSIDE the card) */}
-            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
               <span>{t('remember_password', 'Remember your password?')}</span>{' '}
               <Link
                 to="/login"
@@ -149,7 +155,7 @@ const ForgotPasswordPage: React.FC = () => {
             </div>
 
             {/* Support Help Link */}
-            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-2.5">
               {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
               <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
                 {t('contact_support', 'Contact Support')}

@@ -128,7 +128,7 @@ const LoginPage: React.FC = () => {
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
           <div>
             {/* Header Block (INSIDE the card) */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-8 sm:mb-9">
               <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
                 {t('welcome_back')}
               </h1>
@@ -146,7 +146,7 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3.5">
               <FloatingInput
                 id="username"
                 label={t('username', 'Username')}
@@ -171,7 +171,7 @@ const LoginPage: React.FC = () => {
               <Button
                 type="submit"
                 loading={loading}
-                className="w-full flex items-center justify-center gap-2 mt-2"
+                className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
               >
                 {t('sign_in', 'Sign In')}
               </Button>
@@ -180,7 +180,7 @@ const LoginPage: React.FC = () => {
 
           <div>
             {/* Bottom Switch Link & Forgot Password (INSIDE the card) */}
-            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
               <span>{t('dont_have_account', "Don't have an account?")}</span>{' '}
               <Link
                 to="/register"
@@ -198,7 +198,7 @@ const LoginPage: React.FC = () => {
             </div>
 
             {/* Support Help Link */}
-            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-2.5">
               {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
               <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
                 {t('contact_support', 'Contact Support')}

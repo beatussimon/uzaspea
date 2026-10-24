@@ -184,7 +184,7 @@ const ResetPasswordPage: React.FC = () => {
             {/* 4. Valid Token: Forgot Password Form */}
             {!verifying && !verifyError && tokenData?.request_type === 'forgot_password' && (
               <div>
-                <div className="text-center mb-6">
+                <div className="text-center mb-8 sm:mb-9">
                   <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-500 mx-auto flex items-center justify-center mb-2">
                     <Lock size={24} />
                   </div>
@@ -197,7 +197,7 @@ const ResetPasswordPage: React.FC = () => {
                   </p>
                 </div>
 
-                <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5">
                   <FloatingInput
                     id="newPassword"
                     type="password"
@@ -225,7 +225,7 @@ const ResetPasswordPage: React.FC = () => {
                   <Button
                     type="submit"
                     loading={submitting}
-                    className="w-full flex items-center justify-center gap-2 mt-2"
+                    className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
                   >
                     {t('save_new_password', 'Save New Password')}
                   </Button>
@@ -236,7 +236,7 @@ const ResetPasswordPage: React.FC = () => {
 
           <div>
             {/* Bottom Switch Link (INSIDE the card) */}
-            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
               <Link
                 to="/login"
                 className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"
@@ -246,7 +246,7 @@ const ResetPasswordPage: React.FC = () => {
             </div>
 
             {/* Support Help Link */}
-            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-2.5">
               {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
               <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
                 {t('contact_support', 'Contact Support')}
