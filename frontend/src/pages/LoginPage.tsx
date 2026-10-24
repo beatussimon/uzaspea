@@ -134,16 +134,6 @@ const LoginPage: React.FC = () => {
         {/* The Card */}
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
-            {/* Section Subheader (matching Create Account section header) */}
-            <div className="text-center mb-8">
-              <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-1">
-                {t('account_credentials', 'Account Credentials')}
-              </h2>
-              <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                {t('enter_login_details', 'Enter your credentials to continue')}
-              </p>
-            </div>
-
             {isBanned && (
               <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5 text-left">
                 <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
