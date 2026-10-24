@@ -124,16 +124,16 @@ const LoginPage: React.FC = () => {
   return (
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
       <div className="w-full max-w-lg">
-        {/* Header Block (OUTSIDE the card - matching Create Account) */}
-        <div className="text-center mb-8">
-          <h1 className="text-heading-lg font-black text-gray-900 dark:text-white">
-            {t('welcome_back')}
-          </h1>
-        </div>
-
         {/* The Card */}
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
+            {/* Header Block (INSIDE the card) */}
+            <div className="text-center mb-8">
+              <h1 className="text-heading-lg font-black text-gray-900 dark:text-white">
+                {t('welcome_back')}
+              </h1>
+            </div>
+
             {isBanned && (
               <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5 text-left">
                 <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
