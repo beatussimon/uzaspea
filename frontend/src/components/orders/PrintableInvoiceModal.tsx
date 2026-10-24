@@ -73,7 +73,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
         {/* Printable Area */}
         <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-white text-black font-sans print:p-0" ref={printRef}>
           {/* Header Row */}
-          <div className="flex justify-between items-start pb-4 border-b-2 border-gray-900 mb-4">
+          <div className="flex justify-between items-start pb-4 mb-4">
             <div>
               {/* Prominent main SokoniMax logo */}
               <img 
@@ -93,7 +93,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
                 Date: {new Date(order.order_date || order.created_at || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
               </p>
               <div className="flex items-center justify-end gap-1.5 pt-1">
-                <span className="px-2 py-0.5 rounded text-2xs font-extrabold uppercase tracking-wider bg-gray-100 text-gray-800 border border-gray-300">
+                <span className="text-2xs font-extrabold uppercase tracking-wider text-gray-700">
                   {order.status?.replace('_', ' ')}
                 </span>
                 {order.is_bulk_order && (
@@ -106,7 +106,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
           </div>
 
           {/* Store & Customer Details Grid */}
-          <div className="grid grid-cols-2 gap-6 mb-4 text-xs bg-gray-50/80 p-3 rounded-lg border border-gray-200">
+          <div className="grid grid-cols-2 gap-6 mb-4 text-xs py-1">
             {/* Store Information */}
             <div className="space-y-0.5">
               <p className="text-2xs font-extrabold uppercase tracking-wider text-gray-400">
@@ -140,7 +140,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
           <div className="mb-4 overflow-hidden">
             <table className="w-full text-left text-xs border-collapse table-fixed">
               <thead>
-                <tr className="border-b-2 border-gray-300 bg-gray-100/60 text-gray-600 uppercase text-2xs font-extrabold tracking-wider">
+                <tr className="text-gray-500 uppercase text-2xs font-extrabold tracking-wider">
                   <th className="py-2 px-2 w-8">#</th>
                   <th className="py-2 px-2 w-auto">Item Description</th>
                   <th className="py-2 px-2 text-center w-12">Qty</th>
@@ -148,7 +148,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
                   <th className="py-2 px-2 text-right w-36">Subtotal</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {items.map((item: any, idx: number) => {
                   const unitPrice = Number(item.price || 0);
                   const qty = Number(item.quantity || 1);
@@ -158,15 +158,15 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
 
                   return (
                     <tr key={item.id || idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <td className="py-2.5 px-2 text-gray-400 font-bold">{idx + 1}</td>
-                      <td className="py-2.5 px-2">
+                      <td className="py-2 px-2 text-gray-400 font-bold">{idx + 1}</td>
+                      <td className="py-2 px-2">
                         <p className="font-bold text-black">{item.product_name}</p>
                         {item.variant_name && (
                           <p className="text-3xs text-gray-500 font-medium">Variant: {item.variant_name}</p>
                         )}
                       </td>
-                      <td className="py-2.5 px-2 text-center font-bold text-black">{qty}</td>
-                      <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                      <td className="py-2 px-2 text-center font-bold text-black">{qty}</td>
+                      <td className="py-2 px-2 text-right whitespace-nowrap">
                         {hasDiscount && (
                           <span className="line-through text-gray-400 text-3xs mr-1.5 whitespace-nowrap inline-block">
                             TSh {catPrice?.toLocaleString()}
@@ -176,7 +176,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
                           {unitPrice > 0 ? `TSh ${unitPrice.toLocaleString()}` : 'Quote Req.'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-2 text-right font-black text-black whitespace-nowrap">
+                      <td className="py-2 px-2 text-right font-black text-black whitespace-nowrap">
                         TSh {subtotal.toLocaleString()}
                       </td>
                     </tr>
@@ -187,11 +187,11 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
           </div>
 
           {/* Totals & Notes Section */}
-          <div className="grid grid-cols-2 gap-6 items-start pt-3 border-t border-gray-200 mb-4 text-xs">
+          <div className="grid grid-cols-2 gap-6 items-start pt-3 mb-4 text-xs">
             {/* Notes and QR verification */}
             <div className="space-y-2.5">
               {(negData.seller_invoice_note || negData.seller_final_note || negData.buyer_request_note) && (
-                <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-0.5">
+                <div className="space-y-0.5">
                   <p className="text-3xs uppercase font-extrabold tracking-wider text-gray-500">Invoice Terms & Notes</p>
                   {negData.seller_final_note && (
                     <p className="text-gray-700 italic">"{negData.seller_final_note}"</p>
@@ -203,7 +203,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
               )}
 
               <div className="flex items-center gap-2.5 pt-1">
-                <div className="p-1 bg-white border border-gray-300 rounded shrink-0">
+                <div className="shrink-0">
                   <QRCodeSVG value={verifyUrl} size={56} level="M" />
                 </div>
                 <div>
@@ -215,11 +215,11 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
 
             {/* Financial Summary */}
             <div className="space-y-1.5">
-              <div className="flex justify-between py-1 border-b border-gray-100 text-gray-600">
+              <div className="flex justify-between py-1 text-gray-600">
                 <span>Items Subtotal</span>
                 <span className="font-bold text-black">TSh {itemsSubtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between py-1.5 border-t-2 border-gray-900 text-sm font-black text-black">
+              <div className="flex justify-between py-1.5 text-sm font-black text-black">
                 <span>Total Items Value</span>
                 <span className="text-base">TSh {itemsSubtotal.toLocaleString()}</span>
               </div>
@@ -230,7 +230,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
           </div>
 
           {/* Footer Note */}
-          <div className="pt-4 border-t border-dashed border-gray-300 text-center text-3xs text-gray-400 space-y-0.5">
+          <div className="pt-4 text-center text-3xs text-gray-400 space-y-0.5">
             <p>Thank you for doing business with @{sellerUsername} via SokoniMax.</p>
             <p>For support or disputes, visit SokoniMax Help Center or contact support@sokonimax.com.</p>
           </div>

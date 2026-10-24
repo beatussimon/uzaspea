@@ -3776,7 +3776,7 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-4">
             <thead>
-              <tr className="border-b-2 border-black bg-gray-100/70 text-black">
+              <tr className="text-black">
                 <th className="py-2 px-1.5 w-8 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
                 <th className="py-2 px-2 w-24 font-black">SKU/CODE</th>
@@ -3787,10 +3787,10 @@ const DashboardProducts: React.FC = () => {
                 <th className="py-2 px-2 w-16 font-black text-right">STOCK</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {products.map((product, idx) => (
                 <React.Fragment key={product.id}>
-                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }} className={product.variants && product.variants.length > 0 ? 'bg-gray-50/50' : ''}>
+                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
                     <td className="py-2 px-2 font-bold text-black">{product.name}</td>
                     <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
@@ -3807,7 +3807,7 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Variation Sub-Rows */}
                   {product.variants && product.variants.map((v: any, vIdx: number) => (
-                    <tr key={`var-${v.id || vIdx}`} className="bg-gray-50/30 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <tr key={`var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1 px-1.5"></td>
                       <td className="py-1 px-2 pl-5 text-gray-700">
                         ↳ <span className="font-semibold text-gray-900">{v.name}</span>
@@ -3826,14 +3826,14 @@ const DashboardProducts: React.FC = () => {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={4} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
                 <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
                   {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
                 </td>
                 <td colSpan={2}></td>
               </tr>
-              <tr className="bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={4} className="py-1.5 px-2 text-right text-xs uppercase">TOTAL ITEMS IN STOCK:</td>
                 <td colSpan={2} className="py-1.5 px-2 text-right font-mono font-bold">
                   {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
@@ -3855,7 +3855,7 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-3">
             <thead>
-              <tr className="border-b-2 border-black bg-gray-100/80 text-black">
+              <tr className="text-black">
                 <th className="py-2 px-1.5 w-8 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
                 <th className="py-2 px-2 w-24 font-black">CODE / SKU</th>
@@ -3865,10 +3865,10 @@ const DashboardProducts: React.FC = () => {
                 <th className="py-2 px-2 w-24 font-black text-center">AVAILABILITY</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {products.map((product, idx) => (
                 <React.Fragment key={`cust-${product.id}`}>
-                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }} className={product.variants && product.variants.length > 0 ? 'bg-gray-50/50' : ''}>
+                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
                     <td className="py-2 px-2 font-bold text-black">{product.name}</td>
                     <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
@@ -3892,7 +3892,7 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Customer Variant Sub-Rows */}
                   {product.variants && product.variants.map((v: any, vIdx: number) => (
-                    <tr key={`cust-var-${v.id || vIdx}`} className="bg-gray-50/30 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <tr key={`cust-var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1 px-1.5"></td>
                       <td className="py-1 px-2 pl-5 text-gray-700">
                         ↳ <span className="font-semibold text-gray-900">{v.name}</span>
@@ -3916,7 +3916,7 @@ const DashboardProducts: React.FC = () => {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-black bg-gray-50 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={7} className="py-2.5 px-3 text-center text-gray-600 italic">
                   * Prices are in Tanzanian Shillings (TSh). Contact our store for custom orders, bulk orders, and delivery services.
                 </td>
