@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { FloatingInput } from '../components/ui/FloatingInput';
-import { AuthLanguageSelector } from '../components/layout/LanguageSelector';
 
 const ForgotPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -144,11 +143,8 @@ const ForgotPasswordPage: React.FC = () => {
           </div>
 
           <div>
-            {/* Quick Language Switcher */}
-            <AuthLanguageSelector />
-
             {/* Bottom Switch Link (INSIDE the card) */}
-            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-3">
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
               <span>{t('remember_password', 'Remember your password?')}</span>{' '}
               <Link
                 to="/login"

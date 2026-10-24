@@ -346,10 +346,10 @@ const RegisterPage: React.FC = () => {
 
           <div>
             {/* Quick Language Switcher */}
-            <AuthLanguageSelector />
+            <AuthLanguageSelector className="mb-2" />
 
             {/* Bottom Switch Link INSIDE the card */}
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-3">
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
               {t('already_have_account')}{' '}
               <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
                 {t('login')}
