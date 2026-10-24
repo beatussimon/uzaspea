@@ -133,10 +133,10 @@ export const TeamsOverview: React.FC = () => {
     <div className="space-y-6">
       
       {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-x-4 gap-y-2">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-950 dark:text-white">
+          <div className="min-h-10 flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-gray-950 dark:text-white leading-tight">
               Welcome back, {user?.first_name || user?.username}
             </h1>
             {loading && !teamInfo?.role_label && !user?.team_role_label ? (
@@ -147,7 +147,7 @@ export const TeamsOverview: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
             Logged in as @{user?.username} • Store Owner: @{teamInfo?.owner_username || user?.team_owner_username || 'store'}
           </p>
         </div>
@@ -155,25 +155,26 @@ export const TeamsOverview: React.FC = () => {
         {/* Far Right: Store Name & Location (Desktop) */}
         {(storeName || locationName || loading) && (
           <div className="hidden sm:flex flex-col sm:items-end text-right shrink-0">
-            {loading && !storeName ? (
-              <div className="space-y-1.5 flex flex-col items-end">
-                <Skeleton className="h-4 w-36 rounded-md" />
-                <Skeleton className="h-3 w-24 rounded-md" />
-              </div>
-            ) : (
-              <>
-                {storeName && (
+            <div className="min-h-10 flex items-center justify-end">
+              {loading && !storeName ? (
+                <Skeleton className="h-5 w-36 rounded-md" />
+              ) : (
+                storeName && (
                   <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
                     {storeName}
                   </div>
-                )}
-                {locationName && (
-                  <div className="text-xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 sm:justify-end mt-0.5 font-medium">
-                    <MapPin size={12} className="shrink-0 text-gray-400 dark:text-neutral-500" />
-                    <span>{locationName}</span>
-                  </div>
-                )}
-              </>
+                )
+              )}
+            </div>
+            {loading && !locationName ? (
+              <Skeleton className="h-3.5 w-24 rounded-md mt-0.5" />
+            ) : (
+              locationName && (
+                <div className="text-xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 sm:justify-end mt-0.5 font-medium">
+                  <MapPin size={12} className="shrink-0 text-gray-400 dark:text-neutral-500" />
+                  <span>{locationName}</span>
+                </div>
+              )
             )}
           </div>
         )}

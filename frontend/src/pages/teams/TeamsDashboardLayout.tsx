@@ -474,7 +474,7 @@ export const TeamsDashboardLayout: React.FC = () => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
+                    className={`flex items-center h-10 ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} rounded-btn text-sm transition ${
                       isActive
                         ? 'text-brand-500 dark:text-brand-500 font-medium'
                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
