@@ -200,7 +200,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             {/* Rating Descriptor */}
             <div className="h-5 flex items-center justify-center">
               {ratingInfo ? (
-                <span className="text-xs font-semibold text-gray-700 dark:text-neutral-300 transition-all animate-fade-in">
+                <span className="text-xs font-semibold text-amber-500 dark:text-amber-400 transition-all animate-fade-in">
                   {ratingInfo.label}
                 </span>
               ) : (
@@ -258,10 +258,10 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             <button
               type="submit"
               disabled={submittingReview || rating === 0}
-              className="w-full py-3.5 px-4 bg-gray-900 hover:bg-gray-800 text-white dark:bg-[#323232] dark:hover:bg-[#3C3C3C] dark:active:bg-[#444444] dark:text-white font-bold text-sm rounded-xl transition-all duration-150 flex items-center justify-center disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-[#1C1C1C] dark:disabled:text-neutral-600 disabled:cursor-not-allowed border-0 border-none outline-none cursor-pointer"
+              className="w-full py-3.5 px-4 bg-gray-900 hover:bg-gray-800 text-amber-500 hover:text-amber-400 dark:bg-[#323232] dark:hover:bg-[#3A3A3A] dark:active:bg-[#404040] dark:text-amber-400 dark:hover:text-amber-300 font-extrabold text-sm rounded-xl transition-all duration-150 flex items-center justify-center disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-[#1C1C1C] dark:disabled:text-neutral-600 disabled:cursor-not-allowed border-0 border-none outline-none cursor-pointer"
             >
               {submittingReview ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                <div className="animate-spin h-5 w-5 border-2 border-amber-400 border-t-transparent rounded-full" />
               ) : (
                 <span>Submit Review</span>
               )}
