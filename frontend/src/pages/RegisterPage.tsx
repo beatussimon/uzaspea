@@ -149,16 +149,6 @@ const RegisterPage: React.FC = () => {
         </div>
 
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
-          {/* Progress Bar */}
-          <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
-            <motion.div 
-              className="h-full bg-brand-500"
-              initial={{ width: '0%' }}
-              animate={{ width: step === 1 ? '50%' : '100%' }}
-              transition={{ duration: 0.5, ease: "circOut" }}
-            />
-          </div>
-
           <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
             <AnimatePresence mode="wait">
               {step === 1 ? (
@@ -169,15 +159,6 @@ const RegisterPage: React.FC = () => {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="mb-8">
-                    <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-1">
-                      {t('personal_details')}
-                    </h2>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                      {t('personal_details_subtitle', 'Tell us a bit about yourself')}
-                    </p>
-                  </div>
-                  
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput
@@ -264,15 +245,6 @@ const RegisterPage: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="mb-8">
-                    <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-1">
-                      {t('account_credentials', 'Account Credentials')}
-                    </h2>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                      {t('secure_account_desc', 'Secure your account')}
-                    </p>
-                  </div>
-
                   <form onSubmit={handleRegister} className="space-y-5">
                     <div>
                       <FloatingInput
