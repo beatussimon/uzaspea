@@ -185,7 +185,7 @@ else:
         }
     }
 
-if _in_test:
+if _in_test or not _in_docker:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer",
