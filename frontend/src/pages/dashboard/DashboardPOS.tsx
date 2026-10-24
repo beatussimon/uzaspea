@@ -127,7 +127,7 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
     });
   }, [orders, dateRange.startDate, dateRange.endDate]);
 
-  if (loading) return <TableSkeleton rows={5} cols={6} />;
+  if (loading) return <TableSkeleton rows={5} cols={7} withHeader={false} />;
 
   return (
     <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
