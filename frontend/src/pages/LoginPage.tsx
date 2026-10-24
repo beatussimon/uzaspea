@@ -159,7 +159,7 @@ const LoginPage: React.FC = () => {
             <form onSubmit={handleLogin} className="space-y-6">
               <FloatingInput
                 id="username"
-                label={t('email_or_username', 'Username or email')}
+                label={t('username', 'Username')}
                 type="text"
                 required
                 value={username}

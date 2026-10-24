@@ -5,6 +5,7 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { FloatingInput } from '../components/ui/FloatingInput';
 
 const ForgotPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -47,7 +48,7 @@ const ForgotPasswordPage: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center py-16 px-4 min-h-[75vh]">
-      <div className="card w-full max-w-md p-6 sm:p-8 animate-fade-in space-y-6">
+      <div className="card border-0 dark:border-0 hover:border-0 shadow-none w-full max-w-md p-6 sm:p-8 animate-fade-in space-y-6">
         {/* Top Back Link */}
         <Link
           to="/login"
@@ -70,33 +71,29 @@ const ForgotPasswordPage: React.FC = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {rateLimitError && (
                 <div className="p-3 rounded-btn bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs leading-relaxed">
                   {rateLimitError}
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label htmlFor="identifier" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  {t('email_or_username', 'Email Address or Username')}
-                </label>
-                <input
-                  id="identifier"
-                  type="text"
-                  required
-                  value={identifier}
-                  onChange={(e) => { setIdentifier(e.target.value); setRateLimitError(null); }}
-                  placeholder={t('email_username_placeholder', 'name@example.com or @username')}
-                  className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
-                />
-              </div>
+              <FloatingInput
+                id="identifier"
+                name="identifier"
+                type="text"
+                required
+                value={identifier}
+                onChange={(e) => { setIdentifier(e.target.value); setRateLimitError(null); }}
+                label={t('email_or_username', 'Email Address or Username')}
+                autoComplete="username"
+              />
 
               <Button
                 type="submit"
                 loading={loading}
                 disabled={!!rateLimitError}
-                className="w-full"
+                className="w-full mt-2"
               >
                 {t('send_reset_link', 'Send Reset Link')}
               </Button>
