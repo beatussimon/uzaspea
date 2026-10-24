@@ -136,15 +136,15 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* The Card */}
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           {/* Top Brand Accent Bar (matching Create Account progress visual) */}
           <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
             <div className="h-full bg-brand-500 w-full" />
           </div>
 
-          <div className="p-8 sm:p-10">
+          <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
             {/* Section Subheader (matching Create Account section header) */}
-            <div className="mb-8">
+            <div className="text-center mb-8">
               <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-1">
                 {t('account_credentials', 'Account Credentials')}
               </h2>
@@ -154,7 +154,7 @@ const LoginPage: React.FC = () => {
             </div>
 
             {isBanned && (
-              <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5">
+              <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5 text-left">
                 <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
                   <AlertTriangle size={14} />
                   {t('account_banned_title', 'Account Banned')}
@@ -177,14 +177,9 @@ const LoginPage: React.FC = () => {
               />
 
               <div className="flex flex-col gap-1.5 w-full">
-                <div className="flex items-center justify-between ml-0.5">
-                  <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    {t('password')}
-                  </label>
-                  <Link to="/forgot-password" className="text-xs font-semibold text-brand-500 hover:underline">
-                    {t('forgot_password', 'Forgot password?')}
-                  </Link>
-                </div>
+                <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                  {t('password')}
+                </label>
                 <div className="relative w-full">
                   <input
                     id="password"
@@ -216,13 +211,23 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Switch Link (OUTSIDE the card - matching Create Account) */}
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
-          {t('dont_have_account', "Don't have an account?")}{' '}
-          <Link to="/register" className="font-bold text-brand-500 hover:text-brand-600 dark:text-brand-500 transition-colors">
+        {/* Bottom Switch Link & Forgot Password (OUTSIDE the card - matching user specification) */}
+        <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
+          <span>{t('dont_have_account', "Don't have an account?")}</span>{' '}
+          <Link
+            to="/register"
+            className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"
+          >
             {t('create_account_link', 'Create account')}
           </Link>
-        </p>
+          <span className="text-gray-400 dark:text-neutral-600 px-1">|</span>
+          <Link
+            to="/forgot-password"
+            className="hover:underline text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            {t('forgot_password', 'Forgot Password')}
+          </Link>
+        </div>
 
         {/* Support Help Link */}
         <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
