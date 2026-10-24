@@ -224,11 +224,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                     onClick={() => handleTagToggle(tag)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-0 outline-none cursor-pointer ${
                       isSelected
-                        ? 'bg-white dark:bg-white text-black dark:text-black font-bold'
-                        : 'bg-surface-muted dark:bg-[#202020] text-gray-600 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white'
+                        ? 'bg-gray-800 text-white dark:bg-[#383838] dark:text-white font-semibold'
+                        : 'bg-surface-muted dark:bg-[#202020] text-gray-600 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#282828]'
                     }`}
                   >
-                    {isSelected && <CheckCircle2 size={12} className="inline mr-1 -mt-0.5 text-black" />}
+                    {isSelected && <CheckCircle2 size={12} className="inline mr-1 -mt-0.5 text-white" />}
                     {tag}
                   </button>
                 );
@@ -258,10 +258,10 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             <button
               type="submit"
               disabled={submittingReview || rating === 0}
-              className="w-full py-3.5 px-4 bg-white hover:bg-neutral-100 active:scale-[0.99] text-black font-extrabold text-sm rounded-xl transition-all duration-150 flex items-center justify-center disabled:bg-neutral-800 disabled:text-neutral-500 disabled:opacity-40 disabled:cursor-not-allowed border-0 border-none outline-none cursor-pointer"
+              className="w-full py-3.5 px-4 bg-gray-900 hover:bg-gray-800 text-white dark:bg-[#323232] dark:hover:bg-[#3C3C3C] dark:active:bg-[#444444] dark:text-white font-bold text-sm rounded-xl transition-all duration-150 flex items-center justify-center disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-[#1C1C1C] dark:disabled:text-neutral-600 disabled:cursor-not-allowed border-0 border-none outline-none cursor-pointer"
             >
               {submittingReview ? (
-                <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
               ) : (
                 <span>Submit Review</span>
               )}
