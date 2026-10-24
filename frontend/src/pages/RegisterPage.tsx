@@ -4,7 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FloatingInput, FloatingSelect } from '../components/ui/FloatingInput';
@@ -23,8 +23,6 @@ const RegisterPage: React.FC = () => {
     confirm_password: '',
     terms_accepted: false
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<{
     checking: boolean;
@@ -76,9 +74,10 @@ const RegisterPage: React.FC = () => {
 
   if (isAuthenticated) return <Navigate to="/" />;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const target = e.target as HTMLInputElement;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
+    setFormData({ ...formData, [target.name]: value });
   };
 
   const nextStep = () => {
@@ -141,7 +140,7 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-[460px]">
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8">
           {/* Header Block (INSIDE the card) */}
           <div className="text-center mb-6">
@@ -183,7 +182,7 @@ const RegisterPage: React.FC = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-2 gap-3.5">
                     <FloatingInput
                       id="date_of_birth"
                       name="date_of_birth"
@@ -270,7 +269,7 @@ const RegisterPage: React.FC = () => {
                     autoComplete="email"
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-2 gap-3.5">
                     <FloatingInput
                       id="password"
                       name="password"
@@ -345,6 +344,14 @@ const RegisterPage: React.FC = () => {
             {t('already_have_account')}{' '}
             <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
               {t('login')}
+            </Link>
+          </p>
+
+          {/* Support Help Link */}
+          <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
+            <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
+              {t('contact_support', 'Contact Support')}
             </Link>
           </p>
         </div>

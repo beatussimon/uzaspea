@@ -123,7 +123,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-[460px]">
         {/* The Card */}
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8">
           {/* Header Block (INSIDE the card) */}
@@ -198,7 +198,7 @@ const LoginPage: React.FC = () => {
           <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
             {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
             <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
-              {t('contact_support', 'Visit Help & Support')}
+              {t('contact_support', 'Contact Support')}
             </Link>
           </p>
         </div>
