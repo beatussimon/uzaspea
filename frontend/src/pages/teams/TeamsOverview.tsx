@@ -123,40 +123,38 @@ export const TeamsOverview: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Welcome Card */}
-      <div className="bg-surface-card dark:bg-[#0F0F0F] rounded-2xl p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-950 dark:text-white">
-                Welcome back, {user?.first_name || user?.username}
-              </h1>
-              <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
-                {teamInfo?.role_label || user?.team_role_label || 'Team Member'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-              Logged in as @{user?.username} • Store Owner: @{teamInfo?.owner_username || user?.team_owner_username || 'store'}
-            </p>
+      {/* Welcome Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-gray-950 dark:text-white">
+              Welcome back, {user?.first_name || user?.username}
+            </h1>
+            <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-neutral-300">
+              {teamInfo?.role_label || user?.team_role_label || 'Team Member'}
+            </span>
           </div>
-
-          {/* Far Right: Store Name & Location (Desktop) */}
-          {(storeName || locationName) && (
-            <div className="hidden sm:flex flex-col sm:items-end text-right shrink-0">
-              {storeName && (
-                <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
-                  {storeName}
-                </div>
-              )}
-              {locationName && (
-                <div className="text-xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 sm:justify-end mt-0.5 font-medium">
-                  <MapPin size={12} className="shrink-0 text-gray-400 dark:text-neutral-500" />
-                  <span>{locationName}</span>
-                </div>
-              )}
-            </div>
-          )}
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+            Logged in as @{user?.username} • Store Owner: @{teamInfo?.owner_username || user?.team_owner_username || 'store'}
+          </p>
         </div>
+
+        {/* Far Right: Store Name & Location (Desktop) */}
+        {(storeName || locationName) && (
+          <div className="hidden sm:flex flex-col sm:items-end text-right shrink-0">
+            {storeName && (
+              <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
+                {storeName}
+              </div>
+            )}
+            {locationName && (
+              <div className="text-xs text-gray-500 dark:text-neutral-400 flex items-center gap-1 sm:justify-end mt-0.5 font-medium">
+                <MapPin size={12} className="shrink-0 text-gray-400 dark:text-neutral-500" />
+                <span>{locationName}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Available Operations */}
@@ -179,16 +177,16 @@ export const TeamsOverview: React.FC = () => {
                 to={m.path}
                 className="bg-surface-card dark:bg-[#0F0F0F] hover:bg-surface-muted/60 dark:hover:bg-[#161616] rounded-2xl p-5 flex flex-col justify-between gap-3 group transition-colors"
               >
-                <div className="space-y-2.5">
-                  <m.icon className="w-5 h-5 text-gray-400 dark:text-neutral-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
-                  <div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <m.icon className="w-5 h-5 text-gray-400 dark:text-neutral-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors shrink-0" />
                     <h3 className="font-semibold text-sm text-gray-900 dark:text-white transition-colors">
                       {m.title}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                      {m.desc}
-                    </p>
                   </div>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 leading-relaxed">
+                    {m.desc}
+                  </p>
                 </div>
               </Link>
             ))}
