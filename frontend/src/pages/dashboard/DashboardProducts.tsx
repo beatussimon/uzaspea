@@ -803,6 +803,39 @@ const DashboardProducts: React.FC = () => {
     }
   };
 
+  const getProductCategory = useCallback((p: any): string => {
+    if (!p) return 'Other Items';
+    if (p.category_name && typeof p.category_name === 'string' && p.category_name.trim() && p.category_name.trim() !== '-') {
+      return p.category_name.trim();
+    }
+    if (typeof p.category === 'object' && p.category?.name) {
+      return p.category.name.trim();
+    }
+    if (p.category && flatCategories && flatCategories.length > 0) {
+      const match = flatCategories.find((c: any) => String(c.id) === String(p.category));
+      if (match?.rawName || match?.name) return (match.rawName || match.name).trim();
+    }
+    if (typeof p.category === 'string' && p.category.trim() && p.category.trim() !== '-' && isNaN(Number(p.category))) {
+      return p.category.trim();
+    }
+    return 'Other Items';
+  }, [flatCategories]);
+
+  const categorizedPrintProducts = useMemo(() => {
+    if (!products || products.length === 0) return [];
+    return [...products].sort((a, b) => {
+      const catA = getProductCategory(a);
+      const catB = getProductCategory(b);
+      const isOtherA = catA.toLowerCase() === 'other items';
+      const isOtherB = catB.toLowerCase() === 'other items';
+      if (isOtherA && !isOtherB) return 1;
+      if (!isOtherA && isOtherB) return -1;
+      const catComp = catA.localeCompare(catB, undefined, { sensitivity: 'base' });
+      if (catComp !== 0) return catComp;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [products, getProductCategory]);
+
   return (
     <div className="space-y-6">
       {/* Screen Interactive UI */}
@@ -3779,64 +3812,77 @@ const DashboardProducts: React.FC = () => {
               <tr className="border-b border-gray-300 text-black">
                 <th className="py-2 px-1.5 w-8 font-bold">S/N</th>
                 <th className="py-2 px-2 w-auto font-bold">PRODUCT / VARIATION</th>
-                <th className="py-2 px-2 w-24 font-bold">SKU/CODE</th>
-                <th className="py-2 px-2 w-24 font-bold">CATEGORY</th>
-                <th className="py-2 px-2 w-24 font-bold text-right">COST (TSH)</th>
-                <th className="py-2 px-2 w-24 font-bold text-right">PRICE (TSH)</th>
-                <th className="py-2 px-2 w-32 font-bold">QTY TIERS</th>
+                <th className="py-2 px-2 w-20 font-bold">SKU/CODE</th>
+                <th className="py-2 px-2 w-22 font-bold text-right">COST (TSH)</th>
+                <th className="py-2 px-2 w-22 font-bold text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-28 font-bold">QTY TIERS</th>
                 <th className="py-2 px-2 w-16 font-bold text-right">STOCK</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {products.map((product, idx) => (
-                <React.Fragment key={product.id}>
-                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                    <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
-                    <td className="py-2 px-2 font-bold text-black">{product.name}</td>
-                    <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
-                    <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
-                    <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-black">{parseFloat(product.price || 0).toLocaleString()}</td>
-                    <td className="py-2 px-2 text-[10px] text-gray-600">
-                      {product.price_tiers && product.price_tiers.length > 0 
-                        ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}+: ${parseFloat(t.unit_price).toLocaleString()}`).join(', ')
-                        : '-'}
-                    </td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-black">{product.stock}</td>
-                  </tr>
+              {categorizedPrintProducts.map((product, idx) => {
+                const currentCat = getProductCategory(product);
+                const prevCat = idx > 0 ? getProductCategory(categorizedPrintProducts[idx - 1]) : null;
+                const isNewCategory = idx === 0 || currentCat.toLowerCase() !== (prevCat || '').toLowerCase();
 
-                  {/* Variation Sub-Rows */}
-                  {product.variants && product.variants.map((v: any, vIdx: number) => (
-                    <tr key={`var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <td className="py-1 px-1.5"></td>
-                      <td className="py-1 px-2 pl-5 text-gray-700">
-                        ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                return (
+                  <React.Fragment key={product.id}>
+                    {isNewCategory && (
+                      <tr key={`cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td 
+                          colSpan={7} 
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
+                        >
+                          {currentCat}
+                        </td>
+                      </tr>
+                    )}
+                    <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
+                      <td className="py-2 px-2 font-bold text-black">{product.name}</td>
+                      <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
+                      <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
+                      <td className="py-2 px-2 text-right font-mono font-bold text-black">{parseFloat(product.price || 0).toLocaleString()}</td>
+                      <td className="py-2 px-2 text-[10px] text-gray-600">
+                        {product.price_tiers && product.price_tiers.length > 0 
+                          ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}+: ${parseFloat(t.unit_price).toLocaleString()}`).join(', ')
+                          : '-'}
                       </td>
-                      <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
-                      <td className="py-1 px-2 text-gray-400">—</td>
-                      <td className="py-1 px-2 text-right text-gray-400">—</td>
-                      <td className="py-1 px-2 text-right font-mono font-semibold text-gray-800">
-                        {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
-                      </td>
-                      <td className="py-1 px-2 text-gray-400">—</td>
-                      <td className="py-1 px-2 text-right font-mono text-gray-700">{v.stock}</td>
+                      <td className="py-2 px-2 text-right font-mono font-bold text-black">{product.stock}</td>
                     </tr>
-                  ))}
-                </React.Fragment>
-              ))}
+
+                    {/* Variation Sub-Rows */}
+                    {product.variants && product.variants.map((v: any, vIdx: number) => (
+                      <tr key={`var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td className="py-1 px-1.5"></td>
+                        <td className="py-1 px-2 pl-5 text-gray-700">
+                          ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                        </td>
+                        <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
+                        <td className="py-1 px-2 text-right text-gray-400">—</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold text-gray-800">
+                          {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
+                        </td>
+                        <td className="py-1 px-2 text-gray-400">—</td>
+                        <td className="py-1 px-2 text-right font-mono text-gray-700">{v.stock}</td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
               <tr className="border-t border-gray-300 font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={4} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
-                <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
-                  {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
+                <td colSpan={3} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
+                <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-bold whitespace-nowrap">
+                  {categorizedPrintProducts.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
                 </td>
                 <td colSpan={2}></td>
               </tr>
               <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={4} className="py-1.5 px-2 text-right text-xs uppercase">TOTAL ITEMS IN STOCK:</td>
-                <td colSpan={2} className="py-1.5 px-2 text-right font-mono font-bold">
-                  {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
+                <td colSpan={3} className="py-1.5 px-2 text-right text-xs uppercase text-gray-700">TOTAL ITEMS IN STOCK:</td>
+                <td colSpan={2} className="py-1.5 px-2 text-right font-mono font-medium whitespace-nowrap">
+                  {categorizedPrintProducts.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
                 </td>
                 <td colSpan={2}></td>
               </tr>
@@ -3858,66 +3904,79 @@ const DashboardProducts: React.FC = () => {
               <tr className="border-b border-gray-300 text-black">
                 <th className="py-2 px-1.5 w-8 font-bold">S/N</th>
                 <th className="py-2 px-2 w-auto font-bold">PRODUCT / VARIATION</th>
-                <th className="py-2 px-2 w-24 font-bold">CODE / SKU</th>
-                <th className="py-2 px-2 w-28 font-bold">CATEGORY</th>
-                <th className="py-2 px-2 w-28 font-bold text-right">PRICE (TSH)</th>
-                <th className="py-2 px-2 w-36 font-bold">VOLUME / TIER PRICING</th>
-                <th className="py-2 px-2 w-24 font-bold text-center">AVAILABILITY</th>
+                <th className="py-2 px-2 w-20 font-bold">CODE / SKU</th>
+                <th className="py-2 px-2 w-24 font-bold text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-32 font-bold">VOLUME / TIER PRICING</th>
+                <th className="py-2 px-2 w-20 font-bold text-center">AVAILABILITY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {products.map((product, idx) => (
-                <React.Fragment key={`cust-${product.id}`}>
-                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                    <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
-                    <td className="py-2 px-2 font-bold text-black">{product.name}</td>
-                    <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
-                    <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
-                    <td className="py-2 px-2 text-right font-mono font-black text-black">
-                      {parseFloat(product.price || 0).toLocaleString()}
-                    </td>
-                    <td className="py-2 px-2 text-[10px] text-gray-700">
-                      {product.price_tiers && product.price_tiers.length > 0 
-                        ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}${t.max_quantity ? `-${parseInt(t.max_quantity)}` : '+'} pcs: ${parseFloat(t.unit_price).toLocaleString()}`).join(' | ')
-                        : '-'}
-                    </td>
-                    <td className="py-2 px-2 text-center text-[11px]">
-                      {product.stock > 0 ? (
-                        <span className="font-bold text-emerald-700">In Stock</span>
-                      ) : (
-                        <span className="text-gray-500">On Request</span>
-                      )}
-                    </td>
-                  </tr>
+              {categorizedPrintProducts.map((product, idx) => {
+                const currentCat = getProductCategory(product);
+                const prevCat = idx > 0 ? getProductCategory(categorizedPrintProducts[idx - 1]) : null;
+                const isNewCategory = idx === 0 || currentCat.toLowerCase() !== (prevCat || '').toLowerCase();
 
-                  {/* Customer Variant Sub-Rows */}
-                  {product.variants && product.variants.map((v: any, vIdx: number) => (
-                    <tr key={`cust-var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <td className="py-1 px-1.5"></td>
-                      <td className="py-1 px-2 pl-5 text-gray-700">
-                        ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                return (
+                  <React.Fragment key={`cust-${product.id}`}>
+                    {isNewCategory && (
+                      <tr key={`cust-cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td 
+                          colSpan={6} 
+                          className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
+                        >
+                          {currentCat}
+                        </td>
+                      </tr>
+                    )}
+                    <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
+                      <td className="py-2 px-2 font-bold text-black">{product.name}</td>
+                      <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
+                      <td className="py-2 px-2 text-right font-mono font-bold text-black">
+                        {parseFloat(product.price || 0).toLocaleString()}
                       </td>
-                      <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
-                      <td className="py-1 px-2 text-gray-400">—</td>
-                      <td className="py-1 px-2 text-right font-mono font-bold text-black">
-                        {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
+                      <td className="py-2 px-2 text-[10px] text-gray-700">
+                        {product.price_tiers && product.price_tiers.length > 0 
+                          ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}${t.max_quantity ? `-${parseInt(t.max_quantity)}` : '+'} pcs: ${parseFloat(t.unit_price).toLocaleString()}`).join(' | ')
+                          : '-'}
                       </td>
-                      <td className="py-1 px-2 text-gray-400">—</td>
-                      <td className="py-1 px-2 text-center text-[10px]">
-                        {v.stock > 0 ? (
-                          <span className="font-semibold text-emerald-700">In Stock</span>
+                      <td className="py-2 px-2 text-center text-[11px]">
+                        {product.stock > 0 ? (
+                          <span className="font-bold text-emerald-700">In Stock</span>
                         ) : (
-                          <span className="text-gray-400">Out of Stock</span>
+                          <span className="text-gray-500">On Request</span>
                         )}
                       </td>
                     </tr>
-                  ))}
-                </React.Fragment>
-              ))}
+
+                    {/* Customer Variant Sub-Rows */}
+                    {product.variants && product.variants.map((v: any, vIdx: number) => (
+                      <tr key={`cust-var-${v.id || vIdx}`} className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td className="py-1 px-1.5"></td>
+                        <td className="py-1 px-2 pl-5 text-gray-700">
+                          ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                        </td>
+                        <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
+                        <td className="py-1 px-2 text-right font-mono font-bold text-black">
+                          {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
+                        </td>
+                        <td className="py-1 px-2 text-gray-400">—</td>
+                        <td className="py-1 px-2 text-center text-[10px]">
+                          {v.stock > 0 ? (
+                            <span className="font-semibold text-emerald-700">In Stock</span>
+                          ) : (
+                            <span className="text-gray-400">Out of Stock</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
               <tr className="border-t border-gray-300 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td colSpan={7} className="py-2.5 px-3 text-center text-gray-600 italic">
+                <td colSpan={6} className="py-2.5 px-3 text-center text-gray-600 italic">
                   * Prices are in Tanzanian Shillings (TSh). Contact our store for custom orders, bulk orders, and delivery services.
                 </td>
               </tr>
