@@ -270,8 +270,8 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             Worker Performance Metrics
           </h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-w-0 min-h-[256px]">
+            <ResponsiveContainer width="100%" height={256} minWidth={0} minHeight={256} debounce={50}>
               <BarChart data={data.admin_task_metrics.worker_performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="workerCompleted" x1="0" y1="0" x2="0" y2="1">

@@ -201,8 +201,8 @@ const AdminOverview: React.FC = () => {
             </h3>
             <span className="text-3xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">+34.8% H1</span>
           </div>
-          <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-60 w-full min-w-0 min-h-[240px]">
+            <ResponsiveContainer width="100%" height={240} minWidth={0} minHeight={240} debounce={50}>
               <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -233,8 +233,8 @@ const AdminOverview: React.FC = () => {
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             Active Staff Load (Assigned Tasks)
           </h3>
-          <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-60 w-full min-w-0 min-h-[240px]">
+            <ResponsiveContainer width="100%" height={240} minWidth={0} minHeight={240} debounce={50}>
               <BarChart
                 data={data.staffers.slice(0, 8).map(s => ({ username: s.username, tasks: s.tasks_count }))}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -269,8 +269,8 @@ const AdminOverview: React.FC = () => {
             </Link>
           </div>
           <div className="space-y-2 max-h-[360px] overflow-y-auto">
-            {data.recent_logs.slice(0, 6).map((log) => (
-              <div key={log.id} className="p-3 hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 rounded-btn border border-surface-border/40 space-y-1 transition">
+            {data.recent_logs.slice(0, 6).map((log, idx) => (
+              <div key={log.id ? `log-${log.id}` : `log-idx-${idx}`} className="p-3 hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 rounded-btn border border-surface-border/40 space-y-1 transition">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-gray-900 dark:text-white">@{log.username || 'system'}</span>
                   <span className="text-3xs text-gray-400 font-mono">{formatDate(log.timestamp)}</span>
@@ -290,10 +290,10 @@ const AdminOverview: React.FC = () => {
             Department Capacity & Distribution
           </h3>
           <div className="space-y-4 pt-2">
-            {data.departments.map((dept) => {
+            {data.departments.map((dept, idx) => {
               const pct = Math.round((dept.count / (data.counts.total_staff || 1)) * 100);
               return (
-                <div key={dept.department} className="space-y-1.5">
+                <div key={dept.department ? `dept-${dept.department}` : `dept-idx-${idx}`} className="space-y-1.5">
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-gray-800 dark:text-gray-200">{dept.department || 'General Staff'}</span>
                     <span className="text-brand-500">{dept.count} members ({pct}%)</span>
