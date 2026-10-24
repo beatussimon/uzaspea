@@ -1047,7 +1047,7 @@ const ProfilePage: React.FC = () => {
                         <img 
                           src={img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`} 
                           alt="Store Showcase" 
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200 select-none"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 select-none"
                         />
                         {isOwner && (
                           <button 
