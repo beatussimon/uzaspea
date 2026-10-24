@@ -151,7 +151,7 @@ const RegisterPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
           {/* Progress Bar */}
           <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
             <motion.div 
@@ -162,7 +162,7 @@ const RegisterPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-8 sm:p-10">
+          <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
             <AnimatePresence mode="wait">
               {step === 1 ? (
                 <motion.div
@@ -418,9 +418,9 @@ const RegisterPage: React.FC = () => {
           </div>
         </div>
 
-        <p className="text-center text-sm text-gray-550 dark:text-gray-400 mt-8">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
           {t('already_have_account')}{' '}
-          <Link to="/login" className="font-bold text-brand-500 hover:text-brand-500 dark:text-brand-500 transition-colors">
+          <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
             {t('login')}
           </Link>
         </p>
