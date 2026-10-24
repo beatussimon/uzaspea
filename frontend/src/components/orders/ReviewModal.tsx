@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, Sparkles, CheckCircle2 } from 'lucide-react';
+import { X, Star, CheckCircle2 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import SafeImage from '../SafeImage';
@@ -11,12 +11,12 @@ interface ReviewModalProps {
   onSuccess?: () => void;
 }
 
-const RATING_DESCRIPTORS: Record<number, { label: string; color: string }> = {
-  1: { label: 'Poor — Disappointed', color: 'text-red-500' },
-  2: { label: 'Fair — Needs improvement', color: 'text-orange-500' },
-  3: { label: 'Good — Meets expectations', color: 'text-amber-500' },
-  4: { label: 'Very Good — Highly satisfied', color: 'text-emerald-500' },
-  5: { label: 'Outstanding — Highly recommended!', color: 'text-amber-400 font-extrabold' },
+const RATING_DESCRIPTORS: Record<number, { label: string }> = {
+  1: { label: 'Poor — Disappointed' },
+  2: { label: 'Fair — Needs improvement' },
+  3: { label: 'Good — Meets expectations' },
+  4: { label: 'Very Good — Highly satisfied' },
+  5: { label: 'Outstanding — Highly recommended!' },
 };
 
 const QUICK_TAGS = [
@@ -115,16 +115,13 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-card p-6 shadow-2xl relative overflow-hidden animate-slide-up"
+        className="w-full max-w-lg bg-white dark:bg-[#0A0A0A] rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-up border-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Subtle Ambient Top Accent Glow */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600" />
-
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors border-0 outline-none cursor-pointer"
           aria-label="Close review modal"
         >
           <X size={18} />
@@ -132,18 +129,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
 
         {/* Header */}
         <div className="mb-5">
-          <div className="flex items-center gap-1.5 text-xs font-black text-amber-500 uppercase tracking-widest mb-1">
-            <Sparkles size={14} />
-            <span>Verified Customer Feedback</span>
-          </div>
           <h3 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Share Your Experience
           </h3>
         </div>
 
         {/* Product Snapshot Card */}
-        <div className="flex items-center gap-3.5 p-3 rounded-xl bg-surface-muted dark:bg-[#121212] border border-surface-border/60 dark:border-surface-dark-border/60 mb-6">
-          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800 shrink-0 border border-gray-200 dark:border-neutral-700">
+        <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-surface-muted dark:bg-[#141414] border-0 mb-5">
+          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#1F1F1F] shrink-0 border-0">
             {productImage ? (
               <SafeImage src={productImage} alt={productName} className="w-full h-full object-cover" />
             ) : (
@@ -156,12 +149,12 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
               {productName}
             </h4>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
               {sellerName && <span>Sold by @{sellerName}</span>}
               {price && (
                 <>
                   <span>•</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold text-gray-700 dark:text-neutral-300">
                     TSh {parseInt(price).toLocaleString()}
                   </span>
                 </>
@@ -172,8 +165,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
 
         <form onSubmit={handleReviewSubmit} className="space-y-5">
           {/* Star Rating Section */}
-          <div className="flex flex-col items-center justify-center py-3 px-4 rounded-xl bg-gray-50 dark:bg-[#0f0f0f] border border-gray-100 dark:border-neutral-800/80">
-            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+          <div className="flex flex-col items-center justify-center py-4 px-4 rounded-xl bg-surface-muted dark:bg-[#141414] border-0">
+            <span className="text-[11px] font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wider mb-2.5">
               Overall Rating
             </span>
 
@@ -188,15 +181,15 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                     onClick={() => setRating(s)}
                     onMouseEnter={() => setHoverRating(s)}
                     onMouseLeave={() => setHoverRating(0)}
-                    className="p-1 text-gray-300 dark:text-neutral-700 transition-all duration-150 transform hover:scale-125 focus:outline-none"
+                    className="p-1 text-gray-300 dark:text-neutral-700 transition-all duration-150 transform hover:scale-125 focus:outline-none border-0 cursor-pointer"
                     aria-label={`${s} Stars`}
                   >
                     <Star
                       size={32}
                       className={`transition-colors ${
                         isActive
-                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.35)]'
-                          : 'hover:text-amber-200'
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'hover:text-amber-400/40'
                       }`}
                     />
                   </button>
@@ -207,18 +200,18 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             {/* Rating Descriptor */}
             <div className="h-5 flex items-center justify-center">
               {ratingInfo ? (
-                <span className={`text-xs font-bold transition-all animate-fade-in ${ratingInfo.color}`}>
+                <span className="text-xs font-semibold text-gray-700 dark:text-neutral-300 transition-all animate-fade-in">
                   {ratingInfo.label}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400 font-medium">Tap a star to rate</span>
+                <span className="text-xs text-gray-400 dark:text-neutral-500 font-medium">Tap a star to rate</span>
               )}
             </div>
           </div>
 
           {/* Quick Highlight Tags */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wider mb-2">
               What stood out? (Optional)
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -229,13 +222,13 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                     key={tag}
                     type="button"
                     onClick={() => handleTagToggle(tag)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-0 outline-none cursor-pointer ${
                       isSelected
-                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 dark:border-amber-500/40 shadow-sm'
-                        : 'bg-white dark:bg-neutral-900 text-gray-600 dark:text-gray-400 border-surface-border dark:border-surface-dark-border hover:border-gray-400 dark:hover:border-neutral-600'
+                        ? 'bg-white dark:bg-white text-black dark:text-black font-bold'
+                        : 'bg-surface-muted dark:bg-[#141414] text-gray-600 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white'
                     }`}
                   >
-                    {isSelected && <CheckCircle2 size={12} className="inline mr-1 -mt-0.5 text-amber-500" />}
+                    {isSelected && <CheckCircle2 size={12} className="inline mr-1 -mt-0.5 text-black" />}
                     {tag}
                   </button>
                 );
@@ -246,17 +239,17 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
           {/* Written Feedback Textarea */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <label className="block text-[11px] font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wider">
                 Detailed Review
               </label>
-              <span className="text-[10px] text-gray-400">{comment.length}/500</span>
+              <span className="text-[10px] text-gray-400 dark:text-neutral-500">{comment.length}/500</span>
             </div>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value.slice(0, 500))}
               rows={3}
               placeholder="Tell others about the item condition, fitment, packaging, or delivery experience..."
-              className="input text-sm resize-none"
+              className="w-full p-3 rounded-xl bg-surface-muted dark:bg-[#141414] text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-neutral-500 border-0 border-none outline-none focus:outline-none focus:ring-0 resize-none transition-colors"
             />
           </div>
 
@@ -265,13 +258,13 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             <button
               type="submit"
               disabled={submittingReview || rating === 0}
-              className="w-full py-3 px-4 bg-brand-500 hover:bg-brand-600 active:scale-[0.98] text-black font-extrabold text-sm rounded-btn shadow-md hover:shadow-lg transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-white hover:bg-neutral-200 active:scale-[0.98] text-black font-extrabold text-sm rounded-xl transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed border-0 border-none outline-none cursor-pointer"
             >
               {submittingReview ? (
                 <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
               ) : (
                 <>
-                  <Star size={16} className="fill-black" />
+                  <Star size={16} className="fill-black text-black" />
                   <span>Submit Review</span>
                 </>
               )}
