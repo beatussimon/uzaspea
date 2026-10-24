@@ -70,6 +70,13 @@ export const printElement = async (
           .print-hidden {
             display: none !important;
           }
+          /* Enforce no gray underlays in all printouts */
+          .print-content-wrapper [class*="bg-gray-"],
+          .print-content-wrapper [class*="bg-neutral-"],
+          .print-content-wrapper [class*="bg-zinc-"],
+          .print-content-wrapper [class*="bg-surface-"] {
+            background-color: transparent !important;
+          }
           img {
             max-width: 100%;
           }

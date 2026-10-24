@@ -1425,7 +1425,7 @@ const ProductRequestsBoard: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-6">
             <thead>
-              <tr className="border-b-2 border-black bg-gray-100/70 text-black">
+              <tr className="text-black">
                 <th className="py-2 px-1 w-10 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
                 <th className="py-2 px-2 w-32 font-black">CATEGORY</th>
@@ -1436,7 +1436,7 @@ const ProductRequestsBoard: React.FC = () => {
                 <th className="py-2 px-2 w-20 font-black text-center">STATUS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {sortedRequests.map((req, idx) => (
                 <tr key={req.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <td className="py-2 px-1 font-bold text-gray-500">{idx + 1}</td>
@@ -1453,19 +1453,19 @@ const ProductRequestsBoard: React.FC = () => {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-black">
                   {totalMissedCost.toLocaleString()} TZS
                 </td>
               </tr>
-              <tr className="font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-black">
                   {projectedRevenue.toLocaleString()} TZS
                 </td>
               </tr>
-              <tr className="font-black border-t border-gray-200 bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-black">
                   {potentialProfit.toLocaleString()} TZS

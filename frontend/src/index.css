@@ -437,6 +437,13 @@
   thead {
     display: table-header-group;
   }
+  /* Remove gray underlays in all printouts */
+  [class*="bg-gray-"],
+  [class*="bg-neutral-"],
+  [class*="bg-zinc-"],
+  [class*="bg-surface-"] {
+    background-color: transparent !important;
+  }
 }
 
 /* Recharts Pie Sectors - Remove default white stroke/border */

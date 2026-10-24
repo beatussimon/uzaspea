@@ -207,20 +207,20 @@ const DashboardOverview: React.FC = () => {
           />
           
           {/* KPI Metrics Summary Strip */}
-          <div className="grid grid-cols-5 gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50/80 text-center" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            <div className="border-r border-gray-200 pr-2">
+          <div className="grid grid-cols-5 gap-4 py-2 text-center" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <div>
               <p className="text-[10px] uppercase font-bold text-gray-500">Total Products</p>
               <p className="text-sm font-black text-black mt-0.5">{stats?.total_products || 0}</p>
             </div>
-            <div className="border-r border-gray-200 pr-2">
+            <div>
               <p className="text-[10px] uppercase font-bold text-gray-500">Total Orders</p>
               <p className="text-sm font-black text-black mt-0.5">{stats?.total_orders || 0}</p>
             </div>
-            <div className="border-r border-gray-200 pr-2">
+            <div>
               <p className="text-[10px] uppercase font-bold text-gray-500">Total Revenue</p>
               <p className="text-sm font-black text-black mt-0.5">{kpis[2]?.fullValue || `TSh ${(stats?.total_revenue || 0).toLocaleString()}`}</p>
             </div>
-            <div className="border-r border-gray-200 pr-2">
+            <div>
               <p className="text-[10px] uppercase font-bold text-gray-500">Avg Rating</p>
               <p className="text-sm font-black text-black mt-0.5">{stats?.avg_rating || '—'} <span className="text-[10px] font-normal text-gray-500">({stats?.total_reviews || 0})</span></p>
             </div>
@@ -233,7 +233,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 1: Top Performing Products */}
           {stats?.top_products && stats.top_products.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between border-b border-black pb-1">
+              <div className="flex items-center justify-between pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Top Performing Products ({dateRange.label})
                 </h3>
@@ -243,14 +243,14 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                  <tr className="text-black">
                     <th className="py-1.5 px-2 w-12 text-center font-bold">RANK</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT NAME</th>
                     <th className="py-1.5 px-3 w-28 text-right font-bold">UNITS SOLD</th>
                     <th className="py-1.5 px-3 w-40 text-right font-bold">REVENUE (TZS)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {stats.top_products.map((p: any, idx: number) => (
                     <tr key={`print-top-${idx}-${p.name || ''}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-2 text-center font-bold text-gray-500">#{idx + 1}</td>
@@ -263,7 +263,7 @@ const DashboardOverview: React.FC = () => {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={2} className="py-2 px-2 text-right text-2xs uppercase">TOTAL TOP PRODUCTS REVENUE:</td>
                     <td className="py-2 px-3 text-right font-mono font-black">
                       {stats.top_products.reduce((acc: number, item: any) => acc + (item.sold || 0), 0)}
@@ -280,7 +280,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 2: Store Products Catalog & Inventory Health */}
           {stats?.products_summary && stats.products_summary.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between border-b border-black pb-1">
+              <div className="flex items-center justify-between pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Store Products Catalog & Stock Status
                 </h3>
@@ -290,7 +290,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                  <tr className="text-black">
                     <th className="py-1.5 px-2 w-10 text-center font-bold">S/N</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
                     <th className="py-1.5 px-2 w-28 font-bold">SKU</th>
@@ -300,7 +300,7 @@ const DashboardOverview: React.FC = () => {
                     <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {stats.products_summary.map((prod: any, idx: number) => {
                     const isOutOfStock = prod.stock === 0;
                     const isLowStock = prod.stock > 0 && prod.stock <= 3;
@@ -328,7 +328,7 @@ const DashboardOverview: React.FC = () => {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={4} className="py-2 px-2 text-right text-2xs uppercase">TOTAL INVENTORY VALUE:</td>
                     <td className="py-2 px-3 text-right font-mono font-black">
                       {stats.products_summary.reduce((acc: number, p: any) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
@@ -346,7 +346,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 3: Items Sold Detailed Activity */}
           {stats?.items_sold_list && stats.items_sold_list.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between border-b border-black pb-1">
+              <div className="flex items-center justify-between pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Items Sold Activity ({dateRange.label})
                 </h3>
@@ -356,7 +356,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                  <tr className="text-black">
                     <th className="py-1.5 px-1.5 w-8 text-center font-bold">S/N</th>
                     <th className="py-1.5 px-2 w-24 font-bold">DATE</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
@@ -366,7 +366,7 @@ const DashboardOverview: React.FC = () => {
                     <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {stats.items_sold_list.map((item: any, idx: number) => (
                     <tr key={`print-item-sold-${item.id != null ? item.id : ''}-${idx}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-1.5 text-center text-gray-500 font-bold">{idx + 1}</td>
@@ -388,7 +388,7 @@ const DashboardOverview: React.FC = () => {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={3} className="py-2 px-2 text-right text-2xs uppercase">TOTAL SALES:</td>
                     <td className="py-2 px-2 text-right font-mono font-black">
                       {stats.items_sold_list.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)}
@@ -407,7 +407,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 4: Low Stock Warnings */}
           {stats?.stock_alerts && stats.stock_alerts.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between border-b border-black pb-1">
+              <div className="flex items-center justify-between pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-red-600">
                   Stock Depletion & Reorder Alerts
                 </h3>
@@ -417,7 +417,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {stats.stock_alerts.map((s: any, idx: number) => (
-                  <div key={`print-alert-${idx}-${s.name || ''}`} className="p-2 border border-red-200 rounded bg-red-50/50 flex items-center justify-between text-xs" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <div key={`print-alert-${idx}-${s.name || ''}`} className="py-1 px-0 flex items-center justify-between text-xs" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span className="font-bold text-black truncate pr-2">{s.name}</span>
                     <span className="font-mono font-extrabold text-red-600 shrink-0">
                       {s.stock === 0 ? 'OUT OF STOCK' : `${s.stock} left`}
@@ -429,7 +429,7 @@ const DashboardOverview: React.FC = () => {
           )}
 
           {/* Report Footer */}
-          <div className="pt-4 border-t border-gray-300 flex items-center justify-between text-[10px] text-gray-500" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <div className="pt-4 flex items-center justify-between text-[10px] text-gray-500" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             <span>Generated on {new Date().toLocaleString()} via SokoniMax Store Analytics</span>
             <span>All amounts in Tanzanian Shillings (TZS) • Confidential</span>
           </div>

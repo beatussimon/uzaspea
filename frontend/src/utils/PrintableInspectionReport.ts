@@ -77,7 +77,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .header-table {
             width: 100%;
             border-collapse: collapse;
-            border-bottom: 2px solid #111;
             padding-bottom: 10px;
             margin-bottom: 12px;
           }
@@ -125,13 +124,11 @@ export const printInspectionReport = (request: InspectionRequest) => {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
-            background: #f9fafb;
-            border-radius: 6px;
           }
           .info-col {
             display: table-cell;
             width: 33.33%;
-            padding: 8px 10px;
+            padding: 4px 6px;
             vertical-align: top;
           }
           .info-heading {
@@ -163,9 +160,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .verdict-banner {
             display: table;
             width: 100%;
-            background: #f9fafb;
-            border-radius: 6px;
-            padding: 8px 12px;
+            padding: 6px 0;
             margin-bottom: 12px;
           }
           .grade-col {
@@ -173,7 +168,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             width: 75px;
             vertical-align: middle;
             text-align: center;
-            border-right: 1px solid #e5e7eb;
             padding-right: 10px;
           }
           .grade-letter {
@@ -210,8 +204,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
             display: table;
             width: 100%;
             margin-bottom: 12px;
-            border-radius: 6px;
-            background: #f9fafb;
           }
           .defect-item {
             display: table-cell;
@@ -250,18 +242,15 @@ export const printInspectionReport = (request: InspectionRequest) => {
             margin-bottom: 12px;
           }
           .checklist-table th {
-            background: #f9fafb;
             color: #4b5563;
             font-size: 9px;
             font-weight: 800;
             text-transform: uppercase;
             text-align: left;
             padding: 6px 7px;
-            border-bottom: 1px solid #e5e7eb;
           }
           .checklist-table td {
             padding: 6px 7px;
-            border-bottom: 1px solid #f3f4f6;
             font-size: 10.5px;
             vertical-align: top;
           }
@@ -294,7 +283,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .photo-card {
             border-radius: 4px;
             overflow: hidden;
-            background: #f9fafb;
             text-align: center;
             width: 72px;
           }
@@ -316,9 +304,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
 
           /* Verification & QR Code Box */
           .verify-box {
-            background: #f9fafb;
-            border-radius: 6px;
-            padding: 8px 12px;
+            padding: 8px 0;
             margin-top: 10px;
             margin-bottom: 12px;
             display: table;
@@ -358,7 +344,6 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .report-footer {
             margin-top: 14px;
             padding-top: 8px;
-            border-top: 1.5px solid #111;
             display: table;
             width: 100%;
           }
