@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { FloatingInput } from '../components/ui/FloatingInput';
 
@@ -47,31 +47,19 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center items-center py-16 px-4 min-h-[75vh]">
-      <div className="card border-0 dark:border-0 hover:border-0 shadow-none w-full max-w-md p-6 sm:p-8 animate-fade-in space-y-6">
-        {/* Top Back Link */}
-        <Link
-          to="/login"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
-        >
-          <ArrowLeft size={16} />
-          {t('back_to_sign_in', 'Back to Sign In')}
-        </Link>
+    <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
+      <div className="w-full max-w-[460px]">
+        {/* The Card */}
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8">
+          {/* Header Block (INSIDE the card) */}
+          <div className="text-center mb-6">
+            <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
+              {t('reset_password', 'Reset Password')}
+            </h1>
+          </div>
 
-        {!submitted ? (
-          <>
-            {/* Header */}
-            <div className="text-center space-y-1.5 mb-2">
-              <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
-                {t('reset_password', 'Reset Password')}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t('enter_registered_email_desc', 'Enter your registered email address or username to receive a password reset link.')}
-              </p>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
+          {!submitted ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
               {rateLimitError && (
                 <div className="p-3 rounded-btn bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs leading-relaxed">
                   {rateLimitError}
@@ -93,66 +81,78 @@ const ForgotPasswordPage: React.FC = () => {
                 type="submit"
                 loading={loading}
                 disabled={!!rateLimitError}
-                className="w-full mt-2"
+                className="w-full flex items-center justify-center gap-2 mt-2"
               >
                 {t('send_reset_link', 'Send Reset Link')}
               </Button>
             </form>
-          </>
-        ) : (
-          <div className="text-center space-y-4 py-2">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-              <CheckCircle2 size={26} />
-            </div>
-            <div className="space-y-1.5">
-              <h2 className="text-heading-md font-bold text-gray-900 dark:text-white">
-                {t('request_received', 'Request Received')}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                {t('reset_dispatched_desc_part1', 'If an active account is associated with')}{' '}
-                <span className="font-semibold text-gray-900 dark:text-white">{identifier}</span>
-                {', '}{t('reset_dispatched_desc_part2', 'a reset link will be dispatched by an administrator to your registered contact channel.')}
-              </p>
-            </div>
+          ) : (
+            <div className="text-center space-y-4 py-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+                <CheckCircle2 size={26} />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-heading-md font-bold text-gray-900 dark:text-white">
+                  {t('request_received', 'Request Received')}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {t('reset_dispatched_desc_part1', 'If an active account is associated with')}{' '}
+                  <span className="font-semibold text-gray-900 dark:text-white">{identifier}</span>
+                  {', '}{t('reset_dispatched_desc_part2', 'a reset link will be dispatched by an administrator to your registered contact channel.')}
+                </p>
+              </div>
 
-            {/* Attempts remaining note on 2nd and 3rd attempt */}
-            {attemptsLeft !== null && attemptsLeft <= 1 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {attemptsLeft === 1
-                  ? t('attempt_remaining_1', 'You have 1 attempt remaining today.')
-                  : t('final_attempt_today', 'This was your final attempt for today.')}
-              </p>
-            )}
+              {/* Attempts remaining note on 2nd and 3rd attempt */}
+              {attemptsLeft !== null && attemptsLeft <= 1 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {attemptsLeft === 1
+                    ? t('attempt_remaining_1', 'You have 1 attempt remaining today.')
+                    : t('final_attempt_today', 'This was your final attempt for today.')}
+                </p>
+              )}
 
-            <div className="pt-2 flex flex-col gap-2">
-              <Link
-                to="/login"
-                className="w-full inline-flex justify-center items-center py-2.5 px-4 rounded-btn bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold hover:opacity-90 transition shadow-sm"
-              >
-                {t('return_to_sign_in', 'Return to Sign In')}
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmitted(false);
-                  setIdentifier('');
-                  setAttemptsLeft(null);
-                  setRateLimitError(null);
-                }}
-                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-1 transition"
-              >
-                {t('try_another_email_username', 'Try another email or username')}
-              </button>
+              <div className="pt-2 flex flex-col gap-2">
+                <Link
+                  to="/login"
+                  className="w-full inline-flex justify-center items-center py-2.5 px-4 rounded-btn bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold hover:opacity-90 transition shadow-sm"
+                >
+                  {t('return_to_sign_in', 'Return to Sign In')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setIdentifier('');
+                    setAttemptsLeft(null);
+                    setRateLimitError(null);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-1 transition"
+                >
+                  {t('try_another_email_username', 'Try another email or username')}
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* Bottom Switch Link (INSIDE the card) */}
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            <span>{t('remember_password', 'Remember your password?')}</span>{' '}
+            <Link
+              to="/login"
+              className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"
+            >
+              {t('sign_in', 'Sign In')}
+            </Link>
           </div>
-        )}
 
-        <p className="text-center text-xs text-gray-400 dark:text-neutral-500 pt-2">
-          {t('need_help_contact_support', 'Need help?')}{' '}
-          <Link to="/help" className="text-brand-500 hover:underline font-medium">
-            {t('contact_support', 'Contact Support')}
-          </Link>
-        </p>
+          {/* Support Help Link */}
+          <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
+            <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
+              {t('contact_support', 'Contact Support')}
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
