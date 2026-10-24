@@ -252,7 +252,7 @@ const DashboardOverview: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {stats.top_products.map((p: any, idx: number) => (
-                    <tr key={idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <tr key={`print-top-${idx}-${p.name || ''}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-2 text-center font-bold text-gray-500">#{idx + 1}</td>
                       <td className="py-1.5 px-2 font-bold text-black truncate">{p.name}</td>
                       <td className="py-1.5 px-3 text-right font-mono font-bold text-black">{p.sold}</td>
@@ -305,7 +305,7 @@ const DashboardOverview: React.FC = () => {
                     const isOutOfStock = prod.stock === 0;
                     const isLowStock = prod.stock > 0 && prod.stock <= 3;
                     return (
-                      <tr key={prod.id || idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <tr key={`print-prod-${prod.id != null ? prod.id : idx}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <td className="py-1.5 px-2 text-center text-gray-500 font-bold">{idx + 1}</td>
                         <td className="py-1.5 px-2 font-bold text-black truncate">{prod.name}</td>
                         <td className="py-1.5 px-2 text-gray-600 font-mono text-[11px]">{prod.sku || '-'}</td>
@@ -368,7 +368,7 @@ const DashboardOverview: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {stats.items_sold_list.map((item: any, idx: number) => (
-                    <tr key={item.id || idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <tr key={`print-item-sold-${item.id != null ? item.id : ''}-${idx}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-1.5 text-center text-gray-500 font-bold">{idx + 1}</td>
                       <td className="py-1.5 px-2 text-gray-600 text-[11px] whitespace-nowrap">
                         {new Date(item.date).toLocaleDateString()}
@@ -417,7 +417,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {stats.stock_alerts.map((s: any, idx: number) => (
-                  <div key={idx} className="p-2 border border-red-200 rounded bg-red-50/50 flex items-center justify-between text-xs" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <div key={`print-alert-${idx}-${s.name || ''}`} className="p-2 border border-red-200 rounded bg-red-50/50 flex items-center justify-between text-xs" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span className="font-bold text-black truncate pr-2">{s.name}</span>
                     <span className="font-mono font-extrabold text-red-600 shrink-0">
                       {s.stock === 0 ? 'OUT OF STOCK' : `${s.stock} left`}
@@ -462,7 +462,7 @@ const DashboardOverview: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print-hide">
             {kpis.map((kpi, i) => (
               <KpiCard
-                key={i}
+                key={`kpi-${kpi.label || i}`}
                 label={kpi.label}
                 value={kpi.value}
                 fullValue={kpi.fullValue}
@@ -661,7 +661,7 @@ const DashboardOverview: React.FC = () => {
                 </thead>
                 <tbody>
                   {(stats?.top_products || []).slice(0, topProductsLimit).map((p: any, i: number) => (
-                    <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                    <tr key={`top-prod-${i}-${p.name || ''}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
                       <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white truncate max-w-[200px]" title={p.name}>
                         {p.name}
@@ -706,7 +706,7 @@ const DashboardOverview: React.FC = () => {
                 </thead>
                 <tbody>
                   {stats.stock_alerts.map((s: any, i: number) => (
-                    <tr key={i} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                    <tr key={`stock-alert-${i}-${s.name || ''}-${s.location_name || ''}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
                       <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[220px]" title={s.name}>
                         <div className="flex flex-col min-w-0">
@@ -753,7 +753,7 @@ const DashboardOverview: React.FC = () => {
             {stats.location_breakdown.map((b: any, idx: number) => {
               const sharePct = stats.total_revenue > 0 ? Math.round((b.revenue / stats.total_revenue) * 100) : 0;
               return (
-                <div key={b.location_id || idx} className="card !border-none p-3.5 sm:p-4 space-y-2.5 rounded-2xl">
+                <div key={`loc-${b.location_id != null ? b.location_id : 'main'}-${idx}`} className="card !border-none p-3.5 sm:p-4 space-y-2.5 rounded-2xl">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
                       {b.name}
@@ -803,7 +803,7 @@ const DashboardOverview: React.FC = () => {
               </thead>
               <tbody className="print:divide-y print:divide-gray-300">
                 {stats.items_sold_list.map((item: any, idx: number) => (
-                  <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
+                  <tr key={`item-sold-${item.id != null ? item.id : ''}-${idx}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
                     <td className="px-3 py-2.5 text-center text-gray-400 print:text-black font-medium">{idx + 1}</td>
                     <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black whitespace-nowrap">
                       {new Date(item.date).toLocaleDateString()} <span className="text-3xs text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
