@@ -3829,8 +3829,9 @@ const DashboardProducts: React.FC = () => {
                   <React.Fragment key={product.id}>
                     {isNewCategory && (
                       <tr key={`cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300`}></td>
                         <td 
-                          colSpan={7} 
+                          colSpan={6} 
                           className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
                         >
                           {currentCat}
@@ -3920,8 +3921,9 @@ const DashboardProducts: React.FC = () => {
                   <React.Fragment key={`cust-${product.id}`}>
                     {isNewCategory && (
                       <tr key={`cust-cat-${currentCat}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-1.5 border-b border-gray-300`}></td>
                         <td 
-                          colSpan={6} 
+                          colSpan={5} 
                           className={`${idx === 0 ? 'pt-2' : 'pt-4'} pb-1 px-2 font-bold uppercase text-xs tracking-wider text-black border-b border-gray-300`}
                         >
                           {currentCat}
