@@ -1425,15 +1425,15 @@ const ProductRequestsBoard: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-6">
             <thead>
-              <tr className="border-b-2 border-black text-black">
-                <th className="py-2 px-1 w-10 font-black">S/N</th>
-                <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
-                <th className="py-2 px-2 w-32 font-black">CATEGORY</th>
-                <th className="py-2 px-2 w-16 font-black text-center">VOTES</th>
-                <th className="py-2 px-2 w-28 font-black text-right">EST. COST (TSH)</th>
-                <th className="py-2 px-2 w-28 font-black text-right">EST. PRICE (TSH)</th>
-                <th className="py-2 px-2 w-28 font-black text-right">PROJ. PROFIT (TSH)</th>
-                <th className="py-2 px-2 w-20 font-black text-center">STATUS</th>
+              <tr className="border-b border-gray-300 text-black">
+                <th className="py-2 px-1 w-10 font-bold">S/N</th>
+                <th className="py-2 px-2 w-44 font-bold">PRODUCT</th>
+                <th className="py-2 px-2 w-32 font-bold">CATEGORY</th>
+                <th className="py-2 px-2 w-16 font-bold text-center">VOTES</th>
+                <th className="py-2 px-2 w-28 font-bold text-right">EST. COST (TSH)</th>
+                <th className="py-2 px-2 w-28 font-bold text-right">EST. PRICE (TSH)</th>
+                <th className="py-2 px-2 w-28 font-bold text-right">PROJ. PROFIT (TSH)</th>
+                <th className="py-2 px-2 w-20 font-bold text-center">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -1453,21 +1453,21 @@ const ProductRequestsBoard: React.FC = () => {
               ))}
             </tbody>
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
-              <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="border-t border-gray-300 font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-black">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-bold">
                   {totalMissedCost.toLocaleString()} TZS
                 </td>
               </tr>
-              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-black">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-bold">
                   {projectedRevenue.toLocaleString()} TZS
                 </td>
               </tr>
-              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
-                <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-black">
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-bold">
                   {potentialProfit.toLocaleString()} TZS
                 </td>
               </tr>
