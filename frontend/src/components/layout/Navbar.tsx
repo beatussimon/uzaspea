@@ -207,15 +207,15 @@ const Navbar = () => {
               ) : (
                 <>
                   <PlusCircle size={14} className="shrink-0" />
-                  <span className="whitespace-nowrap">{t('sell')}</span>
+                  <span className="whitespace-nowrap">{t('sell', 'Sell')}</span>
                 </>
               )}
             </Link>
           )}
           {[
             { path: '/', label: t('home', 'Home') },
-            { path: '/products', label: t('products_nav') },
-            { path: '/help', label: t('help') }
+            { path: '/products', label: t('products_nav', 'Products') },
+            { path: '/help', label: t('help', 'Help') }
           ].map((link) => {
             const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
             return (
@@ -502,7 +502,7 @@ const Navbar = () => {
                     : 'bg-brand-500 hover:bg-brand-600 text-neutral-950 font-bold shadow-sm'
                 }`}
               >
-                {t('login')}
+                {t('login', 'Login')}
               </Link>
             )}
           </div>
