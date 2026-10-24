@@ -126,13 +126,10 @@ const LoginPage: React.FC = () => {
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
       <div className="w-full max-w-lg">
         {/* Header Block (OUTSIDE the card - matching Create Account) */}
-        <div className="text-center mb-10">
-          <h1 className="text-heading-lg font-black text-gray-900 dark:text-white mb-2">
+        <div className="text-center mb-8">
+          <h1 className="text-heading-lg font-black text-gray-900 dark:text-white">
             {t('welcome_back')}
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t('login_or_create')}
-          </p>
         </div>
 
         {/* The Card */}
