@@ -115,13 +115,13 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-[#0A0A0A] rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-up border-0"
+        className="w-full max-w-lg bg-white dark:bg-[#161616] rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-up border-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors border-0 outline-none cursor-pointer"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-[#252525] transition-colors border-0 outline-none cursor-pointer"
           aria-label="Close review modal"
         >
           <X size={18} />
@@ -135,8 +135,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
         </div>
 
         {/* Product Snapshot Card */}
-        <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-surface-muted dark:bg-[#141414] border-0 mb-5">
-          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#1F1F1F] shrink-0 border-0">
+        <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-surface-muted dark:bg-[#0C0C0C] border-0 mb-5">
+          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#161616] shrink-0 border-0">
             {productImage ? (
               <SafeImage src={productImage} alt={productName} className="w-full h-full object-cover" />
             ) : (
@@ -165,7 +165,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
 
         <form onSubmit={handleReviewSubmit} className="space-y-5">
           {/* Star Rating Section */}
-          <div className="flex flex-col items-center justify-center py-4 px-4 rounded-xl bg-surface-muted dark:bg-[#141414] border-0">
+          <div className="flex flex-col items-center justify-center py-4 px-4 rounded-xl bg-surface-muted dark:bg-[#0C0C0C] border-0">
             <span className="text-[11px] font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wider mb-2.5">
               Overall Rating
             </span>
@@ -225,7 +225,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-0 outline-none cursor-pointer ${
                       isSelected
                         ? 'bg-white dark:bg-white text-black dark:text-black font-bold'
-                        : 'bg-surface-muted dark:bg-[#141414] text-gray-600 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white'
+                        : 'bg-surface-muted dark:bg-[#0C0C0C] text-gray-600 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white'
                     }`}
                   >
                     {isSelected && <CheckCircle2 size={12} className="inline mr-1 -mt-0.5 text-black" />}
@@ -249,7 +249,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
               onChange={(e) => setComment(e.target.value.slice(0, 500))}
               rows={3}
               placeholder="Tell others about the item condition, fitment, packaging, or delivery experience..."
-              className="w-full p-3 rounded-xl bg-surface-muted dark:bg-[#141414] text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-neutral-500 border-0 border-none outline-none focus:outline-none focus:ring-0 resize-none transition-colors"
+              className="w-full p-3 rounded-xl bg-surface-muted dark:bg-[#0C0C0C] text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-neutral-500 border-0 border-none outline-none focus:outline-none focus:ring-0 resize-none transition-colors"
             />
           </div>
 
