@@ -28,9 +28,142 @@
     <meta name="twitter:image" content="/logo.png" />
 
     <title>SokoniMax - Tanzania Marketplace</title>
+
+    <!-- Synchronous Theme Pre-Activation (Prevents FOUC / White Flash) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = saved === 'dark' || (!saved && prefersDark);
+          var root = document.documentElement;
+          var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+
+          if (isDark) {
+            root.classList.add('dark');
+            root.style.backgroundColor = '#000000';
+            if (metaThemeColor) metaThemeColor.setAttribute('content', '#000000');
+          } else {
+            root.classList.remove('dark');
+            root.style.backgroundColor = '#ffffff';
+            if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
+          }
+
+          if (window.location.pathname === '/') {
+            root.classList.add('is-home');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Instant Pre-Paint Shell Styling -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+      html.dark, html.dark body {
+        background-color: #000000 !important;
+        color: #f3f4f6;
+        color-scheme: dark;
+      }
+      html:not(.dark), html:not(.dark) body {
+        background-color: #ffffff !important;
+        color: #111827;
+        color-scheme: light;
+      }
+
+      /* Homepage-only instant navbar skeleton */
+      #home-nav-skeleton {
+        display: none;
+      }
+      html.is-home #home-nav-skeleton {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        padding: 0 16px;
+        box-sizing: border-box;
+        z-index: 50;
+        pointer-events: none;
+      }
+      @media (min-width: 768px) {
+        html.is-home #home-nav-skeleton {
+          height: 80px;
+          padding: 0 32px;
+        }
+      }
+
+      .hnav-pulse {
+        border-radius: 9999px;
+        animation: hnav-pulse-anim 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      html.dark .hnav-pulse {
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+      html:not(.dark) .hnav-pulse {
+        background-color: rgba(0, 0, 0, 0.06);
+      }
+
+      @keyframes hnav-pulse-anim {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 0.25; }
+      }
+
+      .hnav-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+      }
+      .hnav-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .hnav-logo {
+        height: 38px;
+        width: auto;
+        opacity: 0.9;
+        display: block;
+      }
+      @media (min-width: 768px) {
+        .hnav-logo {
+          height: 48px;
+        }
+      }
+      .hnav-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex: 1;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="home-nav-skeleton">
+        <div class="hnav-left">
+          <div class="hnav-pulse" style="width: 52px; height: 26px;"></div>
+        </div>
+        <div class="hnav-center">
+          <img src="/logo_dark.png" alt="SokoniMax" class="hnav-logo" />
+        </div>
+        <div class="hnav-right">
+          <div class="hnav-pulse" style="width: 32px; height: 32px;"></div>
+          <div class="hnav-pulse" style="width: 32px; height: 32px;"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

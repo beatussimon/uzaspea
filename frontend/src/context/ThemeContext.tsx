@@ -21,11 +21,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const root = document.documentElement;
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (theme === 'dark') {
       root.classList.add('dark');
+      root.style.backgroundColor = '#000000';
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#000000');
       localStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove('dark');
+      root.style.backgroundColor = '#ffffff';
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
       localStorage.setItem('theme', 'light');
     }
   }, [theme]);
