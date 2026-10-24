@@ -2930,12 +2930,12 @@ const StaffDashboardLayout: React.FC = () => {
                     to={item.path}
                     className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
                       isActive
-                        ? 'bg-gradient-to-r from-gray-100 to-gray-50/80 dark:from-neutral-800 dark:to-neutral-800/60 text-gray-900 dark:text-white font-semibold shadow-2xs'
+                        ? 'text-brand-500 dark:text-brand-500 font-medium'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-neutral-900/50 font-medium'
                     }`}
                     title={isSidebarCollapsed ? item.label : undefined}
                   >
-                    <item.icon size={18} className={`shrink-0 ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'}`} />
+                    <item.icon size={18} className="shrink-0" />
                     {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                   </Link>
                 );
