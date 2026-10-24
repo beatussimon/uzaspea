@@ -989,17 +989,29 @@ const ProductRequestsBoard: React.FC = () => {
                                 </Button>
 
                                 <div 
-                                  className="inline-flex items-center h-8 rounded-btn bg-transparent hover:bg-surface-muted/40 dark:hover:bg-white/[0.04] transition-colors shrink-0 select-none"
+                                  className="inline-flex items-center h-8 rounded-btn bg-gray-100 hover:bg-gray-200/90 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-colors shrink-0 select-none px-2 gap-0.5 cursor-pointer"
                                   title={`Record +${getDemandAmount(req.id)} customer demand`}
+                                  onClick={(e) => {
+                                    if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                                      handleIncrementDemand(req);
+                                    }
+                                  }}
                                 >
                                   <button
                                     type="button"
                                     disabled={votingId === req.id}
-                                    onClick={() => handleIncrementDemand(req)}
-                                    className="h-full pl-1.5 pr-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white active:scale-90 transition-colors flex items-center justify-center shrink-0 disabled:opacity-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleIncrementDemand(req);
+                                    }}
+                                    className="h-full px-0.5 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white active:scale-90 transition-transform flex items-center justify-center shrink-0 disabled:opacity-50"
                                     title={`Add ${getDemandAmount(req.id)} demand`}
                                   >
-                                    <Plus size={12} className="shrink-0" />
+                                    {votingId === req.id ? (
+                                      <Loader2 size={12} className="animate-spin text-brand-500 shrink-0" />
+                                    ) : (
+                                      <Plus size={12} className="shrink-0" />
+                                    )}
                                   </button>
 
                                   <input
@@ -1012,23 +1024,9 @@ const ProductRequestsBoard: React.FC = () => {
                                     onBlur={() => handleDemandAmountBlur(req.id)}
                                     onKeyDown={(e) => handleDemandKeyDown(e, req)}
                                     disabled={votingId === req.id}
-                                    className="w-6 h-6 text-center font-bold font-mono text-xs bg-transparent hover:bg-surface-muted/60 dark:hover:bg-white/10 focus:bg-surface-muted/80 dark:focus:bg-white/10 rounded text-gray-900 dark:text-white outline-none transition-colors px-0 cursor-text [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-6 h-6 text-center font-bold font-mono text-xs bg-transparent hover:bg-black/5 dark:hover:bg-white/10 focus:bg-black/5 dark:focus:bg-white/10 rounded text-gray-900 dark:text-white outline-none transition-colors px-0 cursor-text [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     title="Demand quantity (Default: 1. Press Up/Down to adjust, Enter to submit)"
                                   />
-
-                                  <button
-                                    type="button"
-                                    disabled={votingId === req.id}
-                                    onClick={() => handleIncrementDemand(req)}
-                                    className="h-full pl-0.5 pr-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white active:scale-95 transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50"
-                                    title={`Record +${getDemandAmount(req.id)} customer demand`}
-                                  >
-                                    {votingId === req.id ? (
-                                      <Loader2 size={12} className="animate-spin text-brand-500 shrink-0" />
-                                    ) : (
-                                      <span>Demand</span>
-                                    )}
-                                  </button>
                                 </div>
 
                                 <div className="relative inline-block text-left action-dropdown-container">
