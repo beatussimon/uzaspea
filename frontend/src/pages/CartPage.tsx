@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, MessageSquare, FileText, Clock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useMessages } from '../context/MessageContext';
 import SafeImage from '../components/SafeImage';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,7 @@ import toast from 'react-hot-toast';
 const CartPage: React.FC = () => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
+  const { isAuthenticated } = useAuth();
   const { items, updateQuantity, removeFromCart, clearCart } = useCart();
   const { startOrderInquiryChat } = useMessages();
   const navigate = useNavigate();
@@ -68,6 +70,10 @@ const CartPage: React.FC = () => {
 
   // Fetch any active pending invoices for the user
   const fetchActiveInvoices = useCallback(async () => {
+    if (!isAuthenticated) {
+      setActiveInvoices({});
+      return;
+    }
     try {
       const [res1, res2, res3] = await Promise.all([
         api.get('/api/orders/?status=REQUESTED_INVOICE'),
@@ -88,10 +94,12 @@ const CartPage: React.FC = () => {
         }
       });
       setActiveInvoices(invoicesMap);
-    } catch (err) {
-      console.warn('Failed to load active invoices', err);
+    } catch (err: any) {
+      if (err.response?.status !== 401 && err.response?.status !== 403) {
+        console.warn('Failed to load active invoices', err);
+      }
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchActiveInvoices();
