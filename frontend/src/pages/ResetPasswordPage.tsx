@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { FloatingInput } from '../components/ui/FloatingInput';
+import { AuthLanguageSelector } from '../components/layout/LanguageSelector';
 
 interface TokenVerification {
   valid: boolean;
@@ -235,8 +236,11 @@ const ResetPasswordPage: React.FC = () => {
           </div>
 
           <div>
+            {/* Quick Language Switcher */}
+            <AuthLanguageSelector />
+
             {/* Bottom Switch Link (INSIDE the card) */}
-            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-3">
               <Link
                 to="/login"
                 className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"

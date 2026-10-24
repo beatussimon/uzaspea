@@ -8,6 +8,7 @@ import { ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, Loader2 } from 'l
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FloatingInput, FloatingSelect } from '../components/ui/FloatingInput';
+import { AuthLanguageSelector } from '../components/layout/LanguageSelector';
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
@@ -344,8 +345,11 @@ const RegisterPage: React.FC = () => {
           </div>
 
           <div>
+            {/* Quick Language Switcher */}
+            <AuthLanguageSelector />
+
             {/* Bottom Switch Link INSIDE the card */}
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-3">
               {t('already_have_account')}{' '}
               <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
                 {t('login')}
