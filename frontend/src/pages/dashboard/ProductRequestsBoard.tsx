@@ -1425,7 +1425,7 @@ const ProductRequestsBoard: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-6">
             <thead>
-              <tr className="text-black">
+              <tr className="border-b-2 border-black text-black">
                 <th className="py-2 px-1 w-10 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
                 <th className="py-2 px-2 w-32 font-black">CATEGORY</th>
@@ -1436,7 +1436,7 @@ const ProductRequestsBoard: React.FC = () => {
                 <th className="py-2 px-2 w-20 font-black text-center">STATUS</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {sortedRequests.map((req, idx) => (
                 <tr key={req.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <td className="py-2 px-1 font-bold text-gray-500">{idx + 1}</td>
@@ -1452,8 +1452,8 @@ const ProductRequestsBoard: React.FC = () => {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+              <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={5} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
                 <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-black">
                   {totalMissedCost.toLocaleString()} TZS

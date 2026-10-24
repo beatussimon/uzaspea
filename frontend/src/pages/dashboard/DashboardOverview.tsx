@@ -233,7 +233,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 1: Top Performing Products */}
           {stats?.top_products && stats.top_products.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center justify-between border-b border-black pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Top Performing Products ({dateRange.label})
                 </h3>
@@ -243,14 +243,14 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="text-black">
+                  <tr className="border-b border-gray-300 text-black">
                     <th className="py-1.5 px-2 w-12 text-center font-bold">RANK</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT NAME</th>
                     <th className="py-1.5 px-3 w-28 text-right font-bold">UNITS SOLD</th>
                     <th className="py-1.5 px-3 w-40 text-right font-bold">REVENUE (TZS)</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {stats.top_products.map((p: any, idx: number) => (
                     <tr key={`print-top-${idx}-${p.name || ''}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-2 text-center font-bold text-gray-500">#{idx + 1}</td>
@@ -262,8 +262,8 @@ const DashboardOverview: React.FC = () => {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+                  <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={2} className="py-2 px-2 text-right text-2xs uppercase">TOTAL TOP PRODUCTS REVENUE:</td>
                     <td className="py-2 px-3 text-right font-mono font-black">
                       {stats.top_products.reduce((acc: number, item: any) => acc + (item.sold || 0), 0)}
@@ -280,7 +280,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 2: Store Products Catalog & Inventory Health */}
           {stats?.products_summary && stats.products_summary.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center justify-between border-b border-black pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Store Products Catalog & Stock Status
                 </h3>
@@ -290,7 +290,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="text-black">
+                  <tr className="border-b border-gray-300 text-black">
                     <th className="py-1.5 px-2 w-10 text-center font-bold">S/N</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
                     <th className="py-1.5 px-2 w-28 font-bold">SKU</th>
@@ -300,7 +300,7 @@ const DashboardOverview: React.FC = () => {
                     <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {stats.products_summary.map((prod: any, idx: number) => {
                     const isOutOfStock = prod.stock === 0;
                     const isLowStock = prod.stock > 0 && prod.stock <= 3;
@@ -327,8 +327,8 @@ const DashboardOverview: React.FC = () => {
                     );
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+                  <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={4} className="py-2 px-2 text-right text-2xs uppercase">TOTAL INVENTORY VALUE:</td>
                     <td className="py-2 px-3 text-right font-mono font-black">
                       {stats.products_summary.reduce((acc: number, p: any) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
@@ -346,7 +346,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 3: Items Sold Detailed Activity */}
           {stats?.items_sold_list && stats.items_sold_list.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center justify-between border-b border-black pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-black">
                   Items Sold Activity ({dateRange.label})
                 </h3>
@@ -356,7 +356,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <table className="w-full text-left text-xs border-collapse table-fixed">
                 <thead>
-                  <tr className="text-black">
+                  <tr className="border-b border-gray-300 text-black">
                     <th className="py-1.5 px-1.5 w-8 text-center font-bold">S/N</th>
                     <th className="py-1.5 px-2 w-24 font-bold">DATE</th>
                     <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
@@ -366,7 +366,7 @@ const DashboardOverview: React.FC = () => {
                     <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {stats.items_sold_list.map((item: any, idx: number) => (
                     <tr key={`print-item-sold-${item.id != null ? item.id : ''}-${idx}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <td className="py-1.5 px-1.5 text-center text-gray-500 font-bold">{idx + 1}</td>
@@ -387,8 +387,8 @@ const DashboardOverview: React.FC = () => {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+                  <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td colSpan={3} className="py-2 px-2 text-right text-2xs uppercase">TOTAL SALES:</td>
                     <td className="py-2 px-2 text-right font-mono font-black">
                       {stats.items_sold_list.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)}
@@ -407,7 +407,7 @@ const DashboardOverview: React.FC = () => {
           {/* Section 4: Low Stock Warnings */}
           {stats?.stock_alerts && stats.stock_alerts.length > 0 && (
             <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center justify-between border-b border-black pb-1">
                 <h3 className="text-xs font-black uppercase tracking-wider text-red-600">
                   Stock Depletion & Reorder Alerts
                 </h3>

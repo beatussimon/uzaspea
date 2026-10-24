@@ -77,6 +77,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .header-table {
             width: 100%;
             border-collapse: collapse;
+            border-bottom: 2px solid #111;
             padding-bottom: 10px;
             margin-bottom: 12px;
           }
@@ -248,11 +249,13 @@ export const printInspectionReport = (request: InspectionRequest) => {
             text-transform: uppercase;
             text-align: left;
             padding: 6px 7px;
+            border-bottom: 1px solid #e5e7eb;
           }
           .checklist-table td {
             padding: 6px 7px;
             font-size: 10.5px;
             vertical-align: top;
+            border-bottom: 1px solid #f3f4f6;
           }
           .badge-pass {
             font-size: 9.5px;
@@ -344,6 +347,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
           .report-footer {
             margin-top: 14px;
             padding-top: 8px;
+            border-top: 1.5px solid #111;
             display: table;
             width: 100%;
           }

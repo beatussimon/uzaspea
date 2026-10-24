@@ -3776,7 +3776,7 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-4">
             <thead>
-              <tr className="text-black">
+              <tr className="border-b-2 border-black text-black">
                 <th className="py-2 px-1.5 w-8 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
                 <th className="py-2 px-2 w-24 font-black">SKU/CODE</th>
@@ -3787,7 +3787,7 @@ const DashboardProducts: React.FC = () => {
                 <th className="py-2 px-2 w-16 font-black text-right">STOCK</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {products.map((product, idx) => (
                 <React.Fragment key={product.id}>
                   <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
@@ -3825,8 +3825,8 @@ const DashboardProducts: React.FC = () => {
                 </React.Fragment>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+              <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={4} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
                 <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
                   {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
@@ -3855,7 +3855,7 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-3">
             <thead>
-              <tr className="text-black">
+              <tr className="border-b-2 border-black text-black">
                 <th className="py-2 px-1.5 w-8 font-black">S/N</th>
                 <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
                 <th className="py-2 px-2 w-24 font-black">CODE / SKU</th>
@@ -3865,7 +3865,7 @@ const DashboardProducts: React.FC = () => {
                 <th className="py-2 px-2 w-24 font-black text-center">AVAILABILITY</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {products.map((product, idx) => (
                 <React.Fragment key={`cust-${product.id}`}>
                   <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
@@ -3915,8 +3915,8 @@ const DashboardProducts: React.FC = () => {
                 </React.Fragment>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
+              <tr className="border-t-2 border-black text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={7} className="py-2.5 px-3 text-center text-gray-600 italic">
                   * Prices are in Tanzanian Shillings (TSh). Contact our store for custom orders, bulk orders, and delivery services.
                 </td>
