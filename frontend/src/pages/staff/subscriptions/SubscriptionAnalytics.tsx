@@ -164,8 +164,8 @@ export const SubscriptionAnalytics: React.FC = () => {
                 </h3>
                 <span className="text-[11px] text-gray-400">Total collected per cycle</span>
               </div>
-              <div className="h-48 sm:h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-48 sm:h-56 w-full min-w-0 min-h-[192px]">
+                <ResponsiveContainer width="100%" height={224} minWidth={0} minHeight={192} debounce={50}>
                   <BarChart data={monthly_trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.15} vertical={false} />
                     <XAxis

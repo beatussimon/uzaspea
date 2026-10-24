@@ -169,8 +169,8 @@ export const CommissionAnalytics: React.FC = () => {
                 </h3>
                 <span className="text-[11px] text-gray-400">Performance comparison</span>
               </div>
-              <div className="h-52 sm:h-60 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-52 sm:h-60 w-full min-w-0 min-h-[208px]">
+                <ResponsiveContainer width="100%" height={240} minWidth={0} minHeight={208} debounce={50}>
                   <BarChart data={monthly_trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.15} vertical={false} />
                     <XAxis
