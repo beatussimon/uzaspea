@@ -125,82 +125,86 @@ const LoginPage: React.FC = () => {
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
       <div className="w-full max-w-[460px]">
         {/* The Card */}
-        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8">
-          {/* Header Block (INSIDE the card) */}
-          <div className="text-center mb-6">
-            <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
-              {t('welcome_back')}
-            </h1>
-          </div>
-
-          {isBanned && (
-            <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5 text-left">
-              <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <AlertTriangle size={14} />
-                {t('account_banned_title', 'Account Banned')}
-              </h3>
-              <p className="text-xs text-red-500 dark:text-red-500">
-                {t('account_banned_desc', 'Your account has been permanently restricted by SokoniMax administrators due to policy violations.')}
-              </p>
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
+          <div>
+            {/* Header Block (INSIDE the card) */}
+            <div className="text-center mb-6">
+              <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
+                {t('welcome_back')}
+              </h1>
             </div>
-          )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <FloatingInput
-              id="username"
-              label={t('username', 'Username')}
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-            />
+            {isBanned && (
+              <div className="mb-6 p-4 border border-red-500/20 rounded-card flex flex-col gap-1.5 bg-red-500/5 text-left">
+                <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle size={14} />
+                  {t('account_banned_title', 'Account Banned')}
+                </h3>
+                <p className="text-xs text-red-500 dark:text-red-500">
+                  {t('account_banned_desc', 'Your account has been permanently restricted by SokoniMax administrators due to policy violations.')}
+                </p>
+              </div>
+            )}
 
-            <FloatingInput
-              id="password"
-              type="password"
-              label={t('password', 'Password')}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              showPasswordToggle
-            />
+            <form onSubmit={handleLogin} className="space-y-4">
+              <FloatingInput
+                id="username"
+                label={t('username', 'Username')}
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+              />
 
-            <Button
-              type="submit"
-              loading={loading}
-              className="w-full flex items-center justify-center gap-2 mt-2"
-            >
-              {t('sign_in', 'Sign In')}
-            </Button>
-          </form>
+              <FloatingInput
+                id="password"
+                type="password"
+                label={t('password', 'Password')}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                showPasswordToggle
+              />
 
-          {/* Bottom Switch Link & Forgot Password (INSIDE the card) */}
-          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
-            <span>{t('dont_have_account', "Don't have an account?")}</span>{' '}
-            <Link
-              to="/register"
-              className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"
-            >
-              {t('create_account_link', 'Create account')}
-            </Link>
-            <span className="text-gray-400 dark:text-neutral-600 px-1">|</span>
-            <Link
-              to="/forgot-password"
-              className="hover:underline text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-            >
-              {t('forgot_password', 'Forgot Password')}
-            </Link>
+              <Button
+                type="submit"
+                loading={loading}
+                className="w-full flex items-center justify-center gap-2 mt-2"
+              >
+                {t('sign_in', 'Sign In')}
+              </Button>
+            </form>
           </div>
 
-          {/* Support Help Link */}
-          <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
-            {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
-            <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
-              {t('contact_support', 'Contact Support')}
-            </Link>
-          </p>
+          <div>
+            {/* Bottom Switch Link & Forgot Password (INSIDE the card) */}
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+              <span>{t('dont_have_account', "Don't have an account?")}</span>{' '}
+              <Link
+                to="/register"
+                className="font-bold text-gray-900 dark:text-white hover:underline transition-colors"
+              >
+                {t('create_account_link', 'Create account')}
+              </Link>
+              <span className="text-gray-400 dark:text-neutral-600 px-1">|</span>
+              <Link
+                to="/forgot-password"
+                className="hover:underline text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              >
+                {t('forgot_password', 'Forgot Password')}
+              </Link>
+            </div>
+
+            {/* Support Help Link */}
+            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+              {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
+              <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
+                {t('contact_support', 'Contact Support')}
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
