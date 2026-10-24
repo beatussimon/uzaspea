@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';
 
@@ -41,14 +41,8 @@ const GlobalTermsModal: React.FC = () => {
           className="bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl overflow-hidden max-w-2xl w-full max-h-[90vh] flex flex-col"
         >
           <div className="p-6 md:p-8 flex-1 overflow-y-auto">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16   text-brand-500 rounded-full flex items-center justify-center">
-                <ShieldCheck size={32} />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-4">Updated Terms & Privacy Policy</h2>
-            <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
+            <h2 className="text-xl sm:text-2xl font-black text-center text-gray-900 dark:text-white mb-2 sm:mb-3">Updated Terms & Privacy Policy</h2>
+            <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6">
               Welcome back to SakoniMax! We've updated our Terms and Conditions and Privacy Policy. To continue using the platform, please review and accept our updated terms.
             </p>
 

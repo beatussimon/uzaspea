@@ -7,6 +7,7 @@ export interface FloatingInputProps extends React.InputHTMLAttributes<HTMLInputE
   error?: string;
   containerClassName?: string;
   showPasswordToggle?: boolean;
+  icon?: React.ReactNode;
 }
 
 export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
@@ -23,12 +24,29 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
       className,
       containerClassName,
       showPasswordToggle = false,
+      icon,
       ...props
     },
     ref
   ) => {
     const [isFocused, setIsFocused] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const internalRef = React.useRef<HTMLInputElement>(null);
+    React.useImperativeHandle(ref, () => internalRef.current!);
+
+    React.useEffect(() => {
+      if (props.autoFocus) {
+        setIsFocused(true);
+        const timer = setTimeout(() => {
+          if (internalRef.current) {
+            internalRef.current.focus();
+          }
+        }, 50);
+        return () => clearTimeout(timer);
+      } else if (internalRef.current && document.activeElement === internalRef.current) {
+        setIsFocused(true);
+      }
+    }, [props.autoFocus]);
 
     const hasValue = value !== undefined && value !== null && String(value).length > 0;
     const isDate = type === 'date';
@@ -38,9 +56,15 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
 
     return (
       <div className={cn('relative w-full', containerClassName)}>
+        {icon && (
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-500 pointer-events-none transition-colors duration-150 z-10 flex items-center justify-center">
+            {icon}
+          </div>
+        )}
+
         <input
           id={id}
-          ref={ref}
+          ref={internalRef}
           type={resolvedType}
           value={value}
           onChange={onChange}
@@ -54,14 +78,15 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
           }}
           placeholder=" "
           className={cn(
-            'peer w-full h-12 px-3.5 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-colors duration-150',
+            'peer w-full h-12 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-colors duration-150',
             'border text-gray-900 dark:text-white outline-none focus:outline-none focus:ring-0',
+            icon ? 'pl-[40px] pr-3.5' : 'px-3.5',
+            showPasswordToggle && 'pr-11',
             isFocused
-              ? 'border-gray-400 dark:border-neutral-500'
+              ? 'border-gray-400 dark:border-neutral-600'
               : error
               ? 'border-red-500'
-              : 'border-surface-border dark:border-neutral-700 hover:border-gray-400 dark:hover:border-neutral-600',
-            showPasswordToggle && 'pr-11',
+              : 'border-surface-border dark:border-neutral-800 hover:border-gray-400 dark:hover:border-neutral-700',
             className
           )}
           {...props}
@@ -70,12 +95,14 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
         <label
           htmlFor={id}
           className={cn(
-            'absolute left-3 px-1.5 transition-all duration-200 pointer-events-none rounded-sm select-none',
-            'bg-white dark:bg-[#232323]', // Notch mask matching the card background
+            'absolute transition-all duration-200 pointer-events-none rounded-sm select-none',
             isFloating
-              ? '-top-2.5 text-xs font-medium z-10 ' +
+              ? '-top-2.5 left-3 px-1.5 text-xs font-medium z-10 bg-white dark:bg-black ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
-              : 'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500'
+              : cn(
+                  'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500 bg-transparent px-0',
+                  icon ? 'left-[40px]' : 'left-3.5'
+                )
           )}
         >
           {label}
@@ -108,6 +135,7 @@ export interface FloatingSelectProps extends React.SelectHTMLAttributes<HTMLSele
   error?: string;
   options: { value: string; label: string }[];
   containerClassName?: string;
+  icon?: React.ReactNode;
 }
 
 export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelectProps>(
@@ -123,6 +151,7 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
       options,
       className,
       containerClassName,
+      icon,
       ...props
     },
     ref
@@ -133,6 +162,12 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
 
     return (
       <div className={cn('relative w-full', containerClassName)}>
+        {icon && (
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-500 pointer-events-none transition-colors duration-150 z-10 flex items-center justify-center">
+            {icon}
+          </div>
+        )}
+
         <select
           id={id}
           ref={ref}
@@ -147,25 +182,26 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
             onBlur?.(e);
           }}
           className={cn(
-            'peer w-full h-12 px-3.5 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-colors duration-150',
+            'peer w-full h-12 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-colors duration-150',
             'border text-gray-900 dark:text-white outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer pr-10',
+            icon ? 'pl-[40px]' : 'px-3.5',
             isFocused
-              ? 'border-gray-400 dark:border-neutral-500'
+              ? 'border-gray-400 dark:border-neutral-600'
               : error
               ? 'border-red-500'
-              : 'border-surface-border dark:border-neutral-700 hover:border-gray-400 dark:hover:border-neutral-600',
+              : 'border-surface-border dark:border-neutral-800 hover:border-gray-400 dark:hover:border-neutral-700',
             className
           )}
           {...props}
         >
-          <option value="" disabled hidden className="bg-white dark:bg-[#232323] text-gray-400">
+          <option value="" disabled hidden className="bg-white dark:bg-black text-gray-400">
             {label}
           </option>
           {options.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="bg-white dark:bg-[#232323] text-gray-900 dark:text-white py-1"
+              className="bg-white dark:bg-black text-gray-900 dark:text-white py-1"
             >
               {opt.label}
             </option>
@@ -175,12 +211,14 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
         <label
           htmlFor={id}
           className={cn(
-            'absolute left-3 px-1.5 transition-all duration-200 pointer-events-none rounded-sm select-none',
-            'bg-white dark:bg-[#232323]',
+            'absolute transition-all duration-200 pointer-events-none rounded-sm select-none',
             isFloating
-              ? '-top-2.5 text-xs font-medium z-10 ' +
+              ? '-top-2.5 left-3 px-1.5 text-xs font-medium z-10 bg-white dark:bg-black ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
-              : 'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500'
+              : cn(
+                  'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500 bg-transparent px-0',
+                  icon ? 'left-[40px]' : 'left-3.5'
+                )
           )}
         >
           {label}

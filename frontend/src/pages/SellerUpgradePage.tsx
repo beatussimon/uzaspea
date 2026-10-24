@@ -429,10 +429,10 @@ const SellerUpgradePage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <Link to="/login" className="flex-1 btn-primary py-2.5 text-center text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-md">
+            <Link to="/login" className="flex-1 btn-primary py-2.5 text-center text-sm font-bold bg-brand-500 hover:bg-brand-600 text-[#171717] rounded-xl shadow-md">
               Sign In
             </Link>
-            <Link to="/register" className="flex-1 py-2.5 text-center text-sm font-bold border border-brand-500 text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-xl">
+            <Link to="/register" className="flex-1 py-2.5 text-center text-sm font-bold border border-brand-500 text-brand-500 bg-transparent rounded-xl transition-colors">
               Register
             </Link>
           </div>

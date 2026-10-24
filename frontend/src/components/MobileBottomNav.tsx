@@ -234,8 +234,8 @@ const MobileBottomNav = () => {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5">{t('welcome_to')}</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{t('login_or_create')}</p>
                 <div className="flex gap-2">
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">{t('login')}</Link>
-                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border border-brand-500 text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors">{t('register')}</Link>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-500 hover:bg-brand-600 text-[#171717] rounded-lg transition-colors">{t('login')}</Link>
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border border-brand-500 text-brand-500 bg-transparent rounded-lg transition-colors">{t('register')}</Link>
                 </div>
               </div>
             )}
