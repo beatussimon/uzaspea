@@ -144,7 +144,7 @@ const RegisterPage: React.FC = () => {
         <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
           <div>
             {/* Header Block (INSIDE the card) */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-8 sm:mb-9">
               <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
                 {t('create_account')}
               </h1>
@@ -159,7 +159,7 @@ const RegisterPage: React.FC = () => {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     <div className="grid grid-cols-2 gap-3.5">
                       <FloatingInput
                         id="first_name"
@@ -211,7 +211,7 @@ const RegisterPage: React.FC = () => {
                     <Button 
                       type="button"
                       onClick={nextStep}
-                      className="w-full flex items-center justify-center gap-2 mt-2"
+                      className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
                     >
                       {t('continue', 'Continue')}
                       <ChevronRight className="w-4 h-4 text-current" />
@@ -226,7 +226,7 @@ const RegisterPage: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <form onSubmit={handleRegister} className="space-y-4">
+                  <form onSubmit={handleRegister} className="space-y-3.5">
                     <div className="grid grid-cols-2 gap-3.5">
                       <div>
                         <FloatingInput
@@ -300,31 +300,12 @@ const RegisterPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="flex items-start gap-3 pt-1">
-                      <div className="flex h-5 items-center">
-                        <input
-                          id="terms_accepted"
-                          name="terms_accepted"
-                          type="checkbox"
-                          required
-                          className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
-                          checked={formData.terms_accepted}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        <label htmlFor="terms_accepted">
-                          I agree to the <Link to="/terms" target="_blank" className="text-brand-500 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-500 hover:underline">Privacy Policy</Link>.
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 mt-4">
+                    <div className="flex gap-3 !mt-4">
                       <Button 
                         type="button"
                         variant="outline"
                         onClick={prevStep}
-                        className="flex-1 flex items-center justify-center gap-2"
+                        className="flex-1 h-12 flex items-center justify-center gap-2"
                       >
                         <ChevronLeft className="w-4 h-4 text-current" />
                         {t('back', 'Back')}
@@ -332,10 +313,29 @@ const RegisterPage: React.FC = () => {
                       <Button 
                         type="submit" 
                         loading={loading}
-                        className="flex-[2] flex items-center justify-center gap-2"
+                        className="flex-[2] h-12 flex items-center justify-center gap-2"
                       >
                         {t('complete_signup', 'Complete Signup')}
                       </Button>
+                    </div>
+
+                    <div className="flex items-start justify-center gap-2 pt-2">
+                      <div className="flex h-4 items-center">
+                        <input
+                          id="terms_accepted"
+                          name="terms_accepted"
+                          type="checkbox"
+                          required
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
+                          checked={formData.terms_accepted}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 text-center">
+                        <label htmlFor="terms_accepted">
+                          I agree to the <Link to="/terms" target="_blank" className="text-brand-500 hover:underline">Terms</Link> and <Link to="/privacy" target="_blank" className="text-brand-500 hover:underline">Privacy Policy</Link>.
+                        </label>
+                      </div>
                     </div>
                   </form>
                 </motion.div>
@@ -345,7 +345,7 @@ const RegisterPage: React.FC = () => {
 
           <div>
             {/* Bottom Switch Link INSIDE the card */}
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
               {t('already_have_account')}{' '}
               <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
                 {t('login')}
@@ -353,7 +353,7 @@ const RegisterPage: React.FC = () => {
             </p>
 
             {/* Support Help Link */}
-            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-3">
+            <p className="text-center text-xs text-gray-400 dark:text-neutral-500 mt-2.5">
               {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
               <Link to="/help" className="hover:underline hover:text-gray-600 dark:hover:text-neutral-300">
                 {t('contact_support', 'Contact Support')}
