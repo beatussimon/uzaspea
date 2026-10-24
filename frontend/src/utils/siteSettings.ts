@@ -28,14 +28,10 @@ const SETTINGS_STORAGE_KEY = 'uzaspea_sitesettings_cache';
 export const normalizeMediaUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
   if (typeof window !== 'undefined') {
-    // If backend gave an absolute URL pointing to 127.0.0.1:8000 or localhost:8000 but the frontend is on a different host
     try {
       if (url.startsWith('http://') || url.startsWith('https://')) {
         const parsed = new URL(url);
-        if (
-          (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') &&
-          window.location.hostname !== parsed.hostname
-        ) {
+        if (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') {
           return `${parsed.pathname}${parsed.search}`;
         }
       }

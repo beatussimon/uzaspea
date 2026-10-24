@@ -183,6 +183,13 @@ const LandingPage = () => {
               transition={{ duration: 0.5, ease: 'easeInOut' }}
               className="h-full w-full object-cover brightness-[0.6] dark:brightness-[0.35] max-w-none"
               alt="Global background"
+              onError={(e) => {
+                const fallback = isDark ? '/kariakoo_nightscape.webp?v=3' : '/kariakoo_daytime.webp?v=3';
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.includes('kariakoo_')) {
+                  target.src = fallback;
+                }
+              }}
             />
           </AnimatePresence>
         </div>

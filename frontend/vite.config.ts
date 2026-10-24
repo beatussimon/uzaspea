@@ -16,11 +16,11 @@ export default defineConfig({
       interval: 300,
     },
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/media': 'http://localhost:8000',
-      '/static': 'http://localhost:8000',
+      '/api': 'http://127.0.0.1:8000',
+      '/media': 'http://127.0.0.1:8000',
+      '/static': 'http://127.0.0.1:8000',
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://127.0.0.1:8000',
         ws: true,
       },
     },
