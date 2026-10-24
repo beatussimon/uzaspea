@@ -70,6 +70,10 @@ export const printElement = async (
           .print-hidden {
             display: none !important;
           }
+          /* Totals and footers only at the end of the list, not repeated on every page */
+          tfoot {
+            display: table-row-group !important;
+          }
           /* Enforce no gray underlays in all printouts */
           .print-content-wrapper [class*="bg-gray-"],
           .print-content-wrapper [class*="bg-neutral-"],

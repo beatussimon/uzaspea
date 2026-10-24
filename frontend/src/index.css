@@ -437,6 +437,10 @@
   thead {
     display: table-header-group;
   }
+  /* Totals and footers only at the end of the list, not repeated on every page */
+  tfoot {
+    display: table-row-group !important;
+  }
   /* Remove gray underlays in all printouts */
   [class*="bg-gray-"],
   [class*="bg-neutral-"],

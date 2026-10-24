@@ -33,7 +33,7 @@ export const ReportPrintHeader: React.FC<ReportPrintHeaderProps> = ({
       </div>
 
       {/* Info Section: 3-Column Layout */}
-      <div className="grid grid-cols-3 gap-4 pb-2 mb-4 items-center">
+      <div className="grid grid-cols-3 gap-4 pb-3 border-b-2 border-gray-900 mb-4 items-center">
         {/* Left Column: Store Details */}
         <div className="text-left space-y-0.5">
           <h1 className="text-sm font-black uppercase text-gray-900">{storeName}</h1>
