@@ -19,7 +19,7 @@ const ForgotPasswordPage: React.FC = () => {
     e.preventDefault();
     const cleanIdent = identifier.trim();
     if (!cleanIdent) {
-      toast.error(t('enter_email_or_username_error', 'Please enter your email address or username'));
+      toast.error(t('enter_email_error', 'Please enter your email address'));
       return;
     }
 
@@ -69,19 +69,19 @@ const ForgotPasswordPage: React.FC = () => {
 
                 <div className="h-12 flex items-center justify-center text-center px-2">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                    {t('enter_registered_email_desc', 'Enter your registered email address or username to receive a password reset link.')}
+                    {t('enter_registered_email_desc', 'Enter your registered email address to receive a password reset link.')}
                   </p>
                 </div>
 
                 <FloatingInput
-                  id="identifier"
-                  name="identifier"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
                   value={identifier}
                   onChange={(e) => { setIdentifier(e.target.value); setRateLimitError(null); }}
-                  label={t('email_or_username', 'Email Address or Username')}
-                  autoComplete="username"
+                  label={t('email', 'Email Address')}
+                  autoComplete="email"
                 />
 
                 <Button
@@ -135,7 +135,7 @@ const ForgotPasswordPage: React.FC = () => {
                     }}
                     className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-1 transition"
                   >
-                    {t('try_another_email_username', 'Try another email or username')}
+                    {t('try_another_email_username', 'Try another email address')}
                   </button>
                 </div>
               </div>
