@@ -1313,25 +1313,25 @@ const ProfilePage: React.FC = () => {
       {/* Lightbox Modal */}
       {selectedLightboxIndex !== null && storeImages[selectedLightboxIndex] && (
         <div 
-          className="fixed inset-0 z-50 bg-black/92 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-5 select-none"
+          className="fixed inset-0 z-[100] bg-black w-full h-[100dvh] flex flex-col justify-between select-none p-0 sm:p-5"
           onClick={() => setSelectedLightboxIndex(null)}
           onTouchStart={handleLightboxTouchStart}
           onTouchEnd={handleLightboxTouchEnd}
         >
           {/* Top Bar: Counter & Close */}
           <div 
-            className="w-full max-w-5xl flex items-center justify-between px-2 pt-1 pb-2 z-20 shrink-0"
+            className="w-full max-w-5xl flex items-center justify-between px-4 pt-4 sm:pt-1 pb-2 z-20 shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-white/80 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full tracking-wider">
+              <span className="text-xs font-semibold text-white/90 bg-neutral-800/80 px-3 py-1 rounded-full tracking-wider border border-white/10">
                 {selectedLightboxIndex + 1} / {storeImages.length}
               </span>
             </div>
 
             <button 
               type="button"
-              className="p-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-full transition-all cursor-pointer shadow-lg"
+              className="p-2.5 bg-neutral-800/80 hover:bg-neutral-700 active:bg-neutral-600 text-white rounded-full transition-all cursor-pointer shadow-lg border border-white/10"
               onClick={() => setSelectedLightboxIndex(null)}
               title="Close (Esc)"
               aria-label="Close lightbox"
@@ -1342,7 +1342,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Center Stage: Left Arrow, Main Image, Right Arrow */}
           <div 
-            className="relative flex-1 w-full max-w-5xl flex items-center justify-center min-h-0 overflow-hidden my-1 sm:my-2"
+            className="relative flex-1 w-full max-w-5xl flex items-center justify-center min-h-0 overflow-hidden my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Left Chevron Button */}
@@ -1350,7 +1350,7 @@ const ProfilePage: React.FC = () => {
               <button 
                 type="button"
                 onClick={handlePrevLightbox}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 active:scale-95 text-white rounded-full backdrop-blur-md transition-all shadow-xl border border-white/15 cursor-pointer flex items-center justify-center"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-neutral-900/80 hover:bg-neutral-800 active:scale-95 text-white rounded-full transition-all shadow-2xl border border-white/15 cursor-pointer flex items-center justify-center"
                 title="Previous (Left Arrow)"
                 aria-label="Previous image"
               >
@@ -1367,7 +1367,7 @@ const ProfilePage: React.FC = () => {
                   : `${API_BASE_URL}${storeImages[selectedLightboxIndex].image}`
               } 
               alt="Store Showcase Preview" 
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-xl animate-scale-in" 
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-none sm:rounded-xl animate-scale-in" 
             />
 
             {/* Right Chevron Button */}
@@ -1375,7 +1375,7 @@ const ProfilePage: React.FC = () => {
               <button 
                 type="button"
                 onClick={handleNextLightbox}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 active:scale-95 text-white rounded-full backdrop-blur-md transition-all shadow-xl border border-white/15 cursor-pointer flex items-center justify-center"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-neutral-900/80 hover:bg-neutral-800 active:scale-95 text-white rounded-full transition-all shadow-2xl border border-white/15 cursor-pointer flex items-center justify-center"
                 title="Next (Right Arrow)"
                 aria-label="Next image"
               >
@@ -1387,7 +1387,7 @@ const ProfilePage: React.FC = () => {
           {/* Bottom Thumbnail Strip */}
           {hasMultipleImages && (
             <div 
-              className="w-full max-w-2xl flex items-center justify-center px-4 py-1 shrink-0 z-20"
+              className="w-full max-w-2xl flex items-center justify-center px-4 py-3 sm:py-2 shrink-0 z-20 pb-safe"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 sm:gap-2.5 max-w-full overflow-x-auto no-scrollbar p-1">
