@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
-import { FloatingInput } from '../components/ui/FloatingInput';
+import { FloatingInput, FloatingSelect } from '../components/ui/FloatingInput';
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
@@ -141,49 +141,49 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
-      <div className="w-full max-w-lg">
-        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none overflow-hidden min-h-[520px] sm:min-h-[540px] flex flex-col">
-          <div className="p-8 sm:p-10 flex-1 flex flex-col justify-center">
-            {/* Header Block (INSIDE the card) */}
-            <div className="text-center mb-8">
-              <h1 className="text-heading-lg font-black text-gray-900 dark:text-white">
-                {t('create_account')}
-              </h1>
-            </div>
+      <div className="w-full max-w-md">
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8">
+          {/* Header Block (INSIDE the card) */}
+          <div className="text-center mb-6">
+            <h1 className="text-heading-md font-black text-gray-900 dark:text-white">
+              {t('create_account')}
+            </h1>
+          </div>
 
-            <AnimatePresence mode="wait">
-              {step === 1 ? (
-                <motion.div
-                  key="step1"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FloatingInput
-                        id="first_name"
-                        name="first_name"
-                        label={t('first_name')}
-                        type="text"
-                        required
-                        value={formData.first_name}
-                        onChange={handleChange}
-                        autoComplete="given-name"
-                      />
-                      <FloatingInput
-                        id="last_name"
-                        name="last_name"
-                        label={t('last_name')}
-                        type="text"
-                        required
-                        value={formData.last_name}
-                        onChange={handleChange}
-                        autoComplete="family-name"
-                      />
-                    </div>
-                    
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <FloatingInput
+                      id="first_name"
+                      name="first_name"
+                      label={t('first_name')}
+                      type="text"
+                      required
+                      value={formData.first_name}
+                      onChange={handleChange}
+                      autoComplete="given-name"
+                    />
+                    <FloatingInput
+                      id="last_name"
+                      name="last_name"
+                      label={t('last_name')}
+                      type="text"
+                      required
+                      value={formData.last_name}
+                      onChange={handleChange}
+                      autoComplete="family-name"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <FloatingInput
                       id="date_of_birth"
                       name="date_of_birth"
@@ -194,180 +194,160 @@ const RegisterPage: React.FC = () => {
                       onChange={handleChange}
                     />
 
-                    {/* Gender Selection (Mandatory) */}
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        {t('gender', 'Gender')} <span className="text-red-500">*</span>
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, gender: 'female' }))}
-                          className={`py-2.5 px-4 rounded-btn border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                            formData.gender === 'female'
-                              ? 'bg-brand-500 text-white border-brand-500 shadow-xs'
-                              : 'border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-gray-700 dark:text-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          {t('gender_female', 'Female')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, gender: 'male' }))}
-                          className={`py-2.5 px-4 rounded-btn border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                            formData.gender === 'male'
-                              ? 'bg-brand-500 text-white border-brand-500 shadow-xs'
-                              : 'border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111] text-gray-700 dark:text-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          {t('gender_male', 'Male')}
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                        {t('gender_signup_help', 'Required to personalize your fashion & product recommendations.')}
-                      </p>
-                    </div>
-
-                    <Button 
-                      type="button"
-                      onClick={nextStep}
-                      className="w-full flex items-center justify-center gap-2 mt-4"
-                    >
-                      {t('continue', 'Continue')}
-                      <ChevronRight className="w-4 h-4 text-current" />
-                    </Button>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="step2"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <form onSubmit={handleRegister} className="space-y-5">
-                    <div>
-                      <FloatingInput
-                        id="username"
-                        name="username"
-                        label={t('username')}
-                        type="text"
-                        required
-                        minLength={3}
-                        value={formData.username}
-                        onChange={handleChange}
-                        autoComplete="username"
-                      />
-                      {usernameStatus.checking && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
-                          <Loader2 size={13} className="animate-spin text-brand-500" />
-                          <span>Checking availability...</span>
-                        </div>
-                      )}
-                      {!usernameStatus.checking && usernameStatus.available === true && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          <CheckCircle2 size={13} className="shrink-0" />
-                          <span>{usernameStatus.message || 'Username is available!'}</span>
-                        </div>
-                      )}
-                      {!usernameStatus.checking && usernameStatus.available === false && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-red-600 dark:text-red-400 font-medium">
-                          <AlertCircle size={13} className="shrink-0" />
-                          <span>{usernameStatus.message}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <FloatingInput
-                      id="email"
-                      name="email"
-                      label={t('email')}
-                      type="email"
+                    <FloatingSelect
+                      id="gender"
+                      name="gender"
+                      label={t('gender', 'Gender')}
                       required
-                      value={formData.email}
+                      value={formData.gender}
                       onChange={handleChange}
-                      autoComplete="email"
+                      options={[
+                        { value: 'female', label: t('gender_female', 'Female') },
+                        { value: 'male', label: t('gender_male', 'Male') },
+                      ]}
+                    />
+                  </div>
+
+                  <Button 
+                    type="button"
+                    onClick={nextStep}
+                    className="w-full flex items-center justify-center gap-2 mt-2"
+                  >
+                    {t('continue', 'Continue')}
+                    <ChevronRight className="w-4 h-4 text-current" />
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div>
+                    <FloatingInput
+                      id="username"
+                      name="username"
+                      label={t('username')}
+                      type="text"
+                      required
+                      minLength={3}
+                      value={formData.username}
+                      onChange={handleChange}
+                      autoComplete="username"
+                    />
+                    {usernameStatus.checking && (
+                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
+                        <Loader2 size={13} className="animate-spin text-brand-500" />
+                        <span>Checking availability...</span>
+                      </div>
+                    )}
+                    {!usernameStatus.checking && usernameStatus.available === true && (
+                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        <CheckCircle2 size={13} className="shrink-0" />
+                        <span>{usernameStatus.message || 'Username is available!'}</span>
+                      </div>
+                    )}
+                    {!usernameStatus.checking && usernameStatus.available === false && (
+                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-red-600 dark:text-red-400 font-medium">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{usernameStatus.message}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <FloatingInput
+                    id="email"
+                    name="email"
+                    label={t('email')}
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    autoComplete="email"
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <FloatingInput
+                      id="password"
+                      name="password"
+                      type="password"
+                      label={t('password')}
+                      required
+                      minLength={8}
+                      value={formData.password}
+                      onChange={handleChange}
+                      autoComplete="new-password"
+                      showPasswordToggle
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FloatingInput
-                        id="password"
-                        name="password"
-                        type="password"
-                        label={t('password')}
+                    <FloatingInput
+                      id="confirm_password"
+                      name="confirm_password"
+                      type="password"
+                      label={t('confirm_password_label', 'Confirm Password')}
+                      required
+                      minLength={8}
+                      value={formData.confirm_password}
+                      onChange={handleChange}
+                      autoComplete="new-password"
+                      showPasswordToggle
+                    />
+                  </div>
+
+                  <div className="flex items-start gap-3 pt-1">
+                    <div className="flex h-5 items-center">
+                      <input
+                        id="terms_accepted"
+                        name="terms_accepted"
+                        type="checkbox"
                         required
-                        minLength={8}
-                        value={formData.password}
+                        className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
+                        checked={formData.terms_accepted}
                         onChange={handleChange}
-                        autoComplete="new-password"
-                        showPasswordToggle
-                      />
-
-                      <FloatingInput
-                        id="confirm_password"
-                        name="confirm_password"
-                        type="password"
-                        label={t('confirm_password_label', 'Confirm Password')}
-                        required
-                        minLength={8}
-                        value={formData.confirm_password}
-                        onChange={handleChange}
-                        autoComplete="new-password"
-                        showPasswordToggle
                       />
                     </div>
-
-                    <div className="flex items-start gap-3 pt-2">
-                      <div className="flex h-5 items-center">
-                        <input
-                          id="terms_accepted"
-                          name="terms_accepted"
-                          type="checkbox"
-                          required
-                          className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
-                          checked={formData.terms_accepted}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="text-sm">
-                        <label htmlFor="terms_accepted" className="font-medium text-gray-700 dark:text-gray-300">
-                          I agree to the <Link to="/terms" target="_blank" className="text-brand-500 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-500 hover:underline">Privacy Policy</Link>.
-                        </label>
-                      </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      <label htmlFor="terms_accepted">
+                        I agree to the <Link to="/terms" target="_blank" className="text-brand-500 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-500 hover:underline">Privacy Policy</Link>.
+                      </label>
                     </div>
+                  </div>
 
-                    <div className="flex gap-3 mt-8">
-                      <Button 
-                        type="button"
-                        variant="outline"
-                        onClick={prevStep}
-                        className="flex-1 flex items-center justify-center gap-2"
-                      >
-                        <ChevronLeft className="w-4 h-4 text-current" />
-                        {t('back', 'Back')}
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        loading={loading}
-                        className="flex-[2] flex items-center justify-center gap-2"
-                      >
-                        {t('complete_signup', 'Complete Signup')}
-                      </Button>
-                    </div>
-                  </form>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  <div className="flex gap-3 mt-4">
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={prevStep}
+                      className="flex-1 flex items-center justify-center gap-2"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-current" />
+                      {t('back', 'Back')}
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      loading={loading}
+                      className="flex-[2] flex items-center justify-center gap-2"
+                    >
+                      {t('complete_signup', 'Complete Signup')}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Bottom Switch Link INSIDE the card */}
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6 pt-2">
+            {t('already_have_account')}{' '}
+            <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
+              {t('login')}
+            </Link>
+          </p>
         </div>
-
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
-          {t('already_have_account')}{' '}
-          <Link to="/login" className="font-bold text-gray-900 dark:text-white hover:underline transition-colors">
-            {t('login')}
-          </Link>
-        </p>
       </div>
     </div>
   );
