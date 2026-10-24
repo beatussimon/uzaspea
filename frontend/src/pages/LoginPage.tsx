@@ -125,7 +125,7 @@ const LoginPage: React.FC = () => {
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
       <div className="w-full max-w-[460px]">
         {/* The Card */}
-        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
+        <div className="card border-0 dark:border-0 hover:border-0 dark:hover:border-transparent shadow-none dark:bg-[#232323] p-6 sm:p-8 min-h-[410px] flex flex-col justify-between">
           <div>
             {/* Header Block (INSIDE the card) */}
             <div className="text-center mb-8 sm:mb-9">

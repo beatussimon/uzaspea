@@ -71,7 +71,7 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
           htmlFor={id}
           className={cn(
             'absolute left-3 px-1.5 transition-all duration-200 pointer-events-none rounded-sm select-none',
-            'bg-white dark:bg-[#141414]', // Notch mask matching the card background
+            'bg-white dark:bg-[#232323]', // Notch mask matching the card background
             isFloating
               ? '-top-2.5 text-xs font-medium z-10 ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
@@ -158,14 +158,14 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
           )}
           {...props}
         >
-          <option value="" disabled hidden className="bg-white dark:bg-[#141414] text-gray-400">
+          <option value="" disabled hidden className="bg-white dark:bg-[#232323] text-gray-400">
             {label}
           </option>
           {options.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="bg-white dark:bg-[#141414] text-gray-900 dark:text-white py-1"
+              className="bg-white dark:bg-[#232323] text-gray-900 dark:text-white py-1"
             >
               {opt.label}
             </option>
@@ -176,7 +176,7 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
           htmlFor={id}
           className={cn(
             'absolute left-3 px-1.5 transition-all duration-200 pointer-events-none rounded-sm select-none',
-            'bg-white dark:bg-[#141414]',
+            'bg-white dark:bg-[#232323]',
             isFloating
               ? '-top-2.5 text-xs font-medium z-10 ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
