@@ -31,7 +31,8 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
     const [showPassword, setShowPassword] = useState(false);
 
     const hasValue = value !== undefined && value !== null && String(value).length > 0;
-    const isFloating = isFocused || hasValue;
+    const isDate = type === 'date';
+    const isFloating = isFocused || hasValue || isDate;
     const isPassword = type === 'password';
     const resolvedType = isPassword && showPassword ? 'text' : type;
 

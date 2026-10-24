@@ -8,6 +8,7 @@ import {
   Eye, EyeOff, RefreshCw
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { FloatingInput } from '../components/ui/FloatingInput';
 
 interface TokenVerification {
   valid: boolean;
@@ -100,7 +101,7 @@ const ResetPasswordPage: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center py-16 px-4 min-h-[75vh]">
-      <div className="card w-full max-w-md p-6 sm:p-8 animate-fade-in space-y-6">
+      <div className="card border-0 dark:border-0 hover:border-0 shadow-none w-full max-w-md p-6 sm:p-8 animate-fade-in space-y-6">
         {/* Top Link */}
         <Link
           to="/login"
@@ -203,43 +204,30 @@ const ResetPasswordPage: React.FC = () => {
               </p>
             </div>
 
-            <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5 pt-2">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  {t('new_password', 'New Password')}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder={t('min_8_chars', 'Min. 8 characters')}
-                    className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4 pt-2">
+              <FloatingInput
+                id="newPassword"
+                type="password"
+                required
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                label={t('new_password', 'New Password')}
+                autoComplete="new-password"
+                showPasswordToggle
+              />
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  {t('confirm_new_password', 'Confirm New Password')}
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={t('retype_new_password', 'Re-type new password')}
-                  className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
-                />
-              </div>
+              <FloatingInput
+                id="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                label={t('confirm_new_password', 'Confirm New Password')}
+                autoComplete="new-password"
+                showPasswordToggle
+              />
 
               <Button
                 type="submit"

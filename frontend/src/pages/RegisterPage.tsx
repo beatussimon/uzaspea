@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
-import { FormField } from '../components/ui/Input';
+import { FloatingInput } from '../components/ui/FloatingInput';
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
@@ -180,7 +180,7 @@ const RegisterPage: React.FC = () => {
                   
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
+                      <FloatingInput
                         id="first_name"
                         name="first_name"
                         label={t('first_name')}
@@ -188,9 +188,9 @@ const RegisterPage: React.FC = () => {
                         required
                         value={formData.first_name}
                         onChange={handleChange}
-                        placeholder={t('first_name')}
+                        autoComplete="given-name"
                       />
-                      <FormField
+                      <FloatingInput
                         id="last_name"
                         name="last_name"
                         label={t('last_name')}
@@ -198,11 +198,11 @@ const RegisterPage: React.FC = () => {
                         required
                         value={formData.last_name}
                         onChange={handleChange}
-                        placeholder={t('last_name')}
+                        autoComplete="family-name"
                       />
                     </div>
                     
-                    <FormField
+                    <FloatingInput
                       id="date_of_birth"
                       name="date_of_birth"
                       label={t('dob', 'Date of Birth')}
@@ -275,7 +275,7 @@ const RegisterPage: React.FC = () => {
 
                   <form onSubmit={handleRegister} className="space-y-5">
                     <div>
-                      <FormField
+                      <FloatingInput
                         id="username"
                         name="username"
                         label={t('username')}
@@ -284,7 +284,7 @@ const RegisterPage: React.FC = () => {
                         minLength={3}
                         value={formData.username}
                         onChange={handleChange}
-                        placeholder={t('username')}
+                        autoComplete="username"
                       />
                       {usernameStatus.checking && (
                         <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
@@ -306,7 +306,7 @@ const RegisterPage: React.FC = () => {
                       )}
                     </div>
 
-                    <FormField
+                    <FloatingInput
                       id="email"
                       name="email"
                       label={t('email')}
@@ -314,61 +314,35 @@ const RegisterPage: React.FC = () => {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      placeholder="you@example.com"
+                      autoComplete="email"
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5 w-full">
-                        <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                          {t('password')}
-                        </label>
-                        <div className="relative w-full">
-                          <input
-                            id="password"
-                            type={showPassword ? 'text' : 'password'}
-                            name="password"
-                            required
-                            minLength={8}
-                            className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-dark-border dark:bg-[#111] dark:text-white pr-10"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="••••••••"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
-                          >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FloatingInput
+                        id="password"
+                        name="password"
+                        type="password"
+                        label={t('password')}
+                        required
+                        minLength={8}
+                        value={formData.password}
+                        onChange={handleChange}
+                        autoComplete="new-password"
+                        showPasswordToggle
+                      />
 
-                      <div className="flex flex-col gap-1.5 w-full">
-                        <label htmlFor="confirm_password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                          {t('confirm_password_label', 'Confirm Password')}
-                        </label>
-                        <div className="relative w-full">
-                          <input
-                            id="confirm_password"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            name="confirm_password"
-                            required
-                            minLength={8}
-                            className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-dark-border dark:bg-[#111] dark:text-white pr-10"
-                            value={formData.confirm_password}
-                            onChange={handleChange}
-                            placeholder="••••••••"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
-                          >
-                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
+                      <FloatingInput
+                        id="confirm_password"
+                        name="confirm_password"
+                        type="password"
+                        label={t('confirm_password_label', 'Confirm Password')}
+                        required
+                        minLength={8}
+                        value={formData.confirm_password}
+                        onChange={handleChange}
+                        autoComplete="new-password"
+                        showPasswordToggle
+                      />
                     </div>
 
                     <div className="flex items-start gap-3 pt-2">
