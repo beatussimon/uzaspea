@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import React, { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
@@ -78,8 +79,20 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
     if (currentIndex > 0) scrollToIndex(currentIndex - 1);
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col select-none" onClick={onClose}>
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 w-screen h-screen z-[99999] bg-black flex flex-col select-none m-0 p-0" 
+      style={{ top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100dvh', margin: 0, padding: 0 }}
+      onClick={onClose}
+    >
       {/* Top Left: Close (X) button & OKO Logo */}
       <div className="absolute top-4 left-4 z-50 flex items-center gap-2.5">
         <button
@@ -184,7 +197,8 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
           })}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
 
