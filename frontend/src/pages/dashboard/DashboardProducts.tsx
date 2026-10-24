@@ -3776,15 +3776,15 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-4">
             <thead>
-              <tr className="border-b-2 border-black text-black">
-                <th className="py-2 px-1.5 w-8 font-black">S/N</th>
-                <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
-                <th className="py-2 px-2 w-24 font-black">SKU/CODE</th>
-                <th className="py-2 px-2 w-24 font-black">CATEGORY</th>
-                <th className="py-2 px-2 w-24 font-black text-right">COST (TSH)</th>
-                <th className="py-2 px-2 w-24 font-black text-right">PRICE (TSH)</th>
-                <th className="py-2 px-2 w-32 font-black">QTY TIERS</th>
-                <th className="py-2 px-2 w-16 font-black text-right">STOCK</th>
+              <tr className="border-b border-gray-300 text-black">
+                <th className="py-2 px-1.5 w-8 font-bold">S/N</th>
+                <th className="py-2 px-2 w-auto font-bold">PRODUCT / VARIATION</th>
+                <th className="py-2 px-2 w-24 font-bold">SKU/CODE</th>
+                <th className="py-2 px-2 w-24 font-bold">CATEGORY</th>
+                <th className="py-2 px-2 w-24 font-bold text-right">COST (TSH)</th>
+                <th className="py-2 px-2 w-24 font-bold text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-32 font-bold">QTY TIERS</th>
+                <th className="py-2 px-2 w-16 font-bold text-right">STOCK</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -3826,7 +3826,7 @@ const DashboardProducts: React.FC = () => {
               ))}
             </tbody>
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
-              <tr className="border-t-2 border-black font-black" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="border-t border-gray-300 font-bold" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={4} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
                 <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
                   {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
@@ -3855,14 +3855,14 @@ const DashboardProducts: React.FC = () => {
           
           <table className="w-full text-left text-xs border-collapse table-fixed mt-3">
             <thead>
-              <tr className="border-b-2 border-black text-black">
-                <th className="py-2 px-1.5 w-8 font-black">S/N</th>
-                <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
-                <th className="py-2 px-2 w-24 font-black">CODE / SKU</th>
-                <th className="py-2 px-2 w-28 font-black">CATEGORY</th>
-                <th className="py-2 px-2 w-28 font-black text-right">PRICE (TSH)</th>
-                <th className="py-2 px-2 w-36 font-black">VOLUME / TIER PRICING</th>
-                <th className="py-2 px-2 w-24 font-black text-center">AVAILABILITY</th>
+              <tr className="border-b border-gray-300 text-black">
+                <th className="py-2 px-1.5 w-8 font-bold">S/N</th>
+                <th className="py-2 px-2 w-auto font-bold">PRODUCT / VARIATION</th>
+                <th className="py-2 px-2 w-24 font-bold">CODE / SKU</th>
+                <th className="py-2 px-2 w-28 font-bold">CATEGORY</th>
+                <th className="py-2 px-2 w-28 font-bold text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-36 font-bold">VOLUME / TIER PRICING</th>
+                <th className="py-2 px-2 w-24 font-bold text-center">AVAILABILITY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -3916,7 +3916,7 @@ const DashboardProducts: React.FC = () => {
               ))}
             </tbody>
             <tfoot className="table-row-group" style={{ display: 'table-row-group' }}>
-              <tr className="border-t-2 border-black text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr className="border-t border-gray-300 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={7} className="py-2.5 px-3 text-center text-gray-600 italic">
                   * Prices are in Tanzanian Shillings (TSh). Contact our store for custom orders, bulk orders, and delivery services.
                 </td>

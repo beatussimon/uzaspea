@@ -140,7 +140,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
           <div className="mb-4 overflow-hidden">
             <table className="w-full text-left text-xs border-collapse table-fixed">
               <thead>
-                <tr className="border-b-2 border-gray-300 text-gray-600 uppercase text-2xs font-extrabold tracking-wider">
+                <tr className="border-b border-gray-300 text-gray-600 uppercase text-2xs font-extrabold tracking-wider">
                   <th className="py-2 px-2 w-8">#</th>
                   <th className="py-2 px-2 w-auto">Item Description</th>
                   <th className="py-2 px-2 text-center w-12">Qty</th>
@@ -219,7 +219,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
                 <span>Items Subtotal</span>
                 <span className="font-bold text-black">TSh {itemsSubtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between py-1.5 border-t-2 border-gray-900 text-sm font-black text-black">
+              <div className="flex justify-between py-1.5 border-t border-gray-900 text-sm font-black text-black">
                 <span>Total Items Value</span>
                 <span className="text-base">TSh {itemsSubtotal.toLocaleString()}</span>
               </div>
