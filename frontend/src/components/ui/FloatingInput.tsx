@@ -53,13 +53,13 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
           }}
           placeholder=" "
           className={cn(
-            'peer w-full h-12 px-3.5 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-all duration-200',
-            'border text-gray-900 dark:text-white',
+            'peer w-full h-12 px-3.5 pt-3 pb-2 text-sm rounded-btn bg-transparent transition-colors duration-150',
+            'border text-gray-900 dark:text-white outline-none focus:outline-none focus:ring-0',
             isFocused
-              ? 'border-brand-500 ring-1 ring-brand-500 outline-none'
+              ? 'border-gray-400 dark:border-neutral-500'
               : error
-              ? 'border-red-500 ring-1 ring-red-500/20'
-              : 'border-surface-border dark:border-neutral-700 hover:border-gray-400 dark:hover:border-neutral-500',
+              ? 'border-red-500'
+              : 'border-surface-border dark:border-neutral-700 hover:border-gray-400 dark:hover:border-neutral-600',
             showPasswordToggle && 'pr-11',
             className
           )}
