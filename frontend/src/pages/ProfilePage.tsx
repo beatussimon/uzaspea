@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
@@ -24,6 +24,170 @@ import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { useMessages } from '../context/MessageContext';
 
+// ===== Showcase Fullscreen Image Lightbox (Matches Product Detail Image Lightbox) =====
+interface ShowcaseLightboxProps {
+  images: any[];
+  initialIndex: number;
+  onClose: () => void;
+}
+
+const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialIndex, onClose }) => {
+  const navigate = useNavigate();
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+      if (e.key === 'ArrowLeft' && currentIndex > 0) scrollToIndex(currentIndex - 1);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, images.length, onClose]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * currentIndex, behavior: 'auto' });
+    }
+  }, []);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const width = scrollRef.current.offsetWidth;
+    const index = Math.round(scrollLeft / width);
+    if (index !== currentIndex && index >= 0 && index < images.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const scrollToIndex = (index: number) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'smooth' });
+    setCurrentIndex(index);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col select-none" onClick={onClose}>
+      {/* Top Left: Close (X) button & OKO Logo */}
+      <div className="absolute top-4 left-4 z-50 flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
+          title="Close"
+          aria-label="Close fullscreen"
+        >
+          <X size={20} />
+        </button>
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/');
+          }}
+          className="flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 select-none focus:outline-none" 
+          title="Go to Homepage"
+        >
+          <img src="/logo.png" alt="OKO" className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-md select-none" />
+        </button>
+      </div>
+
+      {/* Center Image Container with Scroll-Snap */}
+      <div className="flex-1 relative w-full overflow-hidden flex items-center justify-center">
+        <div 
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {images.map((img: any, i: number) => {
+            const imgSrc = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
+            return (
+              <div key={img.id || i} className="flex-none w-full h-full snap-center flex items-center justify-center p-2 sm:p-4 md:p-12">
+                <img
+                  src={imgSrc}
+                  alt={`Store Showcase ${i + 1}`}
+                  className="max-w-full max-h-full object-contain drop-shadow-2xl select-none"
+                  draggable={false}
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {currentIndex > 0 && (
+          <button 
+            type="button"
+            onClick={handlePrev}
+            className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] cursor-pointer"
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={48} strokeWidth={2} />
+          </button>
+        )}
+
+        {currentIndex < images.length - 1 && (
+          <button 
+            type="button"
+            onClick={handleNext}
+            className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] cursor-pointer"
+            aria-label="Next image"
+          >
+            <ChevronRight size={48} strokeWidth={2} />
+          </button>
+        )}
+      </div>
+
+      {/* Bottom Thumbnail Strip */}
+      {images.length > 1 && (
+        <div 
+          className="flex h-14 bg-black/60 border-t border-white/10 items-center justify-center gap-1.5 px-3 overflow-x-auto no-scrollbar w-full pb-safe z-50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {images.map((img: any, i: number) => {
+            const imgSrc = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
+            return (
+              <button
+                key={img.id || i}
+                type="button"
+                onClick={() => scrollToIndex(i)}
+                className={`relative shrink-0 w-12 h-9 overflow-hidden rounded-sm border-0 ring-0 transition-all cursor-pointer ${
+                  currentIndex === i 
+                    ? 'opacity-100 scale-105 ring-1 ring-white' 
+                    : 'opacity-50 hover:opacity-90 scale-100'
+                }`}
+                title={`Thumbnail ${i + 1}`}
+              >
+                <img 
+                  src={imgSrc} 
+                  alt={`Thumbnail ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
@@ -47,53 +211,7 @@ const ProfilePage: React.FC = () => {
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [selectedLightboxIndex, setSelectedLightboxIndex] = useState<number | null>(null);
-  const [lightboxTouchStartX, setLightboxTouchStartX] = useState<number | null>(null);
-
   const storeImages = useMemo(() => profile?.store_images || [], [profile?.store_images]);
-  const hasMultipleImages = storeImages.length > 1;
-
-  const handlePrevLightbox = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (selectedLightboxIndex === null || storeImages.length <= 1) return;
-    setSelectedLightboxIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : storeImages.length - 1));
-  };
-
-  const handleNextLightbox = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (selectedLightboxIndex === null || storeImages.length <= 1) return;
-    setSelectedLightboxIndex((prev) => (prev !== null && prev < storeImages.length - 1 ? prev + 1 : 0));
-  };
-
-  useEffect(() => {
-    if (selectedLightboxIndex === null) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        setSelectedLightboxIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : storeImages.length - 1));
-      } else if (e.key === 'ArrowRight') {
-        setSelectedLightboxIndex((prev) => (prev !== null && prev < storeImages.length - 1 ? prev + 1 : 0));
-      } else if (e.key === 'Escape') {
-        setSelectedLightboxIndex(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedLightboxIndex, storeImages.length]);
-
-  const handleLightboxTouchStart = (e: React.TouchEvent) => {
-    setLightboxTouchStartX(e.touches[0].clientX);
-  };
-
-  const handleLightboxTouchEnd = (e: React.TouchEvent) => {
-    if (lightboxTouchStartX === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = lightboxTouchStartX - touchEndX;
-    if (diff > 50) {
-      handleNextLightbox();
-    } else if (diff < -50) {
-      handlePrevLightbox();
-    }
-    setLightboxTouchStartX(null);
-  };
 
   // Modal states for followers/following
   const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
@@ -1310,114 +1428,13 @@ const ProfilePage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Lightbox Modal */}
-      {selectedLightboxIndex !== null && storeImages[selectedLightboxIndex] && (
-        <div 
-          className="fixed inset-0 z-[100] bg-black w-full h-[100dvh] flex flex-col justify-between select-none p-0 sm:p-5"
-          onClick={() => setSelectedLightboxIndex(null)}
-          onTouchStart={handleLightboxTouchStart}
-          onTouchEnd={handleLightboxTouchEnd}
-        >
-          {/* Top Bar: Counter & Close */}
-          <div 
-            className="w-full max-w-5xl flex items-center justify-between px-4 pt-4 sm:pt-1 pb-2 z-20 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-white/90 bg-neutral-800/80 px-3 py-1 rounded-full tracking-wider border border-white/10">
-                {selectedLightboxIndex + 1} / {storeImages.length}
-              </span>
-            </div>
-
-            <button 
-              type="button"
-              className="p-2.5 bg-neutral-800/80 hover:bg-neutral-700 active:bg-neutral-600 text-white rounded-full transition-all cursor-pointer shadow-lg border border-white/10"
-              onClick={() => setSelectedLightboxIndex(null)}
-              title="Close (Esc)"
-              aria-label="Close lightbox"
-            >
-              <X size={20} strokeWidth={2.5} />
-            </button>
-          </div>
-
-          {/* Center Stage: Left Arrow, Main Image, Right Arrow */}
-          <div 
-            className="relative flex-1 w-full max-w-5xl flex items-center justify-center min-h-0 overflow-hidden my-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Left Chevron Button */}
-            {hasMultipleImages && (
-              <button 
-                type="button"
-                onClick={handlePrevLightbox}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-neutral-900/80 hover:bg-neutral-800 active:scale-95 text-white rounded-full transition-all shadow-2xl border border-white/15 cursor-pointer flex items-center justify-center"
-                title="Previous (Left Arrow)"
-                aria-label="Previous image"
-              >
-                <ChevronLeft size={24} className="sm:w-7 sm:h-7" strokeWidth={2.5} />
-              </button>
-            )}
-
-            {/* Main Image */}
-            <img 
-              key={storeImages[selectedLightboxIndex]?.id || selectedLightboxIndex}
-              src={
-                storeImages[selectedLightboxIndex]?.image?.startsWith('http') 
-                  ? storeImages[selectedLightboxIndex].image 
-                  : `${API_BASE_URL}${storeImages[selectedLightboxIndex].image}`
-              } 
-              alt="Store Showcase Preview" 
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-none sm:rounded-xl animate-scale-in" 
-            />
-
-            {/* Right Chevron Button */}
-            {hasMultipleImages && (
-              <button 
-                type="button"
-                onClick={handleNextLightbox}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 bg-neutral-900/80 hover:bg-neutral-800 active:scale-95 text-white rounded-full transition-all shadow-2xl border border-white/15 cursor-pointer flex items-center justify-center"
-                title="Next (Right Arrow)"
-                aria-label="Next image"
-              >
-                <ChevronRight size={24} className="sm:w-7 sm:h-7" strokeWidth={2.5} />
-              </button>
-            )}
-          </div>
-
-          {/* Bottom Thumbnail Strip */}
-          {hasMultipleImages && (
-            <div 
-              className="w-full max-w-2xl flex items-center justify-center px-4 py-3 sm:py-2 shrink-0 z-20 pb-safe"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-2 sm:gap-2.5 max-w-full overflow-x-auto no-scrollbar p-1">
-                {storeImages.map((item: any, idx: number) => {
-                  const isActive = idx === selectedLightboxIndex;
-                  const imgSrc = item.image.startsWith('http') ? item.image : `${API_BASE_URL}${item.image}`;
-                  return (
-                    <button
-                      key={item.id || idx}
-                      type="button"
-                      onClick={() => setSelectedLightboxIndex(idx)}
-                      className={`relative aspect-square w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden shrink-0 transition-all duration-200 cursor-pointer ${
-                        isActive 
-                          ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-105 opacity-100 shadow-md' 
-                          : 'opacity-40 hover:opacity-85 hover:scale-100'
-                      }`}
-                      title={`View picture ${idx + 1}`}
-                    >
-                      <img 
-                        src={imgSrc} 
-                        alt={`Thumbnail ${idx + 1}`} 
-                        className="w-full h-full object-cover select-none pointer-events-none" 
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Lightbox Modal (Matches Product Detail Image Lightbox) */}
+      {selectedLightboxIndex !== null && storeImages.length > 0 && (
+        <ShowcaseLightbox
+          images={storeImages}
+          initialIndex={selectedLightboxIndex}
+          onClose={() => setSelectedLightboxIndex(null)}
+        />
       )}
 
       {/* Follow List Modal */}
