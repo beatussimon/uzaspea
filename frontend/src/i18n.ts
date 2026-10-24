@@ -21,6 +21,33 @@ i18n
     nonExplicitSupportedLngs: true,
     load: 'languageOnly',
     fallbackLng: 'en',
+    resources: {
+      en: {
+        translation: {
+          home: 'Home',
+          products_nav: 'Products',
+          help: 'Help',
+          sell: 'Sell',
+          login: 'Login',
+          search: 'Search',
+          light_mode: 'Light Mode',
+          dark_mode: 'Dark Mode',
+          renew_plan: 'Renew Plan',
+          all_sellers_verified: 'All sellers on this platform are verified',
+        }
+      },
+      sw: {
+        translation: {
+          home: 'Nyumbani',
+          products_nav: 'Bidhaa',
+          help: 'Msaada',
+          sell: 'Uza',
+          login: 'Ingia',
+          search: 'Tafuta',
+        }
+      }
+    },
+    partialBundledLanguages: true,
     backend: {
       loadPath: '/locales/{{lng}}/translation.json',
     },

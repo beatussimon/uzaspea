@@ -54,6 +54,17 @@
 
           if (isHome) {
             root.classList.add('is-home');
+            var lang = localStorage.getItem('uzaspea_language');
+            if (lang === 'sw') {
+              document.addEventListener('DOMContentLoaded', function() {
+                var links = document.querySelectorAll('.hnav-link');
+                if (links[0]) links[0].childNodes[0].nodeValue = 'Nyumbani ';
+                if (links[1]) links[1].textContent = 'Bidhaa';
+                if (links[2]) links[2].textContent = 'Msaada';
+                var loginBtn = document.querySelector('.hnav-login-btn');
+                if (loginBtn) loginBtn.textContent = 'Ingia';
+              });
+            }
           }
         } catch (e) {}
       })();
@@ -131,23 +142,50 @@
         50% { opacity: 0.25; }
       }
 
-      /* Left items: Hidden on mobile (<768px), matching Navbar.tsx hidden md:inline-flex */
+      /* Left items: Real links with exact typography and spacing (zero glitch) */
       .hnav-left {
         display: none;
         align-items: center;
         gap: 14px;
         flex: 1;
         max-width: calc(50% - 80px);
+        padding-left: 8px;
       }
       @media (min-width: 768px) {
         .hnav-left {
           display: flex;
+          padding-left: 16px;
+        }
+      }
+      @media (min-width: 1024px) {
+        .hnav-left {
+          gap: 20px;
+          padding-left: 32px;
         }
       }
 
-      .hnav-pill-sm {
-        width: 52px;
-        height: 24px;
+      .hnav-link {
+        position: relative;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 4px 0;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .hnav-link.hnav-active {
+        color: #ffffff;
+      }
+      .hnav-indicator {
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        border-radius: 9999px;
+        background-color: #ffffff;
       }
 
       /* Center Logo: Exact match for mobile h-14 (56px) and desktop md:h-16 (64px) */
@@ -173,26 +211,30 @@
         }
       }
 
-      /* Right items: 2 circular buttons on mobile, extra actions on desktop */
+      /* Right items: Search, theme and clean Login button */
       .hnav-right {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 4px; /* gap-1 on mobile */
+        gap: 8px;
         flex: 1;
         max-width: calc(50% - 80px);
         z-index: 10;
       }
       @media (min-width: 1024px) {
         .hnav-right {
-          gap: 8px; /* gap-2 on lg */
           max-width: 380px;
         }
       }
 
-      .hnav-circle {
+      .hnav-icon-btn {
         width: 36px;
         height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        color: rgba(255, 255, 255, 0.85);
       }
 
       .hnav-desktop-only {
@@ -200,13 +242,28 @@
       }
       @media (min-width: 1024px) {
         .hnav-desktop-only {
-          display: block;
+          display: flex;
         }
       }
 
-      .hnav-pill-btn {
-        width: 68px;
-        height: 32px;
+      .hnav-login-btn {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 20px;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        border-radius: 12px;
+        background-color: #ffffff;
+        color: #111827;
+        line-height: 20px;
+        white-space: nowrap;
+      }
+      @media (min-width: 1024px) {
+        .hnav-login-btn {
+          display: inline-flex;
+        }
       }
     </style>
   </head>
@@ -215,20 +272,24 @@
       <div id="home-nav-skeleton">
         <div class="hnav-container">
           <div class="hnav-left">
-            <div class="hnav-pulse hnav-pill-sm"></div>
-            <div class="hnav-pulse hnav-pill-sm"></div>
+            <span class="hnav-link hnav-active">
+              Home
+              <span class="hnav-indicator"></span>
+            </span>
+            <span class="hnav-link">Products</span>
+            <span class="hnav-link">Help</span>
           </div>
           <div class="hnav-center">
             <img src="/logo_dark.png" alt="SokoniMax" class="hnav-logo" />
           </div>
           <div class="hnav-right">
-            <!-- Mobile and desktop right action placeholders (Search & Notifications) -->
-            <div class="hnav-pulse hnav-circle"></div>
-            <div class="hnav-pulse hnav-circle"></div>
-            <!-- Desktop only actions -->
-            <div class="hnav-pulse hnav-circle hnav-desktop-only"></div>
-            <div class="hnav-pulse hnav-circle hnav-desktop-only"></div>
-            <div class="hnav-pulse hnav-pill-btn hnav-desktop-only"></div>
+            <div class="hnav-icon-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            </div>
+            <div class="hnav-icon-btn hnav-desktop-only">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+            </div>
+            <div class="hnav-login-btn hnav-desktop-only">Login</div>
           </div>
         </div>
       </div>
