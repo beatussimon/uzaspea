@@ -211,11 +211,9 @@ class ReferenceProduct(models.Model):
                 if not ReferenceProduct.objects.filter(public_id=candidate).exists():
                     self.public_id = candidate
                     break
-        if not self.slug:
-            from django.utils.text import slugify
-            brand_name = self.brand.name if getattr(self, 'brand', None) else ""
-            base = slugify(f"{brand_name} {self.name}".strip()) or "ref-product"
-            self.slug = base
+        from django.utils.text import slugify
+        brand_name = self.brand.name if getattr(self, 'brand', None) else ""
+        self.slug = slugify(f"{brand_name} {self.name}".strip()) or "ref-product"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -394,10 +392,8 @@ class Product(models.Model):
                 if not Product.objects.filter(public_id=candidate).exists():
                     self.public_id = candidate
                     break
-        if not self.slug:
-            from django.utils.text import slugify
-            base = slugify(self.name) or "product"
-            self.slug = base
+        from django.utils.text import slugify
+        self.slug = slugify(self.name) or "product"
         # Handle draft state vs published availability
         if self.is_draft:
             self.is_available = False

@@ -81,7 +81,7 @@ class SeoRenderView(APIView):
     def render_product(self, slug, raw_path):
         import re
         from django.http import HttpResponsePermanentRedirect
-        PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-zA-Z]{12})$")
+        PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>.*)-)?(?P<public_id>[0-9a-zA-Z]{12})$")
 
         qs = Product.objects.filter(
             is_available=True, 
