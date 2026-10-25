@@ -201,9 +201,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
             )}
             
             <div className="border-t border-dashed border-gray-400 mt-3 pt-4 text-center">
-              <p className="text-[10px] font-bold mb-3">Scan to visit our store!</p>
+              <p className="text-[10px] font-bold mb-3">Scan to verify receipt & authenticity</p>
               <div className="flex justify-center">
-                <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/orders?highlight=${order.id}`} size={64} level="L" />
+                <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/verify/invoice/${order.id}`} size={64} level="L" />
               </div>
               <p className="text-[9px] mt-2 text-gray-500">Thank you for shopping with us.</p>
               <p className="text-[9px] text-gray-500">{typeof window !== 'undefined' ? window.location.host : ''}/{user?.username || ''}</p>

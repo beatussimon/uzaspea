@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { SiFacebook, SiX, SiInstagram, SiYoutube, SiRumble, SiKick } from 'react-icons/si';
 import api from '../../api';
 import { useUserRoles } from '../../context/AuthContext';
 
@@ -76,19 +77,67 @@ const Footer = () => {
           {/* Column 4: Stay Connected */}
           <div className="col-span-2 md:col-span-1 flex flex-col items-center md:items-start justify-center md:justify-start gap-2">
             <h5 className="font-bold text-gray-900 dark:text-white text-sm">{t('stay_connected', 'Stay Connected')}</h5>
-            <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-              {settings.facebook_url && (
-                <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 bg-neutral-100  dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded text-gray-500 hover:text-brand-500 transition text-xs font-semibold">Facebook</a>
-              )}
-              {settings.twitter_url && (
-                <a href={settings.twitter_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 bg-neutral-100  dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded text-gray-500 hover:text-brand-500 transition text-xs font-semibold">Twitter</a>
-              )}
-              {settings.instagram_url && (
-                <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 bg-neutral-100  dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded text-gray-500 hover:text-brand-500 transition text-xs font-semibold">Instagram</a>
-              )}
-              {!settings.facebook_url && !settings.twitter_url && !settings.instagram_url && (
-                <p className="text-xs text-gray-400">{t('social_coming_soon', 'Social channels coming soon')}</p>
-              )}
+            <div className="flex flex-wrap gap-2 items-center justify-center md:justify-start pt-1">
+              <a
+                href={settings.facebook_url || 'https://facebook.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-[#1877F2] text-white flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="Facebook"
+                aria-label="Facebook"
+              >
+                <SiFacebook size={18} />
+              </a>
+              <a
+                href={settings.twitter_url || 'https://x.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-white text-black border border-gray-200 dark:border-neutral-700 flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="X"
+                aria-label="X"
+              >
+                <SiX size={15} />
+              </a>
+              <a
+                href={settings.instagram_url || 'https://instagram.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="Instagram"
+                aria-label="Instagram"
+              >
+                <SiInstagram size={18} />
+              </a>
+              <a
+                href={settings.youtube_url || 'https://youtube.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-[#FF0000] text-white flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="YouTube"
+                aria-label="YouTube"
+              >
+                <SiYoutube size={18} />
+              </a>
+              <a
+                href={settings.rumble_url || 'https://rumble.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-[#85c742] text-white flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="Rumble"
+                aria-label="Rumble"
+              >
+                <SiRumble size={17} />
+              </a>
+              <a
+                href={settings.kick_url || 'https://kick.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-[#53FC18] text-black flex items-center justify-center hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-xs"
+                title="Kick"
+                aria-label="Kick"
+              >
+                <SiKick size={16} />
+              </a>
             </div>
             
             {/* Payment badge mockup */}

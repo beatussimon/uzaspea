@@ -1027,6 +1027,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     variant_name = serializers.CharField(source='variant.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
+    seller_name = serializers.SerializerMethodField()
+    seller_store_name = serializers.SerializerMethodField()
     requires_quote = serializers.BooleanField(source='product.requires_quote', read_only=True)
     catalog_price = serializers.SerializerMethodField()
     has_review = serializers.SerializerMethodField()
@@ -1034,8 +1036,33 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
+        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'seller_name', 'seller_store_name', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
         read_only_fields = ['price']
+
+    def get_seller_name(self, obj):
+        try:
+            seller = obj.product.seller if obj.product else None
+            if seller:
+                fn = f"{seller.first_name} {seller.last_name}".strip()
+                if fn:
+                    return fn
+        except Exception:
+            pass
+        return ''
+
+    def get_seller_store_name(self, obj):
+        try:
+            seller = obj.product.seller if obj.product else None
+            if seller:
+                app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
+                if app and app.business_name:
+                    return app.business_name
+                site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
+                if site_visit and site_visit.business_name:
+                    return site_visit.business_name
+        except Exception:
+            pass
+        return ''
 
     def get_catalog_price(self, obj):
         try:
@@ -1277,6 +1304,11 @@ class OrderSerializer(serializers.ModelSerializer):
     timeline_events = TrackingEventSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     buyer_username = serializers.CharField(source='user.username', read_only=True)
+    buyer_full_name = serializers.SerializerMethodField()
+    seller_username = serializers.SerializerMethodField()
+    seller_name = serializers.SerializerMethodField()
+    seller_store_name = serializers.SerializerMethodField()
+    verification_token = serializers.SerializerMethodField()
     seller_subtotal = serializers.SerializerMethodField()
     delivery_code = serializers.SerializerMethodField()
     shipments = serializers.SerializerMethodField()
@@ -1295,7 +1327,8 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
+            'id', 'user', 'buyer_username', 'buyer_full_name', 'seller_username', 'seller_name', 'seller_store_name', 'verification_token',
+            'order_date', 'total_amount', 'status',
             'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'delivery_latitude', 'delivery_longitude',
             'fulfillment_location', 'fulfillment_location_name',
@@ -1416,6 +1449,62 @@ class OrderSerializer(serializers.ModelSerializer):
             'tracking_number': tracking_number,
         }
 
+    def get_buyer_full_name(self, obj):
+        try:
+            if obj.user:
+                fn = f"{obj.user.first_name} {obj.user.last_name}".strip()
+                if fn:
+                    return fn
+            d_info = obj.delivery_info if isinstance(obj.delivery_info, dict) else {}
+            return d_info.get('full_name') or d_info.get('contact_name') or ''
+        except Exception:
+            return ''
+
+    def get_seller_username(self, obj):
+        try:
+            for item in obj.orderitem_set.all():
+                if item.product and item.product.seller:
+                    return item.product.seller.username
+        except Exception:
+            pass
+        return ''
+
+    def get_seller_name(self, obj):
+        try:
+            for item in obj.orderitem_set.all():
+                if item.product and item.product.seller:
+                    seller = item.product.seller
+                    fn = f"{seller.first_name} {seller.last_name}".strip()
+                    if fn:
+                        return fn
+        except Exception:
+            pass
+        return ''
+
+    def get_seller_store_name(self, obj):
+        try:
+            for item in obj.orderitem_set.all():
+                if item.product and item.product.seller:
+                    seller = item.product.seller
+                    app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
+                    if app and app.business_name:
+                        return app.business_name
+                    site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
+                    if site_visit and site_visit.business_name:
+                        return site_visit.business_name
+        except Exception:
+            pass
+        return ''
+
+    def get_verification_token(self, obj):
+        try:
+            import hashlib
+            from django.conf import settings
+            raw = f"invoice:{obj.id}:{obj.order_date.isoformat() if obj.order_date else ''}:{settings.SECRET_KEY[:16]}"
+            return hashlib.sha256(raw.encode()).hexdigest()[:16]
+        except Exception:
+            return ''
+
     def get_buyer_contact(self, obj):
         try:
             profile = getattr(obj.user, 'profile', None)
@@ -1434,10 +1523,16 @@ class OrderSerializer(serializers.ModelSerializer):
             if seller and seller.id not in seen:
                 seen.add(seller.id)
                 profile = getattr(seller, 'profile', None)
+                app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
+                store_name = app.business_name if (app and app.business_name) else (getattr(profile, 'business_name', '') or '')
+                if not store_name:
+                    site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
+                    store_name = site_visit.business_name if (site_visit and site_visit.business_name) else ''
                 contacts.append({
                     'username': seller.username,
                     'phone': profile.phone_number if profile else '',
-                    'full_name': f"{seller.first_name} {seller.last_name}".strip()
+                    'full_name': f"{seller.first_name} {seller.last_name}".strip(),
+                    'store_name': store_name,
                 })
         return contacts
 
@@ -2194,6 +2289,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
         fields = ['company_name', 'tagline', 'support_email', 'support_phone',
                   'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
                   'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url',
+                  'rumble_url', 'kick_url',
                   'working_hours', 'for_you_image', 'home_light_bg_image', 'home_dark_bg_image']
 
     def to_internal_value(self, data):
@@ -2205,6 +2301,8 @@ class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
             'tiktok_url': 'https://tiktok.com/@',
             'linkedin_url': 'https://linkedin.com/company/',
             'youtube_url': 'https://youtube.com/@',
+            'rumble_url': 'https://rumble.com/c/',
+            'kick_url': 'https://kick.com/',
         }
         for field, prefix in social_map.items():
             val = data.get(field)

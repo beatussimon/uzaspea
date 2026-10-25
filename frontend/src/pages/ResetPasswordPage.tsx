@@ -33,6 +33,12 @@ const ResetPasswordPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const isResetValid = Boolean(
+    newPassword.length >= 8 &&
+    confirmPassword.length >= 8 &&
+    newPassword === confirmPassword
+  );
+
   useEffect(() => {
     if (!token) {
       setVerifying(false);
@@ -219,6 +225,7 @@ const ResetPasswordPage: React.FC = () => {
               <Button
                 type="submit"
                 loading={submitting}
+                disabled={!isResetValid || submitting}
                 className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
               >
                 {t('save_new_password', 'Save New Password')}

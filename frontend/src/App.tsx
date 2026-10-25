@@ -54,6 +54,7 @@ import ShipmentTrackingPage from './pages/ShipmentTrackingPage';
 import HelpCenterPage from './pages/dashboard/HelpCenterPage';
 import BlogPlaceholderPage from './pages/BlogPlaceholderPage';
 import PublicVerifyPage from './pages/inspections/PublicVerifyPage';
+import PublicInvoiceVerifyPage from './pages/invoices/PublicInvoiceVerifyPage';
 import TermsAndConditionsPage from './pages/legal/TermsAndConditionsPage';
 import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
 import SellerContractPage from './pages/legal/SellerContractPage';
@@ -122,6 +123,8 @@ function AppRoutes() {
         <Route path="/inspections/*" element={<ProtectedRoute><InspectionLayout /></ProtectedRoute>} />
         <Route path="/inspector/*" element={<ProtectedRoute requireInspector><InspectorLayout /></ProtectedRoute>} />
         <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
+        <Route path="/verify/invoice/:order_id" element={<PublicInvoiceVerifyPage />} />
+        <Route path="/invoices/verify/:order_id" element={<PublicInvoiceVerifyPage />} />
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/faq" element={<HelpCenterPage />} />
         <Route path="/blog" element={<BlogPlaceholderPage />} />

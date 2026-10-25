@@ -19,7 +19,8 @@ from .api_views import (
     VehicleMakeViewSet, VehicleModelViewSet, VehicleViewSet,
     BrandViewSet, ReferenceProductViewSet,
     ReservedUsernameStaffViewSet, CheckUsernameView,
-    StoreLocationViewSet, LocationStockViewSet, RegisterSessionViewSet, StockTransferViewSet
+    StoreLocationViewSet, LocationStockViewSet, RegisterSessionViewSet, StockTransferViewSet,
+    PublicInvoiceVerifyView
 )
 
 from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
@@ -100,6 +101,8 @@ urlpatterns = [
     path('api/locations/regions/', tanzania_regions, name='tanzania-regions'),
     path('api/locations/search/', geocode_search, name='locations-search'),
     path('api/team-role-presets/', TeamRolePresetsView.as_view(), name='team-role-presets'),
+    path('api/invoices/verify/<int:order_id>/', PublicInvoiceVerifyView.as_view(), name='public-invoice-verify'),
+    path('api/orders/public-verify/<int:order_id>/', PublicInvoiceVerifyView.as_view(), name='public-order-verify'),
     path('api/push/subscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-subscribe'),
     path('api/push/unsubscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-unsubscribe'),
     path('api/push/vapid-key/', __import__('marketplace.api_views').api_views.PushVapidKeyView.as_view(), name='push-vapid-key'),
