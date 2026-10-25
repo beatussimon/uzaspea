@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from staff.api_urls import api_urlpatterns as staff_api_urlpatterns
 from django.contrib.sitemaps.views import sitemap
 from django.views.decorators.cache import cache_page
-from marketplace.sitemaps import StaticViewSitemap, CategorySitemap, ProductSitemap, SellerSitemap
+from marketplace.sitemaps import StaticViewSitemap, CategorySitemap, ProductSitemap, SellerSitemap, BrandSitemap
 from marketplace.views_seo import SeoRenderView
 from django.http import HttpResponse, JsonResponse
 from django.db import connection
@@ -15,6 +15,7 @@ import time
 sitemaps = {
     'static': StaticViewSitemap,
     'categories': CategorySitemap,
+    'brands': BrandSitemap,
     'products': ProductSitemap,
     'sellers': SellerSitemap,
 }
@@ -50,6 +51,7 @@ def robots_txt(request):
         "Allow: /",
         "Allow: /products$",
         "Allow: /products?category=*",
+        "Allow: /products?brand=*",
         "Allow: /product/*",
         "Allow: /media/*",
         "Allow: /help",

@@ -1,6 +1,7 @@
 export interface ProductAttachment {
   id: number;
   slug?: string;
+  url_slug?: string;
   title: string;
   price?: string | number;
   currency?: string;

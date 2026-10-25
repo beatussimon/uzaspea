@@ -205,12 +205,16 @@ class SeoRenderView(APIView):
             "itemListElement": breadcrumbs
         }
 
+        parent_crumb_html = ""
+        if product.category.parent:
+            parent_crumb_html = f'<a href="/products?category={product.category.parent.slug}">{escape(product.category.parent.name)}</a> &gt; '
+
         # Semantic HTML Body fallback for crawlers & non-JS readers
         body_content = f"""
         <article itemscope itemtype="https://schema.org/Product" style="max-width: 800px; margin: 40px auto; font-family: system-ui, sans-serif; padding: 0 16px;">
             <nav aria-label="Breadcrumb" style="margin-bottom: 20px; font-size: 14px; color: #666;">
                 <a href="/">Home</a> &gt; <a href="/products">Products</a> &gt; 
-                <a href="/products?category={product.category.slug}">{escape(product.category.name)}</a> &gt; 
+                {parent_crumb_html}<a href="/products?category={product.category.slug}">{escape(product.category.name)}</a> &gt; 
                 <span>{escape(product.name)}</span>
             </nav>
             <h1 itemprop="name" style="font-size: 28px; margin-bottom: 8px;">{escape(product.name)}</h1>
@@ -268,7 +272,12 @@ class SeoRenderView(APIView):
         from urllib.parse import parse_qs
         params = parse_qs(query_string)
         cat_slug = params.get('category', [''])[0]
+        brand_slug = params.get('brand', [''])[0]
         q_term = params.get('q', [''])[0]
+
+        qs = Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False)
+        cat = None
+        brand = None
 
         if q_term:
             # Internal search results page: noindex, follow to preserve crawl budget
@@ -283,14 +292,26 @@ class SeoRenderView(APIView):
             desc = f"Explore genuine {cat_name} for sale in Tanzania on {SITE_NAME}. Verified sellers, fair prices, and direct contact."
             canonical = f"{SITE_URL}/products?category={cat_slug}"
             robots = "index, follow"
+            if cat:
+                qs = qs.filter(category__in=cat.get_descendants(include_self=True))
+        elif brand_slug:
+            from marketplace.models import Brand
+            brand = Brand.objects.filter(slug=brand_slug, is_active=True).first()
+            brand_name = brand.name if brand else brand_slug.title()
+            title = f"Buy {brand_name} Products & Parts in Tanzania | {SITE_NAME}"
+            desc = f"Explore genuine {brand_name} products, spare parts, and items for sale in Tanzania on {SITE_NAME}. Verified sellers and fast delivery."
+            canonical = f"{SITE_URL}/products?brand={brand_slug}"
+            robots = "index, follow"
+            if brand:
+                qs = qs.filter(brand=brand)
         else:
             title = f"Browse Products | {SITE_NAME} Tanzania"
             desc = "Find spare parts, electronics, vehicles, and items from verified sellers across Tanzania."
             canonical = f"{SITE_URL}/products"
             robots = "index, follow"
 
-        # Fetch top 12 featured products for crawler discovery
-        products = Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False).order_by('-created_at')[:12]
+        # Fetch top featured products for crawler discovery
+        products = qs.order_by('-created_at')[:16]
         links_html = "".join([
             f'<li><a href="/product/{p.url_slug}">{escape(p.name)} - TSh {format_tzs(p.price)}</a></li>'
             for p in products

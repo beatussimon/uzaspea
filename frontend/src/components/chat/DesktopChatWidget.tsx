@@ -605,7 +605,7 @@ export const DesktopChatWidget: React.FC = () => {
                               {/* Attached Product Preview Card */}
                               {parsed.product && (
                                 <div
-                                  onClick={() => navigate(`/product/${parsed.product?.id}`)}
+                                  onClick={() => navigate(`/product/${parsed.product?.url_slug || parsed.product?.slug || parsed.product?.id}`)}
                                   className="cursor-pointer group max-w-full bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
                                 >
                                   <div className="flex items-center gap-2.5 p-2">
