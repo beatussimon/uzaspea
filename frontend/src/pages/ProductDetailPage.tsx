@@ -707,6 +707,8 @@ const ProductDetailPage: React.FC = () => {
         const messagePayload = createProductInquiryPayload({
           id: product.id,
           slug: product.slug,
+          url_slug: product.url_slug,
+          public_id: product.public_id,
           name: product.name,
           price: product.price,
           currency: (product as any).currency || 'TZS',

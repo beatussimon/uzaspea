@@ -836,7 +836,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                                 notification_type='order',
                                 title="Requested Item Now in Stock!",
                                 message=f"Good news! '{pr.name}' requested from @{seller.username} is now available.",
-                                link=f"/products/{product.slug}"
+                                link=f"/product/{product.url_slug}"
                             )
             except ProductRequest.DoesNotExist:
                 pass

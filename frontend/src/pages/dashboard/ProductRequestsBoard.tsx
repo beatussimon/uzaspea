@@ -1214,7 +1214,7 @@ const ProductRequestsBoard: React.FC = () => {
                                 </span>
                               ) : req.fulfilled_product_slug ? (
                                 <a
-                                  href={`/products/${req.fulfilled_product_slug}`}
+                                  href={`/product/${req.fulfilled_product_slug}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
