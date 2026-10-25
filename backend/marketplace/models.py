@@ -1452,6 +1452,8 @@ class SiteSettings(models.Model):
     tiktok_url = models.URLField(blank=True)
     linkedin_url = models.URLField(blank=True)
     youtube_url = models.URLField(blank=True)
+    rumble_url = models.URLField(blank=True)
+    kick_url = models.URLField(blank=True)
     working_hours = models.CharField(max_length=100, blank=True, default='Mon–Fri 8am–6pm EAT')
     commission_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('10.00'),

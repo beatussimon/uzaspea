@@ -6,7 +6,7 @@ import {
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
   CheckCircle, Plus, Package, Search, Clock, MessageSquare,
-  Phone, ExternalLink, ChevronLeft, ChevronRight, X
+  Phone, Navigation, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -402,7 +402,13 @@ const ProfilePage: React.FC = () => {
     if (profile && !isSellerProfile) {
       setActiveTab('about');
     }
-  }, [profile, isSellerProfile]);
+    if (profile && username) {
+      const count = (isSellerProfile ? 2 : 1) + (showDemandsTab ? 1 : 0) + (branches.length > 0 ? 1 : 0);
+      try {
+        sessionStorage.setItem(`profile_tab_count_${username.toLowerCase()}`, String(count));
+      } catch {}
+    }
+  }, [profile, username, isSellerProfile, showDemandsTab, branches.length]);
 
   const handleFollow = async () => {
       const action = followStatus.following ? 'unfollow' : 'follow';
@@ -531,7 +537,7 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const ProfileSkeleton = () => (
+  const ProfileSkeleton: React.FC<{ expectedTabs?: number }> = ({ expectedTabs = 3 }) => (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-12 animate-pulse">
       {/* Header Skeleton — Centered on mobile, Left on desktop */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-16 pb-8 sm:pb-10">
@@ -588,12 +594,22 @@ const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs Skeleton — Centered */}
+      {/* Navigation Tabs Skeleton — Well-contained for 2, 3, or 4 tabs */}
       <div className="space-y-6">
-        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4 pb-3">
-          <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
-          <div className="h-5 w-24 bg-gray-200 dark:bg-neutral-800 rounded-md" />
-          <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+        <div className="w-full max-w-full overflow-x-auto hide-scrollbar">
+          <div className="flex items-center justify-center min-w-max mx-auto gap-3 sm:gap-6 md:gap-10 px-3 sm:px-4 pb-3">
+            {Array.from({ length: expectedTabs }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-5 bg-gray-200 dark:bg-neutral-800 rounded-md shrink-0 ${
+                  i === 0 ? 'w-16 sm:w-20' :
+                  i === 1 ? 'w-24 sm:w-32' :
+                  i === 2 ? 'w-14 sm:w-16' :
+                  'w-20 sm:w-28'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Quick Filter Pills Skeleton */}
@@ -614,8 +630,18 @@ const ProfilePage: React.FC = () => {
     </div>
   );
 
+  const cachedTabs = useMemo(() => {
+    if (!username) return 4;
+    const stored = localStorage.getItem(`profile_tab_count_${username.toLowerCase()}`) || sessionStorage.getItem(`profile_tab_count_${username.toLowerCase()}`);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= 2 && parsed <= 4) return parsed;
+    }
+    return 4;
+  }, [username]);
+
   if (loading && !profile) {
-    return <ProfileSkeleton />;
+    return <ProfileSkeleton expectedTabs={cachedTabs} />;
   }
 
   if (!profile) {
@@ -785,40 +811,21 @@ const ProfilePage: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="space-y-6">
         
-        {/* Navigation menu items centered across all screens */}
+        {/* Navigation menu items centered across all screens with mobile containment */}
         {isSellerProfile ? (
-          <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4">
-            <button
-              onClick={() => setActiveTab('listings')}
-              className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                activeTab === 'listings' 
-                  ? 'text-black dark:text-white font-black' 
-                  : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
-              }`}
-            >
-              <ShoppingBag size={15} className="shrink-0" />
-              <span>{t('listings_tab', 'Listings')}</span>
-              {activeTab === 'listings' && (
-                <motion.div
-                  layoutId="profile-nav-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-            </button>
-
-            {showDemandsTab && (
+          <div className="w-full max-w-full overflow-x-auto hide-scrollbar">
+            <div className="flex items-center justify-center min-w-max mx-auto gap-3 sm:gap-6 md:gap-10 px-3 sm:px-4">
               <button
-                onClick={() => setActiveTab('demands')}
-                className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                  activeTab === 'demands' 
+                onClick={() => setActiveTab('listings')}
+                className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                  activeTab === 'listings' 
                     ? 'text-black dark:text-white font-black' 
                     : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
                 }`}
               >
-                <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
-                <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
-                {activeTab === 'demands' && (
+                <ShoppingBag size={14} className="shrink-0" />
+                <span>{t('listings_tab', 'Listings')}</span>
+                {activeTab === 'listings' && (
                   <motion.div
                     layoutId="profile-nav-indicator"
                     className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
@@ -826,39 +833,39 @@ const ProfilePage: React.FC = () => {
                   />
                 )}
               </button>
-            )}
 
-            <button
-              onClick={() => setActiveTab('about')}
-              className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                activeTab === 'about' 
-                  ? 'text-black dark:text-white font-black' 
-                  : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
-              }`}
-            >
-              <Info size={15} className="shrink-0" />
-              <span>{t('about', 'About')}</span>
-              {activeTab === 'about' && (
-                <motion.div
-                  layoutId="profile-nav-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
+              {showDemandsTab && (
+                <button
+                  onClick={() => setActiveTab('demands')}
+                  className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                    activeTab === 'demands' 
+                      ? 'text-black dark:text-white font-black' 
+                      : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+                  }`}
+                >
+                  <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+                  <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
+                  {activeTab === 'demands' && (
+                    <motion.div
+                      layoutId="profile-nav-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </button>
               )}
-            </button>
 
-            {branches.length > 0 && (
               <button
-                onClick={() => setActiveTab('branches')}
-                className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                  activeTab === 'branches' 
+                onClick={() => setActiveTab('about')}
+                className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                  activeTab === 'about' 
                     ? 'text-black dark:text-white font-black' 
                     : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
                 }`}
               >
-                <MapPin size={15} className="shrink-0" />
-                <span>Our Branches ({branches.length})</span>
-                {activeTab === 'branches' && (
+                <Info size={14} className="shrink-0" />
+                <span>{t('about', 'About')}</span>
+                {activeTab === 'about' && (
                   <motion.div
                     layoutId="profile-nav-indicator"
                     className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
@@ -866,7 +873,29 @@ const ProfilePage: React.FC = () => {
                   />
                 )}
               </button>
-            )}
+
+              {branches.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('branches')}
+                  className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                    activeTab === 'branches' 
+                      ? 'text-black dark:text-white font-black' 
+                      : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+                  }`}
+                >
+                  <MapPin size={14} className="shrink-0" />
+                  <span className="hidden sm:inline">Our Branches ({branches.length})</span>
+                  <span className="sm:hidden">Branches ({branches.length})</span>
+                  {activeTab === 'branches' && (
+                    <motion.div
+                      layoutId="profile-nav-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-6 px-4">
@@ -1256,38 +1285,39 @@ const ProfilePage: React.FC = () => {
 
         {/* Branches Tab Content */}
         {isSellerProfile && activeTab === 'branches' && (
-          <div className="pt-2 max-w-4xl mx-auto px-4 sm:px-0 space-y-3 sm:space-y-4">
+          <div className="pt-2 max-w-xl mx-auto px-4 sm:px-0 space-y-3 sm:space-y-4">
             {branches.map((b: any) => (
               <div
                 key={b.id}
-                className="py-3 px-1 sm:px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="py-3 px-1 sm:px-2 flex items-center justify-between gap-3"
               >
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
                       {b.name}
                     </h3>
                     {b.is_main && (
-                      <span className="inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 tracking-wider">
+                      <span className="inline-flex items-center text-3xs font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 tracking-wider shrink-0">
                         HQ Store
                       </span>
                     )}
                   </div>
                   <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                     <MapPin size={13} className="shrink-0 text-gray-400 dark:text-gray-500" />
-                    <span>{b.address_line}{b.district ? `, ${b.district}` : ''}, <strong className="text-gray-700 dark:text-gray-300 font-semibold">{b.city}</strong></span>
+                    <span className="break-words">{b.address_line}{b.district ? `, ${b.district}` : ''}, <strong className="text-gray-700 dark:text-gray-300 font-semibold">{b.city}</strong></span>
                   </p>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   {b.phone && (
                     <a
                       href={`tel:${b.phone}`}
-                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white text-xs font-semibold hover:bg-gray-200 dark:hover:bg-neutral-700 transition"
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-2.5 sm:px-3.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white text-xs font-semibold hover:bg-gray-200 dark:hover:bg-neutral-700 transition"
+                      title="Call Store"
                     >
                       <Phone size={13} />
-                      <span>Call Store</span>
+                      <span className="hidden sm:inline">Call Store</span>
                     </a>
                   )}
                   {b.whatsapp && (
@@ -1295,10 +1325,11 @@ const ProfilePage: React.FC = () => {
                       href={`https://wa.me/${b.whatsapp.replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white text-xs font-semibold hover:bg-gray-200 dark:hover:bg-neutral-700 transition"
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-2.5 sm:px-3.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white text-xs font-semibold hover:bg-gray-200 dark:hover:bg-neutral-700 transition"
+                      title="Message on WhatsApp"
                     >
                       <MessageSquare size={13} />
-                      <span>Message</span>
+                      <span className="hidden sm:inline">Message</span>
                     </a>
                   )}
                   <a
@@ -1309,10 +1340,10 @@ const ProfilePage: React.FC = () => {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-700 transition border-0"
-                    title="Open in Google Maps"
+                    className="p-2 sm:p-2.5 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-700 transition border-0 shrink-0 flex items-center justify-center"
+                    title="Navigate to Branch"
                   >
-                    <ExternalLink size={14} />
+                    <Navigation size={13} className="fill-current shrink-0" />
                   </a>
                 </div>
               </div>

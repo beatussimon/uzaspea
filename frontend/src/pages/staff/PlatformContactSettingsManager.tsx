@@ -4,7 +4,7 @@ import {
   Save, RotateCcw, CheckCircle2
 } from 'lucide-react';
 import {
-  SiFacebook, SiInstagram, SiX, SiTiktok, SiYoutube
+  SiFacebook, SiInstagram, SiX, SiTiktok, SiYoutube, SiRumble, SiKick
 } from 'react-icons/si';
 import { FaLinkedin } from 'react-icons/fa';
 import api from '../../api';
@@ -24,6 +24,8 @@ interface ContactFormState {
   tiktok_handle: string;
   linkedin_handle: string;
   youtube_handle: string;
+  rumble_handle: string;
+  kick_handle: string;
 }
 
 const extractHandle = (urlOrHandle?: string): string => {
@@ -62,6 +64,8 @@ const PlatformContactSettingsManager: React.FC = () => {
     tiktok_handle: '',
     linkedin_handle: '',
     youtube_handle: '',
+    rumble_handle: '',
+    kick_handle: '',
   });
 
   const [form, setForm] = useState<ContactFormState>({
@@ -76,6 +80,8 @@ const PlatformContactSettingsManager: React.FC = () => {
     tiktok_handle: '',
     linkedin_handle: '',
     youtube_handle: '',
+    rumble_handle: '',
+    kick_handle: '',
   });
 
   const fetchSettings = async () => {
@@ -95,6 +101,8 @@ const PlatformContactSettingsManager: React.FC = () => {
         tiktok_handle: extractHandle(data.tiktok_url),
         linkedin_handle: extractHandle(data.linkedin_url),
         youtube_handle: extractHandle(data.youtube_url),
+        rumble_handle: extractHandle(data.rumble_url),
+        kick_handle: extractHandle(data.kick_url),
       };
       setForm(state);
       setOriginalData(state);
@@ -144,6 +152,8 @@ const PlatformContactSettingsManager: React.FC = () => {
         tiktok_url: form.tiktok_handle.trim() ? `https://tiktok.com/@${form.tiktok_handle.trim()}` : '',
         linkedin_url: form.linkedin_handle.trim() ? `https://linkedin.com/company/${form.linkedin_handle.trim()}` : '',
         youtube_url: form.youtube_handle.trim() ? `https://youtube.com/@${form.youtube_handle.trim()}` : '',
+        rumble_url: form.rumble_handle.trim() ? `https://rumble.com/c/${form.rumble_handle.trim()}` : '',
+        kick_url: form.kick_handle.trim() ? `https://kick.com/${form.kick_handle.trim()}` : '',
       };
 
       const res = await api.patch('/api/site-settings/', payload);
@@ -160,6 +170,8 @@ const PlatformContactSettingsManager: React.FC = () => {
         tiktok_handle: extractHandle(data.tiktok_url),
         linkedin_handle: extractHandle(data.linkedin_url),
         youtube_handle: extractHandle(data.youtube_url),
+        rumble_handle: extractHandle(data.rumble_url),
+        kick_handle: extractHandle(data.kick_url),
       };
       setForm(updated);
       setOriginalData(updated);
@@ -443,6 +455,46 @@ const PlatformContactSettingsManager: React.FC = () => {
                   type="text"
                   value={form.youtube_handle}
                   onChange={(e) => handleSocialChange('youtube_handle', e.target.value)}
+                  placeholder="channel"
+                  className="flex-1 px-2.5 py-1.5 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 outline-none text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Rumble */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
+                Rumble
+              </label>
+              <div className="flex rounded-lg border border-surface-border dark:border-surface-dark-border overflow-hidden bg-surface-muted/50 dark:bg-neutral-900/50 focus-within:border-brand-500 transition">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 bg-surface-muted dark:bg-[#141414] border-r border-surface-border dark:border-surface-dark-border shrink-0 select-none">
+                  <SiRumble size={12} className="text-[#85c742]" />
+                  <span>rumble.com/c/</span>
+                </span>
+                <input
+                  type="text"
+                  value={form.rumble_handle}
+                  onChange={(e) => handleSocialChange('rumble_handle', e.target.value)}
+                  placeholder="channel"
+                  className="flex-1 px-2.5 py-1.5 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 outline-none text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Kick */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
+                Kick
+              </label>
+              <div className="flex rounded-lg border border-surface-border dark:border-surface-dark-border overflow-hidden bg-surface-muted/50 dark:bg-neutral-900/50 focus-within:border-brand-500 transition">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 bg-surface-muted dark:bg-[#141414] border-r border-surface-border dark:border-surface-dark-border shrink-0 select-none">
+                  <SiKick size={12} className="text-[#53FC18]" />
+                  <span>kick.com/</span>
+                </span>
+                <input
+                  type="text"
+                  value={form.kick_handle}
+                  onChange={(e) => handleSocialChange('kick_handle', e.target.value)}
                   placeholder="channel"
                   className="flex-1 px-2.5 py-1.5 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 outline-none text-xs"
                 />

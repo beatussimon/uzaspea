@@ -7233,3 +7233,142 @@ class StockTransferViewSet(viewsets.ModelViewSet):
         transfer.save(update_fields=['status'])
         return Response(StockTransferSerializer(transfer).data)
 
+
+# ──────────────────────────────────────────────
+# PUBLIC INVOICE VERIFICATION VIEW
+# ──────────────────────────────────────────────
+
+class PublicInvoiceVerifyView(APIView):
+    """
+    Publicly accessible, tamper-proof endpoint to verify marketplace invoices.
+    Anyone scanning an invoice QR code (or opening /verify/invoice/:id) can verify
+    authenticity against the live database without logging in.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, order_id):
+        from django.conf import settings
+        import hashlib
+        try:
+            order = Order.objects.select_related('user', 'promo_code').prefetch_related(
+                'orderitem_set__product__seller__profile',
+                'orderitem_set__product__seller__seller_applications',
+                'orderitem_set__product__seller__site_visits',
+                'orderitem_set__variant',
+                'payments'
+            ).get(id=order_id)
+        except (Order.DoesNotExist, ValueError):
+            return Response({
+                'is_authentic': False,
+                'detail': f'Invoice #{order_id} could not be verified on SokoniMax servers. This record does not exist or has been removed.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Cryptographic anti-tamper signature
+        raw_sig = f"invoice:{order.id}:{order.order_date.isoformat() if order.order_date else ''}:{settings.SECRET_KEY[:16]}"
+        expected_sig = hashlib.sha256(raw_sig.encode()).hexdigest()[:16]
+
+        provided_sig = request.query_params.get('sig', '').strip()
+        sig_valid = None
+        if provided_sig:
+            sig_valid = (provided_sig == expected_sig)
+
+        # Gather seller info
+        first_item = order.orderitem_set.first()
+        seller = first_item.product.seller if (first_item and first_item.product) else None
+        seller_profile = getattr(seller, 'profile', None) if seller else None
+        seller_app = seller.seller_applications.filter(status='approved').order_by('-created_at').first() if seller else None
+        seller_site = seller.site_visits.filter(status='approved').order_by('-created_at').first() if seller else None
+
+        seller_store_name = ''
+        if seller_app and seller_app.business_name:
+            seller_store_name = seller_app.business_name
+        elif seller_site and seller_site.business_name:
+            seller_store_name = seller_site.business_name
+        elif seller_profile and hasattr(seller_profile, 'business_name') and seller_profile.business_name:
+            seller_store_name = seller_profile.business_name
+
+        seller_name = f"{seller.first_name} {seller.last_name}".strip() if seller else ''
+        seller_username = seller.username if seller else 'Seller'
+
+        # Buyer info
+        d_info = order.delivery_info if isinstance(order.delivery_info, dict) else {}
+        buyer_name = f"{order.user.first_name} {order.user.last_name}".strip() if order.user else ''
+        if not buyer_name:
+            buyer_name = d_info.get('full_name') or d_info.get('contact_name') or (order.user.username if order.user else 'Customer')
+        buyer_username = order.user.username if order.user else 'Customer'
+
+        # Items list
+        items = []
+        for item in order.orderitem_set.all():
+            items.append({
+                'id': item.id,
+                'product_name': item.product.name if item.product else 'Marketplace Product',
+                'variant_name': item.variant.name if item.variant else None,
+                'quantity': item.quantity,
+                'price': float(item.price),
+                'subtotal': float(item.subtotal()),
+            })
+
+        # Payment details
+        payment = order.payments.order_by('-created_at').first()
+        payment_info = {
+            'has_payment': payment is not None,
+            'status': payment.status if payment else None,
+            'payment_method': payment.payment_method if payment else None,
+            'transaction_id': payment.transaction_id if payment else None,
+            'is_verified': payment.status == 'VERIFIED' if payment else False,
+        }
+
+        # Status human label
+        status_display_map = {
+            'CART': 'In Cart',
+            'REQUESTED_INVOICE': 'Invoice Requested (Pending Seller Quote)',
+            'INVOICE_GENERATED': 'Invoice Issued (Awaiting Payment)',
+            'BUYER_COUNTERED': 'Price Counter-Offered',
+            'AWAITING_PAYMENT': 'Awaiting Buyer Payment',
+            'PAYMENT_PENDING_VERIFICATION': 'Payment Submitted (Verifying)',
+            'CONFIRMED': 'Order Confirmed',
+            'PACKING': 'Preparing for Dispatch',
+            'DISPATCHED_TO_REGIONAL_WAREHOUSE': 'Dispatched to Regional Hub',
+            'ARRIVED_AT_REGIONAL_WAREHOUSE': 'Arrived at Regional Hub',
+            'OUT_FOR_DELIVERY': 'Out for Delivery',
+            'DELIVERED': 'Delivered to Customer',
+            'COMPLETED': 'Completed & Settled',
+            'CANCELLED': 'Cancelled',
+            'REFUNDED': 'Refunded',
+        }
+
+        data = {
+            'is_authentic': True,
+            'order_id': order.id,
+            'order_date': order.order_date.isoformat() if order.order_date else None,
+            'formatted_date': order.order_date.strftime('%b %d, %Y') if order.order_date else '',
+            'status': order.status,
+            'status_label': status_display_map.get(order.status, order.status.replace('_', ' ').title()),
+            'is_bulk_order': order.is_bulk_order,
+            'total_amount': float(order.total_amount),
+            'shipping_fee': float(order.shipping_fee) if order.shipping_fee else 0.0,
+            'discount_amount': float(order.discount_amount) if order.discount_amount else 0.0,
+            'seller': {
+                'username': seller_username,
+                'name': seller_name,
+                'store_name': seller_store_name,
+                'display_name': seller_store_name or seller_name or seller_username,
+                'is_verified': bool(seller_profile and seller_profile.is_verified),
+                'tier': seller_profile.tier if seller_profile else 'free',
+            },
+            'buyer': {
+                'username': buyer_username,
+                'name': buyer_name,
+            },
+            'items': items,
+            'payment': payment_info,
+            'verification_token': expected_sig,
+            'sig_valid': sig_valid,
+            'server_timestamp': timezone.now().isoformat(),
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+

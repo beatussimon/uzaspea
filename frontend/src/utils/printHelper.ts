@@ -81,8 +81,17 @@ export const printElement = async (
           .print-content-wrapper [class*="bg-surface-"] {
             background-color: transparent !important;
           }
+          /* Enforce pure white paper for invoice and receipt printouts */
+          .print-content-wrapper,
+          .print-content-wrapper #invoice-content,
+          .print-content-wrapper [id*="invoice"] {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+          }
           img {
             max-width: 100%;
+            filter: none !important;
+            -webkit-filter: none !important;
           }
         </style>
       </head>

@@ -18,6 +18,7 @@ const LoginPage: React.FC = () => {
   const isAuthenticated = !!localStorage.getItem('access_token');
 
   const [isBanned, setIsBanned] = useState(localStorage.getItem('account_banned') === 'true');
+  const isFormValid = Boolean(username.trim() && password);
 
   if (isAuthenticated) return <Navigate to="/" />;
 
@@ -174,6 +175,7 @@ const LoginPage: React.FC = () => {
           <Button
             type="submit"
             loading={loading}
+            disabled={!isFormValid || loading}
             className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
           >
             {t('sign_in', 'Sign In')}

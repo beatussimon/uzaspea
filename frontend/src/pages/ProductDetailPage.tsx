@@ -2460,16 +2460,15 @@ const ProductDetailPage: React.FC = () => {
 
             {/* Branch Stock Availability Accordion */}
             {product.branch_availability && product.branch_availability.length > 1 && (
-              <div className="w-full mt-2 p-3 rounded-2xl bg-gray-50/80 dark:bg-neutral-900/60 border border-gray-200/80 dark:border-neutral-800 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white">
-                  <span className="flex items-center gap-1.5">
-                    <MapPin size={13} className="text-brand-600 dark:text-brand-400" />
+              <div className="w-full mt-2 p-3 rounded-2xl bg-gray-50/80 dark:bg-neutral-900/60 space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white pb-0.5">
+                  <span>
                     Available across {product.branch_availability.filter(b => b.in_stock).length} of {product.branch_availability.length} Store Branches
                   </span>
                 </div>
-                <div className="divide-y divide-gray-100 dark:divide-neutral-800 text-xs">
+                <div className="flex flex-col gap-1 text-xs">
                   {product.branch_availability.map((b) => (
-                    <div key={b.location_id} className="py-1.5 flex items-center justify-between">
+                    <div key={b.location_id} className="py-1 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${b.in_stock ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-neutral-700'}`} />
                         <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{b.location_name}</span>

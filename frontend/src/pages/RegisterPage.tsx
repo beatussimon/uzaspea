@@ -81,9 +81,28 @@ const RegisterPage: React.FC = () => {
     setFormData({ ...formData, [target.name]: value });
   };
 
+  const isStep1Valid = Boolean(
+    formData.first_name.trim() &&
+    formData.last_name.trim() &&
+    formData.date_of_birth &&
+    formData.gender
+  );
+
+  const isStep2Valid = Boolean(
+    formData.username.trim().length >= 3 &&
+    usernameStatus.available !== false &&
+    !usernameStatus.checking &&
+    formData.email.trim() &&
+    formData.email.includes('@') &&
+    formData.password.length >= 8 &&
+    formData.confirm_password.length >= 8 &&
+    formData.confirm_password === formData.password &&
+    formData.terms_accepted
+  );
+
   const nextStep = () => {
     if (step === 1) {
-      if (!formData.first_name || !formData.last_name || !formData.date_of_birth || !formData.gender) {
+      if (!isStep1Valid) {
         return toast.error(t('fill_personal_details_error', 'Please fill in all personal details including gender'));
       }
     }
@@ -213,6 +232,7 @@ const RegisterPage: React.FC = () => {
                 <Button 
                   type="button"
                   onClick={nextStep}
+                  disabled={!isStep1Valid}
                   className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
                 >
                   {t('continue', 'Continue')}
@@ -320,6 +340,7 @@ const RegisterPage: React.FC = () => {
                   <Button 
                     type="submit" 
                     loading={loading}
+                    disabled={!isStep2Valid || loading}
                     className="flex-[2] h-12 flex items-center justify-center gap-2"
                   >
                     {t('complete_signup', 'Complete Signup')}

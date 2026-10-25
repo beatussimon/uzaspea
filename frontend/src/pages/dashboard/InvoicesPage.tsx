@@ -240,9 +240,9 @@ const [orders, setOrders] = useState<any[]>([]);
                 {/* Collapsible Header */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="relative p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
+                  className="relative p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-2 md:gap-4 justify-between items-start md:items-center select-none"
                 >
-                  <div className="flex-1 min-w-0 space-y-1.5 pr-6 md:pr-0">
+                  <div className="flex-1 min-w-0 space-y-1.5 pr-8 md:pr-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-extrabold text-sm text-gray-900 dark:text-white">Order #{order.id}</span>
                       <span className="text-2xs text-gray-400">@{order.buyer || order.buyer_username || 'Customer'}</span>
@@ -311,14 +311,14 @@ const [orders, setOrders] = useState<any[]>([]);
                       </Button>
                     )}
 
-                    {/* Print Invoice Button */}
+                    {/* Print Invoice Button (Desktop Only) */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setPrintOrder(order);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0 disabled:opacity-50"
+                      className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0 disabled:opacity-50"
                       title={t('print', 'Print')}
                     >
                       <Printer size={13} />
@@ -389,7 +389,20 @@ const [orders, setOrders] = useState<any[]>([]);
                         </tbody>
                         <tfoot>
                           <tr>
-                            <td colSpan={2} />
+                            <td colSpan={2} rowSpan={order.shipping_fee > 0 ? 3 : 2} className="align-bottom pb-1 px-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPrintOrder(order);
+                                }}
+                                className="md:hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition border-0 disabled:opacity-50"
+                                title={t('print', 'Print')}
+                              >
+                                <Printer size={13} />
+                                <span>{t('print', 'Print')}</span>
+                              </button>
+                            </td>
                             <td className="pt-3 pb-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
                               Subtotal
                             </td>
@@ -399,7 +412,6 @@ const [orders, setOrders] = useState<any[]>([]);
                           </tr>
                           {order.shipping_fee > 0 && (
                             <tr>
-                              <td colSpan={2} />
                               <td className="py-1 px-2 text-right text-2xs text-gray-400 font-medium whitespace-nowrap">
                                 Shipping Fee
                               </td>
@@ -409,7 +421,6 @@ const [orders, setOrders] = useState<any[]>([]);
                             </tr>
                           )}
                           <tr>
-                            <td colSpan={2} />
                             <td className="pt-2 pb-1 px-2 text-right text-xs font-bold text-gray-900 dark:text-white border-t border-surface-border dark:border-surface-dark-border whitespace-nowrap">
                               Total
                             </td>

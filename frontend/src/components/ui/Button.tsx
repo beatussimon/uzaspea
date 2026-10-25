@@ -4,14 +4,14 @@ import { motion, HTMLMotionProps } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-btn text-body-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.97]',
+  'inline-flex items-center justify-center gap-2 rounded-btn text-body-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:pointer-events-none select-none active:scale-[0.97]',
   {
     variants: {
       variant: {
-        default: 'bg-brand-500 text-black hover:bg-brand-500 shadow-sm dark:bg-brand-500 dark:hover:bg-brand-500',
-        outline: 'border border-surface-border dark:border-surface-dark-border bg-transparent hover:bg-surface-muted dark:hover:bg-white/5 text-gray-900 dark:text-white',
-        ghost: 'hover:bg-surface-muted dark:hover:bg-white/5 text-gray-700 dark:text-gray-300',
-        danger: 'bg-red-500 text-white hover:bg-red-500 shadow-sm',
+        default: 'bg-brand-500 text-black hover:bg-brand-500 shadow-sm dark:bg-brand-500 dark:hover:bg-brand-500 disabled:bg-neutral-200 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-500 disabled:shadow-none',
+        outline: 'border border-surface-border dark:border-surface-dark-border bg-transparent hover:bg-surface-muted dark:hover:bg-white/5 text-gray-900 dark:text-white disabled:opacity-40',
+        ghost: 'hover:bg-surface-muted dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 disabled:opacity-40',
+        danger: 'bg-red-500 text-white hover:bg-red-500 shadow-sm disabled:opacity-50',
       },
       size: {
         default: 'h-10 px-5 py-2.5',
@@ -39,7 +39,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <motion.button
         ref={ref}
-        whileTap={loading ? undefined : { scale: 0.97 }}
+        whileTap={loading || props.disabled ? undefined : { scale: 0.97 }}
         disabled={loading || props.disabled}
         className={cn(buttonVariants({ variant, size, className }))}
         {...props}

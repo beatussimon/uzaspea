@@ -15,6 +15,8 @@ const ForgotPasswordPage: React.FC = () => {
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [rateLimitError, setRateLimitError] = useState<string | null>(null);
 
+  const isFormValid = Boolean(identifier.trim() && identifier.includes('@'));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanIdent = identifier.trim();
@@ -86,7 +88,7 @@ const ForgotPasswordPage: React.FC = () => {
             <Button
               type="submit"
               loading={loading}
-              disabled={!!rateLimitError}
+              disabled={!isFormValid || !!rateLimitError || loading}
               className="w-full h-12 flex items-center justify-center gap-2 !mt-4"
             >
               {t('send_reset_link', 'Send Reset Link')}
