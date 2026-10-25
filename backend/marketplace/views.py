@@ -157,8 +157,25 @@ def product_list(request):
     }
     return render(request, 'marketplace/product_list.html', context)
 
+
+def _resolve_product(slug_val):
+    from marketplace.api_views import PUBLIC_ID_REGEX
+    lookup_str = str(slug_val).strip()
+    match = PUBLIC_ID_REGEX.match(lookup_str)
+    if match:
+        pub_id = match.group('public_id')
+        p = Product.objects.filter(public_id=pub_id).first() or Product.objects.filter(public_id__iexact=pub_id).first()
+        if p: return p
+    if len(lookup_str) == 12:
+        p = Product.objects.filter(public_id=lookup_str).first() or Product.objects.filter(public_id__iexact=lookup_str).first()
+        if p: return p
+    if lookup_str.isdigit():
+        p = Product.objects.filter(id=int(lookup_str)).first()
+        if p: return p
+    return get_object_or_404(Product, slug=lookup_str)
+
 def product_detail(request, slug):
-    product = get_object_or_404(Product, slug=slug)
+    product = _resolve_product(slug)
     images = getattr(product, 'images', None)
     if images is not None:
         images = images.all()
@@ -223,7 +240,7 @@ def product_detail(request, slug):
 
 def get_related_products(request, slug):
     print(f"Fetching related products for slug: {slug}") 
-    product = get_object_or_404(Product, slug=slug)
+    product = _resolve_product(slug)
     page = request.GET.get('page', 1)
 
     related_products = Product.objects.filter(

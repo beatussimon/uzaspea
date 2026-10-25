@@ -413,7 +413,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             
         ref_slug = self.request.query_params.get('reference_product', None)
         if ref_slug:
-            queryset = queryset.filter(reference_product__slug=ref_slug)
+            lookup_str = str(ref_slug).strip()
+            match = PUBLIC_ID_REGEX.match(lookup_str)
+            if match:
+                pub_id = match.group('public_id')
+                queryset = queryset.filter(Q(reference_product__public_id=pub_id) | Q(reference_product__public_id__iexact=pub_id))
+            elif len(lookup_str) == 12:
+                queryset = queryset.filter(Q(reference_product__public_id=lookup_str) | Q(reference_product__public_id__iexact=lookup_str))
+            elif lookup_str.isdigit():
+                queryset = queryset.filter(reference_product__id=int(lookup_str))
+            else:
+                queryset = queryset.filter(reference_product__slug=ref_slug)
 
         exclude_param = self.request.query_params.get('exclude', None)
         if exclude_param:
@@ -2875,7 +2885,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 items_data.append({
                     'id': item.id,
                     'product_name': item.product.name,
-                    'product_slug': item.product.slug,
+                    'product_slug': item.product.url_slug,
+                    'product_url_slug': item.product.url_slug,
                     'product_image': _imgs[0].image.url if _imgs else None,
                     'quantity': item.quantity,
                     'price': float(item.price),
@@ -4875,9 +4886,17 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
 
         if product_slug:
             from django.db.models import Q
-            filter_q = Q(product__slug=product_slug)
-            if str(product_slug).isdigit():
-                filter_q |= Q(product__id=int(product_slug))
+            lookup_str = str(product_slug).strip()
+            match = PUBLIC_ID_REGEX.match(lookup_str)
+            if match:
+                pub_id = match.group('public_id')
+                filter_q = Q(product__public_id=pub_id) | Q(product__public_id__iexact=pub_id)
+            elif len(lookup_str) == 12:
+                filter_q = Q(product__public_id=lookup_str) | Q(product__public_id__iexact=lookup_str)
+            elif lookup_str.isdigit():
+                filter_q = Q(product__id=int(lookup_str))
+            else:
+                filter_q = Q(product__slug=lookup_str)
             qs = ProductVariant.objects.filter(filter_q).select_related('product')
             if not (user.is_authenticated and (user.is_staff or
                     ProductVariant.objects.filter(filter_q, product__seller=user).exists())):
@@ -5369,7 +5388,8 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
             'qualifying_subtotal': float(qualifying_subtotal),
             'applicable_scope': promo.applicable_scope,
             'product_id': promo.product_id,
-            'product_slug': promo.product.slug if promo.product else None,
+            'product_slug': promo.product.url_slug if promo.product else None,
+            'product_url_slug': promo.product.url_slug if promo.product else None,
             'product_name': promo.product.name if promo.product else None,
             'attribution_window_days': promo.attribution_window_days,
             'end_date': promo.end_date.isoformat() if promo.end_date else None,
@@ -5448,7 +5468,8 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
             'applicable_scope': promo.applicable_scope,
             'product_id': promo.product_id,
             'product_name': promo.product.name if promo.product else None,
-            'product_slug': promo.product.slug if promo.product else None,
+            'product_slug': promo.product.url_slug if promo.product else None,
+            'product_url_slug': promo.product.url_slug if promo.product else None,
             'attribution_window_days': promo.attribution_window_days,
             'end_date': promo.end_date.isoformat() if promo.end_date else None
         }, status=200)

@@ -101,7 +101,7 @@ class RecEventsView(APIView):
 def _row(scored, product):
     images = list(product.images.all())
     return {
-        'id': product.id, 'name': product.name, 'slug': product.slug, 'price': str(product.price),
+        'id': product.id, 'name': product.name, 'slug': product.slug, 'url_slug': product.url_slug, 'price': str(product.price),
         'image': images[0].image.url if images and images[0].image else None,
         'category': product.category.name if product.category_id else '',
         'seller': product.seller.username, 'score': scored.score, 'slot': scored.slot,
@@ -207,7 +207,7 @@ class RecAdminProductInspectView(APIView):
         ymal = ymal_for_product(product.id, build_context(), limit=5)
         products = {p.id: p for p in hydrate([s.product_id for s in similar] + [s.product_id for s in ymal])}
         return Response({
-            'product': {'id': product.id, 'name': product.name, 'slug': product.slug, 'price': str(product.price),
+            'product': {'id': product.id, 'name': product.name, 'slug': product.slug, 'url_slug': product.url_slug, 'price': str(product.price),
                         'category': product.category.name if product.category_id else ''},
             'stats': ProductStats.objects.filter(product_id=product.id).values().first(),
             'recs_computed_at': ProductRecs.objects.filter(product_id=product.id).values_list('computed_at', flat=True).first(),
