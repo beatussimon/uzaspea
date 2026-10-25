@@ -128,7 +128,7 @@ def check_price_alerts():
                 alert.user, 'order_status',
                 f'Price dropped! {alert.product.name}',
                 f'Now TSh {alert.product.price:,.0f} — your target was TSh {alert.target_price:,.0f}',
-                f'/product/{alert.product.slug}'
+                f'/product/{alert.product.url_slug}'
             )
             alert.triggered_at = timezone.now()
             alert.is_active = False

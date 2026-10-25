@@ -58,6 +58,8 @@ const LoginPage: React.FC = () => {
                 quantity: quantity || 1,
                 image: firstImage,
                 slug: product.slug,
+                url_slug: product.url_slug || (product.public_id && product.slug ? `${product.slug}-${product.public_id}` : product.slug),
+                public_id: product.public_id,
                 seller_username: product.seller_username,
                 category: product.category_name,
                 weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : 1.0,

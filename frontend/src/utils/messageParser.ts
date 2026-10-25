@@ -44,6 +44,8 @@ export function createProductInquiryPayload(
   product: {
     id: number;
     slug?: string;
+    url_slug?: string;
+    public_id?: string;
     name?: string;
     title?: string;
     price?: string | number;
@@ -59,6 +61,7 @@ export function createProductInquiryPayload(
     product: {
       id: product.id,
       slug: product.slug,
+      url_slug: product.url_slug || (product.public_id && product.slug ? `${product.slug}-${product.public_id}` : product.slug),
       title: product.name || product.title || 'Product',
       price: product.price,
       currency: product.currency || 'TZS',
