@@ -452,7 +452,7 @@ const RequestForm: React.FC = () => {
                   </div>
                 </div>
                 <Link
-                  to={`/products/${prefilledProduct.id}`}
+                  to={`/product/${prefilledProduct.url_slug || prefilledProduct.slug || prefilledProduct.id}`}
                   target="_blank"
                   className="btn-secondary text-2xs py-1 px-2.5 rounded-lg shrink-0 font-bold flex items-center gap-1"
                 >

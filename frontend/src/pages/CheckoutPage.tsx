@@ -112,6 +112,7 @@ export const CheckoutPage: React.FC = () => {
         quantity: Number(i.quantity),
         image: i.product_image || '',
         slug: i.product_slug || '',
+        url_slug: i.product_url_slug || i.product_slug || '',
         seller_username: i.seller_username || merchant,
         requires_quote: false,
       }));

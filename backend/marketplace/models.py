@@ -1757,6 +1757,8 @@ def invalidate_product_cache(sender, instance, **kwargs):
         try:
             cache.delete_pattern("*views.decorators.cache*")
             cache.delete_pattern(f"*product:{instance.slug}*")
+            if instance.public_id:
+                cache.delete_pattern(f"*product:*{instance.public_id}*")
             cache.delete_pattern(f"*product:detail:{instance.id}*")
             cache.delete_pattern(f"*recs:*:{instance.id}:*")
             cache.delete_pattern("recs:v2:*")

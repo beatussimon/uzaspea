@@ -415,7 +415,7 @@ class StaffDashboardView(APIView):
             pending_promos = SponsoredListing.objects.filter(status='pending').select_related('product', 'user').order_by('-created_at')[:20]
             promos_data = [{
                 'id': p.id, 'title': p.title, 'description': p.description,
-                'product_name': p.product.name, 'product_slug': p.product.slug,
+                'product_name': p.product.name, 'product_slug': p.product.url_slug, 'product_url_slug': p.product.url_slug,
                 'seller': p.user.username, 'status': p.status,
                 'created_at': p.created_at.isoformat(),
             } for p in pending_promos]
