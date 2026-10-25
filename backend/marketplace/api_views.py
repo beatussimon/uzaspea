@@ -2,7 +2,7 @@ import json
 import re
 from decimal import Decimal
 
-PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-zA-Z]{12})$")
+PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>.*)-)?(?P<public_id>[0-9a-zA-Z]{12})$")
 from datetime import timedelta, datetime, date
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
