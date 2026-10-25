@@ -1619,7 +1619,7 @@ const RequestDetail: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap pt-0.5">
             <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Marketplace Item:</span>
             <Link
-              to={`/product/${request.product_snapshot.id}`}
+              to={`/product/${request.product_snapshot.url_slug || request.product_snapshot.slug || request.product_snapshot.id}`}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-800 dark:text-gray-200 hover:underline"
             >
               {request.product_snapshot.image_url && (

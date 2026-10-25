@@ -5,6 +5,7 @@ type ExplainRow = {
   id: number;
   name: string;
   slug: string;
+  url_slug?: string;
   price: string;
   image: string | null;
   category: string;
@@ -128,7 +129,7 @@ const ReasonTable: React.FC<{ block: ReasonBlock }> = ({ block }) => (
                     <div className="w-10 h-10 rounded bg-gray-100 dark:bg-neutral-800" />
                   )}
                   <div className="min-w-0">
-                    <a href={`/product/${r.slug}`} target="_blank" rel="noreferrer" className="font-medium text-gray-900 dark:text-white hover:underline line-clamp-1">
+                    <a href={`/product/${r.url_slug || r.slug}`} target="_blank" rel="noreferrer" className="font-medium text-gray-900 dark:text-white hover:underline line-clamp-1">
                       {r.name}
                     </a>
                     <p className="text-[11px] text-gray-400">{r.category} · @{r.seller} · {formatPrice(r.price)}</p>

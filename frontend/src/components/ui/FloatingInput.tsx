@@ -97,7 +97,7 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputPro
           className={cn(
             'absolute transition-all duration-200 pointer-events-none rounded-sm select-none',
             isFloating
-              ? '-top-2.5 left-3 px-1.5 text-xs font-medium z-10 bg-white dark:bg-black ' +
+              ? '-top-2.5 left-3 px-1.5 text-xs font-bold z-10 bg-white dark:bg-black ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
               : cn(
                   'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500 bg-transparent px-0',
@@ -213,7 +213,7 @@ export const FloatingSelect = React.forwardRef<HTMLSelectElement, FloatingSelect
           className={cn(
             'absolute transition-all duration-200 pointer-events-none rounded-sm select-none',
             isFloating
-              ? '-top-2.5 left-3 px-1.5 text-xs font-medium z-10 bg-white dark:bg-black ' +
+              ? '-top-2.5 left-3 px-1.5 text-xs font-bold z-10 bg-white dark:bg-black ' +
                   (isFocused ? 'text-brand-500' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400')
               : cn(
                   'top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-neutral-500 bg-transparent px-0',

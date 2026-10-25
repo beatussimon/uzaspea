@@ -1022,7 +1022,8 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_slug = serializers.CharField(source='product.url_slug', read_only=True)
+    product_url_slug = serializers.CharField(source='product.url_slug', read_only=True)
     variant_name = serializers.CharField(source='variant.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
@@ -1033,7 +1034,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
+        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
         read_only_fields = ['price']
 
     def get_catalog_price(self, obj):
@@ -1081,7 +1082,7 @@ class PromoCodeSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     affiliate_username = serializers.CharField(source='affiliate_user.username', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_slug = serializers.CharField(source='product.url_slug', read_only=True)
     product_image = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
     
@@ -1972,7 +1973,7 @@ from .models import SponsoredListing
 
 class SponsoredListingSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_slug = serializers.CharField(source='product.url_slug', read_only=True)
     product_details = ProductSerializer(source='product', read_only=True)
     is_active = serializers.SerializerMethodField()
     days_remaining = serializers.SerializerMethodField()
@@ -2713,7 +2714,7 @@ class StoreLocationSerializer(serializers.ModelSerializer):
 
 class LocationStockSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_slug = serializers.CharField(source='product.url_slug', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_image = serializers.SerializerMethodField(read_only=True)
     variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)

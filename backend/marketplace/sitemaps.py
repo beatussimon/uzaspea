@@ -1,6 +1,6 @@
 from django.contrib.sitemaps import Sitemap
 from django.contrib.auth.models import User
-from .models import Product, Category
+from .models import Product, Category, Brand
 
 class StaticViewSitemap(Sitemap):
     priority = 0.8
@@ -45,6 +45,17 @@ class ProductSitemap(Sitemap):
 
     def location(self, obj):
         return f'/product/{obj.url_slug}'
+
+class BrandSitemap(Sitemap):
+    changefreq = 'weekly'
+    priority = 0.8
+    protocol = 'https'
+
+    def items(self):
+        return Brand.objects.filter(is_active=True).order_by('name')
+
+    def location(self, item):
+        return f'/products?brand={item.slug}'
 
 class SellerSitemap(Sitemap):
     changefreq = 'weekly'

@@ -181,6 +181,8 @@ export interface InspectionRequest {
   product_snapshot: {
     id: number;
     name: string;
+    slug?: string;
+    url_slug?: string;
     description: string;
     price: string;
     condition: string;
