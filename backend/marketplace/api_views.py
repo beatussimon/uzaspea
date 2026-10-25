@@ -2,7 +2,7 @@ import json
 import re
 from decimal import Decimal
 
-PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-f]{12})$", re.IGNORECASE)
+PUBLIC_ID_REGEX = re.compile(r"^(?:(?P<slug>[\w-]+)-)?(?P<public_id>[0-9a-zA-Z]{12})$")
 from datetime import timedelta, datetime, date
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
@@ -208,11 +208,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             obj = None
             lookup_str = str(lookup_val).strip()
 
-            # 1. Match 12-char public_id pattern (e.g. "toyota-brake-pad-8f4b2a9e64c1" or "8f4b2a9e64c1")
+            # 1. Match 12-char public_id pattern (e.g. "toyota-brake-pad-k8M2Px7Q9w1V" or "k8M2Px7Q9w1V")
             match = PUBLIC_ID_REGEX.match(lookup_str)
             if match:
-                pub_id = match.group('public_id').lower()
+                pub_id = match.group('public_id')
                 obj = queryset.filter(public_id=pub_id).first()
+                if not obj:
+                    obj = queryset.filter(public_id__iexact=pub_id).first()
 
             # 2. Integer ID fallback
             if not obj and lookup_str.isdigit():
@@ -220,7 +222,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
             # 3. Direct public_id match fallback
             if not obj and len(lookup_str) == 12:
-                obj = queryset.filter(public_id=lookup_str.lower()).first()
+                obj = queryset.filter(public_id=lookup_str).first() or queryset.filter(public_id__iexact=lookup_str).first()
 
             # 4. Legacy full slug fallback (e.g. "toyota-brake-pad" without public_id)
             if not obj:
@@ -6681,8 +6683,10 @@ class ReferenceProductViewSet(viewsets.ModelViewSet):
         # 1. Match 12-char public_id pattern
         match = PUBLIC_ID_REGEX.match(lookup_str)
         if match:
-            pub_id = match.group('public_id').lower()
+            pub_id = match.group('public_id')
             obj = queryset.filter(public_id=pub_id).first()
+            if not obj:
+                obj = queryset.filter(public_id__iexact=pub_id).first()
 
         # 2. Integer ID fallback
         if not obj and lookup_str.isdigit():
@@ -6690,7 +6694,7 @@ class ReferenceProductViewSet(viewsets.ModelViewSet):
 
         # 3. Direct public_id match fallback
         if not obj and len(lookup_str) == 12:
-            obj = queryset.filter(public_id=lookup_str.lower()).first()
+            obj = queryset.filter(public_id=lookup_str).first() or queryset.filter(public_id__iexact=lookup_str).first()
 
         # 4. Slug fallback
         if not obj:

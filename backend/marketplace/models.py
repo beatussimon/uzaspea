@@ -13,12 +13,15 @@ import logging
 from decimal import Decimal
 import secrets
 
+import string
+
 logger = logging.getLogger(__name__)
 
+BASE62_ALPHABET = string.digits + string.ascii_letters  # 62 chars: 0-9, a-z, A-Z
 
-def generate_public_id():
-    """Generates a URL-safe 12-char hex string for public entity identifiers."""
-    return secrets.token_hex(6)
+def generate_public_id(length=12):
+    """Generates a URL-safe 12-char Base62 string (3.2 Sextillion combinations)."""
+    return ''.join(secrets.choice(BASE62_ALPHABET) for _ in range(length))
 
 
 def validate_image(image):
@@ -203,7 +206,11 @@ class ReferenceProduct(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.public_id:
-            self.public_id = generate_public_id()
+            while True:
+                candidate = generate_public_id()
+                if not ReferenceProduct.objects.filter(public_id=candidate).exists():
+                    self.public_id = candidate
+                    break
         if not self.slug:
             from django.utils.text import slugify
             brand_name = self.brand.name if getattr(self, 'brand', None) else ""
@@ -382,7 +389,11 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.public_id:
-            self.public_id = generate_public_id()
+            while True:
+                candidate = generate_public_id()
+                if not Product.objects.filter(public_id=candidate).exists():
+                    self.public_id = candidate
+                    break
         if not self.slug:
             from django.utils.text import slugify
             base = slugify(self.name) or "product"
