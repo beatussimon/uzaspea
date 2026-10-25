@@ -4,6 +4,38 @@ import marketplace.models
 from django.db import migrations, models
 
 
+def populate_unique_public_ids(apps, schema_editor):
+    Product = apps.get_model('marketplace', 'Product')
+    ReferenceProduct = apps.get_model('marketplace', 'ReferenceProduct')
+    from marketplace.models import generate_public_id
+
+    seen_product_ids = set()
+    for product in Product.objects.all():
+        if not product.public_id or product.public_id in seen_product_ids:
+            while True:
+                new_id = generate_public_id()
+                if new_id not in seen_product_ids:
+                    break
+            product.public_id = new_id
+            product.save(update_fields=['public_id'])
+        seen_product_ids.add(product.public_id)
+
+    seen_ref_ids = set()
+    for ref in ReferenceProduct.objects.all():
+        if not ref.public_id or ref.public_id in seen_ref_ids:
+            while True:
+                new_id = generate_public_id()
+                if new_id not in seen_ref_ids:
+                    break
+            ref.public_id = new_id
+            ref.save(update_fields=['public_id'])
+        seen_ref_ids.add(ref.public_id)
+
+
+def reverse_populate(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,6 +43,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(populate_unique_public_ids, reverse_populate),
         migrations.AlterField(
             model_name='product',
             name='public_id',
@@ -22,3 +55,4 @@ class Migration(migrations.Migration):
             field=models.CharField(db_index=True, default=marketplace.models.generate_public_id, editable=False, max_length=12, unique=True),
         ),
     ]
+
