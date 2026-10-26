@@ -937,8 +937,8 @@ const OrdersPage: React.FC = () => {
                             (order.fulfillment_type === 'DIRECT_DELIVERY' && ['PACKAGING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(order.status)) ||
                             (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY'].includes(order.status))
                           ) && (
-                          <div className="py-2.5 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
-                            <div>
+                          <div className="py-2.5 mb-3 flex items-center justify-between gap-4 animate-fade-in">
+                            <div className="min-w-0 flex-1">
                                 <p className="text-xs font-bold text-brand-500 uppercase tracking-wider mb-0.5">
                                   {order.fulfillment_type === 'SELLER_PICKUP' ? 'Store Pickup Code' : (order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code')}
                                 </p>
@@ -950,7 +950,7 @@ const OrdersPage: React.FC = () => {
                                     : 'Show this to the agent to collect your items.'}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 shrink-0">
                               <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-500 select-all">
                                 {order.fulfillment_type === 'SELLER_PICKUP' ? (order.delivery_code || '...') : (order.shipping_method === 'PICKUP' ? (pickupCodesMap[order.id] || order.delivery_code || '...') : (order.delivery_code || '...'))}
                               </span>
