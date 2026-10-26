@@ -1040,7 +1040,24 @@ export const CheckoutPage: React.FC = () => {
           const matchingCity = Object.keys(citiesCoords).find(k => k.toLowerCase() === sellerCoords.region!.toLowerCase());
           if (matchingCity) return citiesCoords[matchingCity].code;
         }
-        return citiesCoords[selectedCity]?.code || 'WH-DAR-ES-SALAAM-01';
+        // Calculate origin warehouse based strictly on seller location coordinates (never the buyer's city)
+        const sellerLat = sellerCoords?.lat ?? -6.8161;
+        const sellerLng = sellerCoords?.lng ?? 39.2803;
+        let nearestCode = 'WH-DAR-ES-SALAAM-01';
+        let minDistance = Infinity;
+        const listToUse = Object.keys(citiesCoords).length > 0
+          ? Object.values(citiesCoords).map(c => ({ code: c.code, latitude: c.lat, longitude: c.lng }))
+          : [];
+        for (const wh of listToUse) {
+          if (wh.latitude && wh.longitude) {
+            const d = Math.hypot(Number(wh.latitude) - sellerLat, Number(wh.longitude) - sellerLng);
+            if (d < minDistance) {
+              minDistance = d;
+              nearestCode = wh.code;
+            }
+          }
+        }
+        return nearestCode;
       })();
 
       const destWh = resolveDestinationWarehouse(selectedCity, deliveryCoords);

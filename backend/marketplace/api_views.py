@@ -2862,7 +2862,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 
         orders = orders_qs.prefetch_related(
             seller_items_prefetch, 'timeline_events', 'payments', 'referral_conversion'
-        ).select_related('user', 'promo_code').order_by('-order_date')
+        ).select_related('user', 'promo_code', 'fulfillment_location').order_by('-order_date')
 
         status_filter = request.query_params.get('status', None)
         if status_filter and status_filter.upper() != 'ALL':
@@ -2926,17 +2926,45 @@ class OrderViewSet(viewsets.ModelViewSet):
             } for p in order.payments.all()]
 
             from logistics.utils import order_has_vehicles
+            d_info = order.delivery_info if isinstance(order.delivery_info, dict) else (json.loads(order.delivery_info) if isinstance(order.delivery_info, str) else {})
+            buyer_dest_region = d_info.get('region') or d_info.get('city') or ''
+
+            # Determine seller's local intake region
+            seller_region = 'Dar es Salaam'
+            if order.fulfillment_location and order.fulfillment_location.city:
+                seller_region = order.fulfillment_location.city
+            elif d_info.get('origin_warehouse_code'):
+                from warehouses.models import Warehouse
+                wh = Warehouse.objects.filter(code=d_info.get('origin_warehouse_code')).select_related('region').first()
+                if wh and wh.region:
+                    seller_region = wh.region.name
+            else:
+                try:
+                    first_item = order.relevant_items[0] if order.relevant_items else None
+                    if first_item and first_item.product and first_item.product.seller:
+                        s_user = first_item.product.seller
+                        m_loc = s_user.store_locations.filter(is_main=True).first() or s_user.store_locations.first()
+                        if m_loc and m_loc.city:
+                            seller_region = m_loc.city
+                except Exception:
+                    pass
+
             return {
                 'id': order.id,
                 'buyer': order.user.username,
                 'buyer_contact': {
-                    'name': order.delivery_info.get('contact_name', '') if order.delivery_info else '',
-                    'phone': order.delivery_info.get('contact_phone', '') if order.delivery_info else ''
+                    'name': d_info.get('contact_name', '') if d_info else '',
+                    'phone': d_info.get('contact_phone', '') if d_info else ''
                 },
                 'order_date': order.order_date.isoformat(),
                 'status': order.status,
                 'shipping_method': order.shipping_method,
                 'fulfillment_type': order.fulfillment_type,
+                'fulfillment_location': order.fulfillment_location_id,
+                'fulfillment_location_name': order.fulfillment_location.name if order.fulfillment_location else None,
+                'fulfillment_location_city': order.fulfillment_location.city if order.fulfillment_location else None,
+                'seller_region': seller_region,
+                'buyer_destination_region': buyer_dest_region,
                 'has_vehicles': order_has_vehicles(order),
                 'total_amount': float(order.total_amount),
                 'shipping_fee': float(order.shipping_fee) if order.shipping_fee else 0.0,
@@ -2944,7 +2972,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'items': items_data,
                 'timeline': timeline,
                 'payments': payments,
-                'delivery_info': order.delivery_info if isinstance(order.delivery_info, dict) else (json.loads(order.delivery_info) if isinstance(order.delivery_info, str) else {}),
+                'delivery_info': d_info,
                 'negotiation_data': order.negotiation_data if isinstance(order.negotiation_data, dict) else (json.loads(order.negotiation_data) if isinstance(order.negotiation_data, str) else {}),
                 'is_bulk_order': order.is_bulk_order,
                 'promo_code': order.promo_code.code if order.promo_code else None,

@@ -135,13 +135,10 @@ const DashboardOrders: React.FC = () => {
         shippingOrder.fulfillment_location_city ||
         branch?.city ||
         activeLocation?.city ||
-        (shippingOrder.delivery_info?.origin_warehouse_code
-          ? warehouses.find(w => w.code === shippingOrder.delivery_info.origin_warehouse_code)?.region_name
-          : '') ||
         'Dar es Salaam';
       setShipRegion(origin);
     }
-  }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation, warehouses]);
+  }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation]);
 
   const regionWarehouses = useMemo(() => {
     if (!shipRegion) return warehouses;
