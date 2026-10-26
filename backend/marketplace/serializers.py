@@ -1323,6 +1323,9 @@ class OrderSerializer(serializers.ModelSerializer):
     promo_code_details = serializers.SerializerMethodField(read_only=True)
     discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     fulfillment_location_name = serializers.CharField(source='fulfillment_location.name', read_only=True, default=None)
+    fulfillment_location_city = serializers.CharField(source='fulfillment_location.city', read_only=True, default=None)
+    seller_region = serializers.SerializerMethodField()
+    buyer_destination_region = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -1331,7 +1334,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'order_date', 'total_amount', 'status',
             'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'delivery_latitude', 'delivery_longitude',
-            'fulfillment_location', 'fulfillment_location_name',
+            'fulfillment_location', 'fulfillment_location_name', 'fulfillment_location_city', 'seller_region', 'buyer_destination_region',
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
@@ -1543,6 +1546,42 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_shipments(self, obj):
         from logistics.serializers import ShipmentSerializer
         return ShipmentSerializer(obj.shipments.all(), many=True).data
+
+    def get_seller_region(self, obj):
+        # 1. Physical store/branch location assigned to the order
+        if obj.fulfillment_location and getattr(obj.fulfillment_location, 'city', None):
+            return obj.fulfillment_location.city
+
+        # 2. Origin warehouse code in delivery_info (if set at checkout)
+        if isinstance(obj.delivery_info, dict) and obj.delivery_info.get('origin_warehouse_code'):
+            code = obj.delivery_info.get('origin_warehouse_code')
+            from warehouses.models import Warehouse
+            wh = Warehouse.objects.filter(code=code).select_related('region').first()
+            if wh and wh.region:
+                return wh.region.name
+
+        # 3. Seller's primary store location or profile location
+        try:
+            first_item = obj.orderitem_set.first()
+            if first_item and first_item.product and first_item.product.seller:
+                seller = first_item.product.seller
+                main_loc = seller.store_locations.filter(is_main=True).first() or seller.store_locations.first()
+                if main_loc and main_loc.city:
+                    return main_loc.city
+                profile = getattr(seller, 'profile', None)
+                if profile and profile.location:
+                    loc_part = profile.location.split(',')[0].strip()
+                    if loc_part:
+                        return loc_part
+        except Exception:
+            pass
+
+        return 'Dar es Salaam'
+
+    def get_buyer_destination_region(self, obj):
+        if isinstance(obj.delivery_info, dict):
+            return obj.delivery_info.get('region') or obj.delivery_info.get('city') or ''
+        return ''
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)

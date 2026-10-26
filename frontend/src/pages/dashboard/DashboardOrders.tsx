@@ -125,14 +125,23 @@ const DashboardOrders: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  // When modal opens, auto-detect the region from the order fulfillment branch, seller location, or delivery info
+  // When modal opens, auto-detect the seller's intake region where they physically drop off the parcel.
+  // NEVER use buyer destination region (e.g. Kagera); sellers only drop off in their own region (e.g. Dar es Salaam).
   useEffect(() => {
     if (shipModalOpen && shippingOrder) {
       const branch = (assignedLocations || []).find((l: any) => l.id === shippingOrder.fulfillment_location);
-      const origin = branch?.city || activeLocation?.city || shippingOrder.delivery_info?.region || shippingOrder.delivery_info?.city || '';
+      const origin =
+        shippingOrder.seller_region ||
+        shippingOrder.fulfillment_location_city ||
+        branch?.city ||
+        activeLocation?.city ||
+        (shippingOrder.delivery_info?.origin_warehouse_code
+          ? warehouses.find(w => w.code === shippingOrder.delivery_info.origin_warehouse_code)?.region_name
+          : '') ||
+        'Dar es Salaam';
       setShipRegion(origin);
     }
-  }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation]);
+  }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation, warehouses]);
 
   const regionWarehouses = useMemo(() => {
     if (!shipRegion) return warehouses;
@@ -850,11 +859,16 @@ const DashboardOrders: React.FC = () => {
             <div className="p-5 pb-3 flex justify-between items-center">
               <div>
                 <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                  Select Destination Warehouse
+                  Select Dropoff Intake Warehouse
                 </h3>
-                <p className="text-2xs text-gray-500 dark:text-gray-400">
-                  Select the SokoniMax intake warehouse {shipRegion ? `in ${shipRegion}` : ''} for Order #{shipModalOpen}
-                </p>
+                <div className="flex items-center gap-2 text-2xs text-gray-500 dark:text-gray-400 mt-0.5 flex-wrap">
+                  <span>Drop off package at your local hub in <span className="font-bold text-gray-900 dark:text-white">{shipRegion}</span></span>
+                  {shippingOrder?.buyer_destination_region && shippingOrder.buyer_destination_region.toLowerCase() !== shipRegion.toLowerCase() && (
+                    <span className="px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold text-3xs">
+                      Buyer Destination: {shippingOrder.buyer_destination_region} (Line-Haul Transfer)
+                    </span>
+                  )}
+                </div>
               </div>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X size={18} />
@@ -865,7 +879,7 @@ const DashboardOrders: React.FC = () => {
               {/* Warehouse Selection in Region */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-700 dark:text-gray-300">
-                  Warehouse Location {shipRegion ? `in ${shipRegion}` : ''} ({regionWarehouses.length} available)
+                  Intake Hub in {shipRegion} ({regionWarehouses.length} available)
                 </label>
                 <select
                   required
@@ -903,7 +917,7 @@ const DashboardOrders: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-3xs text-gray-500 dark:text-gray-400 pt-0.5">
-                    Deliver your package to this exact address or instruct your courier/bodaboda to drop off here.
+                    Deliver your package to this local {shipRegion} warehouse. SokoniMax logistics will handle inter-regional transport to {shippingOrder?.buyer_destination_region || 'the destination'}.
                   </p>
                 </div>
               )}
