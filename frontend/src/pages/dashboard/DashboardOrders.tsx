@@ -226,7 +226,7 @@ const DashboardOrders: React.FC = () => {
       fetchOrders(1, true);
       setShipModalOpen(null);
     } catch (err: any) { 
-      toast.error(err.response?.data?.error || 'Failed to update order'); 
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to update order'); 
     } finally { setAdvancing(null); }
   };
 
@@ -642,7 +642,7 @@ const DashboardOrders: React.FC = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Payment proof rejected.')}
+                                onClick={() => handleAdvance(order.id, isDeliveryPayment ? 'AWAITING_DELIVERY_PAYMENT' : 'AWAITING_PAYMENT', 'Payment proof rejected.')}
                                 className="text-red-500 border-red-500/30 hover:bg-red-500/10"
                               >
                                 Reject

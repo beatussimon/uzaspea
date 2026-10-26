@@ -2156,8 +2156,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             or has_staff_permission(request.user, 'can_manage_logistics')
             or WarehouseStaffAssignment.objects.filter(user=request.user).exists()
         )
+
+        # Allow seller to verify or reject payment for orders containing their products
+        is_seller_payment_action = is_seller and (
+            (new_state == 'PAID' and order.status == 'PENDING_VERIFICATION') or
+            (new_state in ['AWAITING_PAYMENT', 'AWAITING_DELIVERY_PAYMENT'] and order.status in ['PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION']) or
+            (new_state in ['READY_FOR_PICKUP', 'ASSIGNED_TRANSPORT'] and order.status == 'PENDING_DELIVERY_VERIFICATION')
+        )
         
-        if new_state in STAFF_ONLY_STATES and not is_warehouse_staff:
+        if new_state in STAFF_ONLY_STATES and not (is_warehouse_staff or is_seller_payment_action):
             # HIGH-1: DIRECT_DELIVERY orders — seller manages last-mile, so allow them to mark as DELIVERED
             is_direct_seller_delivery = (
                 new_state == 'DELIVERED'
@@ -2180,7 +2187,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 {'detail': f'ERR_SELLER_ONLY: Only the seller or staff can advance order to {new_state}.'},
                 status=403
             )
-        if new_state in BUYER_ALLOWED_STATES and not (is_warehouse_staff or is_buyer):
+        if new_state in BUYER_ALLOWED_STATES and not (is_warehouse_staff or is_buyer or is_seller_payment_action):
             return Response(
                 {'detail': f'ERR_BUYER_ONLY: Only the buyer or staff can move order to {new_state}. (is_buyer={is_buyer}, user_id={request.user.id}, order_user_id={order.user_id})'},
                 status=403
@@ -2248,6 +2255,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             OrderStateMachine.transition_order(order, new_state, notes=notes)
         except ValueError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Synchronize payment record status when advancing
+        if new_state in ['PAID', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP']:
+            order.payments.filter(status='PENDING_VERIFICATION').update(status='VERIFIED')
+        elif new_state in ['AWAITING_PAYMENT', 'AWAITING_DELIVERY_PAYMENT']:
+            order.payments.filter(status='PENDING_VERIFICATION').update(status='REJECTED')
+
         return Response({'status': order.status})
 
     @decorators.action(detail=True, methods=['get'], url_path='pickup-code')
