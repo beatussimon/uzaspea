@@ -197,7 +197,7 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!scanCode.trim()) return;
     setScanning(true);
     try {
-      const res = await api.get(`/api/warehouses/warehouses/scan_order/?query=${encodeURIComponent(scanCode.trim())}`);
+      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(scanCode.trim())}`);
       const order = res.data;
       if (order && order.id) {
         setSelectedOrder(order);
@@ -229,10 +229,11 @@ const WarehouseStaffLayout: React.FC = () => {
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('order_id', selectedOrder.id.toString());
-      formData.append('condition', condition);
+      formData.append('warehouse', selectedWarehouseId.toString());
+      formData.append('order', selectedOrder.id.toString());
+      formData.append('package_condition', condition);
       formData.append('notes', intakeNotes);
-      if (photo) formData.append('package_photo', photo);
+      if (photo) formData.append('photo', photo);
 
       if (sellerSigRef.current && !sellerSigRef.current.isEmpty()) {
         const sellerSig = sellerSigRef.current.getTrimmedCanvas().toDataURL('image/png');
@@ -243,13 +244,13 @@ const WarehouseStaffLayout: React.FC = () => {
         formData.append('staff_signature', staffSig);
       }
 
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/intake/`, formData);
+      await api.post('/api/warehouses/intakes/', formData);
       toast.success('Package intake recorded successfully!');
       setActiveModal(null);
       setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Intake recording failed');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Intake recording failed');
     } finally {
       setSubmitting(false);
     }
@@ -261,7 +262,7 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!selectedOrder) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-pricing/`, {
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-delivery-fee/`, {
         order_id: selectedOrder.id,
         delivery_fee: deliveryFee,
         destination_warehouse_code: destinationWarehouseCode
@@ -271,7 +272,7 @@ const WarehouseStaffLayout: React.FC = () => {
       setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to set pricing');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to set pricing');
     } finally {
       setSubmitting(false);
     }
@@ -283,7 +284,7 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!selectedOrder) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch/`, {
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch-order/`, {
         order_id: selectedOrder.id,
         carrier_type: carrierType,
         driver_id: carrierType === 'driver' && selectedDriverId ? parseInt(selectedDriverId) : null,
@@ -295,7 +296,7 @@ const WarehouseStaffLayout: React.FC = () => {
       setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Dispatch failed');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Dispatch failed');
     } finally {
       setSubmitting(false);
     }
@@ -307,16 +308,15 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!selectedOrder) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/confirm-pickup/`, {
-        order_id: selectedOrder.id,
-        pickup_code: pickupCode
+      await api.post('/api/warehouses/pickup/verify/', {
+        code: pickupCode
       });
       toast.success('Customer pickup confirmed!');
       setActiveModal(null);
       setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Pickup verification failed');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Pickup verification failed');
     } finally {
       setSubmitting(false);
     }

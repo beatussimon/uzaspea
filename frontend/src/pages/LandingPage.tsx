@@ -272,7 +272,7 @@ const LandingPage = () => {
       </div>
 
       {/* 2. SHOP BY CATEGORY */}
-      {showCategories && <CategoryShowcaseSection />}
+      {showCategories && <CategoryShowcaseSection isActive={true} />}
       
       {/* 3. INVISIBLE REDIRECT TRIGGER */}
       <div id="redirect" className="h-[20vh] w-full invisible pointer-events-none opacity-0"></div>

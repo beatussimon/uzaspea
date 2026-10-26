@@ -2856,7 +2856,15 @@ const StaffDashboardLayout: React.FC = () => {
   const canManageWarehouse = perms.includes('can_manage_warehouse_intake') || isSuper;
   const canManageLogistics = perms.includes('can_manage_logistics') || isSuper;
 
-  if (!loading && isInspectorOnly) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-black">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (isInspectorOnly) {
     return <Navigate to="/inspector/jobs" replace />;
   }
 

@@ -11,18 +11,23 @@ class ShipmentSerializer(serializers.ModelSerializer):
     driver_username = serializers.CharField(source='driver.username', read_only=True)
     customer_username = serializers.CharField(source='order.user.username', read_only=True)
     has_vehicles = serializers.SerializerMethodField()
+    delivery_address = serializers.SerializerMethodField()
 
     class Meta:
         model = Shipment
         fields = [
             'id', 'order', 'carrier_type', 'driver', 'driver_username',
             'customer_username', 'tracking_number', 'status', 'estimated_delivery',
-            'created_at', 'has_vehicles'
+            'created_at', 'has_vehicles', 'delivery_address'
         ]
 
     def get_has_vehicles(self, obj):
         from .models import order_has_vehicles
         return order_has_vehicles(obj.order)
+
+    def get_delivery_address(self, obj):
+        info = getattr(obj.order, 'delivery_info', {}) or {}
+        return info.get('address') or info.get('city') or ''
 
 
 class LocationPingSerializer(serializers.ModelSerializer):

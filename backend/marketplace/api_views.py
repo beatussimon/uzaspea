@@ -1956,6 +1956,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return Order.objects.none()
 
+        role = None
+        order_type = None
+
         # Detail actions: allow buyer, seller/team member of product in order, or staff
         if getattr(self, 'detail', False) or self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'advance', 'cancel']:
             if user.is_staff or user.is_superuser:
