@@ -916,7 +916,7 @@ const DashboardOrders: React.FC = () => {
                 <div className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#181818] space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-gray-900 dark:text-white">{selectedWh.name}</span>
-                    <span className="text-3xs font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-white/10 text-brand-600 dark:text-brand-400 font-semibold">{selectedWh.code}</span>
+                    <span className="text-3xs font-mono text-brand-600 dark:text-brand-400 font-semibold">{selectedWh.code}</span>
                   </div>
                   <p className="text-2xs text-gray-500 dark:text-gray-400">
                     {selectedWh.address || 'Central Hub'}{selectedWh.district ? ` • ${selectedWh.district}` : ''}
