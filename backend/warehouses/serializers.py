@@ -6,7 +6,7 @@ class WarehouseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Warehouse
-        fields = ['id', 'name', 'code', 'region', 'region_name', 'address', 'latitude', 'longitude', 'is_active']
+        fields = ['id', 'name', 'code', 'region', 'region_name', 'district', 'address', 'latitude', 'longitude', 'is_active']
 
 
 class WarehouseIntakeSerializer(serializers.ModelSerializer):

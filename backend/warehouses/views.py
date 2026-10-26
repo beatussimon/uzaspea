@@ -28,6 +28,14 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WarehouseSerializer
     pagination_class = None
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        region = self.request.query_params.get('region')
+        if region:
+            from django.db.models import Q
+            qs = qs.filter(Q(region__name__iexact=region) | Q(region__name__icontains=region) | Q(address__icontains=region) | Q(district__icontains=region))
+        return qs
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
