@@ -356,3 +356,52 @@ class WarehousePostIntakeWorkflowTests(TestCase):
         self.assertEqual(payment.status, 'REJECTED')
         self.assertEqual(order.status, 'AWAITING_DELIVERY_PAYMENT')
 
+    def test_seller_can_verify_payment_and_advance_to_paid(self):
+        # Create independent seller
+        seller_user = User.objects.create_user(username='independent_seller', password='pw', is_staff=False)
+        from marketplace.models import Category, Product, OrderItem, Payment
+        cat = Category.objects.create(name='Electronics', slug='electronics-verify')
+        product = Product.objects.create(
+            name='MacBook Laptop',
+            slug='macbook-laptop-verify',
+            seller=seller_user,
+            category=cat,
+            price=Decimal('1000.00'),
+            stock=5,
+            is_available=True
+        )
+
+        order = Order.objects.create(
+            user=self.buyer,
+            status='PENDING_VERIFICATION',
+            total_amount=Decimal('1000.00'),
+            fulfillment_type='PLATFORM_DELIVERY',
+            shipping_method='DELIVERY'
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            quantity=1,
+            price=Decimal('1000.00')
+        )
+        payment = Payment.objects.create(
+            order=order,
+            amount=Decimal('1000.00'),
+            transaction_id='TXN-SELLER-VERIFY',
+            status='PENDING_VERIFICATION'
+        )
+
+        # Authenticate as seller and verify
+        self.client.force_authenticate(user=seller_user)
+        res = self.client.post(f'/api/orders/{order.id}/advance/', {
+            'status': 'PAID',
+            'notes': 'Payment verified by seller.'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json().get('status'), 'PAID')
+
+        order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(order.status, 'PAID')
+        self.assertEqual(payment.status, 'VERIFIED')
+
