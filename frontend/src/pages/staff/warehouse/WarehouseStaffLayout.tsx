@@ -201,12 +201,15 @@ const WarehouseStaffLayout: React.FC = () => {
       const order = res.data;
       if (order && order.id) {
         setSelectedOrder(order);
+        setDestinationWarehouseCode(order.delivery_info?.destination_warehouse_code || '');
+        setDeliveryFee(order.shipping_fee ? String(order.shipping_fee) : '');
         toast.success(`Found Order #${order.id}`);
-        if (order.status === 'confirmed' || order.status === 'processing') {
+        const st = (order.status || '').toUpperCase();
+        if (['SHIPPED_TO_WAREHOUSE', 'PAID', 'PAID_PRODUCT', 'PREPARING', 'PACKAGING', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'IN_TRANSIT', 'FAILED_DELIVERY'].includes(st)) {
           setActiveModal('intake');
-        } else if (order.status === 'received_at_warehouse') {
+        } else if (['RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT'].includes(st)) {
           setActiveModal('pricing');
-        } else if (order.status === 'ready_for_pickup') {
+        } else if (['READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'].includes(st)) {
           setActiveModal('pickup');
         } else {
           setActiveModal('dispatch');
@@ -264,7 +267,9 @@ const WarehouseStaffLayout: React.FC = () => {
     try {
       await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-delivery-fee/`, {
         order_id: selectedOrder.id,
+        fee: deliveryFee,
         delivery_fee: deliveryFee,
+        destination_warehouse: destinationWarehouseCode,
         destination_warehouse_code: destinationWarehouseCode
       });
       toast.success('Delivery fee updated!');
@@ -558,7 +563,12 @@ const WarehouseStaffLayout: React.FC = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => { setSelectedOrder(order); setActiveModal('pricing'); }}
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setDestinationWarehouseCode(order.delivery_info?.destination_warehouse_code || '');
+                        setDeliveryFee(order.shipping_fee ? String(order.shipping_fee) : '');
+                        setActiveModal('pricing');
+                      }}
                       className="w-full"
                     >
                       Set Delivery Fee
@@ -746,11 +756,25 @@ const WarehouseStaffLayout: React.FC = () => {
 
             <form onSubmit={handleSubmitPricing} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Destination Hub Code</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Destination Hub</label>
+                {warehouses.length > 0 && (
+                  <select
+                    className="input text-xs mb-1.5"
+                    value={destinationWarehouseCode}
+                    onChange={(e) => setDestinationWarehouseCode(e.target.value)}
+                  >
+                    <option value="">-- Same Warehouse / Local Delivery --</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.code}>
+                        {w.name} ({w.code})
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   type="text"
-                  className="input font-mono"
-                  placeholder="e.g. DAR-01"
+                  className="input font-mono text-xs"
+                  placeholder="Or enter custom hub code, e.g. DAR-01"
                   value={destinationWarehouseCode}
                   onChange={(e) => setDestinationWarehouseCode(e.target.value.toUpperCase())}
                 />

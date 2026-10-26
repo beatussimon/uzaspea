@@ -88,21 +88,25 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         
         order_id = request.data.get('order_id')
         fee = request.data.get('fee')
-        dest_code = request.data.get('destination_warehouse')
+        if fee is None or fee == '':
+            fee = request.data.get('delivery_fee')
+        dest_code = request.data.get('destination_warehouse') or request.data.get('destination_warehouse_code')
         
         if not user_can_access_warehouse(request.user, current_warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         
         try:
             order = Order.objects.get(id=order_id)
-            if order.status != 'RECEIVED_AT_WAREHOUSE':
-                return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE to set fee.'}, status=400)
+            if order.status not in ['RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT']:
+                return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE or AWAITING_DELIVERY_PAYMENT to set fee.'}, status=400)
             
+            from decimal import Decimal
+            fee_dec = Decimal(str(fee or 0))
+
             if dest_code:
                 from warehouses.models import Warehouse as _Warehouse, WarehouseTransfer
                 from .models import HistoricalRoutePricing
                 from django.db import transaction
-                from decimal import Decimal
 
                 import json
                 di_raw = order.delivery_info
@@ -116,13 +120,12 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 new_di = dict(di_raw)
                 new_di['destination_warehouse_code'] = dest_code
                 order.delivery_info = new_di
-                order.shipping_fee = fee
+                order.shipping_fee = fee_dec
                 order.save(update_fields=['shipping_fee', 'delivery_info'])
 
                 # Update historical route pricing (rolling average) for future staff guidance.
                 try:
                     dest_wh_obj = _Warehouse.objects.get(code=dest_code)
-                    fee_dec = Decimal(str(fee))
                     with transaction.atomic():
                         hrp, created = HistoricalRoutePricing.objects.select_for_update().get_or_create(
                             origin_warehouse=current_warehouse,
@@ -150,12 +153,25 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                     except _Warehouse.DoesNotExist:
                         pass
             else:
-                order.shipping_fee = fee
+                order.shipping_fee = fee_dec
                 order.save(update_fields=['shipping_fee'])
             
-            # Transition
-            OrderStateMachine.transition_order(order, 'AWAITING_DELIVERY_PAYMENT', notes=f"Final delivery fee confirmed: TSh {fee}")
-            return Response({'status': 'success', 'shipping_fee': fee})
+            # Transition based on fee amount and destination
+            if fee_dec > Decimal('0.00'):
+                OrderStateMachine.transition_order(order, 'AWAITING_DELIVERY_PAYMENT', notes=f"Final delivery fee confirmed: TSh {fee_dec}")
+            else:
+                dest_is_same = not dest_code or dest_code == current_warehouse.code
+                if dest_is_same:
+                    if order.fulfillment_type == 'WAREHOUSE_PICKUP' or order.shipping_method == 'PICKUP':
+                        from logistics.utils import order_has_vehicles
+                        next_status = 'READY_FOR_VEHICLE_HANDOVER' if order_has_vehicles(order) else 'READY_FOR_PICKUP'
+                    else:
+                        next_status = 'ASSIGNED_TRANSPORT'
+                else:
+                    next_status = 'ASSIGNED_TRANSPORT'
+                OrderStateMachine.transition_order(order, next_status, notes="Delivery fee set to 0. Order advanced.")
+
+            return Response({'status': 'success', 'shipping_fee': float(fee_dec)})
         except Order.DoesNotExist:
             return Response({'error': 'Order not found'}, status=404)
         except Exception as e:
@@ -214,7 +230,10 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         orders = Order.objects.filter(
             Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT', 'OUT_FOR_DELIVERY']) &
             (Q(delivery_info__current_warehouse_code=warehouse.code) |
-             (Q(delivery_info__isnull=True) | Q(delivery_info={})))
+             Q(delivery_info__warehouse_code=warehouse.code) |
+             Q(delivery_info__destination_warehouse_code=warehouse.code) |
+             Q(delivery_info__isnull=True) |
+             Q(delivery_info={}))
         ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
@@ -249,12 +268,20 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         order_id = request.data.get('order_id')
         try:
             order = Order.objects.get(id=order_id)
-            if order.status != 'ASSIGNED_TRANSPORT':
-                return Response({'error': 'Order must be in ASSIGNED_TRANSPORT state to be dispatched.'}, status=400)
+            if order.status not in ['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT', 'RECEIVED_AT_WAREHOUSE']:
+                return Response({'error': f'Order status {order.status} cannot be dispatched.'}, status=400)
             
-            is_last_mile = order.delivery_info and order.delivery_info.get('current_warehouse_code') == order.delivery_info.get('destination_warehouse_code')
+            carrier_type = request.data.get('carrier_type', 'driver')
+            driver_id = request.data.get('driver_id')
+            tracking_number = request.data.get('tracking_number', '')
+            estimated_delivery = request.data.get('estimated_delivery')
+
+            dest_code = (order.delivery_info or {}).get('destination_warehouse_code')
+            curr_code = (order.delivery_info or {}).get('current_warehouse_code') or warehouse.code
+            is_last_mile = (dest_code == curr_code) or not dest_code
+
             if is_last_mile:
-                notes = f"Package handed over to last-mile courier at {warehouse.name} for final delivery."
+                notes = f"Package handed over to courier at {warehouse.name} for final delivery."
                 new_status = 'OUT_FOR_DELIVERY'
             else:
                 notes = f"Package dispatched from origin warehouse ({warehouse.name}) and is in transit to destination hub."
@@ -266,12 +293,40 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 notes=notes
             )
             
-            # Sync Shipment state
+            # Sync or create Shipment state
             from logistics.models import Shipment
             shipment = Shipment.objects.filter(order=order).order_by('-created_at').first()
-            if shipment and shipment.status == 'pending':
-                shipment.status = 'in_transit'
-                shipment.save(update_fields=['status'])
+            if not shipment:
+                shipment = Shipment(
+                    order=order,
+                    shipment_type='local_delivery' if is_last_mile else 'line_haul'
+                )
+            if carrier_type:
+                shipment.carrier_type = carrier_type
+            if driver_id:
+                shipment.driver_id = driver_id
+            if tracking_number:
+                shipment.tracking_number = tracking_number
+            if estimated_delivery:
+                shipment.estimated_delivery = estimated_delivery
+            shipment.status = 'in_transit'
+            shipment.shipped_at = timezone.now()
+            shipment.save()
+
+            if driver_id:
+                from marketplace.models import push_notification
+                try:
+                    from django.contrib.auth import get_user_model
+                    DriverUser = get_user_model()
+                    drv = DriverUser.objects.filter(pk=driver_id).first()
+                    if drv:
+                        push_notification(
+                            drv, 'delivery_assigned', 'New delivery assigned',
+                            f'You have been assigned order #{order.id} for delivery.',
+                            f'/driver/deliveries?highlight={order.id}'
+                        )
+                except Exception:
+                    pass
             
             # Update transfer record if it exists
             WarehouseTransfer.objects.filter(
@@ -279,7 +334,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 source_warehouse=warehouse,
                 status='pending'
             ).update(status='in_transit', shipped_at=timezone.now())
-            return Response({'status': 'success'})
+            return Response({'status': 'success', 'new_status': new_status})
         except Order.DoesNotExist:
             return Response({'error': 'Order not found'}, status=404)
         except Exception as e:
@@ -332,7 +387,7 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
                 except Warehouse.DoesNotExist:
                     pass
         elif order.status == 'IN_TRANSIT':
-            is_home_delivery = order.delivery_info and order.delivery_info.get('shipping_speed')
+            is_home_delivery = order.fulfillment_type == 'PLATFORM_DELIVERY' or order.shipping_method == 'DELIVERY'
             if order_has_vehicles(order):
                 new_status = 'READY_FOR_VEHICLE_HANDOVER'
             elif is_home_delivery:
@@ -341,7 +396,7 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
                 new_status = 'READY_FOR_PICKUP'
             notes = f"Package received at destination warehouse ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
         elif order.status == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
-            is_home_delivery = order.delivery_info and order.delivery_info.get('shipping_speed')
+            is_home_delivery = order.fulfillment_type == 'PLATFORM_DELIVERY' or order.shipping_method == 'DELIVERY'
             if order_has_vehicles(order):
                 new_status = 'READY_FOR_VEHICLE_HANDOVER'
             elif is_home_delivery:
@@ -456,6 +511,12 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         product_image = None
 
         first_item = order.orderitem_set.select_related('product__seller').first()
+        if first_item and first_item.product:
+            if hasattr(first_item.product, 'primary_image') and first_item.product.primary_image:
+                try:
+                    product_image = request.build_absolute_uri(first_item.product.primary_image.url)
+                except Exception:
+                    product_image = None
 
         buyer_name = "Unknown Buyer"
         if order.user:
@@ -540,6 +601,10 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only superusers can update these records.")
         return super().update(request, *args, **kwargs)
 
+    @action(detail=True, methods=['post'], url_path='dispatch')
+    def dispatch_transfer(self, request, pk=None):
+        return self.ship(request, pk=pk)
+
     @action(detail=True, methods=['post'])
     def ship(self, request, pk=None):
         transfer = self.get_object()
@@ -555,6 +620,12 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
         transfer.status = 'in_transit'
         transfer.shipped_at = timezone.now()
         transfer.save()
+
+        # Sync line_haul shipment
+        from logistics.models import Shipment
+        Shipment.objects.filter(
+            order=transfer.order, shipment_type='line_haul', status='pending'
+        ).update(status='in_transit', shipped_at=timezone.now())
 
         # Transition order to IN_TRANSIT
         try:
@@ -585,12 +656,37 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
         transfer.received_at = timezone.now()
         transfer.save()
 
+        order = transfer.order
+        di = dict(order.delivery_info or {})
+        di['current_warehouse_code'] = transfer.destination_warehouse.code
+        order.delivery_info = di
+        order.save(update_fields=['delivery_info'])
+
         # Transition order to ARRIVED_AT_REGIONAL_WAREHOUSE
         OrderStateMachine.transition_order(
-            transfer.order,
+            order,
             'ARRIVED_AT_REGIONAL_WAREHOUSE',
             notes=f"Package received at regional hub: {transfer.destination_warehouse.name}"
         )
+
+        # If buyer selected warehouse pickup, automatically advance to READY_FOR_PICKUP!
+        if order.fulfillment_type == 'WAREHOUSE_PICKUP' or order.shipping_method == 'PICKUP':
+            try:
+                from logistics.utils import order_has_vehicles
+                if order_has_vehicles(order):
+                    OrderStateMachine.transition_order(
+                        order,
+                        'READY_FOR_VEHICLE_HANDOVER',
+                        notes=f"Vehicle arrived at {transfer.destination_warehouse.name} and is ready for customer handover."
+                    )
+                else:
+                    OrderStateMachine.transition_order(
+                        order,
+                        'READY_FOR_PICKUP',
+                        notes=f"Package shelved at {transfer.destination_warehouse.name} and ready for customer pickup."
+                    )
+            except Exception:
+                pass
 
         return Response({'status': 'completed'})
 
@@ -611,6 +707,7 @@ class PickupVerifyView(APIView):
         code_str = request.data.get('code')
         if not code_str:
             return Response({'error': 'Verification code is required'}, status=status.HTTP_400_BAD_REQUEST)
+        code_str = str(code_str).strip()
         
         user_key = f"pickup_verify_fails:{request.user.id}"
         lock_key = f"pickup_verify_lock:{request.user.id}"
@@ -619,9 +716,19 @@ class PickupVerifyView(APIView):
 
         from logistics.models import PickupCode
         with transaction.atomic():
-            try:
-                pickup_code = PickupCode.objects.select_for_update().get(code=code_str)
-            except PickupCode.DoesNotExist:
+            pickup_code = PickupCode.objects.select_for_update().filter(code=code_str).first()
+            if not pickup_code:
+                # Also check Order.delivery_code
+                order = Order.objects.select_for_update().filter(delivery_code=code_str).first()
+                if order:
+                    pickup_code, _ = PickupCode.objects.select_for_update().get_or_create(
+                        order=order, defaults={'code': code_str}
+                    )
+                    if pickup_code.code != code_str:
+                        pickup_code.code = code_str
+                        pickup_code.save(update_fields=['code'])
+
+            if not pickup_code:
                 fails = (cache.get(user_key) or 0) + 1
                 if fails >= 5:
                     cache.set(lock_key, True, timeout=900)

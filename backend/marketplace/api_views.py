@@ -3105,14 +3105,33 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Payment is not pending verification.'}, status=400)
         payment.status = 'VERIFIED'
         payment.save(update_fields=['status'])
-        if payment.order and payment.order.status == 'PENDING_VERIFICATION':
-            try:
-                OrderStateMachine.transition_order(
-                    payment.order, 'PAID',
-                    notes=f'Payment #{payment.id} verified by {request.user.username}.'
-                )
-            except ValueError as e:
-                return Response({'error': str(e)}, status=400)
+        if payment.order:
+            if payment.order.status == 'PENDING_VERIFICATION':
+                try:
+                    OrderStateMachine.transition_order(
+                        payment.order, 'PAID',
+                        notes=f'Payment #{payment.id} verified by {request.user.username}.'
+                    )
+                except ValueError as e:
+                    return Response({'error': str(e)}, status=400)
+            elif payment.order.status == 'PENDING_DELIVERY_VERIFICATION':
+                try:
+                    dest_code = (payment.order.delivery_info or {}).get('destination_warehouse_code')
+                    curr_code = (payment.order.delivery_info or {}).get('current_warehouse_code') or (payment.order.delivery_info or {}).get('warehouse_code')
+                    is_local_pickup = (payment.order.fulfillment_type == 'WAREHOUSE_PICKUP') and (not dest_code or dest_code == curr_code)
+                    
+                    if is_local_pickup:
+                        from logistics.utils import order_has_vehicles
+                        next_st = 'READY_FOR_VEHICLE_HANDOVER' if order_has_vehicles(payment.order) else 'READY_FOR_PICKUP'
+                    else:
+                        next_st = 'ASSIGNED_TRANSPORT'
+                        
+                    OrderStateMachine.transition_order(
+                        payment.order, next_st,
+                        notes=f'Delivery payment #{payment.id} verified by {request.user.username}.'
+                    )
+                except ValueError as e:
+                    return Response({'error': str(e)}, status=400)
         return Response({
             'payment_status': payment.status,
             'order_status': payment.order.status if payment.order else None
@@ -3136,14 +3155,23 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Payment is not pending verification.'}, status=400)
         payment.status = 'REJECTED'
         payment.save(update_fields=['status'])
-        if payment.order and payment.order.status == 'PENDING_VERIFICATION':
-            try:
-                OrderStateMachine.transition_order(
-                    payment.order, 'AWAITING_PAYMENT',
-                    notes=f'Payment #{payment.id} rejected by {request.user.username}. Reason: {request.data.get("reason", "Not specified")}.'
-                )
-            except ValueError:
-                pass
+        if payment.order:
+            if payment.order.status == 'PENDING_VERIFICATION':
+                try:
+                    OrderStateMachine.transition_order(
+                        payment.order, 'AWAITING_PAYMENT',
+                        notes=f'Payment #{payment.id} rejected by {request.user.username}. Reason: {request.data.get("reason", "Not specified")}.'
+                    )
+                except ValueError:
+                    pass
+            elif payment.order.status == 'PENDING_DELIVERY_VERIFICATION':
+                try:
+                    OrderStateMachine.transition_order(
+                        payment.order, 'AWAITING_DELIVERY_PAYMENT',
+                        notes=f'Delivery payment #{payment.id} rejected by {request.user.username}. Reason: {request.data.get("reason", "Not specified")}.'
+                    )
+                except ValueError:
+                    pass
         return Response({'payment_status': payment.status})
 
 from django.contrib.auth.models import User
