@@ -639,7 +639,7 @@ const DashboardOrders: React.FC = () => {
                     {/* Payment Verification Callout */}
                     {hasPendingPayment && order.payments?.length > 0 && (
                       <div className="py-2 space-y-3 mt-1">
-                        <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-xs uppercase tracking-wider">
+                        <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-xs">
                           <span>Payment Verification Needed</span>
                         </div>
 
