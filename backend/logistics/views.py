@@ -200,11 +200,13 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         if not is_staff and shipment.driver != user:
             return Response({'error': 'You are not authorized to confirm this delivery.'}, status=status.HTTP_403_FORBIDDEN)
             
-        code = request.data.get('code')
+        code = str(request.data.get('code') or '').strip()
         if not code:
             return Response({'error': 'Delivery code is required.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        if shipment.order.delivery_code != code:
+        from logistics.models import PickupCode
+        code_matches = (shipment.order.delivery_code == code) or PickupCode.objects.filter(order=shipment.order, code=code).exists()
+        if not code_matches:
             return Response({'error': 'Incorrect delivery code. Please verify with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
             
         if shipment.status == 'delivered':
@@ -212,6 +214,10 @@ class ShipmentViewSet(viewsets.ModelViewSet):
             
         shipment.status = 'delivered'
         shipment.save()
+
+        PickupCode.objects.filter(order=shipment.order, code=code).update(
+            is_used=True, used_at=timezone.now(), verified_by=request.user
+        )
         
         # Once the correct code is provided, the delivery is guaranteed complete.
         # Transition the order directly to COMPLETED to trigger payouts and prompt user for rating.

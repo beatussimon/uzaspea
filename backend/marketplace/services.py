@@ -16,10 +16,37 @@ class OrderStateMachine:
         'PREPARING': ['PACKAGING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'SHIPPED', 'READY_FOR_PICKUP', 'DELIVERED', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
-        'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
-        'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
-        'PENDING_DELIVERY_VERIFICATION': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'AWAITING_DELIVERY_PAYMENT', 'CANCELLED'],
-        'ASSIGNED_TRANSPORT': ['IN_TRANSIT', 'OUT_FOR_DELIVERY'],
+        'RECEIVED_AT_WAREHOUSE': [
+            'AWAITING_DELIVERY_PAYMENT',
+            'ASSIGNED_TRANSPORT',
+            'ARRIVED_AT_REGIONAL_WAREHOUSE',
+            'READY_FOR_PICKUP',
+            'READY_FOR_VEHICLE_HANDOVER',
+            'OUT_FOR_DELIVERY',
+            'CANCELLED'
+        ],
+        'AWAITING_DELIVERY_PAYMENT': [
+            'PENDING_DELIVERY_VERIFICATION',
+            'ASSIGNED_TRANSPORT',
+            'READY_FOR_PICKUP',
+            'READY_FOR_VEHICLE_HANDOVER',
+            'CANCELLED'
+        ],
+        'PENDING_DELIVERY_VERIFICATION': [
+            'ASSIGNED_TRANSPORT',
+            'READY_FOR_PICKUP',
+            'READY_FOR_VEHICLE_HANDOVER',
+            'AWAITING_DELIVERY_PAYMENT',
+            'CANCELLED'
+        ],
+        'ASSIGNED_TRANSPORT': [
+            'IN_TRANSIT',
+            'OUT_FOR_DELIVERY',
+            'READY_FOR_PICKUP',
+            'READY_FOR_VEHICLE_HANDOVER',
+            'DELIVERED',
+            'COMPLETED'
+        ],
         'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'],
         'OUT_FOR_DELIVERY': ['DELIVERED', 'COMPLETED', 'FAILED_DELIVERY'],
         'ARRIVED_AT_REGIONAL_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'],
@@ -43,6 +70,7 @@ class OrderStateMachine:
             old_state = locked_order.status
             
             if old_state == new_state:
+                order.status = new_state
                 return
 
             if new_state not in cls.VALID_TRANSITIONS.get(locked_order.status, []):
@@ -71,10 +99,18 @@ class OrderStateMachine:
                     raise ValueError(f"State '{new_state}' is not allowed for DIRECT_DELIVERY orders.")
 
             elif locked_order.fulfillment_type == 'WAREHOUSE_PICKUP':
-                # Warehouse pickup: buyer collects from warehouse; no outbound delivery
-                outbound_delivery_states = {'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT'}
-                if new_state in outbound_delivery_states:
-                    raise ValueError(f"State '{new_state}' is not allowed for WAREHOUSE_PICKUP orders.")
+                # Warehouse pickup: buyer collects from warehouse; no outbound home delivery
+                # Inter-hub transfers (IN_TRANSIT / ASSIGNED_TRANSPORT) are permitted if transferring between hubs.
+                dest_code = (locked_order.delivery_info or {}).get('destination_warehouse_code')
+                curr_code = (locked_order.delivery_info or {}).get('warehouse_code') or (locked_order.delivery_info or {}).get('current_warehouse_code')
+                is_inter_hub = dest_code and curr_code and dest_code != curr_code
+                if not is_inter_hub:
+                    outbound_delivery_states = {'OUT_FOR_DELIVERY'}
+                    if new_state in outbound_delivery_states:
+                        raise ValueError(f"State '{new_state}' is not allowed for WAREHOUSE_PICKUP orders.")
+                else:
+                    if new_state == 'OUT_FOR_DELIVERY':
+                        raise ValueError(f"State 'OUT_FOR_DELIVERY' is not allowed for WAREHOUSE_PICKUP orders.")
 
             elif locked_order.fulfillment_type == 'SELLER_PICKUP':
                 # Seller pickup (POS/walk-in): no warehouse logistics involved at all
@@ -148,7 +184,13 @@ class OrderStateMachine:
                 from marketplace.models import push_notification
                 # Only generate pickup codes for warehouse-routed orders
                 if locked_order.fulfillment_type in ('PLATFORM_DELIVERY', 'WAREHOUSE_PICKUP'):
-                    PickupCode.objects.get_or_create(order=locked_order)
+                    pcode, _ = PickupCode.objects.get_or_create(
+                        order=locked_order,
+                        defaults={'code': locked_order.delivery_code} if locked_order.delivery_code else {}
+                    )
+                    if locked_order.delivery_code and pcode.code != locked_order.delivery_code:
+                        pcode.code = locked_order.delivery_code
+                        pcode.save(update_fields=['code'])
                 if new_state == 'READY_FOR_PICKUP':
                     try:
                         code_str = locked_order.delivery_code or ""
