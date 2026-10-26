@@ -283,3 +283,76 @@ class WarehousePostIntakeWorkflowTests(TestCase):
         # Same hub pickup -> READY_FOR_PICKUP
         self.assertEqual(order.status, 'READY_FOR_PICKUP')
 
+    def test_warehouse_verify_delivery_payment_action_approve(self):
+        # Create non-staff warehouse operator assigned to the warehouse
+        wh_operator = User.objects.create_user(username='wh_op1', password='pw', is_staff=False)
+        WarehouseStaffAssignment.objects.create(user=wh_operator, warehouse=self.wh_origin)
+
+        from marketplace.models import Payment
+        order = Order.objects.create(
+            user=self.buyer,
+            status='PENDING_DELIVERY_VERIFICATION',
+            fulfillment_type='WAREHOUSE_PICKUP',
+            shipping_method='PICKUP',
+            shipping_fee=Decimal('6000.00'),
+            delivery_info={
+                'current_warehouse_code': self.wh_origin.code,
+                'destination_warehouse_code': self.wh_origin.code
+            }
+        )
+        payment = Payment.objects.create(
+            order=order,
+            amount=Decimal('6000.00'),
+            transaction_id='TXN-TEST-1234',
+            status='PENDING_VERIFICATION'
+        )
+
+        self.client.force_authenticate(user=wh_operator)
+        res = self.client.post(f'/api/warehouses/warehouses/{self.wh_origin.id}/verify-delivery-payment/', {
+            'order_id': order.id,
+            'action': 'approve'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json().get('status'), 'success')
+
+        order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'VERIFIED')
+        self.assertEqual(order.status, 'READY_FOR_PICKUP')
+
+    def test_warehouse_verify_delivery_payment_action_reject(self):
+        wh_operator = User.objects.create_user(username='wh_op2', password='pw', is_staff=False)
+        WarehouseStaffAssignment.objects.create(user=wh_operator, warehouse=self.wh_origin)
+
+        from marketplace.models import Payment
+        order = Order.objects.create(
+            user=self.buyer,
+            status='PENDING_DELIVERY_VERIFICATION',
+            fulfillment_type='PLATFORM_DELIVERY',
+            shipping_fee=Decimal('8000.00'),
+            delivery_info={
+                'current_warehouse_code': self.wh_origin.code,
+                'destination_warehouse_code': self.wh_dest.code
+            }
+        )
+        payment = Payment.objects.create(
+            order=order,
+            amount=Decimal('8000.00'),
+            transaction_id='TXN-BAD-999',
+            status='PENDING_VERIFICATION'
+        )
+
+        self.client.force_authenticate(user=wh_operator)
+        res = self.client.post(f'/api/warehouses/warehouses/{self.wh_origin.id}/verify-delivery-payment/', {
+            'order_id': order.id,
+            'action': 'reject',
+            'reason': 'Transaction ID not found in bank statement.'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json().get('status'), 'success')
+
+        order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'REJECTED')
+        self.assertEqual(order.status, 'AWAITING_DELIVERY_PAYMENT')
+

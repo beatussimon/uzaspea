@@ -3,7 +3,8 @@ import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, Truck, QrCode, X, 
-  Search, RefreshCw
+  Search, RefreshCw, CheckCircle, Eye,
+  ExternalLink, ShieldCheck, AlertCircle
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -18,9 +19,24 @@ interface Warehouse {
   [key: string]: any;
 }
 
+interface PaymentRecord {
+  id: number | string;
+  order?: number | string;
+  payment_method?: string;
+  proof_image?: string | null;
+  transaction_id?: string;
+  status: string;
+  amount?: number | string;
+  created_at?: string;
+  [key: string]: any;
+}
+
 interface Order {
   id: number | string;
   status: string;
+  shipping_fee?: number | string;
+  fulfillment_type?: string;
+  shipping_method?: string;
   delivery_info?: {
     destination_warehouse_code?: string;
     full_name?: string;
@@ -29,7 +45,7 @@ interface Order {
     phone?: string;
     [key: string]: any;
   };
-  payments?: Array<{ status: string; [key: string]: any }>;
+  payments?: PaymentRecord[];
   items?: Array<any>;
   shipments?: Array<any>;
   [key: string]: any;
@@ -76,8 +92,12 @@ const WarehouseStaffLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Modals & Forms
-  const [activeModal, setActiveModal] = useState<'intake' | 'pricing' | 'dispatch' | 'pickup' | null>(null);
+  const [activeModal, setActiveModal] = useState<'intake' | 'pricing' | 'dispatch' | 'pickup' | 'verify_payment' | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [zoomReceipt, setZoomReceipt] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   // Intake State
   const [condition, setCondition] = useState('good');
@@ -327,12 +347,54 @@ const WarehouseStaffLayout: React.FC = () => {
     }
   };
 
+  // Verify Delivery Fee Payment (Approve or Reject)
+  const handleVerifyDeliveryPayment = async (action: 'approve' | 'reject') => {
+    if (!selectedOrder) return;
+    if (action === 'reject' && !rejectionReason.trim()) {
+      toast.error('Please enter a rejection reason.');
+      return;
+    }
+
+    setPaymentSubmitting(true);
+    try {
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/verify-delivery-payment/`, {
+        order_id: selectedOrder.id,
+        action,
+        reason: rejectionReason.trim(),
+      });
+      if (action === 'approve') {
+        toast.success('Delivery payment verified and approved! Order advanced.');
+      } else {
+        toast.success('Payment rejected. Buyer notified to re-submit.');
+      }
+      setActiveModal(null);
+      setSelectedOrder(null);
+      setRejectionReason('');
+      setIsRejecting(false);
+      fetchAllQueues(selectedWarehouseId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || `Failed to ${action} payment`);
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  const pendingVerificationCount = useMemo(() => {
+    return awaitingPayments.filter((o) => o.status === 'PENDING_DELIVERY_VERIFICATION').length;
+  }, [awaitingPayments]);
+
   // Filter queue items
   const activeOrders = useMemo(() => {
     let list: Order[] = [];
     if (queueFilter === 'pending_intake') list = pendingIntakes;
     else if (queueFilter === 'received') list = receivedIntakes;
-    else if (queueFilter === 'awaiting_payment') list = awaitingPayments;
+    else if (queueFilter === 'awaiting_payment') {
+      list = [...awaitingPayments].sort((a, b) => {
+        if (a.status === 'PENDING_DELIVERY_VERIFICATION' && b.status !== 'PENDING_DELIVERY_VERIFICATION') return -1;
+        if (b.status === 'PENDING_DELIVERY_VERIFICATION' && a.status !== 'PENDING_DELIVERY_VERIFICATION') return 1;
+        return 0;
+      });
+    }
     else if (queueFilter === 'outbound') list = outboundOrders;
     else if (queueFilter === 'ready_for_pickup') list = readyForPickup;
 
@@ -365,7 +427,11 @@ const WarehouseStaffLayout: React.FC = () => {
   const localFilterTabs = [
     { key: 'pending_intake', label: 'Pending Intake', count: pendingIntakes.length },
     { key: 'received', label: 'Received / Set Pricing', count: receivedIntakes.length },
-    { key: 'awaiting_payment', label: 'Awaiting Buyer Payment', count: awaitingPayments.length },
+    {
+      key: 'awaiting_payment',
+      label: pendingVerificationCount > 0 ? `Delivery Payments (${pendingVerificationCount} ready)` : 'Awaiting Buyer Payment',
+      count: awaitingPayments.length,
+    },
     { key: 'outbound', label: 'Outbound Dispatch', count: outboundOrders.length },
     { key: 'ready_for_pickup', label: 'Ready for Pickup', count: readyForPickup.length },
   ];
@@ -522,10 +588,17 @@ const WarehouseStaffLayout: React.FC = () => {
                       <span className="text-3xs font-mono font-bold text-gray-400 uppercase">ORD-{order.id}</span>
                       <h3 className="font-bold text-gray-900 dark:text-white text-base">Order #{order.id}</h3>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 capitalize">
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                      {order.status.replace(/_/g, ' ')}
-                    </span>
+                    {order.status === 'PENDING_DELIVERY_VERIFICATION' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        Verify Payment
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 capitalize">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                        {order.status.replace(/_/g, ' ')}
+                      </span>
+                    )}
                   </div>
 
                   {/* Clean Unboxed Metadata */}
@@ -538,10 +611,24 @@ const WarehouseStaffLayout: React.FC = () => {
                       <span className="text-gray-400 dark:text-gray-500 font-normal">Phone</span>
                       <span className="font-medium text-gray-900 dark:text-gray-200">{order.delivery_info?.phone || 'N/A'}</span>
                     </div>
+                    {order.shipping_fee !== undefined && Number(order.shipping_fee) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 dark:text-gray-500 font-normal">Delivery Fee</span>
+                        <span className="font-bold text-amber-500">TSh {Number(order.shipping_fee).toLocaleString()}</span>
+                      </div>
+                    )}
                     {order.delivery_info?.destination_warehouse_code && (
                       <div className="flex justify-between">
                         <span className="text-gray-400 dark:text-gray-500 font-normal">Dest. Hub</span>
                         <span className="font-medium text-brand-500">{order.delivery_info.destination_warehouse_code}</span>
+                      </div>
+                    )}
+                    {order.status === 'PENDING_DELIVERY_VERIFICATION' && (
+                      <div className="flex justify-between items-center pt-1 mt-1 border-t border-surface-border/30">
+                        <span className="text-gray-400 font-normal">Tx Ref</span>
+                        <span className="font-mono text-xs font-bold text-amber-500">
+                          {order.payments?.find(p => p.status === 'PENDING_VERIFICATION')?.transaction_id || order.payments?.[order.payments.length - 1]?.transaction_id || 'Attached'}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -575,9 +662,26 @@ const WarehouseStaffLayout: React.FC = () => {
                     </Button>
                   )}
                   {queueFilter === 'awaiting_payment' && (
-                    <div className="text-center py-2 text-[11px] text-amber-500 font-medium bg-amber-500/5 rounded-btn border border-amber-500/10">
-                      Waiting for buyer payment
-                    </div>
+                    order.status === 'PENDING_DELIVERY_VERIFICATION' ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsRejecting(false);
+                          setRejectionReason('');
+                          setActiveModal('verify_payment');
+                        }}
+                        className="w-full font-bold flex items-center justify-center gap-1.5"
+                      >
+                        <ShieldCheck size={14} />
+                        Review Delivery Payment
+                      </Button>
+                    ) : (
+                      <div className="text-center py-2 text-[11px] text-amber-500/80 font-medium bg-amber-500/5 rounded-btn border border-amber-500/10">
+                        Waiting for buyer payment
+                      </div>
+                    )
                   )}
                   {queueFilter === 'outbound' && (
                     <Button
@@ -898,6 +1002,209 @@ const WarehouseStaffLayout: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Delivery Payment Modal */}
+      {activeModal === 'verify_payment' && selectedOrder && (() => {
+        const pendingPayment = selectedOrder.payments?.find(p => p.status === 'PENDING_VERIFICATION') || selectedOrder.payments?.[selectedOrder.payments.length - 1];
+        const feeAmount = Number(selectedOrder.shipping_fee || pendingPayment?.amount || 0);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setActiveModal(null)}>
+            <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center pb-2 border-b border-surface-border">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={20} className="text-amber-500" />
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">Verify Delivery Payment</h3>
+                </div>
+                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              </div>
+
+              {/* Order & Route Overview */}
+              <div className="p-3 rounded-btn bg-surface-muted/50 dark:bg-[#111] border border-surface-border space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Order Reference</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white">ORD-{selectedOrder.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Buyer</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {selectedOrder.delivery_info?.full_name || 'Customer'} ({selectedOrder.delivery_info?.phone || 'No Phone'})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fulfillment Mode</span>
+                  <span className="font-medium text-brand-500">
+                    {selectedOrder.fulfillment_type === 'WAREHOUSE_PICKUP' ? 'Hub Pickup' : 'Line-Haul / Delivery'}
+                  </span>
+                </div>
+                {selectedOrder.delivery_info?.destination_warehouse_code && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Destination Hub</span>
+                    <span className="font-mono font-bold text-gray-900 dark:text-white">
+                      {selectedOrder.delivery_info.destination_warehouse_code}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-1 border-t border-surface-border/50 text-sm font-bold">
+                  <span className="text-gray-400">Required Delivery Fee</span>
+                  <span className="text-amber-500">TSh {feeAmount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Payment Proof Details */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-gray-700 dark:text-gray-300 uppercase">Payment Proof Details</span>
+                  {pendingPayment && (
+                    <span className="text-2xs font-mono text-gray-400">
+                      Payment #{pendingPayment.id} • {pendingPayment.created_at ? new Date(pendingPayment.created_at).toLocaleString() : ''}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-btn bg-surface-muted/30 dark:bg-[#141414] border border-surface-border space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Payment Method</span>
+                    <span className="font-medium uppercase text-gray-900 dark:text-gray-200">
+                      {pendingPayment?.payment_method || 'OFFLINE'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Amount Paid</span>
+                    <span className="font-mono font-bold text-gray-900 dark:text-white">
+                      TSh {Number(pendingPayment?.amount || feeAmount).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block">Transaction Reference / ID</span>
+                    <div className="p-2 rounded-btn bg-black/40 border border-surface-border font-mono font-bold text-sm text-amber-400 select-all tracking-wider">
+                      {pendingPayment?.transaction_id || 'None Provided'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receipt Photo */}
+                {pendingPayment?.proof_image ? (
+                  <div className="space-y-1.5">
+                    <label className="block text-2xs font-bold text-gray-400 uppercase">Receipt Photograph</label>
+                    <div
+                      onClick={() => setZoomReceipt(pendingPayment.proof_image || null)}
+                      className="relative group cursor-zoom-in rounded-btn overflow-hidden border border-surface-border bg-black/60 max-h-56 flex items-center justify-center p-2"
+                    >
+                      <img src={pendingPayment.proof_image} alt="Proof" className="max-h-52 w-auto object-contain rounded" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                        <Eye size={14} /> Click to Enlarge Receipt
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <a
+                        href={pendingPayment.proof_image}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-2xs text-brand-500 hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink size={10} /> Open image in new tab
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-btn bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>No receipt image uploaded. Confirm transaction ID in bank/M-Pesa portal.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Rejection Form */}
+              {isRejecting ? (
+                <div className="p-3.5 rounded-btn bg-red-500/10 border border-red-500/20 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-red-400 text-xs font-bold uppercase">
+                    <AlertCircle size={14} />
+                    <span>Reject Payment & Request Resubmission</span>
+                  </div>
+                  <textarea
+                    rows={2}
+                    className="input text-xs border-red-500/40 focus:border-red-500"
+                    placeholder="Enter reason for customer (e.g. Transaction ID was invalid or amount did not match)..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsRejecting(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      disabled={paymentSubmitting || !rejectionReason.trim()}
+                      onClick={() => handleVerifyDeliveryPayment('reject')}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                    >
+                      {paymentSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-4 flex justify-between items-center border-t border-surface-border">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsRejecting(true)}
+                    className="text-red-500 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50"
+                  >
+                    Reject Payment
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setActiveModal(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      disabled={paymentSubmitting}
+                      onClick={() => handleVerifyDeliveryPayment('approve')}
+                      className="font-bold flex items-center gap-1.5"
+                    >
+                      {paymentSubmitting ? 'Verifying...' : (
+                        <>
+                          <CheckCircle size={14} />
+                          Approve & Clear Order
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Lightbox Receipt Zoom Modal */}
+      {zoomReceipt && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+          onClick={() => setZoomReceipt(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setZoomReceipt(null)}
+              className="absolute -top-10 right-0 p-1.5 rounded-full text-white/80 hover:text-white bg-white/10 hover:bg-white/20 transition"
+              title="Close image preview"
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={zoomReceipt}
+              alt="Receipt zoom"
+              className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl border border-white/10"
+            />
           </div>
         </div>
       )}
