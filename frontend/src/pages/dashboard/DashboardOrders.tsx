@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search, Printer } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, Eye, ShieldCheck, Truck, Clock, XCircle, MapPin, X, Receipt, Search, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -589,9 +589,8 @@ const DashboardOrders: React.FC = () => {
                   <div className="p-4 pt-0 space-y-4 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
                     {/* Payment Verification Callout */}
                     {hasPendingPayment && order.payments?.length > 0 && (
-                      <div className="p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20 space-y-3 mt-3">
+                      <div className="py-2 space-y-3 mt-1">
                         <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-xs uppercase tracking-wider">
-                          <ShieldAlert size={16} />
                           <span>Payment Verification Needed</span>
                         </div>
 
@@ -600,7 +599,7 @@ const DashboardOrders: React.FC = () => {
                             {order.payments
                               .filter((p: any) => p.status === 'PENDING_VERIFICATION')
                               .map((p: any) => (
-                                <div key={p.id} className="p-3 rounded-btn bg-white dark:bg-[#111] border border-brand-500/20 space-y-2">
+                                <div key={p.id} className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#161616] space-y-2">
                                   <div className="flex justify-between text-2xs font-bold text-gray-500">
                                     <span>TRANSACTION ID</span>
                                     <span className="font-mono text-gray-900 dark:text-white select-all">{p.transaction_id || 'N/A'}</span>
@@ -612,7 +611,7 @@ const DashboardOrders: React.FC = () => {
                                   {p.proof_image && (
                                     <div
                                       onClick={() => setZoomImage(p.proof_image)}
-                                      className="relative rounded-btn overflow-hidden cursor-zoom-in border border-surface-border/40 group h-28"
+                                      className="relative rounded-btn overflow-hidden cursor-zoom-in group h-28 bg-black/40"
                                     >
                                       <img src={p.proof_image} alt="Proof" className="w-full h-full object-cover" />
                                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-2xs font-bold gap-1">
@@ -624,7 +623,7 @@ const DashboardOrders: React.FC = () => {
                               ))}
                           </div>
 
-                          <div className="flex flex-col justify-center gap-2 p-3 rounded-btn bg-white dark:bg-[#111] border border-brand-500/20">
+                          <div className="flex flex-col justify-center gap-2 p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#161616]">
                             <p className="text-2xs text-gray-500 dark:text-gray-400">
                               {isDeliveryPayment
                                 ? 'Verify customer delivery payment receipt before handing to transport.'
@@ -789,10 +788,9 @@ const DashboardOrders: React.FC = () => {
       {/* Ship to Warehouse Modal */}
       {shipModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border">
-            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin className="text-brand-500" size={18} />
+          <div className="bg-white dark:bg-[#141414] rounded-card w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 pb-3 flex justify-between items-center">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">
                 Select Destination Warehouse
               </h3>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -800,12 +798,12 @@ const DashboardOrders: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-5 space-y-4 text-xs">
+            <div className="px-5 py-2 space-y-4 text-xs">
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
                 <select
                   required
-                  className="input w-full py-2 text-xs"
+                  className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40"
                   value={shipWarehouseCode}
                   onChange={(e) => setShipWarehouseCode(e.target.value)}
                 >
@@ -822,15 +820,15 @@ const DashboardOrders: React.FC = () => {
                 <input
                   type="text"
                   placeholder="e.g. Sent via Bodaboda, Plate MC 123"
-                  className="input w-full py-2 text-xs"
+                  className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40 placeholder:text-gray-500"
                   value={shipNotes}
                   onChange={(e) => setShipNotes(e.target.value)}
                 />
               </div>
             </div>
             
-            <div className="p-4 bg-surface-muted dark:bg-[#161616] border-t border-surface-border dark:border-surface-dark-border flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShipModalOpen(null)}>
+            <div className="p-5 pt-3 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShipModalOpen(null)}>
                 Cancel
               </Button>
               <Button 
