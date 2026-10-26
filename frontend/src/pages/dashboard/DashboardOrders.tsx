@@ -852,20 +852,15 @@ const DashboardOrders: React.FC = () => {
       {/* Ship to Warehouse Modal */}
       {shipModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#141414] rounded-card w-full max-w-lg overflow-hidden shadow-2xl">
+          <div className="bg-white dark:bg-[#141414] rounded-card w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-5 pb-3 flex justify-between items-center">
               <div>
                 <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                  Select Dropoff Intake Warehouse
+                  Ship to Warehouse
                 </h3>
-                <div className="flex items-center gap-2 text-2xs text-gray-500 dark:text-gray-400 mt-0.5 flex-wrap">
-                  <span>Drop off package at your local hub in <span className="font-bold text-gray-900 dark:text-white">{shipRegion}</span></span>
-                  {shippingOrder?.buyer_destination_region && shippingOrder.buyer_destination_region.toLowerCase() !== shipRegion.toLowerCase() && (
-                    <span className="px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold text-3xs">
-                      Buyer Destination: {shippingOrder.buyer_destination_region} (Line-Haul Transfer)
-                    </span>
-                  )}
-                </div>
+                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                  Select the intake hub to dispatch Order #{shipModalOpen}
+                </p>
               </div>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X size={18} />
@@ -873,10 +868,10 @@ const DashboardOrders: React.FC = () => {
             </div>
             
             <div className="px-5 py-2 space-y-3.5 text-xs">
-              {/* Warehouse Selection in Region */}
+              {/* Warehouse Selection */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-700 dark:text-gray-300">
-                  Intake Hub in {shipRegion} ({regionWarehouses.length} available)
+                  Intake Warehouse
                 </label>
                 <select
                   required
@@ -892,29 +887,15 @@ const DashboardOrders: React.FC = () => {
                 </select>
               </div>
 
-              {/* Exact Location Card */}
+              {/* Exact Location Card (Compact & Clean) */}
               {selectedWh && (
-                <div className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#181818] space-y-2 text-xs">
+                <div className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#181818] space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-gray-900 dark:text-white">{selectedWh.name}</span>
                     <span className="text-3xs font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-white/10 text-brand-600 dark:text-brand-400 font-semibold">{selectedWh.code}</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-2xs pt-1">
-                    <div>
-                      <span className="text-gray-400 block font-bold uppercase text-3xs">District / Region</span>
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {selectedWh.district ? `${selectedWh.district}, ` : ''}{selectedWh.region_name || 'Tanzania'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block font-bold uppercase text-3xs">Street / Exact Location</span>
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {selectedWh.address || 'Central Hub'}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-3xs text-gray-500 dark:text-gray-400 pt-0.5">
-                    Deliver your package to this local {shipRegion} warehouse. SokoniMax logistics will handle inter-regional transport to {shippingOrder?.buyer_destination_region || 'the destination'}.
+                  <p className="text-2xs text-gray-500 dark:text-gray-400">
+                    {selectedWh.address || 'Central Hub'}{selectedWh.district ? ` • ${selectedWh.district}` : ''}
                   </p>
                 </div>
               )}
