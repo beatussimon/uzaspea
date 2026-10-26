@@ -639,23 +639,41 @@ const DashboardOrders: React.FC = () => {
                             {order.payments
                               .filter((p: any) => p.status === 'PENDING_VERIFICATION')
                               .map((p: any) => (
-                                <div key={p.id} className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#161616] space-y-2">
-                                  <div className="flex justify-between text-2xs font-bold text-gray-500">
-                                    <span>TRANSACTION ID</span>
-                                    <span className="font-mono text-gray-900 dark:text-white select-all">{p.transaction_id || 'N/A'}</span>
-                                  </div>
-                                  <div className="flex justify-between text-2xs font-bold text-gray-500">
-                                    <span>AMOUNT PAID</span>
-                                    <span className="font-extrabold text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
-                                  </div>
-                                  {p.proof_image && (
-                                    <div
-                                      onClick={() => setZoomImage(p.proof_image)}
-                                      className="relative rounded-btn overflow-hidden cursor-zoom-in group h-28 bg-black/40"
-                                    >
-                                      <img src={p.proof_image} alt="Proof" className="w-full h-full object-cover" />
-                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-2xs font-bold gap-1">
-                                        <Eye size={12} /> View Receipt Proof
+                                <div key={p.id} className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#161616]">
+                                  {p.proof_image ? (
+                                    <div className="flex items-center gap-3.5">
+                                      {/* Proof Image on Left */}
+                                      <div
+                                        onClick={() => setZoomImage(p.proof_image)}
+                                        className="relative rounded-btn overflow-hidden cursor-zoom-in group w-24 h-24 sm:w-28 sm:h-24 bg-black/40 shrink-0"
+                                      >
+                                        <img src={p.proof_image} alt="Proof" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-3xs font-bold gap-1 text-center p-1">
+                                          <Eye size={12} /> View
+                                        </div>
+                                      </div>
+
+                                      {/* Payment Info on Right */}
+                                      <div className="flex-1 min-w-0 space-y-2">
+                                        <div className="flex justify-between items-center text-2xs">
+                                          <span className="font-bold text-gray-500">TRANSACTION ID</span>
+                                          <span className="font-mono text-xs font-bold text-gray-900 dark:text-white select-all break-all">{p.transaction_id || 'N/A'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-2xs">
+                                          <span className="font-bold text-gray-500">AMOUNT PAID</span>
+                                          <span className="font-extrabold text-sm text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-2xs font-bold text-gray-500">
+                                        <span>TRANSACTION ID</span>
+                                        <span className="font-mono text-gray-900 dark:text-white select-all">{p.transaction_id || 'N/A'}</span>
+                                      </div>
+                                      <div className="flex justify-between text-2xs font-bold text-gray-500">
+                                        <span>AMOUNT PAID</span>
+                                        <span className="font-extrabold text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
                                       </div>
                                     </div>
                                   )}
