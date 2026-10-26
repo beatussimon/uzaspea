@@ -91,11 +91,11 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
 
   const desktopText = activeLocation 
     ? activeLocation.name 
-    : 'All Branches (HQ)';
+    : 'All Branches';
 
   const mobileText = activeLocation 
     ? activeLocation.name 
-    : 'All (HQ)';
+    : 'All';
 
   return (
     <div className={`relative inline-block text-left ${className}`} ref={dropdownRef}>
@@ -106,11 +106,11 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
         title={desktopText}
       >
         <MapPin size={13} className="text-gray-500 dark:text-gray-400 shrink-0" />
-        {/* Mobile Text: 'All (HQ)' or just branch name */}
+        {/* Mobile Text: 'All' or just branch name */}
         <span className="sm:hidden max-w-[65px] xs:max-w-[85px] truncate">
           {mobileText}
         </span>
-        {/* Desktop Text: 'All Branches (HQ)' or just branch name */}
+        {/* Desktop Text: 'All Branches' or just branch name */}
         <span className="hidden sm:inline max-w-[150px] truncate">
           {desktopText}
         </span>
@@ -141,7 +141,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ className = 
             >
               <div className="flex items-center gap-2 truncate">
                 <Store size={14} className="text-gray-400 dark:text-neutral-400 shrink-0" />
-                <span className="truncate">All Branches (HQ)</span>
+                <span className="truncate">All Branches</span>
               </div>
               {activeLocation === null && <Check size={14} className="text-gray-900 dark:text-white shrink-0" />}
             </button>
