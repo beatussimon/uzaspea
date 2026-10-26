@@ -12,6 +12,11 @@ import { useAuth } from '../context/AuthContext';
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
   const { login } = useAuth();
+
+  React.useEffect(() => {
+    document.title = 'Sign In | SokoniMax';
+  }, []);
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

@@ -118,6 +118,7 @@ function AppRoutes() {
         <Route path="/dashboard/*" element={<ProtectedRoute requireSeller><DashboardLayout /></ProtectedRoute>} />
         <Route path="/upgrade" element={<SellerUpgradePage />} />
         <Route path="/shipments/:id/track" element={<ProtectedRoute><ShipmentTrackingPage /></ProtectedRoute>} />
+        <Route path="/tracking/:id" element={<ProtectedRoute><ShipmentTrackingPage /></ProtectedRoute>} />
         <Route path="/staff-admin/*" element={<ProtectedRoute requireSuperuser><StaffAdminLayout /></ProtectedRoute>} />
         <Route path="/staff/*" element={<ProtectedRoute requireStaff><StaffDashboardLayout /></ProtectedRoute>} />
         <Route path="/inspections/*" element={<ProtectedRoute><InspectionLayout /></ProtectedRoute>} />

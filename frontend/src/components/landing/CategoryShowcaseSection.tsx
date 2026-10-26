@@ -15,7 +15,7 @@ interface CategoryShowcaseSectionProps {
 }
 
 const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({ 
-  isActive = false
+  isActive = true
 }) => {
   const { t } = useTranslation();
   const [categories, setCategories] = useState<any[]>(() => {

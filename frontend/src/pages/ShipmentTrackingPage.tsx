@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
-import { Shield, Clock, MapPin, Truck, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MapPin, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
@@ -36,6 +36,7 @@ interface Shipment {
   status: string;
   estimated_delivery: string | null;
   is_bulk_order?: boolean;
+  delivery_address?: string;
 }
 
 const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ lat, lng, stale }) => {
@@ -61,14 +62,9 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
     document.head.appendChild(script);
 
     return () => {
-      try {
-        document.head.removeChild(link);
-        document.head.removeChild(script);
-      } catch (e) {
-        // ignore
-      }
       if (mapRef.current) {
         mapRef.current.remove();
+        mapRef.current = null;
       }
     };
   }, []);
@@ -80,6 +76,9 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
     if (!L) return;
 
     if (!mapRef.current) {
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        (mapContainerRef.current as any)._leaflet_id = null;
+      }
       // Initialize map
       mapRef.current = L.map(mapContainerRef.current).setView([lat, lng], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -87,14 +86,18 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
       }).addTo(mapRef.current);
 
       markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 150);
     } else {
       // Update marker and map view
       const newLatLng = new L.LatLng(lat, lng);
       markerRef.current.setLatLng(newLatLng);
       mapRef.current.panTo(newLatLng);
+      mapRef.current.invalidateSize();
     }
 
-    const iconEl = markerRef.current.getElement();
+    const iconEl = markerRef.current?.getElement();
     if (iconEl) {
       if (stale) {
         iconEl.style.filter = 'grayscale(100%) brightness(80%) sepia(100%) hue-rotate(-50deg) saturate(600%)'; // turn red/stale
@@ -104,10 +107,17 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
         iconEl.style.opacity = '1';
       }
     }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
   }, [leafletLoaded, lat, lng, stale]);
 
   return (
-    <div className="relative w-full h-[450px] rounded-xl overflow-hidden border border-gray-800 bg-[#0a0a0a] shadow-inner shadow-black">
+    <div className="relative w-full h-[260px] sm:h-[320px] lg:h-[400px] rounded-2xl overflow-hidden bg-[#0a0a0a]">
       <div ref={mapContainerRef} className="w-full h-full" />
     </div>
   );
@@ -121,6 +131,7 @@ export const ShipmentTrackingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [latestPing, setLatestPing] = useState<Ping | null>(null);
   const [stale, setStale] = useState(false);
+  const [locationName, setLocationName] = useState<string>('');
   const [deliveryCode, setDeliveryCode] = useState('');
   const [confirming, setConfirming] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -139,6 +150,31 @@ export const ShipmentTrackingPage: React.FC = () => {
     const interval = setInterval(checkStaleness, 10000);
     return () => clearInterval(interval);
   }, [latestPing]);
+
+  // Reverse-geocode ping coordinates into human-readable place name
+  useEffect(() => {
+    if (!latestPing?.lat || !latestPing?.lng) {
+      setLocationName('');
+      return;
+    }
+    let isCurrent = true;
+    const fetchLocationName = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/reverse-geocode/`, {
+          params: { lat: latestPing.lat, lng: latestPing.lng }
+        });
+        if (isCurrent && res.data?.address) {
+          setLocationName(res.data.address);
+        }
+      } catch (err) {
+        if (isCurrent && !locationName) {
+          setLocationName('Dar es Salaam, Tanzania');
+        }
+      }
+    };
+    fetchLocationName();
+    return () => { isCurrent = false; };
+  }, [latestPing?.lat, latestPing?.lng]);
 
   // Connect WebSocket for real-time tracking
   useEffect(() => {
@@ -266,156 +302,175 @@ export const ShipmentTrackingPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-black text-white py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-6">
         
-        {/* Rebranded Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-surface-dark-border pb-6">
-          <div>
-            <div className="flex items-center space-x-2 text-brand-500 text-sm font-bold uppercase tracking-widest mb-1">
-              <Truck className="h-4 w-4" />
-              <span>{t('sokonimax_managed_delivery', 'SokoniMax Managed Delivery')}</span>
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-white uppercase">
-              {t('live_vehicle_tracking', 'Live Vehicle Tracking')}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-500">
-              <span>{t('shipment_for_order', 'Shipment for Order')}</span>
-              <span className="text-gray-300 font-mono font-bold">#{shipment.order}</span>
-              {shipment.is_bulk_order && (
-                <span className="px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-amber-500 text-black">
-                  {t('bulk_order', 'Bulk Order')}
-                </span>
-              )}
-              <span>&bull;</span>
-              <span>{t('status_label', 'Status')}:</span>
-              <StatusBadge status={shipment.status} size="sm" />
-            </div>
-          </div>
-          <Link to="/orders" className="mt-4 md:mt-0 text-sm text-gray-400 hover:text-white border border-gray-800 hover:border-gray-600 px-4 py-2 rounded-btn transition">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            {t('live_vehicle_tracking', 'Live Shipment Tracking')}
+          </h1>
+          <Link to="/orders" className="text-sm font-medium text-neutral-400 hover:text-white bg-neutral-900/80 hover:bg-neutral-800 px-4 py-2 rounded-btn transition shrink-0">
             {t('back_to_orders', 'Back to Orders')}
           </Link>
         </div>
 
-        {/* Warning for Stale Location */}
-        {stale && (
-          <div className="flex items-center space-x-3 bg-amber-950/20 border border-amber-500/30 text-amber-500 p-4 rounded-xl animate-pulse">
-            <AlertTriangle className="h-6 w-6 shrink-0" />
-            <div>
-              <p className="font-bold text-sm">Live signal lost</p>
-              <p className="text-xs text-amber-500/80">The driver's location has not updated for more than 5 minutes. The marker shows the last recorded position.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Leaflet Map Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
+        {/* Responsive Grid: Desktop 3 columns side-by-side with equal gaps; Mobile map on top, 2 sections below */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* 1. Map (Top on mobile, Left on desktop: 50% width) */}
+          <div className="lg:col-span-6 flex flex-col">
             {latestPing ? (
               <LeafletMap lat={latestPing.lat} lng={latestPing.lng} stale={stale} />
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px] bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-card p-8 text-center text-gray-455">
-                <MapPin className="h-12 w-12 text-brand-500 mb-4" />
-                <p className="font-bold text-gray-900 dark:text-white text-lg">{t('waiting_for_signal', 'Waiting for First Location Signal')}</p>
-                <p className="text-sm mt-1 max-w-md">{t('waiting_for_signal_desc', "The shipment has been registered, but the driver hasn't sent a location update yet. Live tracking will begin automatically once a signal is received.")}</p>
+              <div className="flex flex-col items-center justify-center h-[260px] sm:h-[320px] lg:h-[400px] bg-[#0A0A0A] rounded-2xl p-6 text-center text-neutral-400">
+                <p className="font-semibold text-white text-base">{t('waiting_for_signal', 'Waiting for Location Signal')}</p>
+                <p className="text-xs mt-1 max-w-sm text-neutral-400">{t('waiting_for_signal_desc', "Live tracking will begin automatically once the driver's device transmits a location signal.")}</p>
               </div>
             )}
           </div>
 
-          {/* Details Sidebar */}
-          <div className="card p-6 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border space-y-6">
-            <h3 className="text-sm font-black border-b border-surface-border dark:border-surface-dark-border pb-3 uppercase tracking-wider text-gray-900 dark:text-white">
-              {t('delivery_details', 'Delivery Details')}
-            </h3>
+          {/* 2. Delivery Details (Middle on desktop: 25% width; Unboxed, mobile key-value aligned right) */}
+          <div className="lg:col-span-3 flex flex-col justify-between space-y-4 lg:h-[400px]">
+            <div>
+              <h2 className="text-base font-bold text-white mb-3">
+                {t('delivery_details', 'Delivery Details')}
+              </h2>
 
-            {/* Carrier info */}
-            <div className="space-y-4 text-sm">
-              <div className="flex items-start space-x-3">
-                <Truck className="h-5 w-5 text-brand-500 mt-0.5" />
-                <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('assigned_carrier', 'Assigned Carrier')}</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-200">{shipment.carrier_type === 'driver' ? t('sokonimax_fleet_driver', 'SokoniMax Fleet Driver') : t('third_party_courier', 'Third-Party Courier')}</p>
-                  {shipment.driver_username && (
-                    <p className="text-xs text-gray-400 font-mono">Driver: @{shipment.driver_username}</p>
-                  )}
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-neutral-500 text-xs font-medium">{t('shipment_for_order', 'Order Reference')}</p>
+                  <div className="flex items-center gap-1.5 text-right lg:text-left">
+                    <span className="text-neutral-200 font-mono font-bold text-sm">#{shipment.order}</span>
+                    {shipment.is_bulk_order && (
+                      <span className="px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wider bg-amber-500 text-black">
+                        {t('bulk_order', 'Bulk')}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start space-x-3">
-                <Shield className="h-5 w-5 text-brand-500 mt-0.5" />
-                <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('tracking_number', 'Tracking Number')}</p>
-                  <p className="font-mono font-bold text-gray-300">{shipment.tracking_number || `SMX-TRK-${shipment.id}`}</p>
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-neutral-500 text-xs font-medium">{t('status_label', 'Status')}</p>
+                  <div className="text-right lg:text-left">
+                    <StatusBadge status={shipment.status} size="sm" />
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start space-x-3">
-                <Clock className="h-5 w-5 text-brand-500 mt-0.5" />
-                <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('estimated_delivery', 'Estimated Delivery')}</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-200">
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-neutral-500 text-xs font-medium">{t('assigned_carrier', 'Assigned Carrier')}</p>
+                  <div className="text-right lg:text-left">
+                    <p className="font-semibold text-neutral-200 text-sm">
+                      {shipment.carrier_type === 'driver' ? t('sokonimax_fleet_driver', 'SokoniMax Fleet Driver') : t('third_party_courier', 'Third-Party Courier')}
+                    </p>
+                    {shipment.driver_username && (
+                      <p className="text-2xs text-neutral-400 font-mono">Driver: @{shipment.driver_username}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-neutral-500 text-xs font-medium">{t('tracking_number', 'Tracking Number')}</p>
+                  <p className="font-mono font-semibold text-neutral-200 text-xs text-right lg:text-left">
+                    {shipment.tracking_number || `SMX-TRK-${shipment.id}`}
+                  </p>
+                </div>
+
+                {shipment.delivery_address && (
+                  <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                    <p className="text-neutral-500 text-xs font-medium">Destination</p>
+                    <p className="font-medium text-neutral-300 text-xs truncate max-w-[200px] text-right lg:text-left" title={shipment.delivery_address}>
+                      {shipment.delivery_address}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-neutral-500 text-xs font-medium">{t('estimated_delivery', 'Estimated Delivery')}</p>
+                  <p className="font-semibold text-neutral-200 text-xs text-right lg:text-left">
                     {shipment.estimated_delivery 
                       ? new Date(shipment.estimated_delivery).toLocaleString()
                       : t('calculating', 'Calculating...')}
                   </p>
                 </div>
               </div>
-
-              {/* Action Toolbar for driver/courier/customer */}
-              <div className="pt-2">
-                <OrderActionToolbar
-                  username={user?.username === shipment.driver_username ? shipment.customer_username : shipment.driver_username}
-                  messageLabel={user?.username === shipment.driver_username ? "Chat with Buyer" : "Chat with Driver"}
-                  location={latestPing ? { lat: latestPing.lat, lng: latestPing.lng } : null}
-                  locationLabel="Live Destination"
-                  orderId={shipment.order}
-                  size="sm"
-                />
-              </div>
             </div>
 
-            {/* Live Indicator */}
-            <div className="border-t border-surface-border dark:border-surface-dark-border pt-6">
-              <div className="flex items-center space-x-2.5">
-                <span className={`h-2.5 w-2.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-green-500'}`} />
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-300">
-                  {stale ? t('signal_stale', 'Signal Stale') : t('live_connection_active', 'Live Connection Active')}
-                </span>
-              </div>
-              {latestPing && (
-                <p className="text-[10px] text-gray-500 mt-2 font-mono">
-                  {t('last_ping', 'Last Ping')}: {new Date(latestPing.recorded_at).toLocaleTimeString()} ({latestPing.lat.toFixed(4)}, {latestPing.lng.toFixed(4)})
-                </p>
-              )}
+            <div className="pt-2">
+              <OrderActionToolbar
+                username={user?.username === shipment.driver_username ? shipment.customer_username : shipment.driver_username}
+                messageLabel={user?.username === shipment.driver_username ? "Chat with Buyer" : "Chat with Driver"}
+                location={latestPing ? { lat: latestPing.lat, lng: latestPing.lng } : null}
+                locationLabel="Live Destination"
+                orderId={shipment.order}
+                size="sm"
+              />
             </div>
+          </div>
 
-            {/* Driver Console */}
-            {user && (user.username === shipment.driver_username || user.is_staff) && shipment.status !== 'delivered' && (
-              <div className="border-t border-surface-border dark:border-surface-dark-border pt-6 mt-6">
-                <h3 className="text-sm font-black uppercase tracking-wider text-brand-500 mb-4 flex items-center gap-2">
-                  <Shield size={16} /> {t('driver_console', 'Driver Console')}
-                </h3>
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-400">
-                    {t('driver_console_instructions', 'Ask the customer for their 6-digit delivery code to finalize this delivery.')}
+          {/* 3. Signal & Handover / Driver Console (Right on desktop: 25% width; Unboxed, mobile key-value aligned right) */}
+          <div className="lg:col-span-3 flex flex-col justify-between space-y-4 lg:h-[400px]">
+            <div>
+              <h2 className="text-base font-bold text-white mb-3">
+                {user && (user.username === shipment.driver_username || user.is_staff) && shipment.status !== 'delivered'
+                  ? t('driver_console', 'Driver Console')
+                  : t('signal_handover', 'Signal & Security')}
+              </h2>
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-xs text-neutral-500 font-medium">Signal Status</p>
+                  <p className={`text-sm font-semibold text-right lg:text-left ${stale ? 'text-red-500' : 'text-emerald-400'}`}>
+                    {stale ? t('signal_stale', 'Signal lost (>5m)') : t('live_connection_active', 'Live connection active')}
                   </p>
-                  <input
-                    type="text"
-                    value={deliveryCode}
-                    onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="e.g. 123456"
-                    className="w-full bg-[#111] border border-surface-dark-border focus:border-brand-500 rounded-btn px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-white outline-none"
-                  />
-                  <Button
-                    onClick={handleConfirmDelivery}
-                    disabled={confirming || deliveryCode.length !== 6}
-                    loading={confirming}
-                    className="w-full py-3"
-                  >
-                    {!confirming && <CheckCircle size={16} className="mr-2" />}
-                    {t('confirm_delivery', 'Confirm Delivery')}
-                  </Button>
                 </div>
+
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-xs text-neutral-500 font-medium">{stale ? 'Last Known Location' : 'Current Location'}</p>
+                  <p className="text-sm font-semibold text-neutral-200 text-right lg:text-left leading-snug">
+                    {locationName || (latestPing ? t('resolving_location', 'Resolving location...') : t('waiting_for_signal', 'Waiting for signal'))}
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-baseline gap-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <p className="text-xs text-neutral-500 font-medium">{t('last_ping', 'Last Signal Recorded')}</p>
+                  <p className="text-sm font-medium text-neutral-200 text-right lg:text-left">
+                    {latestPing ? new Date(latestPing.recorded_at).toLocaleTimeString() : 'No signal recorded'}
+                  </p>
+                </div>
+
+                {/* If regular customer: Handover PIN info */}
+                {(!user || (user.username !== shipment.driver_username && !user.is_staff)) && (
+                  <div className="text-xs text-neutral-400 space-y-1 mt-2">
+                    <p className="font-semibold text-neutral-200">Delivery Security PIN</p>
+                    <p>Share your 6-digit delivery PIN with the driver only upon physical receipt of your package.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* If driver/staff: Driver verification form */}
+            {user && (user.username === shipment.driver_username || user.is_staff) && shipment.status !== 'delivered' && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs text-neutral-400">
+                  {t('driver_console_instructions', 'Enter 6-digit delivery PIN to confirm delivery.')}
+                </p>
+                <input
+                  type="text"
+                  value={deliveryCode}
+                  onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit PIN"
+                  className="w-full bg-[#111] rounded-btn px-3 py-2 text-center font-mono font-bold text-base tracking-[0.2em] text-white outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <Button
+                  onClick={handleConfirmDelivery}
+                  disabled={confirming || deliveryCode.length !== 6}
+                  loading={confirming}
+                  className="w-full py-2 text-xs"
+                >
+                  {!confirming && <CheckCircle size={14} className="mr-1.5" />}
+                  {t('confirm_delivery', 'Confirm Delivery')}
+                </Button>
               </div>
             )}
           </div>
