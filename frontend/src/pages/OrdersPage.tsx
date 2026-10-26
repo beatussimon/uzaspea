@@ -937,12 +937,12 @@ const OrdersPage: React.FC = () => {
                             (order.fulfillment_type === 'DIRECT_DELIVERY' && ['PACKAGING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(order.status)) ||
                             (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY'].includes(order.status))
                           ) && (
-                          <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
+                          <div className="py-2.5 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
                             <div>
-                                <p className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-0.5">
+                                <p className="text-xs font-bold text-brand-500 uppercase tracking-wider mb-0.5">
                                   {order.fulfillment_type === 'SELLER_PICKUP' ? 'Store Pickup Code' : (order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code')}
                                 </p>
-                                <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
                                   {order.fulfillment_type === 'SELLER_PICKUP' 
                                     ? 'Show this 6-digit code to the seller to pick up your package.' 
                                     : order.fulfillment_type === 'DIRECT_DELIVERY'
@@ -951,11 +951,11 @@ const OrdersPage: React.FC = () => {
                                 </p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400 bg-white/50 dark:bg-black/20 px-4 py-1.5 rounded-lg shadow-sm">
+                              <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-500 select-all">
                                 {order.fulfillment_type === 'SELLER_PICKUP' ? (order.delivery_code || '...') : (order.shipping_method === 'PICKUP' ? (pickupCodesMap[order.id] || order.delivery_code || '...') : (order.delivery_code || '...'))}
                               </span>
                               {(order.shipping_method === 'PICKUP' || order.fulfillment_type === 'SELLER_PICKUP') && (
-                                 <QRCodeSVG value={(order.delivery_code || order.id).toString()} size={40} bgColor="transparent" fgColor="currentColor" className="text-brand-900 dark:text-brand-100 shrink-0" />
+                                 <QRCodeSVG value={(order.delivery_code || order.id).toString()} size={40} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white shrink-0" />
                               )}
                             </div>
                           </div>
