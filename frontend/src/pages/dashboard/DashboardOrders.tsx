@@ -125,14 +125,6 @@ const DashboardOrders: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  const availableRegions = useMemo(() => {
-    const set = new Set<string>();
-    warehouses.forEach(w => {
-      if (w.region_name) set.add(w.region_name);
-    });
-    return Array.from(set).sort();
-  }, [warehouses]);
-
   // When modal opens, auto-detect the region from the order fulfillment branch, seller location, or delivery info
   useEffect(() => {
     if (shipModalOpen && shippingOrder) {
@@ -843,7 +835,7 @@ const DashboardOrders: React.FC = () => {
                   Select Destination Warehouse
                 </h3>
                 <p className="text-2xs text-gray-500 dark:text-gray-400">
-                  Select the SokoniMax intake warehouse for Order #{shipModalOpen}
+                  Select the SokoniMax intake warehouse {shipRegion ? `in ${shipRegion}` : ''} for Order #{shipModalOpen}
                 </p>
               </div>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -852,28 +844,6 @@ const DashboardOrders: React.FC = () => {
             </div>
             
             <div className="px-5 py-2 space-y-3.5 text-xs">
-              {/* Region Filter */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-gray-700 dark:text-gray-300">Warehouse Region</label>
-                  {shipRegion && (
-                    <span className="text-3xs text-brand-600 dark:text-brand-400 font-semibold">
-                      Auto-detected from order location
-                    </span>
-                  )}
-                </div>
-                <select
-                  className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40"
-                  value={shipRegion}
-                  onChange={(e) => setShipRegion(e.target.value)}
-                >
-                  <option value="">All Regions ({warehouses.length} warehouses)</option>
-                  {availableRegions.map(reg => (
-                    <option key={reg} value={reg}>{reg}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* Warehouse Selection in Region */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-700 dark:text-gray-300">
