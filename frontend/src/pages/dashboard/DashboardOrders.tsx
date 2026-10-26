@@ -62,7 +62,7 @@ export const getStatusExplanation = (status: string, fulfillmentType?: string) =
 
 const DashboardOrders: React.FC = () => {
   const { t } = useTranslation();
-  const { activeLocation } = useAuth();
+  const { activeLocation, assignedLocations } = useAuth();
   const { showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +114,9 @@ const DashboardOrders: React.FC = () => {
   const [shipModalOpen, setShipModalOpen] = useState<number | null>(null);
   const [shipNotes, setShipNotes] = useState('');
   const [shipWarehouseCode, setShipWarehouseCode] = useState('');
+  const [shipRegion, setShipRegion] = useState('');
+
+  const shippingOrder = useMemo(() => orders.find(o => o.id === shipModalOpen), [orders, shipModalOpen]);
 
   useEffect(() => {
     api.get('/api/warehouses/warehouses/').then(res => {
@@ -121,6 +124,51 @@ const DashboardOrders: React.FC = () => {
       setWarehouses(Array.isArray(list) ? list : []);
     }).catch(() => {});
   }, []);
+
+  const availableRegions = useMemo(() => {
+    const set = new Set<string>();
+    warehouses.forEach(w => {
+      if (w.region_name) set.add(w.region_name);
+    });
+    return Array.from(set).sort();
+  }, [warehouses]);
+
+  // When modal opens, auto-detect the region from the order fulfillment branch, seller location, or delivery info
+  useEffect(() => {
+    if (shipModalOpen && shippingOrder) {
+      const branch = (assignedLocations || []).find((l: any) => l.id === shippingOrder.fulfillment_location);
+      const origin = branch?.city || activeLocation?.city || shippingOrder.delivery_info?.region || shippingOrder.delivery_info?.city || '';
+      setShipRegion(origin);
+    }
+  }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation]);
+
+  const regionWarehouses = useMemo(() => {
+    if (!shipRegion) return warehouses;
+    const norm = shipRegion.toLowerCase().trim();
+    const filtered = warehouses.filter(w => {
+      const r = (w.region_name || '').toLowerCase().trim();
+      const a = (w.address || '').toLowerCase().trim();
+      const d = (w.district || '').toLowerCase().trim();
+      return r.includes(norm) || norm.includes(r) || a.includes(norm) || d.includes(norm);
+    });
+    return filtered.length > 0 ? filtered : warehouses;
+  }, [warehouses, shipRegion]);
+
+  useEffect(() => {
+    if (shipModalOpen && regionWarehouses.length > 0) {
+      const existingCode = shippingOrder?.delivery_info?.origin_warehouse_code || shippingOrder?.delivery_info?.warehouse_code;
+      const match = regionWarehouses.find(w => w.code === existingCode);
+      if (match) {
+        setShipWarehouseCode(match.code);
+      } else if (!regionWarehouses.some(w => w.code === shipWarehouseCode)) {
+        setShipWarehouseCode(regionWarehouses[0].code);
+      }
+    }
+  }, [shipModalOpen, regionWarehouses, shippingOrder, shipWarehouseCode]);
+
+  const selectedWh = useMemo(() => {
+    return warehouses.find(w => w.code === shipWarehouseCode);
+  }, [warehouses, shipWarehouseCode]);
 
   const fetchOrders = useCallback((p: number, reset = false) => {
     if (reset) {
@@ -788,38 +836,96 @@ const DashboardOrders: React.FC = () => {
       {/* Ship to Warehouse Modal */}
       {shipModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#141414] rounded-card w-full max-w-md overflow-hidden shadow-2xl">
+          <div className="bg-white dark:bg-[#141414] rounded-card w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="p-5 pb-3 flex justify-between items-center">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Select Destination Warehouse
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Select Destination Warehouse
+                </h3>
+                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                  Select the SokoniMax intake warehouse for Order #{shipModalOpen}
+                </p>
+              </div>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X size={18} />
               </button>
             </div>
             
-            <div className="px-5 py-2 space-y-4 text-xs">
+            <div className="px-5 py-2 space-y-3.5 text-xs">
+              {/* Region Filter */}
               <div className="space-y-1.5">
-                <label className="block font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-gray-700 dark:text-gray-300">Warehouse Region</label>
+                  {shipRegion && (
+                    <span className="text-3xs text-brand-600 dark:text-brand-400 font-semibold">
+                      Auto-detected from order location
+                    </span>
+                  )}
+                </div>
+                <select
+                  className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40"
+                  value={shipRegion}
+                  onChange={(e) => setShipRegion(e.target.value)}
+                >
+                  <option value="">All Regions ({warehouses.length} warehouses)</option>
+                  {availableRegions.map(reg => (
+                    <option key={reg} value={reg}>{reg}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Warehouse Selection in Region */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-gray-700 dark:text-gray-300">
+                  Warehouse Location {shipRegion ? `in ${shipRegion}` : ''} ({regionWarehouses.length} available)
+                </label>
                 <select
                   required
                   className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40"
                   value={shipWarehouseCode}
                   onChange={(e) => setShipWarehouseCode(e.target.value)}
                 >
-                  <option value="" disabled>-- Select Warehouse --</option>
-                  {warehouses.map(w => (
-                    <option key={w.code} value={w.code}>{w.name} ({w.region})</option>
+                  {regionWarehouses.map(w => (
+                    <option key={w.code} value={w.code}>
+                      {w.name} {w.district ? `(${w.district})` : ''}
+                    </option>
                   ))}
                 </select>
-                <p className="text-3xs text-gray-400">This order will automatically route to this intake warehouse.</p>
               </div>
+
+              {/* Exact Location Card */}
+              {selectedWh && (
+                <div className="p-3.5 rounded-btn bg-surface-muted/50 dark:bg-[#181818] space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-900 dark:text-white">{selectedWh.name}</span>
+                    <span className="text-3xs font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-white/10 text-brand-600 dark:text-brand-400 font-semibold">{selectedWh.code}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-2xs pt-1">
+                    <div>
+                      <span className="text-gray-400 block font-bold uppercase text-3xs">District / Region</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        {selectedWh.district ? `${selectedWh.district}, ` : ''}{selectedWh.region_name || 'Tanzania'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block font-bold uppercase text-3xs">Street / Exact Location</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        {selectedWh.address || 'Central Hub'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-3xs text-gray-500 dark:text-gray-400 pt-0.5">
+                    Deliver your package to this exact address or instruct your courier/bodaboda to drop off here.
+                  </p>
+                </div>
+              )}
               
+              {/* Courier Notes */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-700 dark:text-gray-300">Courier / Delivery Notes</label>
                 <input
                   type="text"
-                  placeholder="e.g. Sent via Bodaboda, Plate MC 123"
+                  placeholder="e.g. Sent via Bodaboda, Plate MC 123, Rider: Juma (0712...)"
                   className="w-full px-3 py-2.5 text-xs rounded-btn bg-surface-muted/60 dark:bg-[#1e1e1e] dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500/40 placeholder:text-gray-500"
                   value={shipNotes}
                   onChange={(e) => setShipNotes(e.target.value)}
