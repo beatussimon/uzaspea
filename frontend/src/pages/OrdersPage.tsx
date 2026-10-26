@@ -749,14 +749,23 @@ const OrdersPage: React.FC = () => {
                               type="text"
                               value={transactionId}
                               onChange={(e) => setTransactionId(e.target.value)}
-                              placeholder="Transaction ID / Ref"
+                              placeholder="Transaction ID / Ref *"
                               className="h-8 text-xs py-1 px-3 w-full bg-white dark:bg-[#181818] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg border-0 outline-none focus:outline-none focus:ring-0 transition-all"
                             />
 
                             <div className="flex items-center gap-2">
-                              <label className="h-8 px-2.5 text-xs bg-white dark:bg-[#181818] hover:bg-surface-muted dark:hover:bg-[#202020] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer text-gray-700 dark:text-gray-300 transition flex-1 min-w-0">
+                              <label
+                                title="Receipt attachment is required (*)"
+                                className="h-8 px-2.5 text-xs bg-white dark:bg-[#181818] hover:bg-surface-muted dark:hover:bg-[#202020] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer text-gray-700 dark:text-gray-300 transition flex-1 min-w-0"
+                              >
                                 <Upload size={13} className="shrink-0 text-gray-400" />
-                                <span className="truncate">{proofFile ? proofFile.name : 'Attach Receipt'}</span>
+                                <span className="truncate">
+                                  {proofFile ? proofFile.name : (
+                                    <>
+                                      Attach Receipt <span className="text-red-500 font-bold ml-0.5">*</span>
+                                    </>
+                                  )}
+                                </span>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
                               </label>
 
@@ -872,14 +881,23 @@ const OrdersPage: React.FC = () => {
                               type="text"
                               value={transactionId}
                               onChange={(e) => setTransactionId(e.target.value)}
-                              placeholder="Transaction ID / Ref"
+                              placeholder="Transaction ID / Ref *"
                               className="h-8 text-xs py-1 px-3 w-full bg-white dark:bg-[#181818] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg border-0 outline-none focus:outline-none focus:ring-0 transition-all"
                             />
 
                             <div className="flex items-center gap-2">
-                              <label className="h-8 px-2.5 text-xs bg-white dark:bg-[#181818] hover:bg-surface-muted dark:hover:bg-[#202020] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer text-gray-700 dark:text-gray-300 transition flex-1 min-w-0">
+                              <label
+                                title="Receipt attachment is required (*)"
+                                className="h-8 px-2.5 text-xs bg-white dark:bg-[#181818] hover:bg-surface-muted dark:hover:bg-[#202020] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer text-gray-700 dark:text-gray-300 transition flex-1 min-w-0"
+                              >
                                 <Upload size={13} className="shrink-0 text-gray-400" />
-                                <span className="truncate">{proofFile ? proofFile.name : 'Attach Receipt'}</span>
+                                <span className="truncate">
+                                  {proofFile ? proofFile.name : (
+                                    <>
+                                      Attach Receipt <span className="text-red-500 font-bold ml-0.5">*</span>
+                                    </>
+                                  )}
+                                </span>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
                               </label>
 
