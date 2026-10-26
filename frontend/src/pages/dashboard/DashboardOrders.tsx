@@ -125,44 +125,64 @@ const DashboardOrders: React.FC = () => {
     }).catch(() => {});
   }, []);
 
+  // Helper to clean up region names for comparison (strips words like 'region', 'mkoa', whitespace, special chars)
+  const normalizeRegion = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .replace(/\b(region|mkoa|city|hub|warehouse)\b/gi, '')
+      .replace(/[^a-z0-9]/g, '');
+
   // When modal opens, auto-detect the seller's intake region where they physically drop off the parcel.
   // NEVER use buyer destination region (e.g. Kagera); sellers only drop off in their own region (e.g. Dar es Salaam).
   useEffect(() => {
-    if (shipModalOpen && shippingOrder) {
-      const branch = (assignedLocations || []).find((l: any) => l.id === shippingOrder.fulfillment_location);
-      const origin =
-        shippingOrder.seller_region ||
-        shippingOrder.fulfillment_location_city ||
-        branch?.city ||
-        activeLocation?.city ||
-        'Dar es Salaam';
-      setShipRegion(origin);
+    if (!shipModalOpen || !shippingOrder) {
+      setShipNotes('');
+      setShipWarehouseCode('');
+      setShipRegion('');
+      return;
     }
+
+    const branch = (assignedLocations || []).find((l: any) => l.id === shippingOrder.fulfillment_location);
+    const origin =
+      shippingOrder.seller_region ||
+      shippingOrder.fulfillment_location_city ||
+      branch?.city ||
+      activeLocation?.city ||
+      'Dar es Salaam';
+    setShipRegion(origin);
   }, [shipModalOpen, shippingOrder, assignedLocations, activeLocation]);
 
   const regionWarehouses = useMemo(() => {
-    if (!shipRegion) return warehouses;
-    const norm = shipRegion.toLowerCase().trim();
-    const filtered = warehouses.filter(w => {
-      const r = (w.region_name || '').toLowerCase().trim();
-      const a = (w.address || '').toLowerCase().trim();
-      const d = (w.district || '').toLowerCase().trim();
-      return r.includes(norm) || norm.includes(r) || a.includes(norm) || d.includes(norm);
+    if (!shipRegion) return [];
+    const norm = normalizeRegion(shipRegion);
+    if (!norm) return warehouses;
+    return warehouses.filter(w => {
+      const r = normalizeRegion(w.region_name || '');
+      const d = normalizeRegion(w.district || '');
+      // Match by region_name or district ONLY. Never match by street address because addresses in other cities may contain street names like "Old Dar es Salaam Road".
+      if (r === norm || (r.length >= 3 && norm.length >= 3 && (r.includes(norm) || norm.includes(r)))) {
+        return true;
+      }
+      if (d === norm || (d.length >= 4 && norm.length >= 4 && (d.includes(norm) || norm.includes(d)))) {
+        return true;
+      }
+      return false;
     });
-    return filtered.length > 0 ? filtered : warehouses;
   }, [warehouses, shipRegion]);
 
   useEffect(() => {
     if (shipModalOpen && regionWarehouses.length > 0) {
-      const existingCode = shippingOrder?.delivery_info?.origin_warehouse_code || shippingOrder?.delivery_info?.warehouse_code;
-      const match = regionWarehouses.find(w => w.code === existingCode);
-      if (match) {
-        setShipWarehouseCode(match.code);
-      } else if (!regionWarehouses.some(w => w.code === shipWarehouseCode)) {
-        setShipWarehouseCode(regionWarehouses[0].code);
-      }
+      setShipWarehouseCode(current => {
+        // If current is already a valid option within this region, preserve the seller's selection!
+        if (current && regionWarehouses.some(w => w.code === current)) {
+          return current;
+        }
+        const existingCode = shippingOrder?.delivery_info?.origin_warehouse_code || shippingOrder?.delivery_info?.warehouse_code;
+        const match = regionWarehouses.find(w => w.code === existingCode);
+        return match ? match.code : regionWarehouses[0].code;
+      });
     }
-  }, [shipModalOpen, regionWarehouses, shippingOrder, shipWarehouseCode]);
+  }, [shipModalOpen, regionWarehouses, shippingOrder]);
 
   const selectedWh = useMemo(() => {
     return warehouses.find(w => w.code === shipWarehouseCode);
@@ -879,11 +899,15 @@ const DashboardOrders: React.FC = () => {
                   value={shipWarehouseCode}
                   onChange={(e) => setShipWarehouseCode(e.target.value)}
                 >
-                  {regionWarehouses.map(w => (
-                    <option key={w.code} value={w.code}>
-                      {w.name} {w.district ? `(${w.district})` : ''}
-                    </option>
-                  ))}
+                  {regionWarehouses.length === 0 ? (
+                    <option value="">No warehouse in {shipRegion || 'region'}</option>
+                  ) : (
+                    regionWarehouses.map(w => (
+                      <option key={w.code} value={w.code}>
+                        {w.name} {w.district ? `(${w.district})` : ''}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
