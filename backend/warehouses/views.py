@@ -220,6 +220,102 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'], url_path='verify-delivery-payment')
+    def verify_delivery_payment(self, request, pk=None):
+        warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
+
+        order_id = request.data.get('order_id')
+        action_type = request.data.get('action', 'approve').lower()
+        reason = request.data.get('reason', '')
+
+        if not order_id:
+            return Response({'error': 'order_id is required.'}, status=400)
+
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found.'}, status=404)
+
+        if order.status not in ['PENDING_DELIVERY_VERIFICATION', 'AWAITING_DELIVERY_PAYMENT']:
+            return Response({'error': f'Order status is {order.status}, not pending delivery verification.'}, status=400)
+
+        pending_payment = order.payments.filter(status='PENDING_VERIFICATION').order_by('-id').first()
+        if not pending_payment:
+            pending_payment = order.payments.order_by('-id').first()
+
+        if action_type == 'approve':
+            if pending_payment:
+                pending_payment.status = 'VERIFIED'
+                pending_payment.save(update_fields=['status'])
+
+            dest_code = (order.delivery_info or {}).get('destination_warehouse_code')
+            curr_code = (order.delivery_info or {}).get('current_warehouse_code') or (order.delivery_info or {}).get('warehouse_code') or warehouse.code
+            is_local_pickup = (order.fulfillment_type == 'WAREHOUSE_PICKUP' or order.shipping_method == 'PICKUP') and (not dest_code or dest_code == curr_code)
+
+            if is_local_pickup:
+                from logistics.utils import order_has_vehicles
+                next_st = 'READY_FOR_VEHICLE_HANDOVER' if order_has_vehicles(order) else 'READY_FOR_PICKUP'
+            else:
+                next_st = 'ASSIGNED_TRANSPORT'
+
+            OrderStateMachine.transition_order(
+                order, next_st,
+                notes=f'Delivery payment verified by {request.user.username} at hub {warehouse.code}.'
+            )
+
+            if dest_code and dest_code != curr_code:
+                try:
+                    from warehouses.models import WarehouseTransfer, Warehouse as _Warehouse
+                    dest_wh = _Warehouse.objects.get(code=dest_code)
+                    WarehouseTransfer.objects.get_or_create(
+                        order=order,
+                        source_warehouse=warehouse,
+                        destination_warehouse=dest_wh,
+                        defaults={'status': 'pending'}
+                    )
+                except Exception:
+                    pass
+
+            return Response({
+                'status': 'success',
+                'order_status': order.status,
+                'payment_status': pending_payment.status if pending_payment else 'VERIFIED',
+                'message': f'Delivery payment approved. Order moved to {next_st}.'
+            })
+
+        elif action_type == 'reject':
+            if pending_payment:
+                pending_payment.status = 'REJECTED'
+                pending_payment.save(update_fields=['status'])
+
+            rej_reason = reason.strip() or 'Payment details or proof receipt could not be verified.'
+            OrderStateMachine.transition_order(
+                order, 'AWAITING_DELIVERY_PAYMENT',
+                notes=f'Delivery payment rejected by {request.user.username} at hub {warehouse.code}. Reason: {rej_reason}'
+            )
+
+            try:
+                from marketplace.models import Notification
+                Notification.objects.create(
+                    user=order.user,
+                    title="Delivery Fee Payment Rejected",
+                    message=f"Your delivery payment for Order #{order.id} was rejected: {rej_reason}. Please re-submit valid payment proof.",
+                    notification_type='ORDER_STATUS'
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'status': 'success',
+                'order_status': order.status,
+                'payment_status': pending_payment.status if pending_payment else 'REJECTED',
+                'message': f'Delivery payment rejected. Buyer notified to re-submit.'
+            })
+        else:
+            return Response({'error': f'Invalid action {action_type}. Use approve or reject.'}, status=400)
+
     @action(detail=True, methods=['get'], url_path='outbound-queue')
     def outbound_queue(self, request, pk=None):
         warehouse = self.get_object()

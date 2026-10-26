@@ -2149,10 +2149,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED', 'READY_FOR_TRANSIT', 'ASSIGNED_TRANSPORT', 'PAID_PRODUCT'}
 
         # Allow warehouse role staff to transition to warehouse states
+        from warehouses.models import WarehouseStaffAssignment
         is_warehouse_staff = (
             request.user.is_superuser
             or has_staff_permission(request.user, 'can_manage_warehouse_intake')
             or has_staff_permission(request.user, 'can_manage_logistics')
+            or WarehouseStaffAssignment.objects.filter(user=request.user).exists()
         )
         
         if new_state in STAFF_ONLY_STATES and not is_warehouse_staff:
@@ -3082,14 +3084,21 @@ class PaymentViewSet(viewsets.ModelViewSet):
         from uzachuo.permissions import get_effective_sellers
         sellers = get_effective_sellers(user, required_permission='manage_payments') or get_effective_sellers(user, required_permission='manage_orders')
         # Buyers see their own payments, Sellers and authorized team members see payments for their products
-        return Payment.objects.filter(
-            django_models.Q(order__user=user) | django_models.Q(order__orderitem_set__product__seller_id__in=sellers)
-        ).distinct()
+        q = django_models.Q(order__user=user) | django_models.Q(order__orderitem_set__product__seller_id__in=sellers)
+
+        from warehouses.models import WarehouseStaffAssignment
+        wh_codes = list(WarehouseStaffAssignment.objects.filter(user=user).values_list('warehouse__code', flat=True))
+        if wh_codes:
+            q |= django_models.Q(order__delivery_info__current_warehouse_code__in=wh_codes)
+            q |= django_models.Q(order__delivery_info__warehouse_code__in=wh_codes)
+            q |= django_models.Q(order__delivery_info__destination_warehouse_code__in=wh_codes)
+
+        return Payment.objects.filter(q).distinct()
 
     # Add payment verify/approve/reject actions for staff, business owners, and accountant team members
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def verify(self, request, pk=None):
-        """Staff, Seller, or Accountant Team Member: approve a pending marketplace payment."""
+        """Staff, Seller, Accountant, or Assigned Warehouse Staff: approve a pending marketplace payment."""
         from .services import OrderStateMachine
         from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
@@ -3097,8 +3106,17 @@ class PaymentViewSet(viewsets.ModelViewSet):
         is_staff = request.user.is_staff or request.user.is_superuser
         sellers = get_effective_sellers(request.user, required_permission='manage_payments')
         is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
-        
-        if not (is_staff or is_seller_or_team):
+
+        from warehouses.models import WarehouseStaffAssignment
+        is_wh_staff = False
+        if payment.order and WarehouseStaffAssignment.objects.filter(user=request.user).exists():
+            di = payment.order.delivery_info or {}
+            codes = [di.get('current_warehouse_code'), di.get('warehouse_code'), di.get('destination_warehouse_code')]
+            codes = [c for c in codes if c]
+            if not codes or WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
+                is_wh_staff = True
+
+        if not (is_staff or is_seller_or_team or is_wh_staff):
             return Response({'error': 'You do not have permission to verify this payment.'}, status=403)
 
         if payment.status != 'PENDING_VERIFICATION':
@@ -3118,7 +3136,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 try:
                     dest_code = (payment.order.delivery_info or {}).get('destination_warehouse_code')
                     curr_code = (payment.order.delivery_info or {}).get('current_warehouse_code') or (payment.order.delivery_info or {}).get('warehouse_code')
-                    is_local_pickup = (payment.order.fulfillment_type == 'WAREHOUSE_PICKUP') and (not dest_code or dest_code == curr_code)
+                    is_local_pickup = (payment.order.fulfillment_type == 'WAREHOUSE_PICKUP' or payment.order.shipping_method == 'PICKUP') and (not dest_code or dest_code == curr_code)
                     
                     if is_local_pickup:
                         from logistics.utils import order_has_vehicles
@@ -3139,7 +3157,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def reject(self, request, pk=None):
-        """Staff, Seller, or Accountant Team Member: reject a pending payment."""
+        """Staff, Seller, Accountant, or Assigned Warehouse Staff: reject a pending payment."""
         from .services import OrderStateMachine
         from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
@@ -3147,8 +3165,17 @@ class PaymentViewSet(viewsets.ModelViewSet):
         is_staff = request.user.is_staff or request.user.is_superuser
         sellers = get_effective_sellers(request.user, required_permission='manage_payments')
         is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
-        
-        if not (is_staff or is_seller_or_team):
+
+        from warehouses.models import WarehouseStaffAssignment
+        is_wh_staff = False
+        if payment.order and WarehouseStaffAssignment.objects.filter(user=request.user).exists():
+            di = payment.order.delivery_info or {}
+            codes = [di.get('current_warehouse_code'), di.get('warehouse_code'), di.get('destination_warehouse_code')]
+            codes = [c for c in codes if c]
+            if not codes or WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
+                is_wh_staff = True
+
+        if not (is_staff or is_seller_or_team or is_wh_staff):
             return Response({'error': 'You do not have permission to reject this payment.'}, status=403)
 
         if payment.status != 'PENDING_VERIFICATION':
