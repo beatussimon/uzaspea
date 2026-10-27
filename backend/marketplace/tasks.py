@@ -151,7 +151,8 @@ def send_webpush_notification_task(self, user_id, title, message, url=''):
         return
         
     subscriptions = list(user.push_subscriptions.all())
-    if not subscriptions or not hasattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY'):
+    vapid_private_key = getattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY', None)
+    if not subscriptions or not vapid_private_key:
         return
 
     try:
@@ -161,7 +162,6 @@ def send_webpush_notification_task(self, user_id, title, message, url=''):
             'message': message,
             'url': url
         })
-        vapid_private_key = settings.WEBPUSH_VAPID_PRIVATE_KEY
         vapid_claims = {"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
         for sub in subscriptions:
             try:
