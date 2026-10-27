@@ -287,28 +287,28 @@ const { showConfirm } = useDialog();
     switch (status) {
       case 'PAID':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             Paid
           </span>
         );
       case 'PENDING_REVIEW':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Pending Review
           </span>
         );
       case 'OVERDUE':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-red-600 dark:text-red-400 border border-red-500/40 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400 capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
             Overdue
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-gray-600 dark:text-gray-400 border border-gray-500/40 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
             Unpaid
           </span>
@@ -933,9 +933,9 @@ const { showConfirm } = useDialog();
                         </td>
                         <td className="p-3">
                           {dp.is_paid ? (
-                            <span className="px-2 py-0.5 text-3xs font-bold bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-full uppercase">Paid</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 capitalize"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Paid</span>
                           ) : (
-                            <span className="px-2 py-0.5 text-3xs font-bold bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 rounded-full uppercase">Unpaid</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 capitalize"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Unpaid</span>
                           )}
                         </td>
                         <td className="p-3 text-gray-500 dark:text-gray-400">

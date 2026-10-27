@@ -304,7 +304,7 @@ const SettingsPage: React.FC = () => {
             </header>
 
             {/* Mobile Horizontal Navigation Tabs */}
-            <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-gray-200/80 dark:border-neutral-800/80">
+            <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {navItems.map(item => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.key;
