@@ -452,6 +452,18 @@ class Product(models.Model):
         and no critical post-inspection events (restock, alterations) exist."""
         if hasattr(self, 'annotated_is_verified'):
             return self.annotated_is_verified
+        prefetched_inspections = getattr(self, '_prefetched_objects_cache', {}).get('inspections')
+        if prefetched_inspections is not None:
+            has_passed = any(
+                i.status == 'published' and getattr(getattr(i, 'report', None), 'verdict', None) == 'pass'
+                for i in prefetched_inspections
+            )
+            if not has_passed:
+                return False
+            prefetched_events = getattr(self, '_prefetched_objects_cache', {}).get('inspection_events')
+            if prefetched_events is not None and len(prefetched_events) > 0:
+                return False
+            return True
         has_passed = self.inspections.filter(status='published', report__verdict='pass').exists()
         if not has_passed:
             return False

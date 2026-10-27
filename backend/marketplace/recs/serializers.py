@@ -54,6 +54,9 @@ class ProductCardSerializer(ProductListSerializer):
         s = _stats(obj)
         return (s.inspection_verdict or None) if s else None
 
+    def get_has_post_inspection_changes(self, obj):
+        return getattr(obj, 'annotated_has_post_inspection_changes', False)
+
     def get_rec_slot(self, obj):
         return self.context.get('slots', {}).get(obj.id, '')
 

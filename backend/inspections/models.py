@@ -284,6 +284,12 @@ class InspectionRequest(models.Model):
 
     @property
     def active_assignment(self):
+        assignments = getattr(self, '_prefetched_objects_cache', {}).get('assignments')
+        if assignments is not None:
+            for a in assignments:
+                if a.is_active:
+                    return a
+            return None
         return self.assignments.filter(is_active=True).first()
 
 

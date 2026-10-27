@@ -274,7 +274,7 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
 # ──────────────────────────────────────────────
 
 class ChecklistTemplateViewSet(viewsets.ModelViewSet):
-    queryset = ChecklistTemplate.objects.filter(is_active=True).prefetch_related('items')
+    queryset = ChecklistTemplate.objects.filter(is_active=True).select_related('category').prefetch_related('items')
     serializer_class = ChecklistTemplateSerializer
 
     def get_permissions(self):
@@ -418,7 +418,8 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = InspectionRequest.objects.select_related(
-            'client', 'category', 'bill', 'report'
+            'client', 'client__profile', 'category', 'category__parent', 'bill', 'report',
+            'marketplace_product', 'marketplace_product__seller', 'marketplace_product__seller__profile'
         ).prefetch_related('assignments', 'payments', 'notifications')
 
         # Staff see all in admin/list views ONLY if explicitly requested or on detail actions
@@ -769,13 +770,13 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
             return Response({'detail': 'Requires inspection management permissions.'}, status=403)
         qs = InspectionRequest.objects.all()
-        by_status = {}
-        for s, _ in InspectionRequest.STATUS_CHOICES:
-            by_status[s] = qs.filter(status=s).count()
+        counts_by_status = dict(qs.values('status').annotate(c=Count('id')).values_list('status', 'c'))
+        by_status = {s: counts_by_status.get(s, 0) for s, _ in InspectionRequest.STATUS_CHOICES}
+        total_count = sum(by_status.values())
         return Response({
-            'total': qs.count(),
+            'total': total_count,
             'by_status': by_status,
-            'pending_qa': qs.filter(status='qa_review').count(),
+            'pending_qa': by_status.get('qa_review', 0),
             'fraud_flags': FraudFlag.objects.filter(resolved=False).count(),
             'sla_breaches': SLABreach.objects.count(),
         })

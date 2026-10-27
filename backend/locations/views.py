@@ -3,7 +3,7 @@ from .models import Region, District
 from .serializers import RegionSerializer, DistrictSerializer
 
 class RegionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Region.objects.all().order_by('name')
+    queryset = Region.objects.prefetch_related('districts').order_by('name')
     serializer_class = RegionSerializer
     pagination_class = None
     authentication_classes = []

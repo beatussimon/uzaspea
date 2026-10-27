@@ -427,11 +427,12 @@ class StaffDashboardView(APIView):
         } for a in my_actions]
 
         # Stats
+        user_task_counts = dict(Task.objects.filter(assigned_to=user).values('status').annotate(c=Count('id')).values_list('status', 'c'))
         task_counts = {
-            'pending': Task.objects.filter(assigned_to=user, status='pending').count(),
-            'in_progress': Task.objects.filter(assigned_to=user, status='in_progress').count(),
-            'on_hold': Task.objects.filter(assigned_to=user, status='on_hold').count(),
-            'completed': Task.objects.filter(assigned_to=user, status='completed').count(),
+            'pending': user_task_counts.get('pending', 0),
+            'in_progress': user_task_counts.get('in_progress', 0),
+            'on_hold': user_task_counts.get('on_hold', 0),
+            'completed': user_task_counts.get('completed', 0),
             'unassigned': Task.objects.filter(assigned_to=None).exclude(status='completed').count(),
         }
 
@@ -441,7 +442,6 @@ class StaffDashboardView(APIView):
             from marketplace.models import PaymentConfirmation, SellerApplication, Product, Review, Order
             from billing.models import CommissionPayment
             from inspections.models import InspectionRequest
-            from django.db.models import Count
             
             admin_overview = {
                 'subscriptions_pending': PaymentConfirmation.objects.filter(status='pending').count(),
@@ -455,11 +455,12 @@ class StaffDashboardView(APIView):
             }
 
             # Global Task Counts for Admin Analytics
+            task_status_counts = dict(Task.objects.values('status').annotate(c=Count('id')).values_list('status', 'c'))
             global_counts = {
-                'pending': Task.objects.filter(status='pending').count(),
-                'in_progress': Task.objects.filter(status='in_progress').count(),
-                'on_hold': Task.objects.filter(status='on_hold').count(),
-                'completed': Task.objects.filter(status='completed').count(),
+                'pending': task_status_counts.get('pending', 0),
+                'in_progress': task_status_counts.get('in_progress', 0),
+                'on_hold': task_status_counts.get('on_hold', 0),
+                'completed': task_status_counts.get('completed', 0),
                 'unassigned': Task.objects.filter(assigned_to=None).exclude(status='completed').count(),
             }
 
@@ -515,7 +516,11 @@ class SponsoredListingReviewViewSet(viewsets.ModelViewSet):
         if not (user.is_superuser or has_staff_permission(user, 'can_review_promotions') or has_staff_permission(user, 'can_approve_content')):
             return SponsoredListing.objects.none()
 
-        qs = SponsoredListing.objects.select_related('product', 'user').order_by('-created_at')
+        qs = SponsoredListing.objects.select_related(
+            'product', 'product__category', 'product__seller', 'product__seller__profile', 'user'
+        ).prefetch_related(
+            'product__images'
+        ).order_by('-created_at')
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -662,7 +667,7 @@ class StaffSupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
 
     def get_queryset(self):
-        qs = SupportTicket.objects.all().order_by('-created_at')
+        qs = SupportTicket.objects.select_related('user', 'assigned_to').prefetch_related('messages', 'messages__sender').order_by('-created_at')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -730,7 +735,10 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     def get_queryset(self):
-        qs = PaymentConfirmation.objects.select_related('user', 'tier').all().order_by('-created_at')
+        from django.db.models import Count, Q
+        qs = PaymentConfirmation.objects.select_related('user', 'user__profile', 'tier').annotate(
+            annotated_active_products_count=Count('user__products', filter=Q(user__products__is_available=True), distinct=True)
+        ).all().order_by('-created_at')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -788,11 +796,15 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
 
         overdue_user_ids = candidate_user_ids - active_user_ids - pending_user_ids
 
+        from django.db.models import Count, Q
         users = (
             User.objects
             .filter(id__in=overdue_user_ids)
+            .annotate(
+                annotated_active_products=Count('products', filter=Q(products__is_available=True))
+            )
             .select_related('profile')
-            .prefetch_related('subscriptions__tier', 'products')
+            .prefetch_related('subscriptions__tier')
         )
 
         results = []
@@ -802,7 +814,9 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
             if q and (q not in u.username.lower() and q not in name.lower() and q not in phone.lower()):
                 continue
 
-            latest_sub = u.subscriptions.exclude(tier__isnull=True).order_by('-start_date').first()
+            valid_subs = [s for s in u.subscriptions.all() if s.tier_id is not None]
+            valid_subs.sort(key=lambda s: s.start_date or s.created_at, reverse=True)
+            latest_sub = valid_subs[0] if valid_subs else None
             tier = latest_sub.tier if latest_sub else None
             tier_name = tier.name if tier else ('Business' if getattr(getattr(u, 'profile', None), 'tier', '') == 'business' else 'Seller Pro')
             tier_price = float(tier.price) if tier and tier.price else (79000.0 if getattr(getattr(u, 'profile', None), 'tier', '') == 'business' else 29000.0)
@@ -815,8 +829,8 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
                 days_overdue = (today - u.date_joined.date()).days
                 status_label = 'OVERDUE'
 
-            active_products_count = u.products.filter(is_available=True).count()
-            orders_count = getattr(u, 'seller_orders', None).count() if hasattr(u, 'seller_orders') else 0
+            active_products_count = getattr(u, 'annotated_active_products', 0)
+            orders_count = 0
 
             results.append({
                 'user_id': u.id,
@@ -890,25 +904,35 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
                 m_end = datetime.date(year, month + 1, 1)
 
             month_label = m_start.strftime("%b %Y")
-            m_approved = approved_qs.filter(created_at__date__gte=m_start, created_at__date__lt=m_end)
-            m_rev = float(m_approved.aggregate(t=Sum('amount'))['t'] or 0.0)
-            m_cnt = m_approved.count()
-
+            m_agg = approved_qs.filter(created_at__date__gte=m_start, created_at__date__lt=m_end).aggregate(
+                t=Sum('amount'), cnt=Count('id')
+            )
             monthly_trend.append({
                 'month': month_label,
-                'revenue': m_rev,
-                'confirmations': m_cnt,
+                'revenue': float(m_agg['t'] or 0.0),
+                'confirmations': int(m_agg['cnt'] or 0),
             })
+
+        tier_sub_counts = dict(
+            Subscription.objects.filter(is_active=True, end_date__gt=now, tier__isnull=False)
+            .values('tier_id')
+            .annotate(cnt=Count('id'))
+            .values_list('tier_id', 'cnt')
+        )
+        tier_revs = dict(
+            approved_qs.filter(tier__isnull=False)
+            .values('tier_id')
+            .annotate(total=Sum('amount'))
+            .values_list('tier_id', 'total')
+        )
 
         tier_breakdown = []
         for t in SubscriptionTier.objects.filter(is_active=True):
-            sub_count = Subscription.objects.filter(tier=t, is_active=True, end_date__gt=now).count()
-            t_rev = float(approved_qs.filter(tier=t).aggregate(t=Sum('amount'))['t'] or 0.0)
             tier_breakdown.append({
                 'tier_name': t.name,
                 'tier_level': t.tier_level,
-                'subscribers': sub_count,
-                'total_revenue': t_rev,
+                'subscribers': tier_sub_counts.get(t.id, 0),
+                'total_revenue': float(tier_revs.get(t.id, 0.0) or 0.0),
                 'price': float(t.price or 0.0),
             })
 
@@ -994,7 +1018,7 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=['get'])
     def overdue(self, request):
         from billing.models import MonthlyInvoice
-        from django.db.models import Q
+        from django.db.models import Q, Count
         today = timezone.now().date()
         q = request.query_params.get('q', '').strip().lower()
 
@@ -1011,9 +1035,19 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
             )
             .exclude(id__in=pending_invoice_ids)
             .select_related('seller__profile')
-            .prefetch_related('seller__products')
             .order_by('-due_date')
         )
+
+        from marketplace.models import Product
+        seller_ids = {inv.seller_id for inv in invoices if inv.seller_id}
+        product_counts = {}
+        if seller_ids:
+            product_counts = dict(
+                Product.objects.filter(seller_id__in=seller_ids, is_available=True)
+                .values('seller_id')
+                .annotate(cnt=Count('id'))
+                .values_list('seller_id', 'cnt')
+            )
 
         results = []
         for inv in invoices:
@@ -1026,7 +1060,7 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
                 continue
 
             days_overdue = (today - inv.due_date).days if inv.due_date and today > inv.due_date else 0
-            active_products = seller.products.filter(is_available=True).count()
+            active_products = product_counts.get(seller.id, 0)
 
             results.append({
                 'id': inv.id,
@@ -1081,7 +1115,7 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
             Q(status=MonthlyInvoice.Status.OVERDUE) |
             Q(status=MonthlyInvoice.Status.UNPAID, due_date__lt=today) |
             (Q(status=MonthlyInvoice.Status.UNPAID) & Q(total_commission__gt=0))
-        ).exclude(id__in=pending_invoice_ids)
+        ).exclude(id__in=pending_invoice_ids).select_related('seller__profile')
         total_outstanding = float(overdue_invoices.aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
         overdue_count = overdue_invoices.count()
 
@@ -1111,30 +1145,39 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
             month_label = m_start.strftime("%b %Y")
 
             m_invoices = MonthlyInvoice.objects.filter(year=year, month=month)
-            m_invoiced = float(m_invoices.aggregate(t=Sum('total_commission'))['t'] or 0.0)
-            m_collected = float(m_invoices.filter(status=MonthlyInvoice.Status.PAID).aggregate(t=Sum('total_commission'))['t'] or 0.0)
-            m_orders = int(m_invoices.aggregate(t=Sum('order_count'))['t'] or 0)
+            m_agg = m_invoices.aggregate(
+                invoiced=Sum('total_commission'),
+                collected=Sum('total_commission', filter=Q(status=MonthlyInvoice.Status.PAID)),
+                orders=Sum('order_count')
+            )
 
             monthly_trend.append({
                 'month': month_label,
-                'invoiced': m_invoiced,
-                'collected': m_collected,
-                'orders_count': m_orders,
+                'invoiced': float(m_agg['invoiced'] or 0.0),
+                'collected': float(m_agg['collected'] or 0.0),
+                'orders_count': int(m_agg['orders'] or 0),
             })
 
-        # Status distribution
-        unpaid_count = MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.UNPAID).count()
-        unpaid_amount = float(MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.UNPAID).aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
-        paid_count = paid_invoices.count()
-        paid_amount = float(paid_invoices.aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
-        overdue_stat_count = MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.OVERDUE).count()
-        overdue_stat_amount = float(MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.OVERDUE).aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
+        # Status distribution (batch in single aggregate query)
+        status_aggs = {
+            item['status']: (item['cnt'], item['total_amt'])
+            for item in MonthlyInvoice.objects.values('status').annotate(cnt=Count('id'), total_amt=Sum('total_amount_due'))
+        }
+        def get_stat(st):
+            row = status_aggs.get(st)
+            if row:
+                return int(row[0] or 0), float(row[1] or 0.0)
+            return 0, 0.0
+
+        paid_cnt, paid_amt = get_stat(MonthlyInvoice.Status.PAID)
+        unpaid_cnt, unpaid_amt = get_stat(MonthlyInvoice.Status.UNPAID)
+        overdue_cnt, overdue_amt = get_stat(MonthlyInvoice.Status.OVERDUE)
 
         status_distribution = [
-            {'name': 'Paid / Settled', 'count': paid_count, 'amount': paid_amount, 'color': '#10b981'},
+            {'name': 'Paid / Settled', 'count': paid_cnt, 'amount': paid_amt, 'color': '#10b981'},
             {'name': 'Pending Review', 'count': pending_review_count, 'amount': pending_review_amount, 'color': '#3b82f6'},
-            {'name': 'Overdue', 'count': overdue_stat_count, 'amount': overdue_stat_amount, 'color': '#ef4444'},
-            {'name': 'Unpaid', 'count': unpaid_count, 'amount': unpaid_amount, 'color': '#f59e0b'},
+            {'name': 'Overdue', 'count': overdue_cnt, 'amount': overdue_amt, 'color': '#ef4444'},
+            {'name': 'Unpaid', 'count': unpaid_cnt, 'amount': unpaid_amt, 'color': '#f59e0b'},
         ]
 
         # Top Debtors
@@ -1180,7 +1223,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, CanManageUsers]
 
     def get_queryset(self):
-        queryset = User.objects.select_related('profile', 'inspector_profile').all()
+        queryset = User.objects.select_related('profile', 'inspector_profile').prefetch_related('staff_permissions').all()
 
         is_staff = self.request.query_params.get('is_staff')
         is_superuser = self.request.query_params.get('is_superuser')
@@ -1317,9 +1360,19 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
 
 class ProductModerationViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related('seller', 'category').all()
+    queryset = Product.objects.select_related(
+        'seller', 'seller__profile', 'category', 'category__parent'
+    ).prefetch_related(
+        'images', 'variants', 'fitments', 'price_tiers', 'inspections__report'
+    ).all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            from marketplace.serializers import ProductListSerializer
+            return ProductListSerializer
+        return ProductSerializer
 
     @decorators.action(detail=True, methods=['post'])
     def suspend(self, request, pk=None):
@@ -1403,7 +1456,7 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_param.lower())
         search = self.request.query_params.get('search')
         if search:
-            from django.db.models import Q
+            from django.db.models import Q, Count
             queryset = queryset.filter(
                 Q(business_name__icontains=search) |
                 Q(user__username__icontains=search) |
@@ -1496,7 +1549,7 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
         if len(q) < 2:
             return Response([])
 
-        from django.db.models import Q
+        from django.db.models import Q, Count
         users_qs = User.objects.filter(is_active=True).select_related('profile').filter(
             Q(username__icontains=q) |
             Q(email__icontains=q) |

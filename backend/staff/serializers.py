@@ -137,6 +137,9 @@ class UserManagementSerializer(serializers.ModelSerializer):
         return hasattr(obj, 'inspector_profile')
 
     def get_permissions(self, obj):
+        perms = getattr(obj, '_prefetched_objects_cache', {}).get('staff_permissions')
+        if perms is not None:
+            return [p.permission for p in perms if p.is_active]
         if not hasattr(obj, 'staff_permissions'):
             return []
         return list(obj.staff_permissions.filter(is_active=True).values_list('permission', flat=True))
@@ -171,6 +174,8 @@ class PaymentConfirmationSerializer(serializers.ModelSerializer):
         return f"/{obj.user.username}" if obj.user else ""
 
     def get_active_products_count(self, obj):
+        if hasattr(obj, 'annotated_active_products_count'):
+            return obj.annotated_active_products_count
         if not obj.user:
             return 0
         return getattr(obj.user, 'products', None).filter(is_available=True).count() if hasattr(obj.user, 'products') else 0
