@@ -193,8 +193,8 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
                   onClick={() => scrollToIndex(i)}
                   className={`relative shrink-0 w-12 h-9 sm:w-14 sm:h-10 overflow-hidden rounded-sm transition-all cursor-pointer ${
                     currentIndex === i 
-                      ? 'opacity-100 scale-105 ring-2 ring-white ring-offset-1 ring-offset-black' 
-                      : 'opacity-50 hover:opacity-90 scale-100 border border-white/20'
+                      ? 'opacity-100 scale-110' 
+                      : 'opacity-40 hover:opacity-80 scale-100'
                   }`}
                   title={`Thumbnail ${i + 1}`}
                   aria-label={`View image ${i + 1}`}
