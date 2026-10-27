@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MobileIncomingMessageBubble } from '../chat/MobileIncomingMessageBubble';
 
 export const ScrollToTopFab: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const location = useLocation();
 
+  // Scroll visibility handler
   useEffect(() => {
     let ticking = false;
 
@@ -27,8 +30,6 @@ export const ScrollToTopFab: React.FC = () => {
     };
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    
-    // Initial check
     handleScroll();
 
     return () => {
@@ -44,23 +45,86 @@ export const ScrollToTopFab: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (location.pathname.startsWith('/product/')) {
+  // Route exclusions: ProductDetailPage handles its own floating action stack (cart + up button); messages page has its own UI
+  const isProductDetail = location.pathname.startsWith('/product/');
+  const isMessagesRoute = location.pathname.startsWith('/messages');
+
+  if (isProductDetail || isMessagesRoute) {
     return null;
   }
 
   return (
-    <button
-      onClick={scrollToTop}
-      className={`fixed z-40 p-3 rounded-full shadow-lg bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
-      // Positioned slightly above the MobileBottomNav area so it doesn't overlap
-      style={{
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
-        right: '20px'
-      }}
-      aria-label="Scroll to top"
-    >
-      <ArrowUp size={20} />
-    </button>
+    <>
+      {/* ═══ MOBILE FLOATING ACTIONS STACK ═══
+          Uses flex-col-reverse:
+          - Bottom slot: Up Arrow Button (Scroll to top)
+          - Above slot: Active / Incoming Message Bubble
+          When page is NOT scrolled (Up Button is hidden), Message Bubble takes its place at the bottom!
+          When page IS scrolled (Up Button appears), Message Bubble hovers directly above the Up Button!
+      */}
+      <div
+        className="md:hidden fixed z-40 flex flex-col-reverse items-center gap-2.5 pointer-events-none"
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          right: '20px',
+        }}
+      >
+        {/* Bottom Slot: Scroll to top Up Button */}
+        <AnimatePresence>
+          {isVisible && (
+            <motion.button
+              key="scroll-to-top-mobile"
+              layout
+              initial={{ scale: 0, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0, opacity: 0, y: 15 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+              type="button"
+              onClick={scrollToTop}
+              className="pointer-events-auto w-11 h-11 rounded-full shadow-xl bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] flex items-center justify-center cursor-pointer transition-colors"
+              aria-label="Scroll to top"
+              title="Scroll to top"
+            >
+              <ArrowUp size={20} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Above Slot (or taking bottom slot if not scrolled): Mobile Active/Incoming Message Bubble */}
+        <MobileIncomingMessageBubble />
+      </div>
+
+      {/* ═══ DESKTOP SCROLL TO TOP BUTTON ═══
+          Desktop chat bubbles are handled in DesktopChatDock.tsx.
+          Here we display the desktop Up Button when scrolled.
+      */}
+      <AnimatePresence>
+        {isVisible && (
+          <motion.button
+            key="scroll-to-top-desktop"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+            type="button"
+            onClick={scrollToTop}
+            className="hidden md:flex fixed z-40 p-3 rounded-full shadow-lg bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] items-center justify-center cursor-pointer transition-colors"
+            style={{
+              bottom: '80px',
+              right: '24px',
+            }}
+            aria-label="Scroll to top"
+            title="Scroll to top"
+          >
+            <ArrowUp size={20} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
+export default ScrollToTopFab;
