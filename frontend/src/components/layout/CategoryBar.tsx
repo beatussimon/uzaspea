@@ -32,11 +32,12 @@ export const getActiveLocationParams = (): Record<string, string> => {
   return { location_mode: 'nationwide' };
 };
 
-export const prefetchCategoryProducts = (slug: string) => {
-  if (!slug) return;
+export const prefetchCategoryProducts = (slug: string, subcategorySlug: string = '') => {
+  const targetCategory = subcategorySlug || slug;
+  if (!targetCategory) return;
   preloadProductList();
   const locParams = getActiveLocationParams();
-  const params: Record<string, string> = { page: '1', page_size: '12', category: slug, ...locParams };
+  const params: Record<string, string> = { page: '1', page_size: '12', category: targetCategory, ...locParams };
   const key = `products:${JSON.stringify(params)}`;
   if (!apiCache.get(key)) {
     api.get('/api/products/', { params }).then(res => apiCache.set(key, res.data)).catch(() => {});
@@ -307,14 +308,18 @@ const CategoryBar: React.FC = () => {
                     <button
                       onClick={() => {
                         categoryStore.setCategory(effectiveCategorySlug, '');
-                        React.startTransition(() => {
-                          setSearchParams(prev => {
-                            const p = new URLSearchParams(prev);
-                            p.delete('subcategory');
-                            return p;
-                          });
-                        });
+                        prefetchCategoryProducts(effectiveCategorySlug, '');
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                        setSearchParams(prev => {
+                          const p = new URLSearchParams(prev);
+                          p.delete('subcategory');
+                          p.delete('saved');
+                          return p;
+                        }, { replace: true });
                       }}
+                      onMouseEnter={() => prefetchCategoryProducts(effectiveCategorySlug, '')}
+                      onTouchStart={() => prefetchCategoryProducts(effectiveCategorySlug, '')}
+                      onFocus={() => prefetchCategoryProducts(effectiveCategorySlug, '')}
                       className={`flex items-center px-3 py-1.5 rounded-full text-xs shrink-0 transition-colors ${
                         !activeSubcategorySlug
                           ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white shadow-sm'
@@ -330,14 +335,18 @@ const CategoryBar: React.FC = () => {
                           key={sub.id}
                           onClick={() => {
                             categoryStore.setCategory(effectiveCategorySlug, sub.slug);
-                            React.startTransition(() => {
-                              setSearchParams(prev => {
-                                const p = new URLSearchParams(prev);
-                                p.set('subcategory', sub.slug);
-                                return p;
-                              });
-                            });
+                            prefetchCategoryProducts(effectiveCategorySlug, sub.slug);
+                            window.scrollTo({ top: 0, behavior: 'instant' });
+                            setSearchParams(prev => {
+                              const p = new URLSearchParams(prev);
+                              p.set('subcategory', sub.slug);
+                              p.delete('saved');
+                              return p;
+                            }, { replace: true });
                           }}
+                          onMouseEnter={() => prefetchCategoryProducts(effectiveCategorySlug, sub.slug)}
+                          onTouchStart={() => prefetchCategoryProducts(effectiveCategorySlug, sub.slug)}
+                          onFocus={() => prefetchCategoryProducts(effectiveCategorySlug, sub.slug)}
                           className={`flex items-center px-3 py-1.5 rounded-full text-xs shrink-0 transition-colors ${
                             isSelected
                               ? 'font-bold bg-neutral-300/80 dark:bg-neutral-700 text-neutral-950 dark:text-white shadow-sm'
