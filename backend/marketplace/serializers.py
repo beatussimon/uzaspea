@@ -1137,10 +1137,10 @@ class PromoCodeSerializer(serializers.ModelSerializer):
         return False
 
     def get_product_image(self, obj):
-        if obj.product and obj.product.images.exists():
-            first_img = obj.product.images.first()
-            if first_img and first_img.image:
-                return first_img.image.url
+        if obj.product:
+            all_imgs = list(obj.product.images.all())
+            if all_imgs and all_imgs[0].image:
+                return all_imgs[0].image.url
         return None
 
     def validate_code(self, value):
@@ -2105,10 +2105,70 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 from .models import SponsoredListing
 
+class SponsoredProductSerializer(serializers.ModelSerializer):
+    """
+    Lightweight, high-performance serializer for products attached to sponsored listings.
+    Reads from prefetched/selected fields to guarantee zero N+1 queries.
+    """
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+    seller_full_name = serializers.SerializerMethodField()
+    seller_tier = serializers.CharField(source='seller.profile.tier', read_only=True, default='free')
+    seller_verified = serializers.BooleanField(source='seller.profile.is_verified', read_only=True, default=False)
+    seller_profile_picture = serializers.SerializerMethodField()
+
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
+
+    images = ProductImageSerializer(many=True, read_only=True)
+    is_sponsored = serializers.BooleanField(default=True, read_only=True)
+    avg_rating = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    weekly_sales = serializers.SerializerMethodField()
+    has_inspection = serializers.BooleanField(default=False, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description',
+            'price', 'sale_price', 'stock', 'is_available', 'unit_of_measure',
+            'category', 'category_name', 'category_slug',
+            'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
+            'condition', 'requires_quote',
+            'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images',
+            'is_sponsored', 'has_inspection',
+            'location_name', 'latitude', 'longitude', 'created_at'
+        ]
+
+    def get_seller_full_name(self, obj):
+        if obj.seller:
+            name = f"{obj.seller.first_name} {obj.seller.last_name}".strip()
+            return name if name else None
+        return None
+
+    def get_seller_profile_picture(self, obj):
+        seller = getattr(obj, 'seller', None)
+        if seller and hasattr(seller, 'profile') and seller.profile and seller.profile.profile_picture:
+            return seller.profile.profile_picture.url
+        return None
+
+    def get_avg_rating(self, obj):
+        return getattr(obj, 'annotated_avg_rating', 0.0) or 0.0
+
+    def get_like_count(self, obj):
+        return getattr(obj, 'annotated_like_count', 0) or 0
+
+    def get_is_liked(self, obj):
+        return getattr(obj, 'annotated_is_liked', False) or False
+
+    def get_weekly_sales(self, obj):
+        return getattr(obj, 'weekly_sales', 0) or 0
+
+
 class SponsoredListingSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.url_slug', read_only=True)
-    product_details = ProductSerializer(source='product', read_only=True)
+    product_details = SponsoredProductSerializer(source='product', read_only=True)
     is_active = serializers.SerializerMethodField()
     days_remaining = serializers.SerializerMethodField()
     seconds_remaining = serializers.SerializerMethodField()

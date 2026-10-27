@@ -4475,12 +4475,14 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category', None)
         query = self.request.query_params.get('q', None)
 
+        base_qs = SponsoredListing.objects.select_related(
+            'product', 'product__category', 'product__seller', 'product__seller__profile', 'user'
+        ).prefetch_related(
+            'product__images'
+        )
+
         if is_public:
-            qs = SponsoredListing.objects.select_related(
-                'product', 'product__category', 'product__seller'
-            ).prefetch_related(
-                'product__images', 'product__likes'
-            ).filter(
+            qs = base_qs.filter(
                 status='approved'
             ).filter(
                 django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
@@ -4520,10 +4522,10 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
             return qs.order_by('-created_at')
 
         if user.is_staff:
-            return SponsoredListing.objects.all().order_by('-created_at')
+            return base_qs.all().order_by('-created_at')
         if user.is_authenticated:
-            return SponsoredListing.objects.filter(user=user).order_by('-created_at')
-        return SponsoredListing.objects.filter(
+            return base_qs.filter(user=user).order_by('-created_at')
+        return base_qs.filter(
             status='approved'
         ).filter(
             django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
@@ -5332,18 +5334,23 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from .models import PromoCode
         user = self.request.user
+        base_qs = PromoCode.objects.select_related(
+            'seller', 'affiliate_user', 'product'
+        ).prefetch_related(
+            'product__images', 'products'
+        )
         if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
             if user.is_staff or user.is_superuser:
-                return PromoCode.objects.all()
-            return PromoCode.objects.filter(seller=user)
+                return base_qs.all()
+            return base_qs.filter(seller=user)
 
         all_param = self.request.query_params.get('all', 'false').lower() == 'true'
         seller_param = self.request.query_params.get('seller')
         if seller_param:
-            return PromoCode.objects.filter(seller__username=seller_param).order_by('-created_at')
+            return base_qs.filter(seller__username=seller_param).order_by('-created_at')
         if (user.is_staff or user.is_superuser) and all_param:
-            return PromoCode.objects.all().order_by('-created_at')
-        return PromoCode.objects.filter(seller=user).order_by('-created_at')
+            return base_qs.all().order_by('-created_at')
+        return base_qs.filter(seller=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         from rest_framework import serializers
