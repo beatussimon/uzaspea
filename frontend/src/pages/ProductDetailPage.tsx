@@ -33,6 +33,7 @@ import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
 import { launchNavigation, launchOpenMap } from '../utils/mapNavigation';
 import { MapAppModal } from '../components/MapAppModal';
+import { MobileIncomingMessageBubble } from '../components/chat/MobileIncomingMessageBubble';
 import NetworkErrorState from '../components/common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
 import {
@@ -207,10 +208,8 @@ const ImageLightbox = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (images.length > 1) {
-        if (e.key === 'ArrowRight') scrollToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
-        if (e.key === 'ArrowLeft') scrollToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
-      }
+      if (e.key === 'ArrowRight' && currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+      if (e.key === 'ArrowLeft' && currentIndex > 0) scrollToIndex(currentIndex - 1);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -240,14 +239,12 @@ const ImageLightbox = ({
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (images.length <= 1) return;
-    scrollToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
+    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (images.length <= 1) return;
-    scrollToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
+    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
   };
 
   return (
@@ -296,7 +293,7 @@ const ImageLightbox = ({
           ))}
         </div>
 
-        {images.length > 1 && (
+        {currentIndex > 0 && (
           <button 
             type="button"
             onClick={handlePrev}
@@ -307,7 +304,7 @@ const ImageLightbox = ({
           </button>
         )}
 
-        {images.length > 1 && (
+        {currentIndex < images.length - 1 && (
           <button 
             type="button"
             onClick={handleNext}
@@ -1835,8 +1832,8 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
         {/* Previous Arrow */}
-        {images.length > 1 && (
-          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1)); }}
+        {images.length > 1 && selectedImage > 0 && (
+          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => Math.max(0, prev - 1)); }}
             className="flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
             aria-label="Previous image">
             <ChevronLeft size={24} strokeWidth={2.5} />
@@ -1844,8 +1841,8 @@ const ProductDetailPage: React.FC = () => {
         )}
 
         {/* Next Arrow */}
-        {images.length > 1 && (
-          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0)); }}
+        {images.length > 1 && selectedImage < images.length - 1 && (
+          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => Math.min(images.length - 1, prev + 1)); }}
             className="flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
             aria-label="Next image">
             <ChevronRight size={24} strokeWidth={2.5} />
@@ -2963,21 +2960,54 @@ const ProductDetailPage: React.FC = () => {
       ) : null}
 
       {/* Mobile Floating Action Buttons (Positioned above MobileBottomNav) */}
-      <div className="md:hidden fixed bottom-20 right-4 z-[110] flex flex-col items-center gap-3 pointer-events-auto">
+      <div 
+        className="md:hidden fixed z-[110] flex flex-col-reverse items-center gap-2.5 pointer-events-none"
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          right: '20px',
+        }}
+      >
+        {/* Slot 1 (Bottom): Back To Top Button */}
+        <AnimatePresence>
+          {showBackToTop && (
+            <motion.button
+              key="floating-back-to-top-mobile"
+              layout
+              initial={{ scale: 0, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0, opacity: 0, y: 15 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+              type="button"
+              onClick={scrollToTop}
+              className="pointer-events-auto relative w-11 h-11 rounded-full shadow-xl bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] flex items-center justify-center cursor-pointer group transition-colors"
+              aria-label="Back to top"
+              title="Back to top"
+            >
+              <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Slot 2 (Above Back To Top, or taking bottom slot when not scrolled): Mobile Active/Incoming Message Bubble */}
+        <MobileIncomingMessageBubble />
+
+        {/* Slot 3 (Top): Cart FAB */}
         <AnimatePresence>
           {cartCount > 0 && (
             <motion.button
               key="floating-cart-mobile"
               layout
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
+              initial={{ scale: 0, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0, opacity: 0, y: 15 }}
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 350, damping: 26 }}
               type="button"
               onClick={() => navigate('/cart')}
-              className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
+              className="pointer-events-auto relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
               aria-label={`Shopping cart with ${cartCount} items`}
               title={`Cart (${cartCount})`}
             >
@@ -2985,26 +3015,6 @@ const ProductDetailPage: React.FC = () => {
               <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-brand-500 text-black text-2xs font-extrabold rounded-full flex items-center justify-center shadow-md border-2 border-gray-100 dark:border-[#1f2022]">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
-            </motion.button>
-          )}
-
-          {showBackToTop && (
-            <motion.button
-              key="floating-back-to-top-mobile"
-              layout
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.94 }}
-              transition={{ duration: 0.2 }}
-              type="button"
-              onClick={scrollToTop}
-              className="relative w-11 h-11 rounded-full shadow-xl bg-gray-100 hover:bg-gray-200/90 dark:bg-[#1f2022] dark:hover:bg-[#28292c] text-gray-900 dark:text-white border border-gray-300/80 dark:border-white/15 flex items-center justify-center cursor-pointer group transition-colors"
-              aria-label="Back to top"
-              title="Back to top"
-            >
-              <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
             </motion.button>
           )}
         </AnimatePresence>
