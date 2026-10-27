@@ -198,6 +198,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
     lookup_field = 'slug'
 
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        is_personal = (
+            request.query_params.get('mine') == 'true' or
+            request.query_params.get('saved') == 'true' or
+            request.query_params.get('following') or
+            request.query_params.get('is_draft')
+        )
+        if not is_personal and response.status_code == 200:
+            response['Cache-Control'] = 'public, max-age=30, stale-while-revalidate=60'
+        return response
+
     def get_object(self):
         from django.http import Http404
         queryset = self.filter_queryset(self.get_queryset())
