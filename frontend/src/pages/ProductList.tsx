@@ -216,10 +216,10 @@ const ProductList = () => {
       const cachedSpons = apiCache.get<any>(sponsCacheKey);
 
       if (reset) {
-        setLoadedKey(cacheKey);
         setFetchError(null);
         setPaginationError(null);
         if (cached) {
+          setLoadedKey(cacheKey);
           // Instant cache hit for initial load
           setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
           setHasMore(!!cached.data.next);
@@ -636,10 +636,10 @@ const ProductList = () => {
   const isKeyChanged = loadedKey !== currentParamsKey;
 
   const activeProducts = isKeyChanged
-    ? (cachedForCurrent && Array.isArray(cachedForCurrent.data?.results) ? cachedForCurrent.data.results : products)
-    : products;
+    ? (cachedForCurrent && Array.isArray(cachedForCurrent.data?.results) ? cachedForCurrent.data.results : [])
+    : (products.length > 0 ? products : (cachedForCurrent && Array.isArray(cachedForCurrent.data?.results) ? cachedForCurrent.data.results : []));
 
-  const isInitialLoading = loading && products.length === 0 && !cachedForCurrent && !fetchError;
+  const isInitialLoading = (loading && activeProducts.length === 0 && !fetchError) || (isKeyChanged && !cachedForCurrent && activeProducts.length === 0);
   const isSwitchingCategory = isKeyChanged && !cachedForCurrent && !fetchError;
 
   const gridEntries = buildGridEntries(activeProducts, sponsoredAds);
@@ -877,11 +877,17 @@ const ProductList = () => {
                   } ${isSwitchingCategory ? "opacity-60 transition-opacity duration-150" : "opacity-100 transition-opacity duration-150"}`}
                 >
                   {gridEntries.length === 0 ? (
-                    <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
-                      <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                      <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
-                    </div>
+                    loading || isSwitchingCategory || isKeyChanged ? (
+                      [...Array(10)].map((_, i) => (
+                        <ProductCardSkeleton key={`skeleton-${i}`} viewMode={viewMode} />
+                      ))
+                    ) : (
+                      <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
+                        <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
+                        <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                      </div>
+                    )
                   ) : (
                     gridEntries.map((entry, idx) => {
                       if (entry.type === 'placeholder') {
