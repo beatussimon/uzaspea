@@ -5,6 +5,7 @@ APP_INSTANCE="3.6.193.212"
 DATA_INSTANCE="13.235.198.184"
 APP_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1.pem"
 DATA_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1-sokonimax.pem"
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=6"
 
 echo "Building frontend locally to avoid App Node OOM..."
 cd frontend
@@ -17,7 +18,7 @@ echo "Pushing latest code to GitHub..."
 echo "=========================================="
 echo " Deploying to Data Node ($DATA_INSTANCE)  "
 echo "=========================================="
-ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
+ssh $SSH_OPTS -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
   set -e
   APP_INSTANCE="${APP_INSTANCE}"
   echo "=> Entering deployment directory..."
@@ -56,7 +57,7 @@ EOF
 echo "=========================================="
 echo " Deploying to App Node ($APP_INSTANCE)    "
 echo "=========================================="
-ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
+ssh $SSH_OPTS -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
   set -e
   echo "=> Entering deployment directory..."
   cd ~/uzaspea
@@ -68,9 +69,9 @@ ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
 EOF
 
 echo "=> Syncing compiled frontend to App Node..."
-rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY" frontend/dist/ ubuntu@$APP_INSTANCE:~/uzaspea/frontend/dist/
+rsync -avz --delete -e "ssh $SSH_OPTS -i $APP_SSH_KEY" frontend/dist/ ubuntu@$APP_INSTANCE:~/uzaspea/frontend/dist/
 
-ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
+ssh $SSH_OPTS -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
   set -e
   cd ~/uzaspea
   
