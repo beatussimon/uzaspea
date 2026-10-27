@@ -150,15 +150,12 @@ const location = useLocation();
 
   // Fetch all initial data
   const loadAllData = async () => {
-    try {
-      const [sponsoredRes, promoRes, productsRes, lipaRes, referralRes] = await Promise.allSettled([
-        api.get('/api/sponsored/'),
-        api.get('/api/promo-codes/'),
-        api.get('/api/products/?mine=true'),
-        api.get('/api/lipa-numbers/?seller=admin'),
-        api.get('/api/promo-codes/referral-conversions/')
-      ]);
-
+    // 1. Fast primary view data: unblocks KPIs and active tab immediately
+    const primaryPromise = Promise.allSettled([
+      api.get('/api/sponsored/'),
+      api.get('/api/promo-codes/'),
+      api.get('/api/promo-codes/referral-conversions/')
+    ]).then(([sponsoredRes, promoRes, referralRes]) => {
       if (sponsoredRes.status === 'fulfilled') {
         setPromotions(sponsoredRes.value.data.results || sponsoredRes.value.data || []);
       }
@@ -171,6 +168,17 @@ const location = useLocation();
           setReferralSummary(referralRes.value.data.summary);
         }
       }
+    }).catch(() => {
+      toast.error(t('failed_to_load_promotions', 'Failed to load promotions data'));
+    }).finally(() => {
+      setInitialLoading(false);
+    });
+
+    // 2. Auxiliary modal data (product picker inventory & lipa accounts) loaded in background
+    const auxPromise = Promise.allSettled([
+      api.get('/api/products/?mine=true'),
+      api.get('/api/lipa-numbers/?seller=admin')
+    ]).then(([productsRes, lipaRes]) => {
       if (productsRes.status === 'fulfilled') {
         const prods = productsRes.value.data.results || productsRes.value.data || [];
         setProducts(prods);
@@ -192,11 +200,9 @@ const location = useLocation();
             .catch(() => {});
         }
       }
-    } catch {
-      toast.error(t('failed_to_load_promotions', 'Failed to load promotions data'));
-    } finally {
-      setInitialLoading(false);
-    }
+    }).catch(() => {});
+
+    await Promise.allSettled([primaryPromise, auxPromise]);
   };
 
   useEffect(() => {
