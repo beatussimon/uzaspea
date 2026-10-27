@@ -65,18 +65,20 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
 
   const scrollToIndex = (index: number) => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'smooth' });
+    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'auto' });
     setCurrentIndex(index);
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+    if (images.length <= 1) return;
+    scrollToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
+    if (images.length <= 1) return;
+    scrollToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
   };
 
   useEffect(() => {
@@ -143,7 +145,7 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
           })}
         </div>
 
-        {currentIndex > 0 && (
+        {images.length > 1 && (
           <button 
             type="button"
             onClick={handlePrev}
@@ -154,7 +156,7 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
           </button>
         )}
 
-        {currentIndex < images.length - 1 && (
+        {images.length > 1 && (
           <button 
             type="button"
             onClick={handleNext}
