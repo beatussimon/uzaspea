@@ -36,6 +36,7 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const thumbnailStripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,6 +53,16 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
       scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * currentIndex, behavior: 'auto' });
     }
   }, []);
+
+  // Auto-scroll active thumbnail into view when slide changes
+  useEffect(() => {
+    if (thumbnailStripRef.current) {
+      const activeThumb = thumbnailStripRef.current.children[currentIndex] as HTMLElement;
+      if (activeThumb) {
+        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [currentIndex]);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -169,32 +180,35 @@ const ShowcaseLightbox: React.FC<ShowcaseLightboxProps> = ({ images, initialInde
       {/* Bottom Thumbnail Strip */}
       {images.length > 1 && (
         <div 
-          className="flex h-14 bg-black/60 border-t border-white/10 items-center justify-center gap-1.5 px-3 overflow-x-auto no-scrollbar w-full pb-safe z-50"
+          className="flex h-16 bg-black/80 backdrop-blur-md border-t border-white/10 items-center overflow-x-auto no-scrollbar w-full pb-[env(safe-area-inset-bottom,0px)] z-50 select-none touch-pan-x"
           onClick={(e) => e.stopPropagation()}
         >
-          {images.map((img: any, i: number) => {
-            const imgSrc = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
-            return (
-              <button
-                key={img.id || i}
-                type="button"
-                onClick={() => scrollToIndex(i)}
-                className={`relative shrink-0 w-12 h-9 overflow-hidden rounded-sm border-0 ring-0 transition-all cursor-pointer ${
-                  currentIndex === i 
-                    ? 'opacity-100 scale-105 ring-1 ring-white' 
-                    : 'opacity-50 hover:opacity-90 scale-100'
-                }`}
-                title={`Thumbnail ${i + 1}`}
-              >
-                <img 
-                  src={imgSrc} 
-                  alt={`Thumbnail ${i + 1}`}
-                  className="w-full h-full object-cover"
-                  draggable={false}
-                />
-              </button>
-            );
-          })}
+          <div ref={thumbnailStripRef} className="flex items-center gap-2 px-4 mx-auto">
+            {images.map((img: any, i: number) => {
+              const imgSrc = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
+              return (
+                <button
+                  key={img.id || i}
+                  type="button"
+                  onClick={() => scrollToIndex(i)}
+                  className={`relative shrink-0 w-12 h-9 sm:w-14 sm:h-10 overflow-hidden rounded-sm transition-all cursor-pointer ${
+                    currentIndex === i 
+                      ? 'opacity-100 scale-105 ring-2 ring-white ring-offset-1 ring-offset-black' 
+                      : 'opacity-50 hover:opacity-90 scale-100 border border-white/20'
+                  }`}
+                  title={`Thumbnail ${i + 1}`}
+                  aria-label={`View image ${i + 1}`}
+                >
+                  <img 
+                    src={imgSrc} 
+                    alt={`Thumbnail ${i + 1}`}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>,
