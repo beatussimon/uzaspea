@@ -6,7 +6,7 @@ import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 import { preloadProductList } from '../../App';
 import { ensureArray } from '../../utils/arrayUtils';
-import { apiCache } from '../../utils/apiCache';
+import { apiCache, canPrefetch } from '../../utils/apiCache';
 import { categoryStore } from '../../utils/categoryStore';
 
 export const getActiveLocationParams = (): Record<string, string> => {
@@ -34,7 +34,7 @@ export const getActiveLocationParams = (): Record<string, string> => {
 
 export const prefetchCategoryProducts = (slug: string, subcategorySlug: string = '') => {
   const targetCategory = subcategorySlug || slug;
-  if (!targetCategory) return;
+  if (!targetCategory || !canPrefetch()) return;
   preloadProductList();
   const locParams = getActiveLocationParams();
   const params: Record<string, string> = { page: '1', page_size: '12', category: targetCategory, ...locParams };
@@ -144,8 +144,8 @@ const CategoryBar: React.FC = () => {
   }, [categories]);
 
   useEffect(() => {
-    if (topCategories.length > 0) {
-      topCategories.slice(0, 8).forEach((cat: any) => {
+    if (topCategories.length > 0 && canPrefetch()) {
+      topCategories.slice(0, 4).forEach((cat: any) => {
         if (cat?.slug) prefetchCategoryProducts(cat.slug);
       });
     }
@@ -173,6 +173,22 @@ const CategoryBar: React.FC = () => {
 
   const effectiveCategorySlug = activeCategory ? activeCategory.slug : activeCategorySlug;
   const isForYouActive = !effectiveCategorySlug && !activeSubcategorySlug;
+
+  // Gently pre-warm the top 3 subcategories when an active category is opened
+  useEffect(() => {
+    if (!effectiveCategorySlug || !canPrefetch()) return;
+    const activeCat = topCategories.find((c: any) => c.slug === effectiveCategorySlug);
+    const availableChildren = activeCat?.children?.filter((sub: any) => (sub.product_count || 0) > 0) || [];
+    if (availableChildren.length === 0) return;
+
+    const timer = setTimeout(() => {
+      availableChildren.slice(0, 3).forEach((sub: any) => {
+        prefetchCategoryProducts(effectiveCategorySlug, sub.slug);
+      });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [effectiveCategorySlug, topCategories]);
 
   const bgLocation = (location.state as any)?.backgroundLocation;
   const currentPath = bgLocation?.pathname || location.pathname;
