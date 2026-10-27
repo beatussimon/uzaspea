@@ -39,7 +39,12 @@ class ProductRequestSerializer(serializers.ModelSerializer):
     def get_has_voted(self, obj):
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            return obj.votes.filter(user=request.user).exists() or (obj.user_id == request.user.id)
+            if obj.user_id == request.user.id:
+                return True
+            votes = getattr(obj, '_prefetched_objects_cache', {}).get('votes')
+            if votes is not None:
+                return any(v.user_id == request.user.id for v in votes)
+            return obj.votes.filter(user=request.user).exists()
         return False
 
     def get_votes_count(self, obj):
@@ -111,11 +116,11 @@ class SupportTicketSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         is_staff = request and request.user and request.user.is_staff
         
-        msgs = obj.messages.all()
+        all_msgs = list(obj.messages.all())
         if not is_staff:
-            msgs = msgs.filter(is_internal=False)
+            all_msgs = [m for m in all_msgs if not m.is_internal]
             
-        return TicketMessageSerializer(msgs, many=True).data
+        return TicketMessageSerializer(all_msgs, many=True).data
 
     def create(self, validated_data):
         initial_message = validated_data.pop('message', '')
@@ -609,6 +614,14 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
 
     def get_has_post_inspection_changes(self, obj):
+        if hasattr(obj, 'annotated_has_post_inspection_changes'):
+            return obj.annotated_has_post_inspection_changes
+        prefetched_events = getattr(obj, '_prefetched_objects_cache', {}).get('inspection_events')
+        if prefetched_events is not None:
+            return len(prefetched_events) > 0
+        view = self.context.get('view')
+        if view and getattr(view, 'action', None) == 'list':
+            return False
         return obj.inspection_events.exists()
 
     def get_inspection_events(self, obj):
@@ -874,18 +887,23 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
             return obj.annotated_is_liked
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.likes.filter(user=request.user).exists()
+            prefetched_likes = getattr(obj, '_prefetched_objects_cache', {}).get('likes')
+            if prefetched_likes is not None:
+                return any(like.user_id == request.user.id for like in prefetched_likes)
         return False
 
     def get_avg_rating(self, obj):
         if hasattr(obj, 'annotated_avg_rating'):
             return int(obj.annotated_avg_rating or 0)
-        return obj.average_rating()
+        return 0
 
     def get_like_count(self, obj):
         if hasattr(obj, 'annotated_like_count'):
             return obj.annotated_like_count
-        return obj.likes.count()
+        prefetched_likes = getattr(obj, '_prefetched_objects_cache', {}).get('likes')
+        if prefetched_likes is not None:
+            return len(prefetched_likes)
+        return 0
 
     def get_weekly_sales(self, obj):
         if hasattr(obj, 'weekly_sales'):
@@ -895,21 +913,18 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
     def get_is_sponsored(self, obj):
         if hasattr(obj, 'annotated_is_sponsored'):
             return bool(obj.annotated_is_sponsored)
-        from django.utils import timezone
-        from django.db.models import Q
-        from marketplace.models import SponsoredListing
-        return SponsoredListing.objects.filter(
-            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
-            product=obj,
-            status='approved'
-        ).exists()
+        return False
 
     def get_has_inspection(self, obj):
         if hasattr(obj, 'annotated_has_inspection'):
             return obj.annotated_has_inspection
-        if hasattr(obj, 'inspection_events') and obj.inspection_events.exists():
+        prefetched_events = getattr(obj, '_prefetched_objects_cache', {}).get('inspection_events')
+        if prefetched_events is not None and len(prefetched_events) > 0:
             return False
-        return any(i.status == 'published' for i in obj.inspections.all())
+        prefetched_inspections = getattr(obj, '_prefetched_objects_cache', {}).get('inspections')
+        if prefetched_inspections is not None:
+            return any(i.status == 'published' for i in prefetched_inspections)
+        return False
 
     def get_inspection_verdict(self, obj):
         if hasattr(obj, 'annotated_inspection_verdict'):
@@ -919,8 +934,9 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
     def get_has_post_inspection_changes(self, obj):
         if hasattr(obj, 'annotated_has_post_inspection_changes'):
             return obj.annotated_has_post_inspection_changes
-        if hasattr(obj, 'inspection_events'):
-            return obj.inspection_events.exists()
+        prefetched_events = getattr(obj, '_prefetched_objects_cache', {}).get('inspection_events')
+        if prefetched_events is not None:
+            return len(prefetched_events) > 0
         return False
 
 
@@ -1020,6 +1036,45 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = ['id', 'order', 'verification_authority', 'payment_method', 'proof_image', 'transaction_id', 'status', 'amount', 'created_at']
         read_only_fields = ['verification_authority', 'status']
 
+def resolve_seller_store_name(seller, context=None):
+    if not seller:
+        return ''
+    cache = context.setdefault('_seller_store_names', {}) if isinstance(context, dict) else {}
+    if seller.id in cache:
+        return cache[seller.id]
+
+    apps = getattr(seller, '_prefetched_objects_cache', {}).get('seller_applications')
+    if apps is not None:
+        for a in apps:
+            if a.status == 'approved' and a.business_name:
+                cache[seller.id] = a.business_name
+                return a.business_name
+
+    profile = getattr(seller, 'profile', None)
+    if profile and getattr(profile, 'business_name', None):
+        cache[seller.id] = profile.business_name
+        return profile.business_name
+
+    visits = getattr(seller, '_prefetched_objects_cache', {}).get('site_visits')
+    if visits is not None:
+        for v in visits:
+            if v.status == 'approved' and v.business_name:
+                cache[seller.id] = v.business_name
+                return v.business_name
+
+    app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
+    if app and app.business_name:
+        cache[seller.id] = app.business_name
+        return app.business_name
+
+    site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
+    if site_visit and site_visit.business_name:
+        cache[seller.id] = site_visit.business_name
+        return site_visit.business_name
+
+    cache[seller.id] = ''
+    return ''
+
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.url_slug', read_only=True)
@@ -1053,13 +1108,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     def get_seller_store_name(self, obj):
         try:
             seller = obj.product.seller if obj.product else None
-            if seller:
-                app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
-                if app and app.business_name:
-                    return app.business_name
-                site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
-                if site_visit and site_visit.business_name:
-                    return site_visit.business_name
+            return resolve_seller_store_name(seller, getattr(self, 'context', None))
         except Exception:
             pass
         return ''
@@ -1486,15 +1535,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_seller_store_name(self, obj):
         try:
-            for item in obj.orderitem_set.all():
+            items = list(obj.orderitem_set.all())
+            for item in items:
                 if item.product and item.product.seller:
-                    seller = item.product.seller
-                    app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
-                    if app and app.business_name:
-                        return app.business_name
-                    site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
-                    if site_visit and site_visit.business_name:
-                        return site_visit.business_name
+                    name = resolve_seller_store_name(item.product.seller, self.context)
+                    if name:
+                        return name
         except Exception:
             pass
         return ''
@@ -1526,11 +1572,7 @@ class OrderSerializer(serializers.ModelSerializer):
             if seller and seller.id not in seen:
                 seen.add(seller.id)
                 profile = getattr(seller, 'profile', None)
-                app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
-                store_name = app.business_name if (app and app.business_name) else (getattr(profile, 'business_name', '') or '')
-                if not store_name:
-                    site_visit = seller.site_visits.filter(status='approved').order_by('-created_at').first()
-                    store_name = site_visit.business_name if (site_visit and site_visit.business_name) else ''
+                store_name = resolve_seller_store_name(seller, self.context)
                 contacts.append({
                     'username': seller.username,
                     'phone': profile.phone_number if profile else '',
@@ -1562,12 +1604,15 @@ class OrderSerializer(serializers.ModelSerializer):
 
         # 3. Seller's primary store location or profile location
         try:
-            first_item = obj.orderitem_set.first()
+            items = list(obj.orderitem_set.all())
+            first_item = items[0] if items else None
             if first_item and first_item.product and first_item.product.seller:
                 seller = first_item.product.seller
-                main_loc = seller.store_locations.filter(is_main=True).first() or seller.store_locations.first()
-                if main_loc and main_loc.city:
-                    return main_loc.city
+                apps = getattr(seller, '_prefetched_objects_cache', {}).get('seller_applications')
+                if apps is not None:
+                    for a in apps:
+                        if a.status == 'approved' and a.business_region:
+                            return a.business_region.strip()
                 profile = getattr(seller, 'profile', None)
                 if profile and profile.location:
                     loc_part = profile.location.split(',')[0].strip()
@@ -1638,6 +1683,16 @@ class OrderSerializer(serializers.ModelSerializer):
         items = self._get_seller_items(request, obj)
         return float(sum(item.subtotal() for item in items))
 
+    def _get_commission_rate(self, request):
+        if hasattr(self, 'context') and isinstance(self.context, dict) and '_user_commission_rate' in self.context:
+            return self.context['_user_commission_rate']
+        if request and hasattr(request, 'user') and not request.user.is_anonymous:
+            if not hasattr(request, '_cached_commission_rate'):
+                from billing.models import get_seller_commission_rate
+                request._cached_commission_rate = get_seller_commission_rate(request.user)
+            return request._cached_commission_rate
+        return Decimal('10.00')
+
     def get_seller_commission(self, obj):
         request = self.context.get('request')
         items = self._get_seller_items(request, obj)
@@ -1656,8 +1711,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if is_pos:
             rate_pct = Decimal('5.00')
         else:
-            from billing.models import get_seller_commission_rate
-            rate_pct = get_seller_commission_rate(request.user) if (request and hasattr(request, 'user') and not request.user.is_anonymous) else Decimal('10.00')
+            rate_pct = self._get_commission_rate(request)
             
         return float(seller_subtotal * (rate_pct / Decimal('100')))
 
@@ -1679,8 +1733,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if is_pos:
             rate_pct = Decimal('5.00')
         else:
-            from billing.models import get_seller_commission_rate
-            rate_pct = get_seller_commission_rate(request.user) if (request and hasattr(request, 'user') and not request.user.is_anonymous) else Decimal('10.00')
+            rate_pct = self._get_commission_rate(request)
             
         commission = seller_subtotal * (rate_pct / Decimal('100'))
         return float(seller_subtotal - commission)
@@ -2878,9 +2931,13 @@ class StoreLocationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'owner', 'slug', 'created_at', 'updated_at']
 
     def get_inventory_count(self, obj):
+        if hasattr(obj, 'annotated_inventory_count'):
+            return obj.annotated_inventory_count
         return obj.inventory.filter(quantity__gt=0).count()
 
     def get_assigned_staff_count(self, obj):
+        if hasattr(obj, 'annotated_staff_count'):
+            return obj.annotated_staff_count
         return obj.assigned_team_members.filter(is_active=True).count()
 
     def validate(self, attrs):
@@ -2930,8 +2987,11 @@ class LocationStockSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'updated_at']
 
     def get_product_image(self, obj):
-        img = obj.product.images.first()
-        return img.image.url if img and img.image else None
+        if obj.product:
+            all_imgs = list(obj.product.images.all())
+            if all_imgs and all_imgs[0].image:
+                return all_imgs[0].image.url
+        return None
 
 
 class LocationStockBatchUpdateSerializer(serializers.Serializer):

@@ -1409,11 +1409,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 })
 
         # --- Order status breakdown --- always visible
-        status_counts = {}
-        for s in ['CART','CHECKOUT','AWAITING_PAYMENT','PENDING_VERIFICATION','PAID','PROCESSING','SHIPPED','DELIVERED','COMPLETED','CANCELLED']:
-            c = orders.filter(status=s).count()
-            if c:
-                status_counts[s] = c
+        status_counts = dict(
+            orders.values('status').annotate(c=Count('id')).values_list('status', 'c')
+        )
 
         from billing.models import get_seller_commission_rate
         commission_rate_val = float(get_seller_commission_rate(stats_user))
@@ -1562,13 +1560,13 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
     def get_queryset(self):
         user = self.request.user
+        base_qs = SupportTicket.objects.select_related('user', 'assigned_to').prefetch_related('messages', 'messages__sender').order_by('-created_at')
         if user.is_staff:
-            qs = SupportTicket.objects.all().order_by('-created_at')
             status_filter = self.request.query_params.get('status')
             if status_filter:
-                qs = qs.filter(status=status_filter)
-            return qs
-        return SupportTicket.objects.filter(user=user).order_by('-created_at')
+                return base_qs.filter(status=status_filter)
+            return base_qs
+        return base_qs.filter(user=user)
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
@@ -2023,10 +2021,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(fulfillment_location_id__in=allowed_ids)
             
         return qs.select_related(
-            'user', 'user__profile', 'promo_code'
+            'user', 'user__profile', 'promo_code', 'fulfillment_location'
         ).prefetch_related(
             'orderitem_set__product__category__parent',
             'orderitem_set__product__seller__profile',
+            'orderitem_set__product__seller__seller_applications',
+            'orderitem_set__product__seller__site_visits',
             'orderitem_set__product__images',
             'orderitem_set__variant',
             'timeline_events',
@@ -2852,7 +2852,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Prefetch only for these sellers' items to avoid N+1 and leaking other seller's item data
         seller_items_prefetch = Prefetch(
             'orderitem_set',
-            queryset=OrderItem.objects.filter(product__seller_id__in=sellers).select_related('product', 'variant').prefetch_related('product__images'),
+            queryset=OrderItem.objects.filter(product__seller_id__in=sellers).select_related(
+                'product__category__parent', 'product__seller', 'variant__product'
+            ).prefetch_related(
+                'product__images', 'product__seller__store_locations'
+            ),
             to_attr='relevant_items'
         )
 
@@ -2906,7 +2910,24 @@ class OrderViewSet(viewsets.ModelViewSet):
                 pass
 
         page = self.paginate_queryset(orders)
-        
+        target_orders = page if page is not None else orders
+
+        # Batch lookup origin warehouses if any to avoid N+1 queries in loop
+        wh_codes = set()
+        for o in target_orders:
+            d_info = o.delivery_info if isinstance(o.delivery_info, dict) else (json.loads(o.delivery_info) if isinstance(o.delivery_info, str) else {})
+            code = d_info.get('origin_warehouse_code')
+            if code:
+                wh_codes.add(code)
+        wh_region_map = {}
+        if wh_codes:
+            from warehouses.models import Warehouse
+            wh_region_map = {
+                w.code: w.region.name
+                for w in Warehouse.objects.filter(code__in=wh_codes).select_related('region')
+                if w.region
+            }
+
         def format_order(order):
             items_data = []
             for item in order.relevant_items:
@@ -2946,16 +2967,17 @@ class OrderViewSet(viewsets.ModelViewSet):
             if order.fulfillment_location and order.fulfillment_location.city:
                 seller_region = order.fulfillment_location.city
             elif d_info.get('origin_warehouse_code'):
-                from warehouses.models import Warehouse
-                wh = Warehouse.objects.filter(code=d_info.get('origin_warehouse_code')).select_related('region').first()
-                if wh and wh.region:
-                    seller_region = wh.region.name
+                seller_region = wh_region_map.get(d_info.get('origin_warehouse_code'), 'Dar es Salaam')
             else:
                 try:
-                    first_item = order.relevant_items[0] if order.relevant_items else None
+                    first_item = order.relevant_items[0] if getattr(order, 'relevant_items', None) else None
                     if first_item and first_item.product and first_item.product.seller:
                         s_user = first_item.product.seller
-                        m_loc = s_user.store_locations.filter(is_main=True).first() or s_user.store_locations.first()
+                        s_locs = list(s_user.store_locations.all()) if hasattr(s_user, '_prefetched_objects_cache') and 'store_locations' in s_user._prefetched_objects_cache else None
+                        if s_locs is not None:
+                            m_loc = next((l for l in s_locs if l.is_main), s_locs[0] if s_locs else None)
+                        else:
+                            m_loc = s_user.store_locations.filter(is_main=True).first() or s_user.store_locations.first()
                         if m_loc and m_loc.city:
                             seller_region = m_loc.city
                 except Exception:
@@ -3104,10 +3126,11 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
+        qs = ProductComment.objects.select_related('user', 'user__profile', 'product').order_by('-created_at')
         product_id = self.request.query_params.get('product', None)
         if product_id:
-            return ProductComment.objects.filter(product_id=product_id).order_by('-created_at')
-        return ProductComment.objects.all().order_by('-created_at')
+            return qs.filter(product_id=product_id)
+        return qs
 
     def get_permissions(self):  # FIX: L-07
         if self.action in ['update', 'partial_update', 'destroy']:
@@ -5145,6 +5168,8 @@ class TrendingAnalyticsView(APIView):
                 annotated_has_inspection=Value(False),
                 annotated_inspection_verdict=Value(''),
                 annotated_is_verified=Value(False),
+                annotated_is_sponsored=Value(False),
+                annotated_has_post_inspection_changes=Value(False),
             )
         )
         
@@ -5680,7 +5705,7 @@ class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         from .models import PaymentConfirmation
-        return PaymentConfirmation.objects.filter(user=self.request.user).select_related('tier').order_by('-created_at')
+        return PaymentConfirmation.objects.filter(user=self.request.user).select_related('user', 'tier').order_by('-created_at')
 
     def perform_create(self, serializer):
         confirmation = serializer.save(user=self.request.user)
@@ -5806,7 +5831,7 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return TeamMember.objects.filter(
             Q(owner=user) | Q(user=user)
-        ).select_related('owner', 'user').order_by('-created_at')
+        ).select_related('owner', 'user').prefetch_related('assigned_locations').order_by('-created_at')
 
     def perform_destroy(self, instance):
         if instance.owner != self.request.user and instance.user != self.request.user:
@@ -6982,10 +7007,16 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(owner_id=seller_id)
             if seller_slug:
                 qs = qs.filter(owner__username=seller_slug)
-            return qs.order_by('-is_main', 'name')
+            return qs.select_related('owner').annotate(
+                annotated_inventory_count=django_models.Count('inventory', filter=django_models.Q(inventory__quantity__gt=0), distinct=True),
+                annotated_staff_count=django_models.Count('assigned_team_members', filter=django_models.Q(assigned_team_members__is_active=True), distinct=True)
+            ).order_by('-is_main', 'name')
 
         if not user or not user.is_authenticated:
-            return StoreLocation.objects.filter(is_active=True).order_by('-is_main', 'name')
+            return StoreLocation.objects.filter(is_active=True).select_related('owner').annotate(
+                annotated_inventory_count=django_models.Count('inventory', filter=django_models.Q(inventory__quantity__gt=0), distinct=True),
+                annotated_staff_count=django_models.Count('assigned_team_members', filter=django_models.Q(assigned_team_members__is_active=True), distinct=True)
+            ).order_by('-is_main', 'name')
 
         # Superuser: view all
         if user.is_superuser:
@@ -7002,7 +7033,10 @@ class StoreLocationViewSet(viewsets.ModelViewSet):
             elif is_active_param.lower() in ['false', '0']:
                 qs = qs.filter(is_active=False)
 
-        return qs.order_by('-is_main', 'name')
+        return qs.select_related('owner').annotate(
+            annotated_inventory_count=django_models.Count('inventory', filter=django_models.Q(inventory__quantity__gt=0), distinct=True),
+            annotated_staff_count=django_models.Count('assigned_team_members', filter=django_models.Q(assigned_team_members__is_active=True), distinct=True)
+        ).order_by('-is_main', 'name')
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -7143,9 +7177,9 @@ class LocationStockViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return LocationStock.objects.all().select_related('location', 'product', 'variant')
+            return LocationStock.objects.all().select_related('location', 'product', 'variant').prefetch_related('product__images')
         allowed_ids, _ = get_user_location_scope(user)
-        return LocationStock.objects.filter(location_id__in=allowed_ids).select_related('location', 'product', 'variant')
+        return LocationStock.objects.filter(location_id__in=allowed_ids).select_related('location', 'product', 'variant').prefetch_related('product__images')
 
 
 class RegisterSessionViewSet(viewsets.ModelViewSet):
@@ -7247,11 +7281,15 @@ class StockTransferViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return StockTransfer.objects.none()
         if user.is_superuser:
-            return StockTransfer.objects.all().select_related('source_location', 'destination_location', 'owner')
+            return StockTransfer.objects.all().select_related(
+                'source_location', 'destination_location', 'owner', 'dispatched_by', 'received_by'
+            ).prefetch_related('items__product', 'items__variant')
         allowed_ids, _ = get_user_location_scope(user)
         return StockTransfer.objects.filter(
             Q(owner=user) | Q(source_location_id__in=allowed_ids) | Q(destination_location_id__in=allowed_ids)
-        ).select_related('source_location', 'destination_location', 'owner').distinct().order_by('-created_at')
+        ).select_related(
+            'source_location', 'destination_location', 'owner', 'dispatched_by', 'received_by'
+        ).prefetch_related('items__product', 'items__variant').distinct().order_by('-created_at')
 
     @transaction.atomic
     def perform_create(self, serializer):
