@@ -207,8 +207,10 @@ const ImageLightbox = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight' && currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
-      if (e.key === 'ArrowLeft' && currentIndex > 0) scrollToIndex(currentIndex - 1);
+      if (images.length > 1) {
+        if (e.key === 'ArrowRight') scrollToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
+        if (e.key === 'ArrowLeft') scrollToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -232,18 +234,20 @@ const ImageLightbox = ({
 
   const scrollToIndex = (index: number) => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'smooth' });
+    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'auto' });
     setCurrentIndex(index);
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+    if (images.length <= 1) return;
+    scrollToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
+    if (images.length <= 1) return;
+    scrollToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
   };
 
   return (
@@ -292,19 +296,23 @@ const ImageLightbox = ({
           ))}
         </div>
 
-        {currentIndex > 0 && (
+        {images.length > 1 && (
           <button 
+            type="button"
             onClick={handlePrev}
-            className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+            className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] cursor-pointer"
+            aria-label="Previous image"
           >
             <ChevronLeft size={48} strokeWidth={2} />
           </button>
         )}
 
-        {currentIndex < images.length - 1 && (
+        {images.length > 1 && (
           <button 
+            type="button"
             onClick={handleNext}
-            className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+            className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] cursor-pointer"
+            aria-label="Next image"
           >
             <ChevronRight size={48} strokeWidth={2} />
           </button>
@@ -793,6 +801,18 @@ const ProductDetailPage: React.FC = () => {
 
     return baseImages.length > 0 ? baseImages : [{ id: 0, image: '' }];
   }, [product, variants]);
+
+  // Preload all gallery images in background for instant zero-lag navigation
+  useEffect(() => {
+    if (images && images.length > 0) {
+      images.forEach(img => {
+        if (img?.image) {
+          const preloadImg = new Image();
+          preloadImg.src = img.image;
+        }
+      });
+    }
+  }, [images]);
 
   // Responsive desktop detection
   useEffect(() => {
@@ -1796,10 +1816,17 @@ const ProductDetailPage: React.FC = () => {
             }
           }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={selectedImage} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.03 }} transition={{ duration: 0.2 }} className="w-full h-full flex items-center justify-center">
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={selectedImage}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.08, ease: 'easeOut' }}
+              className="w-full h-full flex items-center justify-center"
+            >
               {currentImageSrc ? (
-                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform duration-300" containMode="contain" loading="eager" />
+                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl" containMode="contain" loading="eager" />
               ) : (
                 <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
               )}
