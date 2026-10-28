@@ -173,11 +173,6 @@ const PaymentNumbersManager: React.FC = () => {
 
       {/* Numbers List */}
       <div>
-        <div className="mb-3">
-          <h2 className="text-sm font-bold text-gray-900 dark:text-white">Active Payment Numbers</h2>
-          <p className="text-2xs text-gray-400">{lipaNumbers.length} numbers available for checkout</p>
-        </div>
-
         {loading ? (
           <PaymentNumbersSkeleton count={3} />
         ) : lipaNumbers.length === 0 ? (
@@ -185,10 +180,6 @@ const PaymentNumbersManager: React.FC = () => {
             icon={Smartphone}
             title="No Payment Numbers Configured"
             description="Add your Vodacom M-Pesa, Tigo Pesa, Airtel Money, or Halopesa number to accept customer payments."
-            action={{
-              label: 'Add Payment Number',
-              onClick: () => setShowForm(true),
-            }}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
