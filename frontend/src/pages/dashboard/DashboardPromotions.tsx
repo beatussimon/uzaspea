@@ -2128,12 +2128,11 @@ const location = useLocation();
 
                 <Button
                   size="sm"
-                  variant="outline"
                   onClick={() => handleOpenCreatePromo('affiliate')}
-                  className="text-xs flex items-center gap-1.5 shrink-0"
+                  className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0"
                 >
                   <Plus size={13} />
-                  {t('add_influencer_code', 'Add Influencer Code')}
+                  {t('create_influencer_code', 'Create Influencer Code')}
                 </Button>
               </div>
             </div>
@@ -2149,14 +2148,6 @@ const location = useLocation();
                     {t('create_first_influencer_desc', 'Create a promo code with an assigned promoter name and commission cut. Influencers can share links to earn a cut on every sale.')}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleOpenCreatePromo('affiliate')}
-                  className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs"
-                >
-                  <Plus size={13} className="mr-1 inline" />
-                  {t('create_influencer_code', 'Create Influencer Code')}
-                </Button>
               </div>
             ) : filteredAffiliateCodes.length === 0 ? (
               <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
