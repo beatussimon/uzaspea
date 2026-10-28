@@ -1632,52 +1632,66 @@ const location = useLocation();
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
-                {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
-                  const count = f === 'all' 
-                    ? promotions.length 
-                    : promotions.filter(p => getCampaignStatus(p) === f).length;
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setCampaignFilter(f)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                        campaignFilter === f
-                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
-                          : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {f === 'approved' && t('live_active', 'Active')}
-                      {f === 'pending' && t('pending_review', 'Under Review')}
-                      {f === 'expired' && t('completed', 'Completed')}
-                      {f === 'rejected' && t('rejected', 'Rejected')}
-                      {f === 'all' && t('all_campaigns', 'All Placements')}
-                      <span className="opacity-60 text-[11px]">({count})</span>
-                    </button>
-                  );
-                })}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>{t('sponsored_products_title', 'Sponsored Product Placements')}</span>
+                  <span className="text-xs font-normal text-gray-400">
+                    ({promotions.length})
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('sponsored_products_desc', 'Boost your inventory visibility in search results and category feeds across Tanzania.')}
+                </p>
               </div>
 
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  if (showForm) {
-                    setRenewingCampaign(null);
-                    setFormStep(1);
-                  } else {
-                    setRenewingCampaign(null);
-                    setSelectedProduct(null);
-                    setForm({ product: '', title: '', description: '', duration_days: 7 });
-                  }
-                  setShowForm(!showForm);
-                }}
-                className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                {showForm ? <X size={13} /> : <Plus size={13} />}
-                <span>{showForm ? t('close', 'Close') : t('promote_product', 'Promote a Product')}</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                  {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
+                    const count = f === 'all' 
+                      ? promotions.length 
+                      : promotions.filter(p => getCampaignStatus(p) === f).length;
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setCampaignFilter(f)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                          campaignFilter === f
+                            ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                            : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {f === 'approved' && t('live_active', 'Active')}
+                        {f === 'pending' && t('pending_review', 'Under Review')}
+                        {f === 'expired' && t('completed', 'Completed')}
+                        {f === 'rejected' && t('rejected', 'Rejected')}
+                        {f === 'all' && t('all_campaigns', 'All Placements')}
+                        <span className="opacity-60 text-[11px]">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (showForm) {
+                      setRenewingCampaign(null);
+                      setFormStep(1);
+                    } else {
+                      setRenewingCampaign(null);
+                      setSelectedProduct(null);
+                      setForm({ product: '', title: '', description: '', duration_days: 7 });
+                    }
+                    setShowForm(!showForm);
+                  }}
+                  className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  {showForm ? <X size={13} /> : <Plus size={13} />}
+                  <span>{showForm ? t('close', 'Close') : t('promote_product', 'Promote a Product')}</span>
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1688,7 +1702,6 @@ const location = useLocation();
             <EmptyState
               icon={Megaphone}
               title={campaignFilter === 'all' ? t('no_promotions_title', "No Sponsored Placements") : `${t('no_campaigns_status', 'No')} ${campaignFilter} ${t('placements', 'placements')}`}
-              description={t('no_promotions_desc', 'Promote your inventory to appear at the top of category feeds and search results across Tanzania.')}
             />
           ) : (
             <div className="space-y-2.5">
@@ -1924,7 +1937,7 @@ const location = useLocation();
                 className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <Plus size={13} />
-                {t('new_coupon', 'New Promo Code')}
+                {t('new_store_coupon', 'New Store Coupon')}
               </Button>
             </div>
           </div>
@@ -1935,7 +1948,6 @@ const location = useLocation();
             <EmptyState
               icon={Ticket}
               title={t('no_coupons_title', 'No Store Promo Codes Created')}
-              description={t('no_coupons_desc', 'Create custom discount codes to reward returning buyers or boost seasonal campaign sales.')}
             />
           ) : filteredCoupons.length === 0 ? (
             <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
@@ -2146,17 +2158,10 @@ const location = useLocation();
             </div>
 
             {affiliateCodes.length === 0 ? (
-              <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] space-y-3">
-                <UserCheck size={32} className="mx-auto text-gray-400" />
-                <div className="max-w-md mx-auto">
-                  <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {t('no_influencer_codes_yet', 'No Influencer Codes Configured Yet')}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {t('create_first_influencer_desc', 'Create a promo code with an assigned promoter name and commission cut. Influencers can share links to earn a cut on every sale.')}
-                  </p>
-                </div>
-              </div>
+              <EmptyState
+                icon={UserCheck}
+                title={t('no_influencer_codes_yet', 'No Influencer Codes Configured Yet')}
+              />
             ) : filteredAffiliateCodes.length === 0 ? (
               <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
                 {affiliateStatusFilter === 'expired'
@@ -2378,11 +2383,6 @@ const location = useLocation();
               <EmptyState
                 icon={UserCheck}
                 title={t('no_referrals_found', 'No Referral Orders Found')}
-                description={
-                  referralFilterStatus !== 'all'
-                    ? t('no_filtered_referrals', 'No referral conversions match the selected status filter.')
-                    : t('no_referrals_yet', 'When customers place orders using influencer codes or links, they will be listed here with calculated commission cuts.')
-                }
               />
             ) : (
               <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
