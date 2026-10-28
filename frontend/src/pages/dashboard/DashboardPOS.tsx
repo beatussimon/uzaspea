@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, 
   History, Receipt, Banknote, Tag, MapPin, Check, Loader2, FileText, Clock, 
-  AlertCircle, CheckCircle2, Phone, CreditCard, Building2, Smartphone 
+  AlertCircle, CheckCircle2, Phone 
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
@@ -354,7 +354,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
             placeholder={t('search_invoices_placeholder', 'Search customer, phone, or invoice #...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/50 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none focus:border-brand-500 transition"
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface-muted dark:bg-[#161616] border-0 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
           />
           {searchQuery && (
             <button
@@ -463,13 +463,13 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                         </td>
                         <td className="p-3 text-center">
                           {isUnpaid && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
                               <Clock size={10} />
                               <span>{t('unpaid', 'Unpaid')}</span>
                             </span>
                           )}
                           {isPaid && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                               <Check size={10} />
                               <span>{t('paid', 'Paid')}</span>
                             </span>
@@ -2056,13 +2056,12 @@ const DashboardPOS: React.FC = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-[#141416] border border-surface-border dark:border-neutral-800 w-full max-w-md rounded-2xl shadow-2xl p-5 space-y-4 animate-scale-in"
+            className="bg-white dark:bg-[#141416] border-0 w-full max-w-md rounded-2xl shadow-2xl p-5 space-y-4 animate-scale-in"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-3">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Banknote size={16} className="text-brand-500" />
-                  <span>{t('mark_invoice_as_paid', 'Settle Invoice & Record Sale')}</span>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                  {t('mark_invoice_as_paid', 'Settle Invoice & Record Sale')}
                 </h3>
                 <p className="text-2xs text-gray-400 mt-0.5">
                   INV-#{markPaidModalData.id} • {markPaidModalData.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}
@@ -2086,7 +2085,7 @@ const DashboardPOS: React.FC = () => {
                   TSh {parseFloat(markPaidModalData.total_amount || 0).toLocaleString()}
                 </span>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-2xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="px-2.5 py-1 rounded-full text-2xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 {t('unpaid', 'Unpaid')}
               </span>
             </div>
@@ -2098,27 +2097,25 @@ const DashboardPOS: React.FC = () => {
               </label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { key: 'CASH', label: 'Cash', icon: Banknote },
-                  { key: 'LIPA_MPESA', label: 'M-Pesa', icon: Smartphone },
-                  { key: 'AIRTEL_MONEY', label: 'Airtel Money', icon: Smartphone },
-                  { key: 'TIGO_PESA', label: 'Tigo Pesa', icon: Smartphone },
-                  { key: 'BANK_TRANSFER', label: 'Bank Transfer', icon: Building2 },
-                  { key: 'CARD', label: 'Card / POS', icon: CreditCard }
+                  { key: 'CASH', label: 'Cash' },
+                  { key: 'LIPA_MPESA', label: 'M-Pesa' },
+                  { key: 'AIRTEL_MONEY', label: 'Airtel Money' },
+                  { key: 'TIGO_PESA', label: 'Tigo Pesa' },
+                  { key: 'BANK_TRANSFER', label: 'Bank Transfer' },
+                  { key: 'CARD', label: 'Card / POS' }
                 ].map(m => {
-                  const Icon = m.icon;
                   const isSelected = markPaidMethod === m.key;
                   return (
                     <button
                       key={m.key}
                       type="button"
                       onClick={() => setMarkPaidMethod(m.key as any)}
-                      className={`p-2 rounded-xl text-2xs font-semibold border flex flex-col items-center justify-center gap-1 transition cursor-pointer ${
+                      className={`py-2.5 px-2 rounded-xl text-2xs border-0 flex items-center justify-center transition cursor-pointer ${
                         isSelected
-                          ? 'bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400 font-bold'
-                          : 'bg-surface-muted/40 dark:bg-[#18181a] border-surface-border/40 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-neutral-700'
+                          ? 'bg-brand-500 text-black font-bold shadow-xs'
+                          : 'bg-surface-muted dark:bg-[#1a1a1e] text-gray-600 dark:text-gray-400 font-semibold hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
-                      <Icon size={14} />
                       <span className="truncate max-w-full">{m.label}</span>
                     </button>
                   );
@@ -2145,7 +2142,7 @@ const DashboardPOS: React.FC = () => {
                   })()}
                 </div>
 
-                <div className="flex items-center rounded-xl bg-surface-muted/50 dark:bg-[#18181a] border border-surface-border/50 dark:border-neutral-800 px-3 py-2">
+                <div className="flex items-center rounded-xl bg-surface-muted dark:bg-[#1a1a1e] border-0 px-3 py-2">
                   <span className="text-xs font-semibold text-gray-400 mr-2">TSh</span>
                   <input
                     type="text"
@@ -2163,7 +2160,7 @@ const DashboardPOS: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMarkPaidAmountTendered(String(markPaidModalData.total_amount))}
-                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                    className="flex-1 py-1.5 text-3xs font-semibold rounded-lg bg-surface-muted dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-800 transition cursor-pointer border-0"
                   >
                     {t('exact', 'Exact')}
                   </button>
@@ -2173,7 +2170,7 @@ const DashboardPOS: React.FC = () => {
                       const tot = parseFloat(markPaidModalData.total_amount || 0);
                       setMarkPaidAmountTendered(String(Math.ceil(tot / 10000) * 10000));
                     }}
-                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                    className="flex-1 py-1.5 text-3xs font-semibold rounded-lg bg-surface-muted dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-800 transition cursor-pointer border-0"
                   >
                     +Round 10k
                   </button>
@@ -2183,7 +2180,7 @@ const DashboardPOS: React.FC = () => {
                       const tot = parseFloat(markPaidModalData.total_amount || 0);
                       setMarkPaidAmountTendered(String(Math.ceil((tot + 1) / 50000) * 50000));
                     }}
-                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                    className="flex-1 py-1.5 text-3xs font-semibold rounded-lg bg-surface-muted dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-800 transition cursor-pointer border-0"
                   >
                     +Round 50k
                   </button>
@@ -2199,15 +2196,10 @@ const DashboardPOS: React.FC = () => {
                   placeholder="e.g. QK8927X29 or Bank Slip Reference"
                   value={markPaidReference}
                   onChange={(e) => setMarkPaidReference(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-muted/50 dark:bg-[#18181a] border border-surface-border/50 dark:border-neutral-800 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:border-brand-500 transition"
+                  className="w-full px-3 py-2 rounded-xl bg-surface-muted dark:bg-[#1a1a1e] border-0 text-xs font-semibold text-gray-900 dark:text-white outline-none transition"
                 />
               </div>
             )}
-
-            {/* Note / Info */}
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-3xs text-amber-700 dark:text-amber-300 leading-relaxed">
-              {t('inventory_settle_notice', 'Confirming payment will atomically check and deduct inventory from the terminal store and permanently record this in Sales History.')}
-            </div>
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 pt-1">
@@ -2215,7 +2207,7 @@ const DashboardPOS: React.FC = () => {
                 type="button"
                 disabled={markPaidSubmitting}
                 onClick={() => setMarkPaidModalData(null)}
-                className="flex-1 py-2.5 rounded-xl font-bold text-xs text-gray-600 dark:text-gray-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs text-gray-600 dark:text-gray-400 hover:bg-neutral-100 dark:hover:bg-[#1a1a1e] transition cursor-pointer"
               >
                 {t('cancel', 'Cancel')}
               </button>
@@ -2225,11 +2217,7 @@ const DashboardPOS: React.FC = () => {
                 onClick={handleConfirmMarkPaid}
                 className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-brand-500 hover:bg-brand-600 text-black flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer shadow-xs disabled:opacity-50"
               >
-                {markPaidSubmitting ? (
-                  <Loader2 size={14} className="animate-spin text-black" />
-                ) : (
-                  <Check size={14} className="stroke-[2.5]" />
-                )}
+                {markPaidSubmitting && <Loader2 size={14} className="animate-spin text-black" />}
                 <span>{markPaidSubmitting ? t('processing', 'Processing...') : t('confirm_and_record_sale', 'Confirm & Record Sale')}</span>
               </button>
             </div>
@@ -2247,13 +2235,10 @@ const DashboardPOS: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
             className="relative bg-white dark:bg-[#161616] w-full max-w-sm rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border-0"
           >
-            <div className="flex items-center justify-between p-3.5 border-b border-gray-100 dark:border-neutral-800">
-              <div className="flex items-center gap-2">
-                <FileText size={16} className="text-amber-500" />
-                <span className="text-xs font-bold text-gray-900 dark:text-white">
-                  {t('proforma_invoice', 'Proforma / POS Invoice')}
-                </span>
-              </div>
+            <div className="flex items-center justify-between p-3.5 pb-1">
+              <span className="text-xs font-bold text-gray-900 dark:text-white">
+                {t('proforma_invoice', 'Proforma / POS Invoice')}
+              </span>
               <div className="flex items-center gap-1.5">
                 {invoiceModalData.status === 'INVOICE_GENERATED' && (
                   <button
@@ -2263,18 +2248,16 @@ const DashboardPOS: React.FC = () => {
                       setInvoiceModalData(null);
                       handleOpenMarkPaid(inv);
                     }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-2xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition cursor-pointer"
+                    className="inline-flex items-center px-2.5 py-1 text-2xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition cursor-pointer"
                   >
-                    <Banknote size={12} />
                     <span>{t('mark_paid', 'Mark Paid')}</span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handlePrintInvoice}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-2xs font-bold bg-brand-500 hover:bg-brand-600 text-black rounded-lg transition cursor-pointer"
+                  className="inline-flex items-center px-2.5 py-1 text-2xs font-bold bg-brand-500 hover:bg-brand-600 text-black rounded-lg transition cursor-pointer"
                 >
-                  <Printer size={12} />
                   <span>{t('print', 'Print')}</span>
                 </button>
                 <button
@@ -2323,15 +2306,15 @@ const DashboardPOS: React.FC = () => {
                   </p>
                   <div className="mt-1">
                     {invoiceModalData.status === 'COMPLETED' ? (
-                      <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded text-[10px]">
+                      <span className="font-bold text-black text-[10px]">
                         [ PAID - SALE COMPLETED ]
                       </span>
                     ) : invoiceModalData.status === 'CANCELLED' ? (
-                      <span className="font-bold text-neutral-600 bg-neutral-200 px-2 py-0.5 rounded text-[10px]">
+                      <span className="font-bold text-gray-600 text-[10px]">
                         [ CANCELLED ]
                       </span>
                     ) : (
-                      <span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[10px]">
+                      <span className="font-bold text-black text-[10px]">
                         [ UNPAID - PAYMENT DUE ]
                       </span>
                     )}
@@ -2817,7 +2800,7 @@ const CartContent = ({
             )}
           </div>
         ) : (
-          <div className="space-y-2.5 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+          <div className="space-y-2.5">
             <div className="grid grid-cols-2 gap-1.5">
               <div>
                 <label className="text-3xs font-bold uppercase tracking-wider text-gray-400 block mb-0.5">
@@ -2828,7 +2811,7 @@ const CartContent = ({
                   placeholder="0712 345 678"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone && setCustomerPhone(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-surface-muted dark:bg-[#1a1a1e] border-0 text-xs text-gray-900 dark:text-white outline-none transition"
                 />
               </div>
               <div>
@@ -2840,7 +2823,7 @@ const CartContent = ({
                   placeholder="123-456-789"
                   value={customerTin}
                   onChange={(e) => setCustomerTin && setCustomerTin(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-surface-muted dark:bg-[#1a1a1e] border-0 text-xs text-gray-900 dark:text-white outline-none transition"
                 />
               </div>
             </div>
@@ -2863,8 +2846,8 @@ const CartContent = ({
                     onClick={() => setValidityPeriod && setValidityPeriod(p.key)}
                     className={`py-1 rounded-lg text-3xs font-bold transition cursor-pointer ${
                       validityPeriod === p.key
-                        ? 'bg-amber-500 text-black shadow-2xs'
-                        : 'bg-white dark:bg-[#181818] text-gray-600 dark:text-gray-400 border border-gray-200/70 dark:border-neutral-800 hover:border-amber-500/40'
+                        ? 'bg-amber-500 text-black'
+                        : 'bg-surface-muted dark:bg-[#1a1a1e] text-gray-600 dark:text-gray-400 border-0 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     {p.label}
@@ -2879,7 +2862,7 @@ const CartContent = ({
                 placeholder={t('invoice_notes_placeholder', 'Add note or terms (optional)...')}
                 value={invoiceNotes}
                 onChange={(e) => setInvoiceNotes && setInvoiceNotes(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-surface-muted dark:bg-[#1a1a1e] border-0 text-xs text-gray-900 dark:text-white outline-none transition"
               />
             </div>
           </div>
@@ -2931,8 +2914,8 @@ const CartContent = ({
           {cartDropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCartDropdownOpen(false)} />
-              <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in duration-150">
-                <div className="px-2.5 py-1.5 text-3xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-neutral-800">
+              <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-[#1a1a1e] border-0 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in duration-150">
+                <div className="px-2.5 py-1.5 text-3xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                   {t('select_action', 'Select POS Action')}
                 </div>
                 <button
@@ -2941,15 +2924,14 @@ const CartContent = ({
                     if (setCheckoutMode) setCheckoutMode('sale');
                     setCartDropdownOpen(false);
                   }}
-                  className={`w-full text-left p-2 rounded-lg text-xs flex items-start gap-2.5 transition cursor-pointer mt-0.5 ${
+                  className={`w-full text-left p-2.5 rounded-lg text-xs transition cursor-pointer mt-0.5 ${
                     checkoutMode === 'sale'
-                      ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
-                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300'
+                      ? 'bg-surface-muted dark:bg-[#242429] text-gray-900 dark:text-white font-bold'
+                      : 'hover:bg-surface-muted dark:hover:bg-[#242429] text-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  <Receipt size={15} className="mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-bold flex items-center gap-1.5">
+                    <div className="font-bold flex items-center justify-between gap-1.5">
                       <span>{t('complete_sale', 'Complete Sale')}</span>
                       {checkoutMode === 'sale' && <Check size={12} className="text-brand-500" />}
                     </div>
@@ -2965,15 +2947,14 @@ const CartContent = ({
                     if (setCheckoutMode) setCheckoutMode('invoice');
                     setCartDropdownOpen(false);
                   }}
-                  className={`w-full text-left p-2 rounded-lg text-xs flex items-start gap-2.5 transition cursor-pointer mt-0.5 ${
+                  className={`w-full text-left p-2.5 rounded-lg text-xs transition cursor-pointer mt-0.5 ${
                     checkoutMode === 'invoice'
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold'
-                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300'
+                      ? 'bg-surface-muted dark:bg-[#242429] text-gray-900 dark:text-white font-bold'
+                      : 'hover:bg-surface-muted dark:hover:bg-[#242429] text-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  <FileText size={15} className="mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-bold flex items-center gap-1.5">
+                    <div className="font-bold flex items-center justify-between gap-1.5">
                       <span>{t('generate_invoice', 'Generate Invoice')}</span>
                       {checkoutMode === 'invoice' && <Check size={12} className="text-amber-500" />}
                     </div>
