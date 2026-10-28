@@ -993,7 +993,12 @@ export const CheckoutPage: React.FC = () => {
           items: checkoutItems.map((i: any) => {
             let pId = i.productId;
             if (typeof pId === 'string' && pId.includes('-')) pId = parseInt(pId.split('-')[0], 10);
-            return { product_id: pId, quantity: i.quantity };
+            return {
+              product_id: pId,
+              quantity: i.quantity,
+              rec_surface: i.rec_surface || undefined,
+              rec_variant: i.rec_variant || undefined,
+            };
           }),
           shipping_method: shippingMethod,
           fulfillment_type: fulfillmentType,
@@ -1111,6 +1116,8 @@ export const CheckoutPage: React.FC = () => {
             product: productId,
             variant: variantId,
             quantity: item.quantity,
+            rec_surface: (item as any).rec_surface || undefined,
+            rec_variant: (item as any).rec_variant || undefined,
           };
         }),
         total_amount: finalTotal,

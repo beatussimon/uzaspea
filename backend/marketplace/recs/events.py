@@ -1,20 +1,22 @@
-"""Ingest one batched client beacon with at most 3 SQL upserts + 1 profile update."""
+"""Ingest one batched client beacon with at most 4 SQL upserts + 1 profile update."""
 from collections import Counter
 
 from django.db import connection, transaction
 from django.utils import timezone
 
-from marketplace.models import Product, Vehicle, ProductDailyStat, ProductCoView, RecSurfaceDailyStat, UserRecProfile
+from marketplace.models import (Product, Vehicle, ProductDailyStat, ProductCoView,
+                                RecSurfaceDailyStat, RecConversionDaily, UserRecProfile)
 from . import config
 
 
-def _upsert_increment(model, conflict_cols, inc_cols, set_cols, rows):
+def _upsert_increment(model, conflict_cols, inc_cols, set_cols, rows, insert_only_cols=None):
     """INSERT ... ON CONFLICT DO UPDATE (works on Postgres and SQLite). Identifiers come from code, never input."""
     if not rows:
         return
+    insert_only = list(insert_only_cols or [])
     qn = connection.ops.quote_name
     table = qn(model._meta.db_table)
-    cols = list(conflict_cols) + list(inc_cols) + list(set_cols)
+    cols = list(conflict_cols) + list(inc_cols) + list(set_cols) + insert_only
     one = '(' + ', '.join(['%s'] * len(cols)) + ')'
     updates = [f"{qn(c)} = {table}.{qn(c)} + EXCLUDED.{qn(c)}" for c in inc_cols]
     updates += [f"{qn(c)} = EXCLUDED.{qn(c)}" for c in set_cols]
@@ -68,6 +70,7 @@ def ingest(payload, user=None):
         vehicle_id = None
     region = payload.get('region') if isinstance(payload.get('region'), str) else ''
     region = region.strip()[:64]
+    variant = str(payload.get('variant') or 'control').strip()[:16]
 
     all_ids = set(views) | {p for _, p in clicks}
     valid = set(Product.objects.filter(id__in=all_ids).values_list('id', flat=True)) if all_ids else set()
@@ -90,13 +93,31 @@ def ingest(payload, user=None):
     pair_rows = [(a, b, n, date_param) for (a, b), n in sorted(pairs.items())[:config.MAX_PAIRS_PER_BEACON]]
 
     surface_clicks = Counter(s for s, _ in clicks)
-    surface_rows = [(date_param, s, impressions.get(s, 0), surface_clicks.get(s, 0))
+    surface_rows = [(date_param, s, variant, impressions.get(s, 0), surface_clicks.get(s, 0))
                     for s in sorted(set(impressions) | set(surface_clicks))]
+
+    raw_cart = payload.get('cart_adds')
+    cart_adds = Counter()
+    if isinstance(raw_cart, dict):
+        for s, count in raw_cart.items():
+            if s in config.SURFACES and isinstance(count, int) and count > 0:
+                cart_adds[s] = count
+    elif isinstance(raw_cart, list):
+        for c in raw_cart:
+            if isinstance(c, dict) and c.get('s') in config.SURFACES:
+                cart_adds[c['s']] += 1
+
+    conv_surfaces = set(surface_clicks) | set(cart_adds)
+    conv_rows = [(date_param, s, variant, surface_clicks.get(s, 0), cart_adds.get(s, 0), 0, 0.0)
+                 for s in sorted(conv_surfaces)]
 
     with transaction.atomic():
         _upsert_increment(ProductDailyStat, ['product_id', 'date'], ['views', 'rec_clicks'], [], daily_rows)
         _upsert_increment(ProductCoView, ['product_a_id', 'product_b_id'], ['hits'], ['last_seen'], pair_rows)
-        _upsert_increment(RecSurfaceDailyStat, ['date', 'surface'], ['impressions', 'clicks'], [], surface_rows)
+        _upsert_increment(RecSurfaceDailyStat, ['date', 'surface', 'variant'], ['impressions', 'clicks'], [], surface_rows)
+        if conv_rows:
+            _upsert_increment(RecConversionDaily, ['date', 'surface', 'variant'], ['clicks', 'cart_adds'], [], conv_rows,
+                              insert_only_cols=['orders', 'revenue'])
         if user is not None and getattr(user, 'is_authenticated', False) and (views or vehicle_id or region):
             prof, _ = UserRecProfile.objects.get_or_create(user=user)
             merged = []

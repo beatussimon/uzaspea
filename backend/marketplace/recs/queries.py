@@ -64,9 +64,11 @@ def category_ids_with_descendants(category):
     return ids
 
 
-def category_pool(category_id):
-    """Top POOL_SIZE active products in a category (and its children) by popularity, then newest."""
-    key = cache_key('catpool', category_id)
+def category_pool(category_id, allow_hierarchy_expansion=True):
+    """Top POOL_SIZE active products in a category (and its children) by popularity, then newest.
+    If allow_hierarchy_expansion=True and category has < 4 products, climbs up to parent/root categories (D1 fix).
+    """
+    key = cache_key('catpool_v31', category_id, 'exp' if allow_hierarchy_expansion else 'exact')
     ids = cache.get(key)
     if ids is None:
         from marketplace.models import Category
@@ -76,6 +78,18 @@ def category_pool(category_id):
         cat_ids = category_ids_with_descendants(category)
         ids = list(Product.objects.filter(category_id__in=cat_ids, **ACTIVE)
                    .order_by(*popularity_order()).values_list('id', flat=True)[:config.POOL_SIZE])
+
+        # Hierarchical expansion for lone products in sparse categories
+        if allow_hierarchy_expansion and len(ids) < config.MIN_SHELF_ITEMS:
+            curr = category.parent
+            while curr is not None and len(ids) < config.POOL_SIZE:
+                parent_cat_ids = category_ids_with_descendants(curr)
+                additional = list(Product.objects.filter(category_id__in=parent_cat_ids, **ACTIVE)
+                                  .exclude(id__in=ids)
+                                  .order_by(*popularity_order()).values_list('id', flat=True)[:config.POOL_SIZE - len(ids)])
+                ids.extend(additional)
+                curr = curr.parent
+
         cache.set(key, ids, config.POOL_TTL)
     return ids
 

@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Star, Heart, Share2, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Star, Heart, Share2, Clock, Flame, TrendingUp, ShoppingBag, MoreVertical } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,8 @@ import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
 import { preloadProductDetail } from '../App';
 import { useUserLocation } from '../context/LocationContext';
-import { trackRecClick } from '../utils/recTracking';
+import { trackRecClick, incrementProductSeenCount } from '../utils/recTracking';
+import { hideProduct } from '../utils/recentViews';
 
 const TrendingMetricBadge = ({ product, metricType = 'auto', compact = false }: { product: any; metricType?: boolean | string; compact?: boolean }) => {
   const { t } = useTranslation();
@@ -296,6 +297,45 @@ const ProductCard = memo(({
   const { calculateDistance } = useUserLocation();
   const [liked, setLiked] = React.useState(product?.is_liked || false);
   const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [dismissed, setDismissed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (trackSource && product?.id) {
+      incrementProductSeenCount(product.id);
+    }
+  }, [trackSource, product?.id]);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = () => setMenuOpen(false);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [menuOpen]);
+
+  const handleHideProduct = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (product?.id) {
+      hideProduct(product.id);
+      setDismissed(true);
+      toast.success(t('item_hidden', 'Item hidden from recommendations'));
+      window.dispatchEvent(new CustomEvent('productHidden', { detail: { productId: product.id } }));
+    }
+  };
+
+  const handleHideCategory = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (product?.id) {
+      hideProduct(product.id);
+      setDismissed(true);
+      toast.success(t('category_hidden', 'Category hidden from recommendations'));
+      window.dispatchEvent(new CustomEvent('categoryHidden', { detail: { categoryId: product.category_id } }));
+    }
+  };
 
   const distanceKm = useMemo(() => {
     if (product?.distance !== undefined && product?.distance !== null) {
@@ -311,7 +351,7 @@ const ProductCard = memo(({
     ? (distanceKm < 1 ? '<1 km' : `${Math.round(distanceKm)} km`) 
     : null;
 
-  if (!product) return null;
+  if (!product || dismissed) return null;
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -547,12 +587,53 @@ const ProductCard = memo(({
         </div>
       </Link>
 
-      {/* Top overlay: Like */}
-      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-col gap-2 z-10" : "absolute top-2 right-2 flex flex-col gap-2 z-10"}>
+      {/* Top overlay: Like & 3-dots Menu */}
+      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-col gap-1.5 z-10" : "absolute top-2 right-2 flex flex-col gap-1.5 z-10"}>
         <button onClick={handleLike} className={compact ? `h-6 sm:h-7 px-1.5 sm:px-2 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}` : `h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
           <Heart size={compact ? 12 : 14} className={liked ? 'fill-current' : ''} />
           <span className={compact ? "text-[9px] sm:text-[10px] font-bold" : "text-[10px] font-bold"}>{likeCount}</span>
         </button>
+
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setMenuOpen((prev) => !prev);
+            }}
+            className={compact
+              ? "h-6 sm:h-7 w-6 sm:w-7 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors ml-auto"
+              : "h-8 w-8 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors ml-auto"
+            }
+            title={t('more_options', 'More options')}
+            aria-label="More options"
+          >
+            <MoreVertical size={compact ? 12 : 14} />
+          </button>
+          {menuOpen && (
+            <div
+              className="absolute right-0 mt-1 w-44 rounded-xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 py-1 z-30 text-xs"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <button
+                onClick={handleHideProduct}
+                className="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+              >
+                <span>🚫</span>
+                <span>{t('not_interested', 'Not interested')}</span>
+              </button>
+              {product.category_id && (
+                <button
+                  onClick={handleHideCategory}
+                  className="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                >
+                  <span>📁</span>
+                  <span>{t('hide_category', "Don't show category")}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

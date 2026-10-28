@@ -61,8 +61,11 @@ export function getRecentProductIdsParam(): string {
   return ids.length > 0 ? ids.join(',') : '';
 }
 
-/* ─── Recommendation context (recs v3) ─────────────────────────── */
+/* ─── Recommendation context (recs v3 & v3.1) ─────────────────── */
 const VEHICLE_KEY = 'sokonimax_rec_vehicle_v1';
+const HIDDEN_KEY = 'rec_hidden_ids';
+const SEARCHES_KEY = 'sokonimax_recent_searches_v1';
+const MAX_RECENT_SEARCHES = 10;
 
 /** Remembers the last vehicle the user picked in search ("my garage"). Empty values are ignored. */
 export function saveRecVehicle(vehicleId: string | number | null | undefined): void {
@@ -100,6 +103,68 @@ export function getRecRegion(): string {
   return '';
 }
 
+/** Products dismissed via "Not interested" */
+export function getHiddenProductIds(): number[] {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY);
+    if (!raw) return [];
+    const ids = JSON.parse(raw);
+    return Array.isArray(ids) ? ids.filter((id) => typeof id === 'number' && !isNaN(id)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function hideProduct(productId: number): void {
+  if (!productId || typeof productId !== 'number') return;
+  try {
+    const ids = getHiddenProductIds();
+    if (!ids.includes(productId)) {
+      ids.push(productId);
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids.slice(-100)));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function unhideProduct(productId: number): void {
+  try {
+    const ids = getHiddenProductIds().filter((id) => id !== productId);
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
+/** Search query history */
+export function saveRecentSearchQuery(query: string): void {
+  const q = (query || '').trim();
+  if (!q || q.length < 2) return;
+  try {
+    const raw = localStorage.getItem(SEARCHES_KEY);
+    let list: string[] = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) list = [];
+    list = list.filter((item) => item.toLowerCase() !== q.toLowerCase());
+    list.unshift(q);
+    if (list.length > MAX_RECENT_SEARCHES) list = list.slice(0, MAX_RECENT_SEARCHES);
+    localStorage.setItem(SEARCHES_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+}
+
+export function getRecentSearchQueries(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCHES_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list.filter((item) => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Query params every recommendation request should send. */
 export function getRecContextParams(): Record<string, string> {
   const params: Record<string, string> = {};
@@ -109,6 +174,7 @@ export function getRecContextParams(): Record<string, string> {
   if (vehicle) params.vehicle_id = String(vehicle);
   const region = getRecRegion();
   if (region) params.region = region;
+  const hidden = getHiddenProductIds();
+  if (hidden.length > 0) params.exclude = hidden.slice(-50).join(',');
   return params;
 }
-

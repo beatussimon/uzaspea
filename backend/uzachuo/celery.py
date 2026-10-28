@@ -36,6 +36,14 @@ app.conf.beat_schedule = {
         'task': 'marketplace.tasks.build_product_recs_task',
         'schedule': crontab(hour=23, minute=15),
     },
+    'recs-self-heal-hourly': {
+        'task': 'marketplace.tasks.recs_self_heal_task',
+        'schedule': crontab(minute=37),
+    },
+    'recs-warm-cold-feed-hourly': {
+        'task': 'marketplace.tasks.recs_warm_cold_feed_task',
+        'schedule': crontab(minute=45),
+    },
     'recs-prune-weekly': {
         'task': 'marketplace.tasks.prune_rec_data_task',
         'schedule': crontab(day_of_week=0, hour=0, minute=30),

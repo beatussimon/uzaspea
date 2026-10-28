@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
+import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
@@ -144,6 +144,14 @@ const DashboardOverview: React.FC = () => {
       sub: 'items ≤ 3',
       icon: AlertTriangle,
       className: stats?.stock_alerts?.length > 0 ? 'border-red-500/30' : undefined,
+    },
+    {
+      label: t('recommendation_reach', 'Rec Reach (30d)'),
+      value: `${(stats?.rec_reach?.clicks || 0).toLocaleString()} clicks`,
+      sub: `${stats?.rec_reach?.orders || 0} orders • TSh ${(stats?.rec_reach?.revenue || 0).toLocaleString()}`,
+      icon: Sparkles,
+      fullValue: `${(stats?.rec_reach?.clicks || 0).toLocaleString()} recommendation clicks, ${(stats?.rec_reach?.orders || 0).toLocaleString()} orders, TSh ${(stats?.rec_reach?.revenue || 0).toLocaleString()} revenue`,
+      className: 'border-brand-500/30',
     },
   ];
 
@@ -459,7 +467,7 @@ const DashboardOverview: React.FC = () => {
       ) : (
         <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print-hide">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 print-hide">
             {kpis.map((kpi, i) => (
               <KpiCard
                 key={`kpi-${kpi.label || i}`}
@@ -469,7 +477,7 @@ const DashboardOverview: React.FC = () => {
                 icon={kpi.icon}
                 trend={kpi.trend}
                 sub={kpi.sub}
-                className={cn(kpi.className, i === 4 && "col-span-2 sm:col-span-1")}
+                className={kpi.className}
               />
             ))}
           </div>

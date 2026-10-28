@@ -7,18 +7,19 @@ from django.core.cache import cache
 from django.db.models import Count, F, Max, Q, Sum
 from django.utils import timezone
 from rest_framework import permissions, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from uzachuo.permissions import IsSuperUser
 from marketplace.models import (Product, Like, Order, Vehicle, Category, ProductStats, ProductRecs,
-                                RecSurfaceDailyStat, UserRecProfile)
+                                RecSurfaceDailyStat, RecConversionDaily, UserRecProfile)
 from . import config
 from .context import build_context, context_from_request
-from .engine import similar_for_product, ymal_for_product, for_you
+from .engine import similar_for_product, ymal_for_product, for_you, rank, _entries
 from .events import ingest
-from .queries import hydrate
+from .queries import hydrate, trending_pool
 from .serializers import serialize_cards
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,35 @@ class RecEventsView(APIView):
         except Exception as exc:
             logger.warning("rec events ingest failed: %s", exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def cart_recommendations(request):
+    """Returns complementary items for items currently in cart ('Complete your order')."""
+    ctx = context_from_request(request)
+    cands = []
+    for pid in list(ctx.cart_ids)[:6]:
+        stored = ProductRecs.objects.filter(product_id=pid).values_list('complements', flat=True).first()
+        cands.extend(_entries(stored, config.W_COMPLEMENT, 'cart'))
+
+    if not cands:
+        cands = [(pid, None, {}, 'trending') for pid in trending_pool(ctx.region or None)]
+
+    items = rank(cands, ctx, limit=8, extra_exclude=ctx.cart_ids)
+    cards = cards_for_scored(items, request)
+    return Response({'title': 'Complete your order', 'products': cards})
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def empty_search_recommendations(request):
+    """Returns trending & recently viewed picks when search returns 0 results."""
+    ctx = context_from_request(request)
+    cands = [(pid, None, {}, 'trending') for pid in trending_pool(ctx.region or None)]
+    items = rank(cands, ctx, limit=12)
+    cards = cards_for_scored(items, request)
+    return Response({'title': 'Popular items you may like', 'products': cards})
 
 
 # ─── admin inspector ──────────────────────────────────────────────
@@ -248,6 +278,54 @@ class RecAdminHealthView(APIView):
                     .values('surface').annotate(impressions=Sum('impressions'), clicks=Sum('clicks')).order_by('surface')):
             ctr = (row['clicks'] / row['impressions']) if row['impressions'] else 0.0
             surfaces.append({**row, 'ctr': round(ctr * 100, 2)})
+
+        # A/B testing variants (7-day window)
+        ab_data = {}
+        for row in (RecSurfaceDailyStat.objects.filter(date__gte=today - timedelta(days=6)).order_by()
+                    .values('variant').annotate(impressions=Sum('impressions'), clicks=Sum('clicks'))):
+            v = row['variant'] or 'control'
+            ab_data[v] = {
+                'variant': v,
+                'impressions': row['impressions'] or 0,
+                'clicks': row['clicks'] or 0,
+                'ctr': round(((row['clicks'] or 0) / row['impressions'] * 100), 2) if row['impressions'] else 0.0,
+                'cart_adds': 0,
+                'orders': 0,
+                'revenue': 0.0,
+                'conversion_rate': 0.0,
+            }
+        for row in (RecConversionDaily.objects.filter(date__gte=today - timedelta(days=6)).order_by()
+                    .values('variant').annotate(cart_adds=Sum('cart_adds'), orders=Sum('orders'), revenue=Sum('revenue'))):
+            v = row['variant'] or 'control'
+            if v not in ab_data:
+                ab_data[v] = {'variant': v, 'impressions': 0, 'clicks': 0, 'ctr': 0.0, 'cart_adds': 0, 'orders': 0, 'revenue': 0.0, 'conversion_rate': 0.0}
+            ab_data[v]['cart_adds'] = row['cart_adds'] or 0
+            ab_data[v]['orders'] = row['orders'] or 0
+            ab_data[v]['revenue'] = float(row['revenue'] or 0)
+            if ab_data[v]['clicks'] > 0:
+                ab_data[v]['conversion_rate'] = round(ab_data[v]['orders'] / ab_data[v]['clicks'] * 100, 2)
+
+        # Revenue Attribution by Surface
+        rev_surfaces = []
+        for row in (RecConversionDaily.objects.filter(date__gte=today - timedelta(days=6)).order_by()
+                    .values('surface').annotate(orders=Sum('orders'), revenue=Sum('revenue'), clicks=Sum('clicks'), cart_adds=Sum('cart_adds'))):
+            rev_surfaces.append({
+                'surface': row['surface'],
+                'orders': row['orders'] or 0,
+                'revenue': float(row['revenue'] or 0),
+                'clicks': row['clicks'] or 0,
+                'cart_adds': row['cart_adds'] or 0,
+            })
+
+        # Sparse categories (< 4 active products)
+        sparse_cats = list(
+            Category.objects.annotate(
+                p_count=Count('product', filter=Q(product__is_available=True, product__is_draft=False, product__stock__gt=0, product__pos_only=False))
+            )
+            .filter(p_count__lt=4, p_count__gt=0)
+            .values('id', 'name', 'slug', 'p_count')[:15]
+        )
+
         active_ids = set(Product.objects.filter(is_available=True, is_draft=False, stock__gt=0, pos_only=False).values_list('id', flat=True))
         covered = set()
         for sim, comp in ProductRecs.objects.values_list('similar', 'complements').iterator(chunk_size=200):
@@ -260,7 +338,71 @@ class RecAdminHealthView(APIView):
             'last_recs_build': ProductRecs.objects.aggregate(m=Max('computed_at'))['m'],
             'last_stats_refresh': ProductStats.objects.aggregate(m=Max('updated_at'))['m'],
             'users_with_rec_profile': UserRecProfile.objects.count(),
+            'ab_variants': list(ab_data.values()),
+            'revenue_by_surface': rev_surfaces,
+            'sparse_categories': sparse_cats,
             'generated_at': timezone.now(),
         }
         cache.set(key, payload, config.HEALTH_TTL)
         return Response(payload)
+
+
+class RecAdminWhyNotShownView(APIView):
+    permission_classes = [IsSuperUser]
+
+    def post(self, request):
+        body = request.data if isinstance(request.data, dict) else {}
+        pid_raw = body.get('product_id')
+        try:
+            pid = int(pid_raw)
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid product_id'}, status=400)
+
+        product = Product.objects.filter(id=pid).first()
+        if not product:
+            return Response({'status': 'not_found', 'reasons': ['Product does not exist in catalog']})
+
+        reasons = []
+        if not product.is_available:
+            reasons.append('Product is marked is_available=False')
+        if product.is_draft:
+            reasons.append('Product is currently a draft (is_draft=True)')
+        if product.stock <= 0:
+            reasons.append(f'Product has no stock (stock={product.stock})')
+        if product.pos_only:
+            reasons.append('Product is restricted to in-store POS only (pos_only=True)')
+
+        # Check signals
+        recent_ids = body.get('recent_ids') or []
+        if pid in recent_ids:
+            reasons.append('Product is in recent_ids (suppressed from recommendations to avoid repeating recent views)')
+
+        user_id = body.get('user_id')
+        if user_id:
+            from django.contrib.auth import get_user_model
+            user = get_user_model().objects.filter(id=user_id).first()
+            if user:
+                ctx = build_context(user=user)
+                if pid in ctx.purchased_ids:
+                    reasons.append('Product was previously purchased by this user (excluded to promote new discoveries)')
+                if pid in ctx.exclude_ids:
+                    reasons.append('Product was dismissed by user ("Not interested")')
+
+        recs = ProductRecs.objects.filter(product_id=pid).first()
+        if not recs:
+            reasons.append('No precomputed ProductRecs row exists for this product yet (queued for self-heal task)')
+        else:
+            sim_count = len(recs.similar or [])
+            comp_count = len(recs.complements or [])
+            if sim_count == 0 and comp_count == 0:
+                reasons.append('Product has ProductRecs record but 0 similar or complement items generated')
+
+        if not reasons:
+            reasons.append('Product is eligible for recommendation. Placement depends on context category affinity and rank score.')
+
+        return Response({
+            'product_id': pid,
+            'product_name': product.name,
+            'eligible': len(reasons) == 1 and 'eligible' in reasons[0],
+            'diagnostics': reasons,
+        })

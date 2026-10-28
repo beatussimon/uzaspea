@@ -16,7 +16,8 @@ import { useUserLocation } from '../context/LocationContext';
 import VerifiedBadge from './VerifiedBadge';
 import NetworkErrorState from './common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
-import { saveRecVehicle } from '../utils/recentViews';
+import { saveRecVehicle, saveRecentSearchQuery } from '../utils/recentViews';
+import { trackRecClick, trackRecImpression } from '../utils/recTracking';
 
 // In-memory filter for seller-scoped search (0ms instant response)
 const filterSellerProductsInMemory = (
@@ -116,6 +117,29 @@ const GlobalSearchModal: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<ClassifiedError | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+  const [emptyRecs, setEmptyRecs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (query.trim().length >= 2 && !isSearching && suggestions.length === 0 && !searchError) {
+      let cancelled = false;
+      api
+        .get('/api/recs/empty-search/')
+        .then((res) => {
+          if (!cancelled && res.data?.products) {
+            setEmptyRecs(res.data.products.slice(0, 6));
+            if (res.data.products.length > 0) {
+              trackRecImpression('empty_search', Math.min(res.data.products.length, 6));
+            }
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    } else {
+      setEmptyRecs([]);
+    }
+  }, [query, isSearching, suggestions.length, searchError]);
   
   // Filters State
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -459,6 +483,7 @@ const GlobalSearchModal: React.FC = () => {
       const newSearches = [finalQuery, ...recentSearches.filter(s => s !== finalQuery)].slice(0, 5);
       setRecentSearches(newSearches);
       localStorage.setItem(recentSearchesKey, JSON.stringify(newSearches));
+      saveRecentSearchQuery(finalQuery);
     }
 
     const qs = buildQueryString(overrides);
@@ -1165,15 +1190,15 @@ const GlobalSearchModal: React.FC = () => {
                         />
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="flex flex-col items-center justify-center py-10 text-center px-3">
                         <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
                           <Search className="w-6 h-6 text-neutral-400" />
                         </div>
                         <p className="font-bold text-neutral-900 dark:text-white">No products found</p>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-[250px]">
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-[280px]">
                           {sellerScope 
                             ? `No results in @${sellerScope.username}'s store.`
-                            : 'Try adjusting your filters or search keywords to find what you\'re looking for.'
+                            : 'No exact match found. You might like these popular items:'
                           }
                         </p>
                         {sellerScope && (
@@ -1184,6 +1209,45 @@ const GlobalSearchModal: React.FC = () => {
                           >
                             Search entire marketplace
                           </button>
+                        )}
+
+                        {emptyRecs.length > 0 && (
+                          <div className="w-full mt-6 text-left">
+                            <p className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3 px-1">
+                              Popular items you may like
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                              {emptyRecs.map((prod) => (
+                                <Link
+                                  key={prod.id}
+                                  to={`/products/${prod.url_slug || prod.slug}`}
+                                  onClick={() => {
+                                    trackRecClick('empty_search', prod.id);
+                                    closeSearch();
+                                  }}
+                                  className="flex items-center gap-2.5 p-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition group border border-neutral-200/50 dark:border-neutral-700/50"
+                                >
+                                  {prod.images?.[0]?.image ? (
+                                    <img
+                                      src={prod.images[0].image}
+                                      alt={prod.name}
+                                      className="w-11 h-11 rounded-lg object-cover shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-11 h-11 rounded-lg bg-neutral-200 dark:bg-neutral-700 shrink-0" />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-neutral-900 dark:text-white truncate group-hover:text-brand-500">
+                                      {prod.name}
+                                    </p>
+                                    <p className="text-3xs text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">
+                                      TSh {Number(prod.price).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

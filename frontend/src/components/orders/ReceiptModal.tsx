@@ -1,8 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../../context/AuthContext';
 import { printElement } from '../../utils/printHelper';
+import api from '../../api';
+import { trackRecClick, trackRecImpression } from '../../utils/recTracking';
 
 interface ReceiptModalProps {
   order: any;
@@ -59,6 +62,31 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
   const discountVal = parseFloat(order.discount_amount || order.delivery_info?.discount_amount || '0') || 0;
   const promoCodeName = order.promo_code_code || order.promo_code || order.delivery_info?.promo_code;
   const rawSubtotal = totalAmount - shippingFee + discountVal;
+
+  const [complements, setComplements] = useState<any[]>([]);
+
+  useEffect(() => {
+    const productIds = rawItems
+      .map((item: any) => item.product?.id || item.product || item.product_id)
+      .filter(Boolean);
+    if (productIds.length === 0) return;
+    const ids = productIds.slice(0, 6).join(',');
+    let cancelled = false;
+    api
+      .get(`/api/recs/cart/?cart_ids=${ids}`)
+      .then((res) => {
+        if (!cancelled && res.data?.products) {
+          setComplements(res.data.products.slice(0, 3));
+          if (res.data.products.length > 0) {
+            trackRecImpression('order', Math.min(res.data.products.length, 3));
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id]);
 
   const rawDate = order.order_date || order.created_at;
   const formattedDate = (() => {
@@ -210,6 +238,43 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
             </div>
 
           </div>
+
+          {/* Post-Purchase Complement Shelf (Print Hidden) */}
+          {complements.length > 0 && (
+            <div className="w-[80mm] min-w-[80mm] max-w-[80mm] mx-auto mt-4 p-3 bg-white dark:bg-[#1f1f1f] rounded-xl border border-gray-200 dark:border-gray-800 print-hidden shadow-md">
+              <p className="text-[11px] font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-1.5">
+                <span>🛍️</span> Goes with your order
+              </p>
+              <div className="flex flex-col gap-2">
+                {complements.map((prod) => (
+                  <Link
+                    key={prod.id}
+                    to={`/products/${prod.url_slug || prod.slug}`}
+                    onClick={() => trackRecClick('order', prod.id)}
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition group"
+                  >
+                    {prod.images?.[0]?.image ? (
+                      <img
+                        src={prod.images[0].image}
+                        alt={prod.name}
+                        className="w-10 h-10 rounded object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-gray-200 dark:bg-neutral-800 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-2xs font-semibold text-gray-900 dark:text-gray-100 truncate group-hover:text-brand-500">
+                        {prod.name}
+                      </p>
+                      <p className="text-3xs text-gray-500 dark:text-gray-400 font-bold">
+                        TSh {Number(prod.price).toLocaleString()}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="p-3 flex justify-center gap-2 print-hidden shrink-0">

@@ -1450,6 +1450,29 @@ class ProductViewSet(viewsets.ModelViewSet):
             for p in products.select_related('category')[:100]
         ]
 
+        # --- Recommendations Reach (v3.1) ---
+        from marketplace.models import ProductDailyStat
+        past_30 = today - datetime.timedelta(days=30)
+        rec_clicks_30 = ProductDailyStat.objects.filter(
+            product__seller=stats_user, date__gte=past_30
+        ).aggregate(c=Sum('rec_clicks'))['c'] or 0
+
+        rec_conv_30 = OrderItem.objects.filter(
+            product__seller=stats_user,
+            order__order_date__date__gte=past_30
+        ).exclude(rec_surface='').aggregate(
+            orders=Count('order', distinct=True),
+            rev=Sum(django_models.F('price') * django_models.F('quantity'))
+        )
+        rec_orders_30 = rec_conv_30['orders'] or 0
+        rec_rev_30 = float(rec_conv_30['rev'] or 0)
+        rec_reach_data = {
+            'clicks': rec_clicks_30,
+            'orders': rec_orders_30,
+            'revenue': rec_rev_30,
+            'estimated_impressions': rec_clicks_30 * 18 if rec_clicks_30 > 0 else 0,
+        }
+
         return Response({
             'total_products': products.count(),
             'total_orders': total_orders_count,
@@ -1471,6 +1494,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'commission_paid': commission_paid,
             'commission_rate': commission_rate_val,
             'store_profile': store_profile,
+            'rec_reach': rec_reach_data,
         })
 
 from .models import LipaNumber, FAQ, SupportTicket
@@ -2424,7 +2448,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'variant': variant,
                     'quantity': quantity,
                     'price': price,
-                    'loc_stock': loc_stock
+                    'loc_stock': loc_stock,
+                    'rec_surface': str(item_data.get('rec_surface') or '').strip()[:32],
+                    'rec_variant': str(item_data.get('rec_variant') or 'control').strip()[:16]
                 })
                 
             promo_code_str = (request.data.get('promo_code') or '').strip()
@@ -2504,12 +2530,16 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             
             for item in order_items:
+                item_rec_surface = str(item.get('rec_surface') or '').strip()[:32]
+                item_rec_variant = str(item.get('rec_variant') or 'control').strip()[:16]
                 OrderItem.objects.create(
                     order=order,
                     product=item['product'],
                     variant=item['variant'],
                     quantity=item['quantity'],
-                    price=item['price']
+                    price=item['price'],
+                    rec_surface=item_rec_surface,
+                    rec_variant=item_rec_variant
                 )
                 loc_stock = item.get('loc_stock')
                 if not loc_stock and active_loc:
@@ -2646,12 +2676,16 @@ class OrderViewSet(viewsets.ModelViewSet):
                 except ProductVariant.DoesNotExist:
                     variant = None
             
+            item_rec_surface = str(item_data.get('rec_surface') or '').strip()[:32]
+            item_rec_variant = str(item_data.get('rec_variant') or 'control').strip()[:16]
             OrderItem.objects.create(
                 order=order,
                 product=product,
                 variant=variant,
                 quantity=quantity,
-                price=product.price if not product.requires_quote else Decimal('0.00')
+                price=product.price if not product.requires_quote else Decimal('0.00'),
+                rec_surface=item_rec_surface,
+                rec_variant=item_rec_variant
             )
             
         order.update_total()

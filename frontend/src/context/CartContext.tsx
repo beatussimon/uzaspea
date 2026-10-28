@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
+import { getRecAttributionForProduct, trackRecCartAdd } from '../utils/recTracking';
 
 interface CartItem {
   productId: string | number;
@@ -20,6 +21,8 @@ interface CartItem {
   weight_kg?: number;
   size?: string;
   requires_quote?: boolean;
+  rec_surface?: string;
+  rec_variant?: string;
 }
 
 interface CartContextType {
@@ -113,6 +116,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
 
       toast.success(t('item_added_to_cart', "{{name}} added to cart", { name: product.name }));
+      const attribution = getRecAttributionForProduct(Number(product.id));
+      if (attribution.rec_surface) {
+        trackRecCartAdd(attribution.rec_surface, Number(product.id));
+      }
+
       return [
         ...prev,
         {
@@ -131,6 +139,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : 1.0,
           size: product.size || 'small',
           requires_quote: product.requires_quote || false,
+          rec_surface: attribution.rec_surface || undefined,
+          rec_variant: attribution.rec_variant || undefined,
         },
       ];
     });

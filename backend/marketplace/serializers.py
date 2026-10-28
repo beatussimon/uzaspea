@@ -1088,10 +1088,12 @@ class OrderItemSerializer(serializers.ModelSerializer):
     catalog_price = serializers.SerializerMethodField()
     has_review = serializers.SerializerMethodField()
     review = serializers.SerializerMethodField()
+    rec_surface = serializers.CharField(required=False, allow_blank=True, max_length=32, default='')
+    rec_variant = serializers.CharField(required=False, allow_blank=True, max_length=16, default='control')
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'seller_name', 'seller_store_name', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
+        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'seller_name', 'seller_store_name', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review', 'rec_surface', 'rec_variant']
         read_only_fields = ['price']
 
     def get_seller_name(self, obj):
@@ -1839,13 +1841,33 @@ class OrderSerializer(serializers.ModelSerializer):
                     if tier:
                         item_price = tier.unit_price
 
+                item_rec_surface = str(item_data.get('rec_surface') or '').strip()[:32]
+                item_rec_variant = str(item_data.get('rec_variant') or 'control').strip()[:16]
                 OrderItem.objects.create(
                     order=order,
                     product=product,
                     variant=variant,
                     quantity=qty,
-                    price=item_price
+                    price=item_price,
+                    rec_surface=item_rec_surface,
+                    rec_variant=item_rec_variant
                 )
+                if item_rec_surface:
+                    try:
+                        from django.utils import timezone
+                        from .models import RecConversionDaily
+                        today = timezone.localdate()
+                        conv, _ = RecConversionDaily.objects.get_or_create(
+                            date=today,
+                            surface=item_rec_surface,
+                            variant=item_rec_variant
+                        )
+                        RecConversionDaily.objects.filter(pk=conv.pk).update(
+                            orders=F('orders') + 1,
+                            revenue=F('revenue') + (item_price * qty)
+                        )
+                    except Exception:
+                        pass
                 total += (item_price * qty)
 
                 if variant:

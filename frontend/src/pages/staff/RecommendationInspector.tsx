@@ -51,6 +51,32 @@ type ProductInspect = {
   recs_computed_at: string | null;
   reasons: ReasonBlock[];
 };
+type ABVariantData = {
+  variant: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cart_adds: number;
+  orders: number;
+  revenue: number;
+  conversion_rate: number;
+};
+
+type SurfaceRevenueData = {
+  surface: string;
+  orders: number;
+  revenue: number;
+  clicks: number;
+  cart_adds: number;
+};
+
+type SparseCategoryData = {
+  id: number;
+  name: string;
+  slug: string;
+  p_count: number;
+};
+
 type Health = {
   window_days: number;
   surfaces: { surface: string; impressions: number; clicks: number; ctr: number }[];
@@ -61,9 +87,12 @@ type Health = {
   last_recs_build: string | null;
   last_stats_refresh: string | null;
   users_with_rec_profile: number;
+  ab_variants?: ABVariantData[];
+  revenue_by_surface?: SurfaceRevenueData[];
+  sparse_categories?: SparseCategoryData[];
   generated_at: string;
 };
-type Tab = 'users' | 'product' | 'simulate' | 'health';
+type Tab = 'users' | 'product' | 'simulate' | 'health' | 'ab_test' | 'attribution' | 'coverage';
 
 const CARD = 'bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border p-4';
 const INPUT = 'w-full rounded-btn border border-surface-border dark:border-surface-dark-border bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-gray-900 dark:text-white';
@@ -439,6 +468,249 @@ const HealthTab: React.FC = () => {
   );
 };
 
+const ABTestTab: React.FC = () => {
+  const [data, setData] = useState<Health | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/api/recs/admin/health/', { params: { refresh: 1 } })
+      .then((res) => setData(res.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (!data) return <div className={CARD}><p className="text-sm text-gray-400">{loading ? 'Loading A/B data…' : 'No data'}</p></div>;
+
+  const variants = data.ab_variants || [];
+  const control = variants.find((v) => v.variant === 'control') || { variant: 'control', impressions: 0, clicks: 0, ctr: 0, cart_adds: 0, orders: 0, revenue: 0, conversion_rate: 0 };
+  const variantB = variants.find((v) => v.variant === 'variant_b') || { variant: 'variant_b', impressions: 0, clicks: 0, ctr: 0, cart_adds: 0, orders: 0, revenue: 0, conversion_rate: 0 };
+
+  const winnerCtr = variantB.ctr > control.ctr ? 'variant_b' : control.ctr > variantB.ctr ? 'control' : 'tie';
+  const winnerRev = variantB.revenue > control.revenue ? 'variant_b' : control.revenue > variantB.revenue ? 'control' : 'tie';
+
+  return (
+    <div className="space-y-4">
+      <div className={CARD}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">A/B Testing Experiment: Control vs Variant B</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Live 50/50 randomized traffic split over 7-day rolling window.</p>
+          </div>
+          <button type="button" className={BTN} onClick={load} disabled={loading}>{loading ? '…' : 'Refresh'}</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+          {/* Control Arm */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-black uppercase tracking-wider text-gray-500">Arm: Control</span>
+              <span className="text-3xs px-2 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 font-mono">
+                personal=0.35, tfidf=0.20
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><p className="text-3xs text-gray-400">Impressions</p><p className="font-bold">{control.impressions.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Clicks</p><p className="font-bold">{control.clicks.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">CTR</p><p className={`font-black ${winnerCtr === 'control' ? 'text-emerald-500' : ''}`}>{control.ctr}%</p></div>
+              <div><p className="text-3xs text-gray-400">Cart Adds</p><p className="font-bold">{control.cart_adds.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Attributed Orders</p><p className="font-bold">{control.orders.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Attributed Revenue</p><p className={`font-black ${winnerRev === 'control' ? 'text-emerald-500' : ''}`}>TSh {control.revenue.toLocaleString()}</p></div>
+            </div>
+          </div>
+
+          {/* Variant B Arm */}
+          <div className="p-4 rounded-xl border border-brand-500/30 bg-brand-500/5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-black uppercase tracking-wider text-brand-500">Arm: Variant B (High Exploration)</span>
+              <span className="text-3xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-600 dark:text-brand-400 font-mono">
+                personal=0.45, tfidf=0.30
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><p className="text-3xs text-gray-400">Impressions</p><p className="font-bold">{variantB.impressions.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Clicks</p><p className="font-bold">{variantB.clicks.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">CTR</p><p className={`font-black ${winnerCtr === 'variant_b' ? 'text-emerald-500' : ''}`}>{variantB.ctr}%</p></div>
+              <div><p className="text-3xs text-gray-400">Cart Adds</p><p className="font-bold">{variantB.cart_adds.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Attributed Orders</p><p className="font-bold">{variantB.orders.toLocaleString()}</p></div>
+              <div><p className="text-3xs text-gray-400">Attributed Revenue</p><p className={`font-black ${winnerRev === 'variant_b' ? 'text-emerald-500' : ''}`}>TSh {variantB.revenue.toLocaleString()}</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AttributionTab: React.FC = () => {
+  const [data, setData] = useState<Health | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/api/recs/admin/health/', { params: { refresh: 1 } })
+      .then((res) => setData(res.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (!data) return <div className={CARD}><p className="text-sm text-gray-400">{loading ? 'Loading attribution data…' : 'No data'}</p></div>;
+
+  const surfaces = data.revenue_by_surface || [];
+  const totalRev = surfaces.reduce((acc, s) => acc + s.revenue, 0);
+  const totalOrders = surfaces.reduce((acc, s) => acc + s.orders, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className={CARD}>
+          <p className="text-3xs uppercase text-gray-400 font-bold">Total Rec-Attributed Revenue (7d)</p>
+          <p className="text-2xl font-black text-emerald-500">TSh {totalRev.toLocaleString()}</p>
+        </div>
+        <div className={CARD}>
+          <p className="text-3xs uppercase text-gray-400 font-bold">Total Rec-Attributed Orders (7d)</p>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">{totalOrders.toLocaleString()} orders</p>
+        </div>
+      </div>
+
+      <div className={CARD}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Attributed Conversions by Recommendation Surface</h3>
+          <button type="button" className={BTN} onClick={load} disabled={loading}>{loading ? '…' : 'Refresh'}</button>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase text-gray-400">
+              <th className="py-2">Surface</th>
+              <th className="py-2 text-right">Clicks</th>
+              <th className="py-2 text-right">Cart Adds</th>
+              <th className="py-2 text-right">Orders</th>
+              <th className="py-2 text-right">Revenue (TSh)</th>
+              <th className="py-2 text-right">Avg Order (TSh)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {surfaces.length === 0 ? (
+              <tr><td colSpan={6} className="py-4 text-xs text-gray-400 text-center">No conversion attribution recorded in the last 7 days yet.</td></tr>
+            ) : (
+              surfaces.map((s) => (
+                <tr key={s.surface} className="border-t border-gray-100 dark:border-neutral-800">
+                  <td className="py-2 font-mono font-semibold">{s.surface}</td>
+                  <td className="py-2 text-right">{s.clicks.toLocaleString()}</td>
+                  <td className="py-2 text-right">{s.cart_adds.toLocaleString()}</td>
+                  <td className="py-2 text-right font-bold">{s.orders.toLocaleString()}</td>
+                  <td className="py-2 text-right font-mono font-black text-emerald-500">TSh {s.revenue.toLocaleString()}</td>
+                  <td className="py-2 text-right text-gray-400">
+                    {s.orders > 0 ? `TSh ${Math.round(s.revenue / s.orders).toLocaleString()}` : '—'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const CoverageDiagnosticsTab: React.FC = () => {
+  const [data, setData] = useState<Health | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [diagPid, setDiagPid] = useState('');
+  const [diagResult, setDiagResult] = useState<any | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/api/recs/admin/health/', { params: { refresh: 1 } })
+      .then((res) => setData(res.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const runDiagnostic = () => {
+    const pid = parseInt(diagPid.trim(), 10);
+    if (!pid || isNaN(pid)) return;
+    setDiagLoading(true);
+    api.post('/api/recs/admin/why-not-shown/', { product_id: pid })
+      .then((res) => setDiagResult(res.data))
+      .catch((err) => setDiagResult({ error: err.response?.data?.error || 'Diagnostic query failed' }))
+      .finally(() => setDiagLoading(false));
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Why Not Shown Diagnostic Tester */}
+      <div className={CARD}>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Recommendation Diagnostic: "Why Not Shown?"</h3>
+        <p className="text-xs text-gray-400 mb-3">Inspect why a specific product may be filtered, penalised, or excluded from buyer recommendation feeds.</p>
+        <div className="flex gap-2 max-w-md">
+          <input
+            className={INPUT}
+            placeholder="Product ID (e.g. 102)"
+            value={diagPid}
+            onChange={(e) => setDiagPid(e.target.value)}
+          />
+          <button type="button" className={BTN} onClick={runDiagnostic} disabled={diagLoading || !diagPid.trim()}>
+            {diagLoading ? 'Diagnosing…' : 'Diagnose'}
+          </button>
+        </div>
+
+        {diagResult && (
+          <div className="mt-4 p-3 rounded-xl border border-gray-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-xs">
+            {diagResult.error ? (
+              <p className="text-red-500 font-bold">{diagResult.error}</p>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-bold text-gray-900 dark:text-white">{diagResult.product_name} (#{diagResult.product_id})</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-3xs ${diagResult.eligible ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
+                    {diagResult.eligible ? 'ELIGIBLE' : 'FILTERED / NOTICE'}
+                  </span>
+                </div>
+                <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
+                  {diagResult.diagnostics?.map((diag: string, i: number) => (
+                    <li key={i}>{diag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sparse Categories */}
+      {data?.sparse_categories && data.sparse_categories.length > 0 && (
+        <div className={CARD}>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sparse Leaf Categories (&lt;4 Products)</h3>
+              <p className="text-xs text-gray-400 mt-0.5">These categories automatically trigger v3.1 parent-tree climbing and TF-IDF expansion to prevent empty shelves.</p>
+            </div>
+            <button type="button" className={BTN} onClick={load} disabled={loading}>{loading ? '…' : 'Refresh'}</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3">
+            {data.sparse_categories.map((cat) => (
+              <div key={cat.id} className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 text-xs">
+                <p className="font-bold text-gray-900 dark:text-white truncate">{cat.name}</p>
+                <p className="text-3xs text-amber-500 font-bold mt-0.5">
+                  {cat.p_count} product{cat.p_count === 1 ? '' : 's'} • Tree Climbing Active
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const RecommendationInspector: React.FC = () => {
   const [tab, setTab] = useState<Tab>('users');
   const tabs: { key: Tab; label: string }[] = [
@@ -446,6 +718,9 @@ const RecommendationInspector: React.FC = () => {
     { key: 'product', label: 'Product' },
     { key: 'simulate', label: 'Simulate visitor' },
     { key: 'health', label: 'Health & CTR' },
+    { key: 'ab_test', label: 'A/B Performance' },
+    { key: 'attribution', label: 'Revenue Attribution' },
+    { key: 'coverage', label: 'Coverage & Diagnostics' },
   ];
   return (
     <div className="space-y-4">
@@ -469,6 +744,9 @@ const RecommendationInspector: React.FC = () => {
       {tab === 'product' && <ProductTab />}
       {tab === 'simulate' && <SimulateTab />}
       {tab === 'health' && <HealthTab />}
+      {tab === 'ab_test' && <ABTestTab />}
+      {tab === 'attribution' && <AttributionTab />}
+      {tab === 'coverage' && <CoverageDiagnosticsTab />}
     </div>
   );
 };

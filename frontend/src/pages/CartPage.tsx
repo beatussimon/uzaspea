@@ -12,6 +12,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import RequestInvoiceModal from '../components/cart/RequestInvoiceModal';
 import InvoiceReviewModal from '../components/cart/InvoiceReviewModal';
+import ProductCard from '../components/ProductCard';
+import { trackRecImpression } from '../utils/recTracking';
 import api from '../api';
 import toast from 'react-hot-toast';
 
@@ -36,6 +38,33 @@ const CartPage: React.FC = () => {
   const [requestInvoiceMerchant, setRequestInvoiceMerchant] = useState<string | null>(null);
   const [reviewInvoiceOrder, setReviewInvoiceOrder] = useState<any | null>(null);
   const [messagingMerchant, setMessagingMerchant] = useState<string | null>(null);
+  const [cartRecs, setCartRecs] = useState<any[]>([]);
+
+  // Fetch complements for items in cart
+  useEffect(() => {
+    if (items.length === 0) {
+      setCartRecs([]);
+      return;
+    }
+    const cartIds = items.map((i) => i.productId).filter(Boolean).join(',');
+    let cancelled = false;
+    api
+      .get(`/api/recs/cart/?cart_ids=${cartIds}`)
+      .then((res) => {
+        if (!cancelled && res.data?.products) {
+          setCartRecs(res.data.products);
+          if (res.data.products.length > 0) {
+            trackRecImpression('cart', res.data.products.length);
+          }
+        }
+      })
+      .catch(() => {
+        // silent fallback
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [items]);
 
   // Group items by merchant
   const groupedItems = items.reduce((acc, item) => {
@@ -394,6 +423,32 @@ const CartPage: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Complete Your Order Recommendation Shelf */}
+      {cartRecs.length > 0 && (
+        <section className="mt-8 border-t border-surface-border dark:border-surface-dark-border pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <ShoppingBag size={18} className="text-brand-500" />
+              <span>{t('complete_your_order', 'Complete your order')}</span>
+            </h2>
+            <span className="text-xs text-gray-400 font-medium hidden sm:inline">
+              {t('paired_with_cart', 'Pairs well with items in your cart')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            {cartRecs.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                trackSource="cart"
+                compact
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Request Bulk Invoice Modal */}
       {requestInvoiceMerchant && (

@@ -67,9 +67,22 @@ def get_base_product_queryset(user=None):
         .values('cnt')[:1]
     )
 
+    from .models import SiteSettings
+    settings_obj = SiteSettings.objects.filter(pk=1).first()
+    use_stats = getattr(settings_obj, 'use_product_stats_for_listings', True)
+
+    if use_stats:
+        avg_rating_expr = Coalesce('stats__rating_avg', Value(0.0, output_field=FloatField()))
+        like_count_expr = Coalesce('stats__likes', Value(0))
+        stats_related = ['stats']
+    else:
+        avg_rating_expr = Coalesce(avg_rating_subquery, Value(0.0, output_field=FloatField()))
+        like_count_expr = Coalesce(like_count_subquery, Value(0))
+        stats_related = []
+
     return Product.objects.annotate(
-        annotated_avg_rating=Coalesce(avg_rating_subquery, Value(0.0, output_field=FloatField())),
-        annotated_like_count=Coalesce(like_count_subquery, Value(0)),
+        annotated_avg_rating=avg_rating_expr,
+        annotated_like_count=like_count_expr,
         annotated_is_liked=is_liked_expr,
         annotated_has_inspection=has_inspection_expr,
         annotated_inspection_verdict=inspection_verdict_expr,
@@ -77,6 +90,7 @@ def get_base_product_queryset(user=None):
         annotated_is_sponsored=is_sponsored_expr,
         annotated_has_post_inspection_changes=has_post_inspection_changes_expr
     ).select_related(
+        *stats_related,
         'seller', 'seller__profile', 'category', 'category__parent',
         'brand', 'brand__created_by',
         'reference_product', 'reference_product__brand', 'reference_product__category', 'reference_product__created_by'

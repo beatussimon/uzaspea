@@ -208,6 +208,46 @@ def build_recs_for_product_task(product_id):
 
 
 @shared_task
+def recs_self_heal_task():
+    """Finds available products missing or with empty ProductRecs and builds them (D3 fix)."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from marketplace.models import Product, ProductRecs
+    from marketplace.recs.builder import build_recs
+
+    missing_pids = list(Product.objects.filter(is_available=True)
+                        .exclude(id__in=ProductRecs.objects.values_list('product_id', flat=True))
+                        .values_list('id', flat=True)[:100])
+    stale_pids = list(ProductRecs.objects.filter(
+        product__is_available=True,
+        computed_at__lt=timezone.now() - timedelta(hours=48)
+    ).values_list('product_id', flat=True)[:100])
+
+    targets = list(set(missing_pids + stale_pids))
+    if targets:
+        build_recs(only_ids=targets)
+
+
+@shared_task
+def recs_warm_cold_feed_task():
+    """Pre-computes and caches cold guest feeds so first hits are < 15ms (D5 fix)."""
+    from django.core.cache import cache
+    from marketplace.recs.context import build_context
+    from marketplace.recs.engine import for_you
+    from marketplace.recs.views import shelves_to_payload
+    from marketplace.recs.queries import cache_key
+    from marketplace.recs import config as rec_config
+
+    for gender in ('female', 'male', 'auto'):
+        for region in ('', 'Dar es Salaam', 'Arusha'):
+            ctx = build_context(gender=gender, region=region)
+            sections = for_you(ctx)
+            payload = {'status': 'success', 'personalized': False, 'sections': shelves_to_payload(sections, None)}
+            cold_key = cache_key('foryou', 'cold', ctx.gender or 'auto', ctx.region or 'all')
+            cache.set(cold_key, payload, rec_config.COLD_FEED_TTL)
+
+
+@shared_task
 def prune_rec_data_task():
     from marketplace.recs.builder import prune_rec_data
     return prune_rec_data()

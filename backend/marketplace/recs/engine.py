@@ -175,9 +175,10 @@ def similar_for_product(product_id, page=1, page_size=12):
     stored = ProductRecs.objects.filter(product_id=product_id).values_list('similar', flat=True).first()
     cands = _entries(stored, config.W_SIMILAR, 'similar')
     if not cands:
+        # Hierarchical tree expansion ensures Similar is never empty (D1 fix)
         cat_id = Product.objects.filter(id=product_id).values_list('category_id', flat=True).first()
         if cat_id:
-            cands = [(pid, None, {}, 'similar_fallback') for pid in category_pool(cat_id)]
+            cands = [(pid, None, {}, 'similar_fallback') for pid in category_pool(cat_id, allow_hierarchy_expansion=True)]
     ctx = RecContext(exclude_ids={product_id})
     ranked = rank(cands, ctx, limit=max(1, len(cands)), personalize=False, diversify=None, slots=True)
     start = max(0, (page - 1) * page_size)
@@ -260,8 +261,10 @@ def for_you(ctx, per_shelf=None, even=True, min_items=None):
                       'category_slug': a['category__slug'] or '', 'cands': cands})
 
     if ctx.recent_ids:
+        # Show recently viewed starting from 1 item (D2 fix)
         plans.append({'id': 'recently_viewed', 'kind': 'recently_viewed', 'title': 'Recently viewed',
-                      'subtitle': 'Pick up where you left off', 'category_slug': '', 'fixed': ctx.recent_ids[:12]})
+                      'subtitle': 'Pick up where you left off', 'category_slug': '',
+                      'min_items': 1, 'fixed': ctx.recent_ids[:12]})
 
     if ctx.vehicle_id:
         plans.append({'id': 'for_my_vehicle', 'kind': 'for_your_car', 'title': 'Fits your vehicle',
@@ -318,13 +321,15 @@ def for_you(ctx, per_shelf=None, even=True, min_items=None):
     shown, result = set(), []
     for plan in plans:
         if 'fixed' in plan:
-            items = [Scored(pid, 0.0, {}, 'recently_viewed') for pid in plan['fixed'] if pid in meta]
+            # Enforce per_shelf on fixed shelves (D4 fix)
+            items = [Scored(pid, 0.0, {}, 'recently_viewed') for pid in plan['fixed'][:per_shelf] if pid in meta]
         else:
             items = rank(plan['cands'], ctx, per_shelf, meta=meta, diversify=plan.get('diversify', 'full'),
                          extra_exclude=shown)
-        if len(items) < min_items:
+        min_required = plan.get('min_items', min_items)
+        if len(items) < min_required:
             continue
-        if even and len(items) % 2:
+        if even and plan['kind'] != 'recently_viewed' and len(items) % 2:
             items = items[:-1]
         if plan['kind'] != 'recently_viewed':
             shown.update(s.product_id for s in items)

@@ -26,8 +26,9 @@ from .api_views import (
 from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
 from .recs.views import (
     RecSimilarView, RecYmalView, RecEventsView,
+    cart_recommendations, empty_search_recommendations,
     RecAdminUserListView, RecAdminUserInspectView, RecAdminProductInspectView,
-    RecAdminSimulateView, RecAdminHealthView,
+    RecAdminSimulateView, RecAdminHealthView, RecAdminWhyNotShownView,
 )
 
 router = DefaultRouter()
@@ -75,12 +76,15 @@ urlpatterns = [
     path('api/products/recommendations/', CategoryRecommendationsView.as_view(), name='products-recommendations'),
     path('api/recs/products/<int:product_id>/similar/', RecSimilarView.as_view(), name='recs-similar'),
     path('api/recs/products/<int:product_id>/ymal/', RecYmalView.as_view(), name='recs-ymal'),
+    path('api/recs/cart/', cart_recommendations, name='recs-cart'),
+    path('api/recs/empty-search/', empty_search_recommendations, name='recs-empty-search'),
     path('api/recs/events/', RecEventsView.as_view(), name='recs-events'),
     path('api/recs/admin/users/', RecAdminUserListView.as_view(), name='recs-admin-users'),
     path('api/recs/admin/users/<int:user_id>/', RecAdminUserInspectView.as_view(), name='recs-admin-user'),
     path('api/recs/admin/products/', RecAdminProductInspectView.as_view(), name='recs-admin-product'),
     path('api/recs/admin/simulate/', RecAdminSimulateView.as_view(), name='recs-admin-simulate'),
     path('api/recs/admin/health/', RecAdminHealthView.as_view(), name='recs-admin-health'),
+    path('api/recs/admin/why-not-shown/', RecAdminWhyNotShownView.as_view(), name='recs-admin-why-not-shown'),
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),

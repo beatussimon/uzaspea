@@ -64,7 +64,34 @@ PAID_STATUSES = (
     'DELIVERED', 'COMPLETED',
 )
 
-SURFACES = ('similar', 'ymal', 'foryou', 'cat_shelf', 'cart', 'empty_search')
+SURFACES = ('similar', 'ymal', 'foryou', 'cat_shelf', 'cart', 'order', 'empty_search')
+
+# A/B Testing Variants
+VARIANTS = {
+    'control': {
+        'name': 'Standard Weights',
+        'w_similar': {'text': 0.35, 'price': 0.20, 'brand': 0.15, 'condition': 0.10, 'quality': 0.10, 'popularity': 0.10},
+        'w_complement': {'coview': 0.35, 'copurchase': 0.25, 'category': 0.15, 'popularity': 0.15, 'quality': 0.10},
+        'explore_factor': 1.0,
+    },
+    'variant_b': {
+        'name': 'Discovery Boost (Higher Quality & Freshness)',
+        'w_similar': {'text': 0.30, 'price': 0.15, 'brand': 0.15, 'condition': 0.10, 'quality': 0.15, 'popularity': 0.15},
+        'w_complement': {'coview': 0.30, 'copurchase': 0.30, 'category': 0.15, 'popularity': 0.10, 'quality': 0.15},
+        'explore_factor': 1.3,
+    }
+}
+
+# Impression Fatigue
+FATIGUE_SEEN_THRESHOLD = 3
+FATIGUE_PENALTY_FACTOR = 0.50
+MAX_HIDDEN_STORED = 100
+
+# TF-IDF Inverted Index Limits
+TFIDF_MAX_FEATURES = 1000
+TFIDF_MIN_DF = 1
+TFIDF_MAX_DF_RATIO = 0.40
+TFIDF_POSTINGS_CAP = 250
 
 STOPWORDS = {
     'the', 'and', 'for', 'with', 'new', 'used', 'original', 'genuine', 'quality', 'best', 'sale', 'pcs',

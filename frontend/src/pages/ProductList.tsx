@@ -16,6 +16,7 @@ import CategoryRecommendationShelf from '../components/discovery/CategoryRecomme
 import { categoryStore } from '../utils/categoryStore';
 import NetworkErrorState from '../components/common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
+import { trackRecImpression } from '../utils/recTracking';
 
 
 
@@ -121,6 +122,29 @@ const ProductList = () => {
   const [_page, setPage] = useState(1);
   const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
   const [paginationError, setPaginationError] = useState<ClassifiedError | null>(null);
+  const [emptySearchRecs, setEmptySearchRecs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!loading && products.length === 0 && !fetchError) {
+      let cancelled = false;
+      api
+        .get('/api/recs/empty-search/')
+        .then((res) => {
+          if (!cancelled && res.data?.products) {
+            setEmptySearchRecs(res.data.products);
+            if (res.data.products.length > 0) {
+              trackRecImpression('empty_search', res.data.products.length);
+            }
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    } else {
+      setEmptySearchRecs([]);
+    }
+  }, [loading, products.length, fetchError]);
 
   const [gridCols, setGridCols] = useState(() => {
     if (typeof window === 'undefined') return 5;
@@ -882,10 +906,30 @@ const ProductList = () => {
                         <ProductCardSkeleton key={`skeleton-${i}`} viewMode={viewMode} />
                       ))
                     ) : (
-                      <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
-                        <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
-                        <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                        <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                      <div className="col-span-full">
+                        <div className="card p-12 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur mb-6">
+                          <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
+                          <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                        </div>
+
+                        {emptySearchRecs.length > 0 && (
+                          <div className="mt-6">
+                            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                              <span>🔥</span> {t('popular_recommendations', 'Popular items you may like')}
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                              {emptySearchRecs.map((prod) => (
+                                <ProductCard
+                                  key={prod.id}
+                                  product={prod}
+                                  trackSource="empty_search"
+                                  compact
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                   ) : (

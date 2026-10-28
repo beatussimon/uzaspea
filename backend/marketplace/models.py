@@ -880,6 +880,8 @@ class OrderItem(models.Model):
     )
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    rec_surface = models.CharField(max_length=32, blank=True, default='', help_text="Rec surface that influenced this item")
+    rec_variant = models.CharField(max_length=16, blank=True, default='', help_text="A/B variant active when item was added")
 
     def __str__(self):
         return f"{self.quantity} of {self.product.name} in Order #{self.order.id}"
@@ -1470,6 +1472,10 @@ class SiteSettings(models.Model):
     commission_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('10.00'),
         help_text="Default platform commission % charged to sellers"
+    )
+    use_product_stats_for_listings = models.BooleanField(
+        default=True,
+        help_text="If True, product catalog listings join ProductStats instead of evaluating 4-5 correlated subqueries."
     )
     pos_commission_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('3.00'),
@@ -2662,11 +2668,26 @@ class RecSurfaceDailyStat(models.Model):
     """Impressions and clicks per recommendation surface per day (for CTR)."""
     date = models.DateField()
     surface = models.CharField(max_length=30)
+    variant = models.CharField(max_length=16, default='control')
     impressions = models.PositiveIntegerField(default=0)
     clicks = models.PositiveIntegerField(default=0)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=['date', 'surface'], name='uniq_rec_surface_day')]
+        constraints = [models.UniqueConstraint(fields=['date', 'surface', 'variant'], name='uniq_rec_surface_variant_day')]
+
+
+class RecConversionDaily(models.Model):
+    """Daily revenue and orders attributed to recommendation clicks."""
+    date = models.DateField()
+    surface = models.CharField(max_length=30)
+    variant = models.CharField(max_length=16, default='control')
+    clicks = models.PositiveIntegerField(default=0)
+    cart_adds = models.PositiveIntegerField(default=0)
+    orders = models.PositiveIntegerField(default=0)
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0.0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['date', 'surface', 'variant'], name='uniq_rec_conversion_day')]
 
 
 class UserRecProfile(models.Model):
@@ -2675,6 +2696,7 @@ class UserRecProfile(models.Model):
     recent_ids = models.JSONField(default=list, blank=True)
     vehicle_id = models.PositiveIntegerField(null=True, blank=True)
     region = models.CharField(max_length=64, blank=True, default='')
+    hidden_product_ids = models.JSONField(default=list, blank=True, help_text="IDs of products dismissed with 'Not interested'")
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
