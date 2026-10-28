@@ -9,7 +9,6 @@ import SettingsPage from './SettingsPage';
 import HelpCenterPage from './HelpCenterPage';
 import DashboardOverview from './DashboardOverview';
 import DashboardProducts from './DashboardProducts';
-import DashboardPromotions from './DashboardPromotions';
 import DashboardOrders from './DashboardOrders';
 import PaymentNumbersManager from './PaymentNumbersManager';
 import BillingPage from './BillingPage';
@@ -18,8 +17,9 @@ import MyTeamPage from './MyTeamPage';
 import DashboardPOS from './DashboardPOS';
 import ProductRequestsBoard from './ProductRequestsBoard';
 import InvoicesPage from './InvoicesPage';
-import { StoreBranchesSkeleton } from '../../components/Skeleton';
+import { StoreBranchesSkeleton, PromotionsSkeleton } from '../../components/Skeleton';
 const BranchesManagerPage = React.lazy(() => import('./BranchesManagerPage'));
+const DashboardPromotions = React.lazy(() => import('./DashboardPromotions'));
 import StockTransfersPage from './StockTransfersPage';
 import SubscriptionExpiredView from './SubscriptionExpiredView';
 
@@ -807,7 +807,16 @@ const DashboardLayout: React.FC = () => {
           <Route path="pos" element={(!isWorker || perms.manage_orders) ? <DashboardPOS /> : <Navigate to="/dashboard" replace />} />
           <Route path="orders" element={(!isWorker || perms.manage_orders) ? <DashboardOrders /> : <Navigate to="/dashboard" replace />} />
           <Route path="invoices" element={(!isWorker || perms.manage_orders) ? <InvoicesPage /> : <Navigate to="/dashboard" replace />} />
-          <Route path="promotions" element={(!isWorker || perms.manage_products) ? <DashboardPromotions /> : <Navigate to="/dashboard" replace />} />
+          <Route 
+            path="promotions" 
+            element={
+              (!isWorker || perms.manage_products) ? (
+                <React.Suspense fallback={<PromotionsSkeleton />}>
+                  <DashboardPromotions />
+                </React.Suspense>
+              ) : <Navigate to="/dashboard" replace />
+            } 
+          />
           <Route path="billing" element={(!isWorker || perms.view_analytics) ? <BillingPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="payment-numbers" element={(!isWorker || perms.view_analytics) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
           {isBusiness && (

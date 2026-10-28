@@ -763,139 +763,147 @@ const location = useLocation();
   const isAffiliate = promoFormType === 'affiliate';
 
   const promoFormJsx = showPromoForm && (
-    <form ref={promoFormRef} onSubmit={handlePromoSubmit} className="card p-5 space-y-4 animate-scale-in text-xs border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
-      <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 flex justify-between items-center">
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-            {editingPromoId
-              ? (isAffiliate ? t('edit_affiliate_code', 'Edit Affiliate Referral Code') : t('edit_store_coupon', 'Edit Promo Code'))
-              : (isAffiliate ? t('create_affiliate_code', 'Create Affiliate Referral Code') : t('create_store_coupon', 'Create Promo Code'))}
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {editingPromoId
-              ? (isAffiliate ? t('edit_affiliate_desc', 'Modify promoter settings, commission cut, qualifying products, and campaign rules.') : t('edit_coupon_desc', 'Update discount amount, qualifying products, and usage rules.'))
-              : (isAffiliate
-                  ? t('affiliate_form_desc', 'Assign a code or link to an influencer and define their commission cut.')
-                  : t('coupon_form_desc', 'Generate percentage or fixed discounts for buyers to apply during checkout.'))}
-          </p>
+    <form ref={promoFormRef} onSubmit={handlePromoSubmit} className="space-y-3.5 animate-scale-in text-xs">
+      {/* Group 1: Header & Code Info */}
+      <div className="rounded-2xl p-4 sm:p-5 bg-neutral-50 dark:bg-[#141416] space-y-4 border-0">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+              {editingPromoId
+                ? (isAffiliate ? t('edit_affiliate_code', 'Edit Affiliate Referral Code') : t('edit_store_coupon', 'Edit Promo Code'))
+                : (isAffiliate ? t('create_affiliate_code', 'Create Affiliate Referral Code') : t('create_store_coupon', 'Create Promo Code'))}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {editingPromoId
+                ? (isAffiliate ? t('edit_affiliate_desc', 'Modify promoter settings, commission cut, qualifying products, and campaign rules.') : t('edit_coupon_desc', 'Update discount amount, qualifying products, and usage rules.'))
+                : (isAffiliate
+                    ? t('affiliate_form_desc', 'Assign a code or link to an influencer and define their commission cut.')
+                    : t('coupon_form_desc', 'Generate percentage or fixed discounts for buyers to apply during checkout.'))}
+            </p>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }} 
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <button 
-          type="button" 
-          onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }} 
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-        >
-          <X size={16} />
-        </button>
-      </div>
 
-      {/* Row 1: Code (and Influencer Name ONLY if affiliate) */}
-      <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3" : ""}>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Ticket size={12} /> {isAffiliate ? t('referral_code', 'Referral Code') : t('promo_code', 'Promo Code')} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="code"
-            required
-            value={promoForm.code}
-            onChange={handlePromoChange}
-            placeholder={isAffiliate ? "e.g. SARAH10, JUMA5" : "e.g. FLASH20, WELCOME10"}
-            className="input py-2 text-xs w-full font-mono uppercase bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-        {isAffiliate && (
+        {/* Inputs: Code and Promoter Name */}
+        <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3" : ""}>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-              <UserCheck size={12} /> {t('influencer_partner_name', 'Influencer / Promoter Name')}
+              <Ticket size={12} /> {isAffiliate ? t('referral_code', 'Referral Code') : t('promo_code', 'Promo Code')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              name="affiliate_name"
-              value={promoForm.affiliate_name}
+              name="code"
+              required
+              value={promoForm.code}
               onChange={handlePromoChange}
-              placeholder="e.g. @sarah_tz or Juma Kimaro (Optional)"
-              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+              placeholder={isAffiliate ? "e.g. SARAH10, JUMA5" : "e.g. FLASH20, WELCOME10"}
+              className="w-full py-2.5 px-3 text-xs font-mono uppercase rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
             />
           </div>
-        )}
-      </div>
-
-      {/* Row 2: Buyer Discount Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Percent size={12} /> {isAffiliate ? t('buyer_discount_type', 'Buyer Discount Type') : t('discount_type', 'Discount Type')}
-          </label>
-          <select
-            name="discount_type"
-            value={promoForm.discount_type}
-            onChange={handlePromoChange}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          >
-            <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
-            <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {isAffiliate ? t('buyer_discount_value', 'Buyer Discount Amount') : t('discount_value', 'Discount Value')} {!isAffiliate && <span className="text-red-500">*</span>}
-          </label>
-          <input
-            type="number"
-            name="value"
-            min="0"
-            step="any"
-            required={!isAffiliate}
-            value={promoForm.value}
-            onChange={handlePromoChange}
-            placeholder={promoForm.discount_type === 'percentage' ? (isAffiliate ? 'e.g. 10 (or 0 for cut only)' : 'e.g. 15 (for 15% off)') : 'e.g. 5000 (for TSh 5,000 off)'}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
+          {isAffiliate && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                <UserCheck size={12} /> {t('influencer_partner_name', 'Influencer / Promoter Name')}
+              </label>
+              <input
+                type="text"
+                name="affiliate_name"
+                value={promoForm.affiliate_name}
+                onChange={handlePromoChange}
+                placeholder="e.g. @sarah_tz or Juma Kimaro (Optional)"
+                className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Promoter Commission Cut Settings (ONLY visible in Affiliate mode) */}
-      {isAffiliate && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/20">
+      {/* Group 2: Discount & Commission Settings */}
+      <div className="rounded-2xl p-4 sm:p-5 bg-neutral-50 dark:bg-[#141416] space-y-3.5 border-0">
+        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          {isAffiliate ? t('discount_and_commission', 'Discounts & Commission') : t('discount_rules', 'Discount Settings')}
+        </h4>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-              <Percent size={12} /> {t('influencer_cut_type', 'Promoter Commission Type')}
+              <Percent size={12} /> {isAffiliate ? t('buyer_discount_type', 'Buyer Discount Type') : t('discount_type', 'Discount Type')}
             </label>
             <select
-              name="commission_type"
-              value={promoForm.commission_type}
+              name="discount_type"
+              value={promoForm.discount_type}
               onChange={handlePromoChange}
-              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
             >
-              <option value="percentage">{t('cut_percentage_label', 'Percentage of Sale (%)')}</option>
-              <option value="fixed">{t('cut_fixed_label', 'Fixed Bounty per Order (TZS)')}</option>
+              <option value="percentage">{t('percentage_off', 'Percentage Off (%)')}</option>
+              <option value="fixed">{t('fixed_amount_off', 'Fixed Amount Off (TZS)')}</option>
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('influencer_cut_rate', 'Promoter Commission Amount')}
+              {isAffiliate ? t('buyer_discount_value', 'Buyer Discount Amount') : t('discount_value', 'Discount Value')} {!isAffiliate && <span className="text-red-500">*</span>}
             </label>
             <input
               type="number"
-              name="commission_rate"
+              name="value"
               min="0"
               step="any"
-              value={promoForm.commission_rate}
+              required={!isAffiliate}
+              value={promoForm.value}
               onChange={handlePromoChange}
-              placeholder={promoForm.commission_type === 'percentage' ? 'e.g. 10 (for 10% cut per sale)' : 'e.g. 3000 (for TSh 3,000 bounty)'}
-              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+              placeholder={promoForm.discount_type === 'percentage' ? (isAffiliate ? 'e.g. 10 (or 0 for cut only)' : 'e.g. 15 (for 15% off)') : 'e.g. 5000 (for TSh 5,000 off)'}
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
             />
           </div>
         </div>
-      )}
 
-      {/* Product Applicability Scope */}
-      <div className="space-y-2">
+        {isAffiliate && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                <Percent size={12} /> {t('influencer_cut_type', 'Promoter Commission Cut Type')}
+              </label>
+              <select
+                name="commission_type"
+                value={promoForm.commission_type}
+                onChange={handlePromoChange}
+                className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+              >
+                <option value="percentage">{t('cut_percentage_label', 'Percentage of Sale (%)')}</option>
+                <option value="fixed">{t('cut_fixed_label', 'Fixed Bounty per Order (TZS)')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('influencer_cut_rate', 'Promoter Commission Cut Amount')}
+              </label>
+              <input
+                type="number"
+                name="commission_rate"
+                min="0"
+                step="any"
+                value={promoForm.commission_rate}
+                onChange={handlePromoChange}
+                placeholder={promoForm.commission_type === 'percentage' ? 'e.g. 10 (for 10% cut per sale)' : 'e.g. 3000 (for TSh 3,000 bounty)'}
+                className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Group 3: Product Applicability Scope */}
+      <div className="rounded-2xl p-4 sm:p-5 bg-neutral-50 dark:bg-[#141416] space-y-3.5 border-0">
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
           {t('product_scope', 'Product Applicability Scope')} <span className="text-red-500">*</span>
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {[
             { id: 'all_products', label: t('scope_all', 'Storewide'), desc: t('scope_all_desc', 'All store inventory') },
             { id: 'single_product', label: t('scope_single', 'Single Product'), desc: t('scope_single_desc', 'Direct link to 1 product') },
@@ -907,10 +915,10 @@ const location = useLocation();
                 key={scope.id}
                 type="button"
                 onClick={() => setPromoForm(prev => ({ ...prev, applicable_scope: scope.id as any }))}
-                className={`p-2.5 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-surface-muted/60 dark:bg-neutral-900/60 ${
+                className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none border-0 ${
                   isSelected
-                    ? 'border-2 border-brand-500 text-gray-900 dark:text-white'
-                    : 'border-2 border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
+                    ? 'bg-neutral-200 dark:bg-[#25262a] text-gray-900 dark:text-white shadow-xs'
+                    : 'bg-white dark:bg-[#1c1d20] text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <span className="font-semibold text-xs">{scope.label}</span>
@@ -934,7 +942,7 @@ const location = useLocation();
                 value={promoForm.product_id}
                 onChange={handlePromoChange}
                 required
-                className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+                className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
               >
                 <option value="">-- {t('select_a_product', 'Select a product')} --</option>
                 {products.map(p => (
@@ -957,7 +965,7 @@ const location = useLocation();
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t('choose_qualifying_products', 'Select Qualifying Products')} ({promoForm.selected_product_ids.length} selected) <span className="text-red-500">*</span>
             </label>
-            <div className="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-surface-muted/40 dark:bg-neutral-900/40 border border-surface-border dark:border-surface-dark-border">
+            <div className="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-white dark:bg-[#1c1d20] border-0">
               {products.map(p => {
                 const isChecked = promoForm.selected_product_ids.includes(p.id);
                 return (
@@ -991,98 +999,110 @@ const location = useLocation();
         )}
       </div>
 
-      {/* Usage Limits */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('min_order_req', 'Minimum Order (TZS)')}
-          </label>
-          <input
-            type="number"
-            name="min_purchase_amount"
-            min="0"
-            step="any"
-            value={promoForm.min_purchase_amount}
-            onChange={handlePromoChange}
-            placeholder="0 for no min"
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('uses_per_customer', 'Uses per Customer')}
-          </label>
-          <input
-            type="number"
-            name="max_uses_per_user"
-            min="1"
-            value={promoForm.max_uses_per_user}
-            onChange={handlePromoChange}
-            placeholder="1 (default 1 use)"
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('total_usage_limit', 'Total Campaign Uses')}
-          </label>
-          <input
-            type="number"
-            name="max_uses"
-            min="1"
-            value={promoForm.max_uses}
-            onChange={handlePromoChange}
-            placeholder="Leave blank for unlimited"
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-      </div>
+      {/* Group 4: Usage Limits & Expiration */}
+      <div className="rounded-2xl p-4 sm:p-5 bg-neutral-50 dark:bg-[#141416] space-y-3.5 border-0">
+        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          {t('usage_and_timing', 'Usage Limits & Timing')}
+        </h4>
 
-      {/* Expiration Date (and Attribution Window ONLY if affiliate) */}
-      <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3" : ""}>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-            <Calendar size={12} /> {t('expiration_date_optional', 'Expiration Date (Optional)')}
-          </label>
-          <input
-            type="date"
-            name="end_date"
-            value={promoForm.end_date}
-            onChange={handlePromoChange}
-            className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
-          />
-        </div>
-        {isAffiliate && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-              <Clock size={12} /> {t('attribution_window_label', 'Attribution Window (Days)')}
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('min_order_req', 'Minimum Order (TZS)')}
             </label>
             <input
               type="number"
-              name="attribution_window_days"
-              min="1"
-              max="90"
-              value={promoForm.attribution_window_days}
+              name="min_purchase_amount"
+              min="0"
+              step="any"
+              value={promoForm.min_purchase_amount}
               onChange={handlePromoChange}
-              placeholder="7"
-              className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
+              placeholder="0 for no min"
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
             />
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {t('attribution_window_help', 'How many days after clicking the referral remains active for customer (default: 7).')}
-            </p>
           </div>
-        )}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('uses_per_customer', 'Uses per Customer')}
+            </label>
+            <input
+              type="number"
+              name="max_uses_per_user"
+              min="1"
+              value={promoForm.max_uses_per_user}
+              onChange={handlePromoChange}
+              placeholder="1 (default 1 use)"
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('total_usage_limit', 'Total Campaign Uses')}
+            </label>
+            <input
+              type="number"
+              name="max_uses"
+              min="1"
+              value={promoForm.max_uses}
+              onChange={handlePromoChange}
+              placeholder="Leave blank for unlimited"
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
+            />
+          </div>
+        </div>
+
+        <div className={isAffiliate ? "grid grid-cols-1 md:grid-cols-2 gap-3 pt-1" : "pt-1"}>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <Calendar size={12} /> {t('expiration_date_optional', 'Expiration Date (Optional)')}
+            </label>
+            <input
+              type="date"
+              name="end_date"
+              value={promoForm.end_date}
+              onChange={handlePromoChange}
+              className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+          {isAffiliate && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                <Clock size={12} /> {t('attribution_window_label', 'Attribution Window (Days)')}
+              </label>
+              <input
+                type="number"
+                name="attribution_window_days"
+                min="1"
+                max="90"
+                value={promoForm.attribution_window_days}
+                onChange={handlePromoChange}
+                placeholder="7"
+                className="w-full py-2.5 px-3 text-xs rounded-xl bg-white dark:bg-[#1e1e22] text-gray-900 dark:text-white border-0 outline-none focus:ring-1 focus:ring-brand-500 placeholder-gray-400 dark:placeholder-gray-600"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                {t('attribution_window_help', 'How many days after clicking the referral remains active for customer (default: 7).')}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
-        <Button type="button" variant="outline" size="sm" onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }}>
+      {/* Form Action Buttons */}
+      <div className="flex justify-end items-center gap-3 pt-1">
+        <Button 
+          type="button" 
+          variant="outline" 
+          size="sm" 
+          onClick={() => { setShowPromoForm(false); setEditingPromoId(null); }}
+          className="border-0 bg-neutral-200 dark:bg-[#1e1e22] text-gray-800 dark:text-gray-200 hover:bg-neutral-300 dark:hover:bg-[#28292c]"
+        >
           {t('cancel', 'Cancel')}
         </Button>
         <Button 
           type="submit" 
           size="sm" 
           disabled={submittingPromo} 
-          className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
+          className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-4"
         >
           {submittingPromo 
             ? t('saving', 'Saving...') 
@@ -1100,34 +1120,9 @@ const location = useLocation();
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('promotions', 'Promotions')}
-            </h1>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {activeTab === 'sponsored' && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (showForm) {
-                    setFormStep(1);
-                    setRenewingCampaign(null);
-                  } else {
-                    setRenewingCampaign(null);
-                    setSelectedProduct(null);
-                    setForm({ product: '', title: '', description: '', duration_days: 7 });
-                  }
-                  setShowForm(!showForm);
-                }}
-                className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
-              >
-                {showForm ? <X size={14} /> : <Plus size={14} />}
-                {showForm ? t('close', 'Close') : t('new_promotion', 'New Promotion')}
-              </Button>
-            )}
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {t('promotions', 'Promotions')}
+        </h1>
         <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
           {t('promotions_subtitle', 'Manage sponsored product placements and store coupons.')}
         </p>
@@ -1387,10 +1382,10 @@ const location = useLocation();
                               key={plan.days}
                               type="button"
                               onClick={() => setForm({ ...form, duration_days: plan.days })}
-                              className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-white dark:bg-[#1A1A1A] shadow-2xs ${
+                              className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none border-0 shadow-2xs ${
                                 isSelected
-                                  ? 'border-2 border-brand-500 dark:border-brand-500 bg-brand-50/50 dark:bg-[#1F1F1F] text-gray-900 dark:text-white ring-1 ring-brand-500/20'
-                                  : 'border border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
+                                  ? 'bg-neutral-200 dark:bg-[#25262a] text-gray-900 dark:text-white shadow-xs'
+                                  : 'bg-white dark:bg-[#1A1A1A] text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                               }`}
                             >
                               <div className="flex items-center justify-between w-full">
@@ -1636,31 +1631,53 @@ const location = useLocation();
               <Skeleton className="h-7 w-28 rounded-full shrink-0" />
             </div>
           ) : (
-            <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
-              {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
-                const count = f === 'all' 
-                  ? promotions.length 
-                  : promotions.filter(p => getCampaignStatus(p) === f).length;
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setCampaignFilter(f)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                      campaignFilter === f
-                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                        : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {f === 'approved' && t('live_active', 'Active')}
-                    {f === 'pending' && t('pending_review', 'Under Review')}
-                    {f === 'expired' && t('completed', 'Completed')}
-                    {f === 'rejected' && t('rejected', 'Rejected')}
-                    {f === 'all' && t('all_campaigns', 'All Placements')}
-                    <span className="opacity-60 text-[11px]">({count})</span>
-                  </button>
-                );
-              })}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
+                  const count = f === 'all' 
+                    ? promotions.length 
+                    : promotions.filter(p => getCampaignStatus(p) === f).length;
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setCampaignFilter(f)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                        campaignFilter === f
+                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold'
+                          : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {f === 'approved' && t('live_active', 'Active')}
+                      {f === 'pending' && t('pending_review', 'Under Review')}
+                      {f === 'expired' && t('completed', 'Completed')}
+                      {f === 'rejected' && t('rejected', 'Rejected')}
+                      {f === 'all' && t('all_campaigns', 'All Placements')}
+                      <span className="opacity-60 text-[11px]">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  if (showForm) {
+                    setRenewingCampaign(null);
+                    setFormStep(1);
+                  } else {
+                    setRenewingCampaign(null);
+                    setSelectedProduct(null);
+                    setForm({ product: '', title: '', description: '', duration_days: 7 });
+                  }
+                  setShowForm(!showForm);
+                }}
+                className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                {showForm ? <X size={13} /> : <Plus size={13} />}
+                <span>{showForm ? t('close', 'Close') : t('promote_product', 'Promote a Product')}</span>
+              </Button>
             </div>
           )}
 
@@ -1672,10 +1689,6 @@ const location = useLocation();
               icon={Megaphone}
               title={campaignFilter === 'all' ? t('no_promotions_title', "No Sponsored Placements") : `${t('no_campaigns_status', 'No')} ${campaignFilter} ${t('placements', 'placements')}`}
               description={t('no_promotions_desc', 'Promote your inventory to appear at the top of category feeds and search results across Tanzania.')}
-              action={{
-                label: t('create_first_boost', 'Promote a Product'),
-                onClick: () => setShowForm(true)
-              }}
             />
           ) : (
             <div className="space-y-2.5">
@@ -1907,9 +1920,8 @@ const location = useLocation();
 
               <Button
                 size="sm"
-                variant="outline"
                 onClick={() => handleOpenCreatePromo('coupon')}
-                className="text-xs flex items-center gap-1.5"
+                className="font-semibold bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <Plus size={13} />
                 {t('new_coupon', 'New Promo Code')}
@@ -1924,10 +1936,6 @@ const location = useLocation();
               icon={Ticket}
               title={t('no_coupons_title', 'No Store Promo Codes Created')}
               description={t('no_coupons_desc', 'Create custom discount codes to reward returning buyers or boost seasonal campaign sales.')}
-              action={{
-                label: t('create_first_coupon', 'Create First Promo Code'),
-                onClick: () => handleOpenCreatePromo('coupon')
-              }}
             />
           ) : filteredCoupons.length === 0 ? (
             <div className="card p-6 text-center border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-xs text-gray-500 dark:text-gray-400">
