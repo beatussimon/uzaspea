@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, Avg, F
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -1018,7 +1018,6 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=['get'])
     def overdue(self, request):
         from billing.models import MonthlyInvoice
-        from django.db.models import Q, Count
         today = timezone.now().date()
         q = request.query_params.get('q', '').strip().lower()
 
@@ -1456,7 +1455,6 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_param.lower())
         search = self.request.query_params.get('search')
         if search:
-            from django.db.models import Q, Count
             queryset = queryset.filter(
                 Q(business_name__icontains=search) |
                 Q(user__username__icontains=search) |
@@ -1549,7 +1547,6 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
         if len(q) < 2:
             return Response([])
 
-        from django.db.models import Q, Count
         users_qs = User.objects.filter(is_active=True).select_related('profile').filter(
             Q(username__icontains=q) |
             Q(email__icontains=q) |
