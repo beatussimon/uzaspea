@@ -3,7 +3,11 @@ import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, History, Receipt, Banknote, Tag, MapPin, Check, Loader2 } from 'lucide-react';
+import { 
+  Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, 
+  History, Receipt, Banknote, Tag, MapPin, Check, Loader2, FileText, Clock, 
+  AlertCircle, CheckCircle2, Phone, CreditCard, Building2, Smartphone 
+} from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -211,6 +215,340 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
       )}
 
       <div ref={sentinelRef} className="h-4" />
+    </div>
+  );
+};
+
+interface POSInvoiceHistoryProps {
+  onPrintInvoice: (invoice: any) => void;
+  onPrintReceipt: (order: any) => void;
+  onMarkPaid: (invoice: any) => void;
+  onCancelInvoice: (invoice: any) => void;
+  dateRange: DateRange;
+  refreshTrigger: number;
+  onUnpaidCountChange?: (count: number) => void;
+}
+
+const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
+  onPrintInvoice,
+  onPrintReceipt,
+  onMarkPaid,
+  onCancelInvoice,
+  dateRange,
+  refreshTrigger,
+  onUnpaidCountChange
+}) => {
+  const { t } = useTranslation();
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const fetchInvoices = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    let url = `/api/orders/incoming/?is_pos_invoice=true&page=${p}`;
+    if (statusFilter === 'unpaid') url += '&status=INVOICE_GENERATED';
+    else if (statusFilter === 'paid') url += '&status=COMPLETED';
+    else if (statusFilter === 'cancelled') url += '&status=CANCELLED';
+
+    if (searchQuery.trim()) url += `&q=${encodeURIComponent(searchQuery.trim())}`;
+    if (dateRange.startDate) url += `&start_date=${dateRange.startDate}`;
+    if (dateRange.endDate) url += `&end_date=${dateRange.endDate}`;
+
+    api.get(url)
+      .then(res => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) {
+          setInvoices(incoming);
+        } else {
+          setInvoices(prev => {
+            const ids = new Set(prev.map(o => o.id));
+            return [...prev, ...incoming.filter(o => !ids.has(o.id))];
+          });
+        }
+        setHasMore(Boolean(res.data?.next));
+
+        if (onUnpaidCountChange && statusFilter === 'all') {
+          const unpaid = incoming.filter((inv: any) => inv.status === 'INVOICE_GENERATED').length;
+          onUnpaidCountChange(unpaid);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (reset) {
+          toast.error(t('failed_to_load_pos_invoices', 'Failed to load POS invoices'));
+        }
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [statusFilter, searchQuery, dateRange.startDate, dateRange.endDate, onUnpaidCountChange, t]);
+
+  useEffect(() => {
+    fetchInvoices(1, true);
+  }, [fetchInvoices, refreshTrigger]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchInvoices(nextPage, false);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchInvoices]);
+
+  return (
+    <div className="space-y-3">
+      {/* Filters and Search Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { key: 'all', label: t('all_invoices', 'All Invoices') },
+            { key: 'unpaid', label: t('unpaid_pending', 'Unpaid (Pending)') },
+            { key: 'paid', label: t('paid_settled', 'Paid (Settled)') },
+            { key: 'cancelled', label: t('cancelled', 'Cancelled') }
+          ].map(f => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setStatusFilter(f.key as any)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+                statusFilter === f.key
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-bold shadow-xs'
+                  : 'bg-surface-muted dark:bg-[#161616] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative min-w-[200px] sm:w-64">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder={t('search_invoices_placeholder', 'Search customer, phone, or invoice #...')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/50 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none focus:border-brand-500 transition"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <TableSkeleton rows={5} cols={8} withHeader={false} />
+      ) : (
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
+                <tr>
+                  <th className="p-3">{t('date', 'Date')}</th>
+                  <th className="p-3">{t('invoice_number', 'Invoice #')}</th>
+                  <th className="p-3">{t('customer', 'Customer')}</th>
+                  <th className="p-3">{t('items', 'Items')}</th>
+                  <th className="p-3 text-right">{t('total_due', 'Total Due')}</th>
+                  <th className="p-3">{t('validity_due', 'Validity / Due')}</th>
+                  <th className="p-3 text-center">{t('status', 'Status')}</th>
+                  <th className="p-3 text-right">{t('actions', 'Actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-gray-400 text-xs">
+                      {t('no_invoices_found', 'No in-store invoices found for the selected criteria.')}
+                    </td>
+                  </tr>
+                ) : (
+                  invoices.map(inv => {
+                    const totalAmt = parseFloat(inv.total_amount || 0);
+                    const isUnpaid = inv.status === 'INVOICE_GENERATED';
+                    const isPaid = inv.status === 'COMPLETED';
+                    const isCancelled = inv.status === 'CANCELLED';
+                    const di = inv.delivery_info || {};
+                    const dueDateStr = di.due_date;
+                    const dueDate = dueDateStr ? new Date(dueDateStr) : null;
+                    const isExpired = isUnpaid && dueDate && dueDate.getTime() < Date.now();
+                    const itemsList = inv.relevant_items || inv.items || inv.orderitem_set || [];
+                    const itemsCount = itemsList.length;
+
+                    return (
+                      <tr key={inv.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
+                          {new Date(inv.order_date).toLocaleDateString()} {new Date(inv.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="p-3 text-gray-900 dark:text-white font-bold">
+                          INV-#{inv.id}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {di.customer_name || t('walk_in_customer', 'Walk-in Customer')}
+                          </div>
+                          {di.customer_phone && (
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                              <Phone size={10} className="opacity-70" />
+                              <span>{di.customer_phone}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-600 dark:text-gray-300">
+                          <span className="font-medium">{itemsCount} {itemsCount === 1 ? t('item', 'item') : t('items', 'items')}</span>
+                        </td>
+                        <td className="p-3 text-right font-extrabold text-gray-900 dark:text-white">
+                          <div>TSh {totalAmt.toLocaleString()}</div>
+                          {parseFloat(inv.discount_amount || di.discount_amount || 0) > 0 && (
+                            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              -TSh {parseFloat(inv.discount_amount || di.discount_amount).toLocaleString()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              <CheckCircle2 size={11} />
+                              <span>{t('settled', 'Settled')}</span>
+                            </span>
+                          ) : isCancelled ? (
+                            <span className="text-[11px] text-neutral-400 font-medium">
+                              {di.cancellation_reason || t('cancelled', 'Cancelled')}
+                            </span>
+                          ) : isExpired ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold bg-red-500/10 text-red-600 dark:text-red-400">
+                              <AlertCircle size={10} />
+                              <span>{t('expired', 'Expired')} ({dueDate?.toLocaleDateString()})</span>
+                            </span>
+                          ) : dueDate ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                              <Clock size={11} />
+                              <span>{t('due', 'Due')}: {dueDate.toLocaleDateString()}</span>
+                              {di.validity_period && <span className="opacity-75">({di.validity_period})</span>}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {isUnpaid && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <Clock size={10} />
+                              <span>{t('unpaid', 'Unpaid')}</span>
+                            </span>
+                          )}
+                          {isPaid && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <Check size={10} />
+                              <span>{t('paid', 'Paid')}</span>
+                            </span>
+                          )}
+                          {isCancelled && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                              <span>{t('cancelled', 'Cancelled')}</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            {isUnpaid && (
+                              <button
+                                type="button"
+                                onClick={() => onMarkPaid(inv)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-2xs font-bold bg-brand-500 hover:bg-brand-600 text-black transition cursor-pointer shadow-2xs"
+                                title={t('mark_as_paid_title', 'Record payment and convert to completed sale')}
+                              >
+                                <Banknote size={11} />
+                                <span>{t('mark_paid', 'Mark as Paid')}</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onPrintInvoice(inv)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                              title={t('view_print_invoice', 'View and print invoice')}
+                            >
+                              <Printer size={11} />
+                              <span>{t('invoice', 'Invoice')}</span>
+                            </button>
+                            {isPaid && (
+                              <button
+                                type="button"
+                                onClick={() => onPrintReceipt(inv)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                                title={t('view_receipt', 'View Receipt')}
+                              >
+                                <Receipt size={11} />
+                                <span>{t('receipt', 'Receipt')}</span>
+                              </button>
+                            )}
+                            {isUnpaid && (
+                              <button
+                                type="button"
+                                onClick={() => onCancelInvoice(inv)}
+                                className="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer rounded-lg hover:bg-red-500/10"
+                                title={t('cancel_invoice', 'Cancel Invoice')}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {loadingMore && (
+            <div className="flex justify-center items-center py-4 gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <Loader2 size={16} className="animate-spin text-brand-500" />
+              <span>{t('loading_more_invoices', 'Loading more invoices...')}</span>
+            </div>
+          )}
+
+          {!hasMore && invoices.length > 15 && (
+            <p className="text-center py-4 text-2xs text-gray-400 font-medium">
+              {t('end_of_invoice_history', 'End of invoice history')}
+            </p>
+          )}
+
+          <div ref={sentinelRef} className="h-4" />
+        </div>
+      )}
     </div>
   );
 };
@@ -523,8 +861,13 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
 const DashboardPOS: React.FC = () => {
   const { user, activeLocation, setActiveLocation, assignedLocations } = useAuth();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
+  const [activeTab, setActiveTab] = useState<'sale' | 'history' | 'invoices'>('sale');
   const [historyDateRange, setHistoryDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+    label: t('all_time', 'All Time'),
+  });
+  const [invoiceDateRange, setInvoiceDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
     label: t('all_time', 'All Time'),
@@ -539,6 +882,22 @@ const DashboardPOS: React.FC = () => {
   const [customerName, setCustomerName] = useState(t('walk_in_customer', 'Walk-in Customer'));
   const [amountPaid, setAmountPaid] = useState('');
 
+  // POS Invoice Generation & Settlement State
+  const [checkoutMode, setCheckoutMode] = useState<'sale' | 'invoice'>('sale');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerTin, setCustomerTin] = useState('');
+  const [validityPeriod, setValidityPeriod] = useState<string>('7d');
+  const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [invoiceModalData, setInvoiceModalData] = useState<any>(null);
+  const [markPaidModalData, setMarkPaidModalData] = useState<any>(null);
+  const [markPaidMethod, setMarkPaidMethod] = useState<'CASH' | 'LIPA_MPESA' | 'AIRTEL_MONEY' | 'TIGO_PESA' | 'BANK_TRANSFER' | 'CARD'>('CASH');
+  const [markPaidAmountTendered, setMarkPaidAmountTendered] = useState('');
+  const [markPaidReference, setMarkPaidReference] = useState('');
+  const [markPaidNotes, setMarkPaidNotes] = useState('');
+  const [markPaidSubmitting, setMarkPaidSubmitting] = useState(false);
+  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
+  const [unpaidInvoicesCount, setUnpaidInvoicesCount] = useState(0);
+
   // Discount & Promo Code System State
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -552,7 +911,18 @@ const DashboardPOS: React.FC = () => {
   const [activeVariantCardId, setActiveVariantCardId] = useState<number | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const invoicePrintRef = useRef<HTMLDivElement>(null);
   const receiptScrollRef = useRef<HTMLDivElement>(null);
+
+  // Fetch initial unpaid invoice count for badge
+  useEffect(() => {
+    api.get('/api/orders/incoming/?is_pos_invoice=true&status=INVOICE_GENERATED&page=1')
+      .then(res => {
+        const count = res.data?.count ?? (Array.isArray(res.data?.results) ? res.data.results.length : (Array.isArray(res.data) ? res.data.length : 0));
+        setUnpaidInvoicesCount(count);
+      })
+      .catch(() => {});
+  }, [invoiceRefreshKey]);
 
   // Auto-set default active location if not already selected
   useEffect(() => {
@@ -909,6 +1279,156 @@ const DashboardPOS: React.FC = () => {
     }, 500);
   };
 
+  const handleCreateInvoice = async () => {
+    if (cart.length === 0) {
+      toast.error(t('pos_cart_empty', 'Cart is empty!'));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_tin: customerTin,
+        notes: invoiceNotes,
+        validity_period: validityPeriod,
+        promo_code: appliedPromo ? appliedPromo.code : null,
+        discount_amount: discountAmount,
+        location_id: activeLocation?.id || null,
+        items: cart.map(item => ({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+
+      const res = await api.post('/api/orders/pos-create-invoice/', payload);
+      toast.success(t('pos_invoice_generated', 'Invoice #{{id}} generated successfully!', { id: res.data.id }));
+      setInvoiceModalData(res.data);
+      setCart([]);
+      setAppliedPromo(null);
+      setPromoCode('');
+      setCustomDiscount(0);
+      setCustomerName(t('walk_in_customer', 'Walk-in Customer'));
+      setCustomerPhone('');
+      setCustomerTin('');
+      setInvoiceNotes('');
+      setAmountPaid('');
+      setIsMobileCartOpen(false);
+      setInvoiceRefreshKey(k => k + 1);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.response?.data?.detail || t('pos_invoice_failed', 'Failed to generate invoice'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenMarkPaid = (invoice: any) => {
+    setMarkPaidModalData(invoice);
+    setMarkPaidMethod('CASH');
+    setMarkPaidAmountTendered(String(invoice.total_amount || ''));
+    setMarkPaidReference('');
+    setMarkPaidNotes('');
+  };
+
+  const handleConfirmMarkPaid = async () => {
+    if (!markPaidModalData) return;
+    setMarkPaidSubmitting(true);
+    try {
+      const res = await api.post(`/api/orders/${markPaidModalData.id}/pos-mark-paid/`, {
+        payment_method: markPaidMethod,
+        amount_paid: markPaidMethod === 'CASH' && markPaidAmountTendered ? parseFloat(markPaidAmountTendered) : markPaidModalData.total_amount,
+        reference_number: markPaidReference,
+        notes: markPaidNotes,
+        location_id: activeLocation?.id || null,
+      });
+
+      toast.success(t('invoice_paid_recorded_sale', 'Invoice marked as paid! Sale recorded in Sales History.'));
+      setMarkPaidModalData(null);
+      setInvoiceRefreshKey(k => k + 1);
+      fetchProducts(); // Refresh stock
+      setReceiptData(res.data); // Show receipt immediately
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || t('failed_to_mark_paid', 'Failed to mark invoice as paid'));
+    } finally {
+      setMarkPaidSubmitting(false);
+    }
+  };
+
+  const handleCancelInvoice = async (invoice: any) => {
+    if (!window.confirm(t('confirm_cancel_invoice', 'Are you sure you want to cancel Invoice #{{id}}?', { id: invoice.id }))) {
+      return;
+    }
+    try {
+      await api.post(`/api/orders/${invoice.id}/pos-cancel-invoice/`, { reason: 'Cancelled by cashier' });
+      toast.success(t('invoice_cancelled', 'Invoice cancelled'));
+      setInvoiceRefreshKey(k => k + 1);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || t('failed_to_cancel_invoice', 'Failed to cancel invoice'));
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    const printContent = invoicePrintRef.current;
+    if (!printContent) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const contentWindow = iframe.contentWindow;
+    if (!contentWindow) return;
+
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(node => node.outerHTML)
+      .join('');
+
+    contentWindow.document.open();
+    contentWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Invoice</title>
+          ${styles}
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { 
+              margin: 0; 
+              padding: 0; 
+              background: white; 
+              -webkit-print-color-adjust: exact; 
+              print-color-adjust: exact;
+            }
+            #invoice-content {
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 10px !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.outerHTML}
+        </body>
+      </html>
+    `);
+    contentWindow.document.close();
+
+    setTimeout(() => {
+      contentWindow.focus();
+      contentWindow.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
+  };
+
   return (
     <div className="space-y-6 pb-24 lg:pb-0 relative">
       {/* Header & Tab Switcher */}
@@ -999,10 +1519,10 @@ const DashboardPOS: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'history' && (
+            {(activeTab === 'history' || activeTab === 'invoices') && (
               <DateRangePicker 
-                value={historyDateRange} 
-                onChange={setHistoryDateRange} 
+                value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
+                onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
                 buttonClassName="rounded-full !py-1 sm:!py-1.5 text-xs font-semibold"
               />
             )}
@@ -1031,6 +1551,23 @@ const DashboardPOS: React.FC = () => {
               >
                 <History size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
                 <span>{t('sales_history', 'Sales History')}</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('invoices')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'invoices'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <FileText size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
+                <span>{t('invoice_history', 'Invoice History')}</span>
+                {unpaidInvoicesCount > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-bold tabular-nums">
+                    {unpaidInvoicesCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -1195,7 +1732,18 @@ const DashboardPOS: React.FC = () => {
               setQuantity={setQuantity}
               removeFromCart={removeFromCart} 
               handleCheckout={handleCheckout} 
-              submitting={submitting} 
+              submitting={submitting}
+              checkoutMode={checkoutMode}
+              setCheckoutMode={setCheckoutMode}
+              handleCreateInvoice={handleCreateInvoice}
+              customerPhone={customerPhone}
+              setCustomerPhone={setCustomerPhone}
+              customerTin={customerTin}
+              setCustomerTin={setCustomerTin}
+              validityPeriod={validityPeriod}
+              setValidityPeriod={setValidityPeriod}
+              invoiceNotes={invoiceNotes}
+              setInvoiceNotes={setInvoiceNotes}
             />
           </div>
 
@@ -1278,7 +1826,18 @@ const DashboardPOS: React.FC = () => {
                       setQuantity={setQuantity}
                       removeFromCart={removeFromCart} 
                       handleCheckout={handleCheckout} 
-                      submitting={submitting} 
+                      submitting={submitting}
+                      checkoutMode={checkoutMode}
+                      setCheckoutMode={setCheckoutMode}
+                      handleCreateInvoice={handleCreateInvoice}
+                      customerPhone={customerPhone}
+                      setCustomerPhone={setCustomerPhone}
+                      customerTin={customerTin}
+                      setCustomerTin={setCustomerTin}
+                      validityPeriod={validityPeriod}
+                      setValidityPeriod={setValidityPeriod}
+                      invoiceNotes={invoiceNotes}
+                      setInvoiceNotes={setInvoiceNotes}
                     />
                   </div>
                 </div>
@@ -1286,8 +1845,18 @@ const DashboardPOS: React.FC = () => {
             )}
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'history' ? (
         <POSHistory onPrint={(order) => setReceiptData(order)} dateRange={historyDateRange} />
+      ) : (
+        <POSInvoiceHistory
+          onPrintInvoice={(inv) => setInvoiceModalData(inv)}
+          onPrintReceipt={(order) => setReceiptData(order)}
+          onMarkPaid={handleOpenMarkPaid}
+          onCancelInvoice={handleCancelInvoice}
+          dateRange={invoiceDateRange}
+          refreshTrigger={invoiceRefreshKey}
+          onUnpaidCountChange={setUnpaidInvoicesCount}
+        />
       )}
 
       {/* 58mm/80mm Thermal Receipt Modal */}
@@ -1478,6 +2047,388 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Mark as Paid Settlement Modal */}
+      {markPaidModalData && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in"
+          onClick={() => !markPaidSubmitting && setMarkPaidModalData(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#141416] border border-surface-border dark:border-neutral-800 w-full max-w-md rounded-2xl shadow-2xl p-5 space-y-4 animate-scale-in"
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Banknote size={16} className="text-brand-500" />
+                  <span>{t('mark_invoice_as_paid', 'Settle Invoice & Record Sale')}</span>
+                </h3>
+                <p className="text-2xs text-gray-400 mt-0.5">
+                  INV-#{markPaidModalData.id} • {markPaidModalData.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={markPaidSubmitting}
+                onClick={() => setMarkPaidModalData(null)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Amount Due Display */}
+            <div className="p-3.5 rounded-xl bg-surface-muted/60 dark:bg-[#1a1a1e] flex items-center justify-between">
+              <div>
+                <span className="text-3xs uppercase tracking-wider font-bold text-gray-400 block">{t('total_payable', 'Total Payable')}</span>
+                <span className="text-lg font-black text-gray-900 dark:text-white tabular-nums">
+                  TSh {parseFloat(markPaidModalData.total_amount || 0).toLocaleString()}
+                </span>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-2xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {t('unpaid', 'Unpaid')}
+              </span>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {t('payment_method', 'Payment Method')}
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { key: 'CASH', label: 'Cash', icon: Banknote },
+                  { key: 'LIPA_MPESA', label: 'M-Pesa', icon: Smartphone },
+                  { key: 'AIRTEL_MONEY', label: 'Airtel Money', icon: Smartphone },
+                  { key: 'TIGO_PESA', label: 'Tigo Pesa', icon: Smartphone },
+                  { key: 'BANK_TRANSFER', label: 'Bank Transfer', icon: Building2 },
+                  { key: 'CARD', label: 'Card / POS', icon: CreditCard }
+                ].map(m => {
+                  const Icon = m.icon;
+                  const isSelected = markPaidMethod === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setMarkPaidMethod(m.key as any)}
+                      className={`p-2 rounded-xl text-2xs font-semibold border flex flex-col items-center justify-center gap-1 transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400 font-bold'
+                          : 'bg-surface-muted/40 dark:bg-[#18181a] border-surface-border/40 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-neutral-700'
+                      }`}
+                    >
+                      <Icon size={14} />
+                      <span className="truncate max-w-full">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Cash Tendered & Change (If Cash) */}
+            {markPaidMethod === 'CASH' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="text-2xs font-semibold text-gray-500 dark:text-gray-400">
+                    {t('cash_tendered', 'Cash Tendered')}
+                  </label>
+                  {(() => {
+                    const tendered = parseFloat(markPaidAmountTendered || '0');
+                    const total = parseFloat(markPaidModalData.total_amount || 0);
+                    const change = Math.max(0, tendered - total);
+                    return tendered > 0 ? (
+                      <span className={`text-2xs font-bold tabular-nums ${tendered >= total ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {tendered >= total ? t('change_amount', 'Change: TSh {{amount}}', { amount: change.toLocaleString() }) : t('remaining_amount', 'Remaining: TSh {{amount}}', { amount: (total - tendered).toLocaleString() })}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+
+                <div className="flex items-center rounded-xl bg-surface-muted/50 dark:bg-[#18181a] border border-surface-border/50 dark:border-neutral-800 px-3 py-2">
+                  <span className="text-xs font-semibold text-gray-400 mr-2">TSh</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={markPaidAmountTendered ? (parseFloat(markPaidAmountTendered) ? parseFloat(markPaidAmountTendered).toLocaleString('en-US') : markPaidAmountTendered) : ''}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+                      setMarkPaidAmountTendered(clean);
+                    }}
+                    className="w-full bg-transparent text-sm font-semibold text-gray-900 dark:text-white outline-none tabular-nums"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMarkPaidAmountTendered(String(markPaidModalData.total_amount))}
+                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                  >
+                    {t('exact', 'Exact')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tot = parseFloat(markPaidModalData.total_amount || 0);
+                      setMarkPaidAmountTendered(String(Math.ceil(tot / 10000) * 10000));
+                    }}
+                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                  >
+                    +Round 10k
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tot = parseFloat(markPaidModalData.total_amount || 0);
+                      setMarkPaidAmountTendered(String(Math.ceil((tot + 1) / 50000) * 50000));
+                    }}
+                    className="flex-1 py-1 text-3xs font-semibold rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                  >
+                    +Round 50k
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-2xs font-semibold text-gray-500 dark:text-gray-400">
+                  {t('reference_number', 'Transaction / Reference # (Optional)')}
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. QK8927X29 or Bank Slip Reference"
+                  value={markPaidReference}
+                  onChange={(e) => setMarkPaidReference(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-surface-muted/50 dark:bg-[#18181a] border border-surface-border/50 dark:border-neutral-800 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:border-brand-500 transition"
+                />
+              </div>
+            )}
+
+            {/* Note / Info */}
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-3xs text-amber-700 dark:text-amber-300 leading-relaxed">
+              {t('inventory_settle_notice', 'Confirming payment will atomically check and deduct inventory from the terminal store and permanently record this in Sales History.')}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={markPaidSubmitting}
+                onClick={() => setMarkPaidModalData(null)}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs text-gray-600 dark:text-gray-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              >
+                {t('cancel', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={markPaidSubmitting}
+                onClick={handleConfirmMarkPaid}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-brand-500 hover:bg-brand-600 text-black flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                {markPaidSubmitting ? (
+                  <Loader2 size={14} className="animate-spin text-black" />
+                ) : (
+                  <Check size={14} className="stroke-[2.5]" />
+                )}
+                <span>{markPaidSubmitting ? t('processing', 'Processing...') : t('confirm_and_record_sale', 'Confirm & Record Sale')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Invoice Modal (80mm Proforma / Tax Invoice) */}
+      {invoiceModalData && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in"
+          onClick={() => setInvoiceModalData(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white dark:bg-[#161616] w-full max-w-sm rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border-0"
+          >
+            <div className="flex items-center justify-between p-3.5 border-b border-gray-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-amber-500" />
+                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                  {t('proforma_invoice', 'Proforma / POS Invoice')}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {invoiceModalData.status === 'INVOICE_GENERATED' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const inv = invoiceModalData;
+                      setInvoiceModalData(null);
+                      handleOpenMarkPaid(inv);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-2xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition cursor-pointer"
+                  >
+                    <Banknote size={12} />
+                    <span>{t('mark_paid', 'Mark Paid')}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePrintInvoice}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-2xs font-bold bg-brand-500 hover:bg-brand-600 text-black rounded-lg transition cursor-pointer"
+                >
+                  <Printer size={12} />
+                  <span>{t('print', 'Print')}</span>
+                </button>
+                <button
+                  onClick={() => setInvoiceModalData(null)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white transition cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 flex justify-center scrollbar-thin">
+              <div
+                id="invoice-content"
+                ref={invoicePrintRef}
+                className="bg-white text-black p-5 w-[80mm] min-w-[80mm] max-w-[80mm] shadow-md rounded-xl relative my-1 text-left"
+                style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', lineHeight: '1.4' }}
+              >
+                {/* Store Header */}
+                <div className="text-center mb-3">
+                  <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-1.5" style={{ maxWidth: '96px', maxHeight: '42px' }} />
+                  <p className="font-bold text-xs text-gray-900 uppercase">
+                    {invoiceModalData?.delivery_info?.location_name || activeLocation?.name || user?.business_name || 'Uzaspea Store'}
+                  </p>
+                  {(invoiceModalData?.delivery_info?.location_address || activeLocation?.address) && (
+                    <p className="text-[10px] text-gray-600 mt-0.5">
+                      {invoiceModalData?.delivery_info?.location_address || activeLocation?.address}
+                    </p>
+                  )}
+                  {(invoiceModalData?.delivery_info?.location_phone || activeLocation?.phone) && (
+                    <p className="text-[10px] text-gray-600">
+                      Tel: {invoiceModalData?.delivery_info?.location_phone || activeLocation?.phone}
+                    </p>
+                  )}
+                </div>
+
+                {/* Document Title & Status Banner */}
+                <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">
+                  <p className="font-extrabold tracking-wide uppercase">
+                    {invoiceModalData.status === 'COMPLETED' ? t('tax_invoice', 'TAX INVOICE') : t('proforma_invoice', 'PROFORMA INVOICE')}
+                  </p>
+                  <p className="font-bold">INV-#{invoiceModalData.id}</p>
+                  <p className="text-[11px] text-gray-600 mt-0.5">
+                    {new Date(invoiceModalData.order_date || invoiceModalData.created_at || Date.now()).toLocaleString()}
+                  </p>
+                  <div className="mt-1">
+                    {invoiceModalData.status === 'COMPLETED' ? (
+                      <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded text-[10px]">
+                        [ PAID - SALE COMPLETED ]
+                      </span>
+                    ) : invoiceModalData.status === 'CANCELLED' ? (
+                      <span className="font-bold text-neutral-600 bg-neutral-200 px-2 py-0.5 rounded text-[10px]">
+                        [ CANCELLED ]
+                      </span>
+                    ) : (
+                      <span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[10px]">
+                        [ UNPAID - PAYMENT DUE ]
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bill To & Terms */}
+                <div className="text-xs mb-3 space-y-0.5">
+                  <p><strong>{t('customer', 'Customer:')}</strong> {invoiceModalData?.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}</p>
+                  {invoiceModalData?.delivery_info?.customer_phone && (
+                    <p><strong>{t('phone', 'Phone:')}</strong> {invoiceModalData.delivery_info.customer_phone}</p>
+                  )}
+                  {invoiceModalData?.delivery_info?.customer_tin && (
+                    <p><strong>TIN / VRN:</strong> {invoiceModalData.delivery_info.customer_tin}</p>
+                  )}
+                  {invoiceModalData?.delivery_info?.due_date && (
+                    <p><strong>{t('valid_until', 'Valid Until:')}</strong> {new Date(invoiceModalData.delivery_info.due_date).toLocaleDateString()} {invoiceModalData.delivery_info?.validity_period ? `(${invoiceModalData.delivery_info.validity_period})` : ''}</p>
+                  )}
+                  <p><strong>{t('issued_by', 'Issued By:')}</strong> {(user as any)?.first_name && (user as any)?.last_name ? `${(user as any).first_name} ${(user as any).last_name}` : user?.username || 'Store'}</p>
+                </div>
+
+                {/* Items List */}
+                <div className="border-t border-b border-dashed border-gray-400 py-2 mb-3">
+                  <div className="flex font-bold text-xs mb-1">
+                    <span className="flex-1">{t('item', 'Item')}</span>
+                    <span className="text-right">{t('amount', 'Amt')}</span>
+                  </div>
+
+                  {(invoiceModalData.relevant_items || invoiceModalData.items || invoiceModalData.orderitem_set || []).map((item: any, i: number) => {
+                    const price = parseFloat(item.price) || 0;
+                    const qty = parseInt(item.quantity) || 1;
+                    const total = price * qty;
+                    const name = item.product?.name || item.product_name || `Product #${item.product_id || item.product || i + 1}`;
+                    const variantName = item.variant?.name || item.variant_name;
+
+                    return (
+                      <div key={i} className="text-[11px] mb-2 last:mb-0">
+                        <div className="font-bold whitespace-normal leading-tight">{name}</div>
+                        {variantName && <div className="text-[10px] text-gray-600">[{variantName}]</div>}
+                        <div className="flex justify-between mt-0.5">
+                          <span className="text-gray-600">{qty} x {price.toLocaleString()}/=</span>
+                          <span className="font-bold">{total.toLocaleString()}/=</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Subtotal & Discount */}
+                {(() => {
+                  const discountVal = parseFloat(invoiceModalData?.discount_amount || invoiceModalData?.delivery_info?.discount_amount || 0);
+                  const rawTot = parseFloat(invoiceModalData?.total_amount || 0);
+                  const subtotalVal = rawTot + discountVal;
+                  return (
+                    <div className="space-y-1 mb-2 text-xs">
+                      {discountVal > 0 && (
+                        <>
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t('subtotal', 'SUBTOTAL')}</span>
+                            <span>{Math.round(subtotalVal).toLocaleString()}/=</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t('discount', 'DISCOUNT')}</span>
+                            <span>-{Math.round(discountVal).toLocaleString()}/=</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between font-extrabold text-sm border-t border-dashed border-gray-400 pt-1">
+                        <span>{t('total_due', 'TOTAL DUE')}</span>
+                        <span>TSh {Math.round(rawTot).toLocaleString()}/=</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Payment Instructions & QR */}
+                <div className="border-t border-dashed border-gray-400 pt-2 mt-2 text-[11px] space-y-1 text-center">
+                  <p className="font-bold uppercase tracking-wide">{t('payment_instructions', 'Payment Instructions')}</p>
+                  <p className="text-[10px] text-gray-700">
+                    Please quote <strong>INV-#{invoiceModalData.id}</strong> as payment reference.
+                  </p>
+                  {invoiceModalData?.delivery_info?.notes && (
+                    <p className="text-[10px] italic text-gray-600 mt-1">
+                      "{invoiceModalData.delivery_info.notes}"
+                    </p>
+                  )}
+                  <div className="flex justify-center pt-2">
+                    {user?.username && (
+                      <QRCodeSVG value={`${window.location.origin}/${user.username}`} size={56} level="L" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1504,12 +2455,24 @@ const CartContent = ({
   setQuantity,
   removeFromCart, 
   handleCheckout, 
-  submitting 
+  submitting,
+  checkoutMode = 'sale',
+  setCheckoutMode,
+  handleCreateInvoice,
+  customerPhone = '',
+  setCustomerPhone,
+  customerTin = '',
+  setCustomerTin,
+  validityPeriod = '7d',
+  setValidityPeriod,
+  invoiceNotes = '',
+  setInvoiceNotes
 }: any) => {
   const { t } = useTranslation();
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
   const [showCustomDiscount, setShowCustomDiscount] = useState(false);
   const [customInput, setCustomInput] = useState('');
+  const [cartDropdownOpen, setCartDropdownOpen] = useState(false);
 
   const tenderVal = parseFloat(amountPaid || '0');
   const effectiveTotal = typeof finalTotal === 'number' ? finalTotal : Math.max(0, cartTotal - (discountAmount || 0));
@@ -1535,7 +2498,7 @@ const CartContent = ({
   return (
     <div className="flex flex-col flex-1 h-full bg-white dark:bg-[#141414]">
       {/* 1. Customer & Status Header */}
-      <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0">
+      <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0 border-b border-gray-100/60 dark:border-neutral-800/60">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <input
             type="text"
@@ -1737,7 +2700,7 @@ const CartContent = ({
         )}
       </div>
 
-      {/* 4. Checkout Footer with Refined Typography & Comma-Separated Tender Input */}
+      {/* 4. Checkout Footer with Refined Typography & Split-Button Action */}
       <div className="p-4 shrink-0 space-y-3.5 bg-white dark:bg-[#141414] mt-auto">
         {/* Total Breakdown */}
         <div className="space-y-1.5">
@@ -1784,86 +2747,245 @@ const CartContent = ({
           </div>
         </div>
 
-        {/* Cash Tendered Input & Shortcuts */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-              <Banknote size={13} className="text-gray-400" />
-              <span>{t('cash_tendered', 'Cash tendered')}</span>
-            </label>
-            {tenderVal > 0 && (
-              <span className={`text-xs font-medium tabular-nums ${tenderVal >= effectiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
-                {tenderVal >= effectiveTotal 
-                  ? t('change_amount', 'Change: TSh {{amount}}', { amount: changeDue.toLocaleString() })
-                  : t('remaining_amount', 'Remaining: TSh {{amount}}', { amount: (effectiveTotal - tenderVal).toLocaleString() })
-                }
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center rounded-xl bg-surface-muted/50 dark:bg-[#161616] border border-surface-border/50 dark:border-neutral-800 focus-within:border-brand-500 px-3 py-2 transition">
-            <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 shrink-0 select-none mr-2">TSh</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder={effectiveTotal > 0 ? effectiveTotal.toLocaleString() : '0'}
-              value={amountPaid ? (parseFloat(amountPaid) ? parseFloat(amountPaid).toLocaleString('en-US') : amountPaid) : ''}
-              onChange={(e) => {
-                const clean = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
-                setAmountPaid(clean);
-              }}
-              className="w-full bg-transparent text-sm font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 outline-none tabular-nums"
-            />
-            {amountPaid && (
-              <button
-                type="button"
-                onClick={() => setAmountPaid('')}
-                className="text-gray-400 hover:text-red-500 text-xs px-1 cursor-pointer"
-                title={t('clear', 'Clear')}
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Tender Shortcuts */}
-          {effectiveTotal > 0 && (
-            <div className="flex items-center gap-1.5 pt-0.5">
-              <button
-                type="button"
-                onClick={() => setAmountPaid(String(effectiveTotal))}
-                className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
-              >
-                {t('exact', 'Exact')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAmountPaid(String(Math.ceil(effectiveTotal / 10000) * 10000))}
-                className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
-              >
-                +Round 10k
-              </button>
-              <button
-                type="button"
-                onClick={() => setAmountPaid(String(Math.ceil((effectiveTotal + 1) / 50000) * 50000))}
-                className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
-              >
-                +Round 50k
-              </button>
+        {/* Mode-Specific Inputs: Cash Tendered (Sale Mode) vs Invoice Metadata & Validity Presets (Invoice Mode) */}
+        {checkoutMode === 'sale' ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <Banknote size={13} className="text-gray-400" />
+                <span>{t('cash_tendered', 'Cash tendered')}</span>
+              </label>
+              {tenderVal > 0 && (
+                <span className={`text-xs font-medium tabular-nums ${tenderVal >= effectiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
+                  {tenderVal >= effectiveTotal 
+                    ? t('change_amount', 'Change: TSh {{amount}}', { amount: changeDue.toLocaleString() })
+                    : t('remaining_amount', 'Remaining: TSh {{amount}}', { amount: (effectiveTotal - tenderVal).toLocaleString() })
+                  }
+                </span>
+              )}
             </div>
+
+            <div className="flex items-center rounded-xl bg-surface-muted/50 dark:bg-[#161616] border border-surface-border/50 dark:border-neutral-800 focus-within:border-brand-500 px-3 py-2 transition">
+              <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 shrink-0 select-none mr-2">TSh</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder={effectiveTotal > 0 ? effectiveTotal.toLocaleString() : '0'}
+                value={amountPaid ? (parseFloat(amountPaid) ? parseFloat(amountPaid).toLocaleString('en-US') : amountPaid) : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+                  setAmountPaid(clean);
+                }}
+                className="w-full bg-transparent text-sm font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 outline-none tabular-nums"
+              />
+              {amountPaid && (
+                <button
+                  type="button"
+                  onClick={() => setAmountPaid('')}
+                  className="text-gray-400 hover:text-red-500 text-xs px-1 cursor-pointer"
+                  title={t('clear', 'Clear')}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {effectiveTotal > 0 && (
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setAmountPaid(String(effectiveTotal))}
+                  className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
+                >
+                  {t('exact', 'Exact')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAmountPaid(String(Math.ceil(effectiveTotal / 10000) * 10000))}
+                  className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
+                >
+                  +Round 10k
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAmountPaid(String(Math.ceil((effectiveTotal + 1) / 50000) * 50000))}
+                  className="flex-1 py-1.5 text-2xs font-semibold rounded-lg bg-gray-100 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-neutral-800 transition cursor-pointer"
+                >
+                  +Round 50k
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2.5 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+            <div className="grid grid-cols-2 gap-1.5">
+              <div>
+                <label className="text-3xs font-bold uppercase tracking-wider text-gray-400 block mb-0.5">
+                  {t('customer_phone', 'Customer Phone')}
+                </label>
+                <input
+                  type="tel"
+                  placeholder="0712 345 678"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone && setCustomerPhone(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+                />
+              </div>
+              <div>
+                <label className="text-3xs font-bold uppercase tracking-wider text-gray-400 block mb-0.5">
+                  {t('customer_tin', 'TIN / VRN (Opt)')}
+                </label>
+                <input
+                  type="text"
+                  placeholder="123-456-789"
+                  value={customerTin}
+                  onChange={(e) => setCustomerTin && setCustomerTin(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-3xs font-bold uppercase tracking-wider text-gray-400 block mb-1">
+                {t('invoice_validity', 'Invoice Validity Period')}
+              </label>
+              <div className="grid grid-cols-5 gap-1">
+                {[
+                  { key: '24h', label: '24h' },
+                  { key: '3d', label: '3 Days' },
+                  { key: '7d', label: '7 Days' },
+                  { key: '14d', label: '14 Days' },
+                  { key: '30d', label: '30 Days' },
+                ].map(p => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setValidityPeriod && setValidityPeriod(p.key)}
+                    className={`py-1 rounded-lg text-3xs font-bold transition cursor-pointer ${
+                      validityPeriod === p.key
+                        ? 'bg-amber-500 text-black shadow-2xs'
+                        : 'bg-white dark:bg-[#181818] text-gray-600 dark:text-gray-400 border border-gray-200/70 dark:border-neutral-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <input
+                type="text"
+                placeholder={t('invoice_notes_placeholder', 'Add note or terms (optional)...')}
+                value={invoiceNotes}
+                onChange={(e) => setInvoiceNotes && setInvoiceNotes(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#181818] border border-gray-200 dark:border-neutral-800 text-xs text-gray-900 dark:text-white outline-none focus:border-amber-500 transition"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Split Action Button with Dropdown: Complete Sale vs Generate Invoice */}
+        <div className="relative flex items-stretch rounded-xl shadow-sm">
+          <button 
+            type="button"
+            onClick={checkoutMode === 'sale' ? handleCheckout : handleCreateInvoice} 
+            disabled={cart.length === 0 || submitting}
+            className={`flex-1 py-3 px-4 rounded-l-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+              checkoutMode === 'sale'
+                ? 'bg-brand-500 hover:bg-brand-400 text-black'
+                : 'bg-amber-500 hover:bg-amber-400 text-black'
+            }`}
+          >
+            {checkoutMode === 'sale' ? (
+              <>
+                <Receipt size={15} className="shrink-0 text-black stroke-[2.2]" />
+                <span className="text-black font-bold tracking-wide">
+                  {submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}
+                </span>
+              </>
+            ) : (
+              <>
+                <FileText size={15} className="shrink-0 text-black stroke-[2.2]" />
+                <span className="text-black font-bold tracking-wide">
+                  {submitting ? t('generating_invoice', 'Generating invoice...') : t('generate_invoice', 'Generate Invoice')}
+                </span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            disabled={cart.length === 0 || submitting}
+            onClick={() => setCartDropdownOpen(prev => !prev)}
+            aria-label="Select checkout action"
+            className={`px-3 border-l rounded-r-xl transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+              checkoutMode === 'sale'
+                ? 'bg-brand-500 hover:bg-brand-400 text-black border-black/15'
+                : 'bg-amber-500 hover:bg-amber-400 text-black border-black/15'
+            }`}
+          >
+            <ChevronDown size={14} className={`transition-transform duration-150 ${cartDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {cartDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setCartDropdownOpen(false)} />
+              <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in duration-150">
+                <div className="px-2.5 py-1.5 text-3xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-neutral-800">
+                  {t('select_action', 'Select POS Action')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setCheckoutMode) setCheckoutMode('sale');
+                    setCartDropdownOpen(false);
+                  }}
+                  className={`w-full text-left p-2 rounded-lg text-xs flex items-start gap-2.5 transition cursor-pointer mt-0.5 ${
+                    checkoutMode === 'sale'
+                      ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
+                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <Receipt size={15} className="mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span>{t('complete_sale', 'Complete Sale')}</span>
+                      {checkoutMode === 'sale' && <Check size={12} className="text-brand-500" />}
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-normal mt-0.5">
+                      {t('complete_sale_desc', 'Deduct stock immediately & print cash receipt')}
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setCheckoutMode) setCheckoutMode('invoice');
+                    setCartDropdownOpen(false);
+                  }}
+                  className={`w-full text-left p-2 rounded-lg text-xs flex items-start gap-2.5 transition cursor-pointer mt-0.5 ${
+                    checkoutMode === 'invoice'
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold'
+                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <FileText size={15} className="mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span>{t('generate_invoice', 'Generate Invoice')}</span>
+                      {checkoutMode === 'invoice' && <Check size={12} className="text-amber-500" />}
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-normal mt-0.5">
+                      {t('generate_invoice_desc', 'Issue unpaid proforma / quote with payment terms')}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </>
           )}
         </div>
-
-        {/* Complete Sale Action Button */}
-        <button 
-          type="button"
-          onClick={handleCheckout} 
-          disabled={cart.length === 0 || submitting}
-          className="w-full py-3 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-black font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.98] shadow-sm cursor-pointer disabled:cursor-not-allowed"
-        >
-          <Receipt size={15} className="shrink-0 text-black stroke-[2]" />
-          <span className="text-black font-bold tracking-wide">{submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}</span>
-        </button>
       </div>
     </div>
   );

@@ -2639,6 +2639,420 @@ class OrderViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': f'POS checkout error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
+    @decorators.action(detail=False, methods=['post'], url_path='pos-create-invoice', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @transaction.atomic
+    def pos_create_invoice(self, request):
+        """Create an in-store POS proforma/tax invoice without immediately deducting stock."""
+        try:
+            user = request.user
+            items_data = request.data.get('items', [])
+            customer_name = (request.data.get('customer_name') or '').strip() or 'Walk-in Customer'
+            customer_phone = (request.data.get('customer_phone') or '').strip()
+            customer_tin = (request.data.get('customer_tin') or '').strip()
+            notes = (request.data.get('notes') or '').strip()
+            validity_period = (request.data.get('validity_period') or '7d').strip().lower()
+            
+            if not items_data:
+                return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user)
+            
+            # Resolve POS fulfillment branch location
+            req_loc_id = request.data.get('location_id') or request.data.get('fulfillment_location_id')
+            allowed_loc_ids, active_loc = get_user_location_scope(user, req_loc_id)
+            if not active_loc and req_loc_id:
+                active_loc = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
+
+            # Parse validity period into due_date
+            now = timezone.now()
+            validity_map = {
+                '24h': timedelta(hours=24),
+                '3d': timedelta(days=3),
+                '7d': timedelta(days=7),
+                '14d': timedelta(days=14),
+                '30d': timedelta(days=30),
+            }
+            delta = validity_map.get(validity_period, timedelta(days=7))
+            due_date = now + delta
+
+            order_items = []
+            
+            for item_data in items_data:
+                product_id = item_data.get('product_id')
+                variant_id = item_data.get('variant_id')
+                quantity = int(item_data.get('quantity', 1))
+                
+                if quantity <= 0:
+                    return Response({'error': 'Quantity must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                try:
+                    product = Product.objects.get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({'error': f'Product ID {product_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                if not (user.is_staff or user.is_superuser or product.seller_id in sellers or product.seller_id == user.id):
+                    return Response({'error': f'You are not authorized to sell {product.name}.'}, status=status.HTTP_403_FORBIDDEN)
+                    
+                variant = None
+                if variant_id:
+                    try:
+                        variant = ProductVariant.objects.get(id=variant_id, product=product)
+                    except ProductVariant.DoesNotExist:
+                        return Response({'error': f'Variant ID {variant_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Fallback location resolution to seller main store if still None
+                if not active_loc:
+                    active_loc = StoreLocation.objects.filter(owner=product.seller, is_main=True).first() or StoreLocation.objects.filter(owner=product.seller).first()
+                
+                # Check location-specific stock if active_loc is known
+                loc_stock = None
+                if active_loc:
+                    loc_stock = LocationStock.objects.filter(
+                        location=active_loc, product=product, variant=variant
+                    ).first()
+
+                if loc_stock:
+                    stock_available = loc_stock.quantity
+                else:
+                    stock_available = variant.stock if variant else (
+                        sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
+                    )
+                
+                if stock_available < quantity:
+                    loc_label = f" at {active_loc.name}" if active_loc else ""
+                    return Response({'error': f'Insufficient stock{loc_label} for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                if loc_stock and loc_stock.price_override is not None and not product.requires_quote:
+                    price = loc_stock.price_override
+                else:
+                    price = variant.final_price if variant else product.price
+
+                if product.requires_quote:
+                    if 'price' in item_data:
+                        try:
+                            price = float(item_data['price'])
+                        except (ValueError, TypeError):
+                            return Response({'error': 'Invalid custom price provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        return Response({'error': f'Price is required for {product.name} because it requires a quote.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                order_items.append({
+                    'product': product,
+                    'variant': variant,
+                    'quantity': quantity,
+                    'price': price,
+                    'loc_stock': loc_stock,
+                    'rec_surface': str(item_data.get('rec_surface') or '').strip()[:32],
+                    'rec_variant': str(item_data.get('rec_variant') or 'control').strip()[:16]
+                })
+                
+            promo_code_str = (request.data.get('promo_code') or '').strip()
+            custom_discount = request.data.get('discount_amount', 0)
+            
+            promo_obj = None
+            discount_amount = Decimal('0.00')
+            qualifying_subtotal = Decimal('0.00')
+            if promo_code_str:
+                from .models import PromoCode
+                try:
+                    promo_obj = PromoCode.objects.get(code__iexact=promo_code_str)
+                except PromoCode.DoesNotExist:
+                    return Response({'error': f"Promo code '{promo_code_str}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                if promo_obj.applicable_scope == 'single_product' and promo_obj.product_id:
+                    for it in order_items:
+                        if it['product'].id == promo_obj.product_id:
+                            qualifying_subtotal += Decimal(str(it['price'])) * Decimal(str(it['quantity']))
+                elif promo_obj.applicable_scope == 'specific_products' and promo_obj.pk:
+                    allowed_ids = set(promo_obj.products.values_list('id', flat=True))
+                    for it in order_items:
+                        if it['product'].id in allowed_ids:
+                            qualifying_subtotal += Decimal(str(it['price'])) * Decimal(str(it['quantity']))
+                else:
+                    qualifying_subtotal = sum(Decimal(str(it['price'])) * Decimal(str(it['quantity'])) for it in order_items)
+                    
+                seller_username = promo_obj.seller.username if promo_obj.seller else None
+                is_valid, err_msg = promo_obj.is_valid_for_checkout(
+                    seller_username=seller_username,
+                    subtotal=qualifying_subtotal,
+                    product_ids=[it['product'].id for it in order_items]
+                )
+                if not is_valid:
+                    return Response({'error': err_msg}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                discount_amount = promo_obj.calculate_discount(qualifying_subtotal)
+            elif custom_discount:
+                try:
+                    discount_amount = Decimal(str(custom_discount))
+                    if discount_amount < Decimal('0.00'):
+                        discount_amount = Decimal('0.00')
+                except (ValueError, TypeError):
+                    discount_amount = Decimal('0.00')
+
+            delivery_info = {
+                'is_pos': True,
+                'is_pos_invoice': True,
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'customer_tin': customer_tin,
+                'notes': notes,
+                'validity_period': validity_period,
+                'due_date': due_date.isoformat(),
+                'amount_paid': 0,
+                'amount_tendered': 0,
+                'change_due': 0,
+                'discount_amount': float(discount_amount),
+            }
+            if promo_obj:
+                delivery_info['promo_code'] = promo_obj.code
+            if active_loc:
+                delivery_info['location_id'] = active_loc.id
+                delivery_info['location_name'] = active_loc.name
+                delivery_info['location_address'] = active_loc.address_line
+                delivery_info['location_phone'] = active_loc.phone
+                open_session = RegisterSession.objects.filter(location=active_loc, status='open').first()
+                if open_session:
+                    delivery_info['register_session_id'] = open_session.id
+            
+            order = Order.objects.create(
+                user=user,
+                status='INVOICE_GENERATED',
+                shipping_method='PICKUP',
+                fulfillment_type='SELLER_PICKUP',
+                fulfillment_location=active_loc,
+                shipping_fee=0,
+                delivery_info=delivery_info,
+                promo_code=promo_obj,
+                discount_amount=discount_amount
+            )
+            
+            for item in order_items:
+                item_rec_surface = str(item.get('rec_surface') or '').strip()[:32]
+                item_rec_variant = str(item.get('rec_variant') or 'control').strip()[:16]
+                OrderItem.objects.create(
+                    order=order,
+                    product=item['product'],
+                    variant=item['variant'],
+                    quantity=item['quantity'],
+                    price=item['price'],
+                    rec_surface=item_rec_surface,
+                    rec_variant=item_rec_variant
+                )
+                
+            order.update_total()
+            
+            TrackingEvent.objects.create(
+                order=order, 
+                status='INVOICE_GENERATED', 
+                notes=f'POS Invoice #{order.id} generated for {customer_name} (Valid: {validity_period})'
+            )
+            
+            serializer = self.get_serializer(order, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': f'POS invoice creation error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @decorators.action(detail=True, methods=['post'], url_path='pos-mark-paid', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @transaction.atomic
+    def pos_mark_paid(self, request, pk=None):
+        """Mark an unpaid in-store POS invoice as paid, atomically check & deduct inventory, and record completed sale."""
+        try:
+            user = request.user
+            order = self.get_object()
+            
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user)
+            
+            # Authorize seller
+            order_seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            if not (user.is_staff or user.is_superuser or any(s_id in sellers for s_id in order_seller_ids) or order.user == user):
+                return Response({'error': 'You are not authorized to settle this invoice.'}, status=status.HTTP_403_FORBIDDEN)
+                
+            di = order.delivery_info or {}
+            if not di.get('is_pos'):
+                return Response({'error': 'This order is not a POS transaction.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if order.status != 'INVOICE_GENERATED':
+                return Response({'error': f'Cannot mark as paid: invoice is currently in {order.status} state.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            active_loc = order.fulfillment_location
+            
+            # 1. Atomically check and deduct stock
+            for item in order.orderitem_set.select_related('product', 'variant').all():
+                loc_stock = None
+                if active_loc:
+                    loc_stock = LocationStock.objects.select_for_update().filter(
+                        location=active_loc, product=item.product, variant=item.variant
+                    ).first()
+                    
+                if loc_stock:
+                    if loc_stock.quantity < item.quantity:
+                        return Response({
+                            'error': f'Insufficient stock at {active_loc.name} for {item.product.name}. Required: {item.quantity}, Available: {loc_stock.quantity}.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item.quantity)))
+                    loc_stock.save(update_fields=['quantity'])
+                else:
+                    prod = Product.objects.select_for_update().get(pk=item.product.pk)
+                    var = ProductVariant.objects.select_for_update().get(pk=item.variant.pk) if item.variant else None
+                    
+                    available = var.stock if var else prod.stock
+                    if available < item.quantity:
+                        return Response({
+                            'error': f'Insufficient stock for {prod.name}. Required: {item.quantity}, Available: {available}.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                        
+                    if var:
+                        var.stock = max(0, var.stock - item.quantity)
+                        if var.stock <= 0:
+                            var.is_available = False
+                        var.save(update_fields=['stock', 'is_available'])
+                    prod.stock = max(0, prod.stock - item.quantity)
+                    if prod.stock <= 0:
+                        prod.is_available = False
+                    prod.save(update_fields=['stock', 'is_available'])
+                    
+            # 2. Payment & settlement details
+            payment_method = request.data.get('payment_method', 'CASH')
+            reference_number = (request.data.get('reference_number') or '').strip()
+            amount_paid = request.data.get('amount_paid')
+            payment_notes = (request.data.get('notes') or '').strip()
+            
+            tot_amt = float(order.total_amount or 0)
+            tendered = float(amount_paid) if (amount_paid is not None and amount_paid != '' and float(amount_paid) > 0) else tot_amt
+            change = max(0.0, tendered - tot_amt)
+            
+            di['payment_method'] = payment_method
+            di['payment_reference'] = reference_number
+            di['amount_paid'] = tendered
+            di['amount_tendered'] = tendered
+            di['change_due'] = change
+            di['paid_at'] = timezone.now().isoformat()
+            if payment_notes:
+                di['payment_notes'] = payment_notes
+                
+            order.delivery_info = di
+            order.status = 'COMPLETED'
+            order.save(update_fields=['status', 'delivery_info'])
+            
+            # Promo code use count update if applicable
+            if order.promo_code:
+                from .models import PromoCode
+                PromoCode.objects.filter(pk=order.promo_code.pk).update(use_count=F('use_count') + 1)
+                
+            TrackingEvent.objects.create(
+                order=order, 
+                status='COMPLETED', 
+                notes=f'POS Invoice #{order.id} marked as paid via {payment_method}. Recorded as completed sale.'
+            )
+            
+            # ReferralConversion recording if promo has affiliate
+            if order.promo_code:
+                promo_obj = order.promo_code
+                comm_earned = promo_obj.calculate_commission(order.total_amount)
+                if comm_earned > Decimal('0.00') or promo_obj.affiliate_name or promo_obj.affiliate_user:
+                    from .models import ReferralConversion
+                    seller_target = promo_obj.seller or user
+                    try:
+                        ReferralConversion.objects.create(
+                            order=order,
+                            promo_code=promo_obj,
+                            seller=seller_target,
+                            affiliate_user=promo_obj.affiliate_user,
+                            affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
+                            order_subtotal=order.total_amount,
+                            commission_earned=comm_earned,
+                            status='SETTLED'
+                        )
+                    except Exception as e:
+                        print(f"Error creating ReferralConversion for POS: {e}")
+                        
+            # Phase 2: Platform Economics - 3% commission
+            from billing.models import CommissionLedgerEntry
+            seller_totals = {}
+            for item in order.orderitem_set.select_related('product__seller').all():
+                seller = item.product.seller
+                item_total = item.quantity * item.price
+                if seller not in seller_totals:
+                    seller_totals[seller] = Decimal('0.00')
+                seller_totals[seller] += Decimal(str(item_total))
+                
+            total_commission_collected = Decimal('0.00')
+            total_items_subtotal = sum(seller_totals.values()) or Decimal('1.00')
+            settings_obj = SiteSettings.get()
+            configured_pos_rate = getattr(settings_obj, 'pos_commission_rate', None)
+            pos_commission_rate = configured_pos_rate if configured_pos_rate is not None else Decimal('3.00')
+            for seller, amount in seller_totals.items():
+                actual_seller = seller or user
+                seller_share = amount / total_items_subtotal
+                net_amount = max(Decimal('0.00'), amount - (Decimal(str(order.discount_amount or 0)) * seller_share))
+                commission_amount = net_amount * (pos_commission_rate / Decimal('100'))
+                try:
+                    CommissionLedgerEntry.objects.create(
+                        order=order,
+                        seller=actual_seller,
+                        order_amount=net_amount,
+                        commission_rate=pos_commission_rate,
+                        commission_amount=commission_amount,
+                        entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+                    )
+                except Exception as e:
+                    print(f"Error creating CommissionLedgerEntry: {e}")
+                total_commission_collected += commission_amount
+                
+            order.platform_fee = total_commission_collected
+            order.save(update_fields=['platform_fee'])
+            
+            serializer = self.get_serializer(order, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': f'Error marking invoice as paid: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @decorators.action(detail=True, methods=['post'], url_path='pos-cancel-invoice', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @transaction.atomic
+    def pos_cancel_invoice(self, request, pk=None):
+        """Cancel an unpaid in-store POS invoice."""
+        try:
+            user = request.user
+            order = self.get_object()
+            
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user)
+            
+            order_seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            if not (user.is_staff or user.is_superuser or any(s_id in sellers for s_id in order_seller_ids) or order.user == user):
+                return Response({'error': 'You are not authorized to cancel this invoice.'}, status=status.HTTP_403_FORBIDDEN)
+                
+            di = order.delivery_info or {}
+            if not di.get('is_pos'):
+                return Response({'error': 'This order is not a POS transaction.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if order.status != 'INVOICE_GENERATED':
+                return Response({'error': f'Cannot cancel invoice in {order.status} state.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            reason = (request.data.get('reason') or '').strip() or 'Cancelled by cashier'
+            di['cancelled_at'] = timezone.now().isoformat()
+            di['cancellation_reason'] = reason
+            order.delivery_info = di
+            order.status = 'CANCELLED'
+            order.save(update_fields=['status', 'delivery_info'])
+            
+            TrackingEvent.objects.create(
+                order=order,
+                status='CANCELLED',
+                notes=f'POS Invoice #{order.id} cancelled: {reason}'
+            )
+            
+            serializer = self.get_serializer(order, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Error cancelling invoice: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
 
     @decorators.action(detail=False, methods=['post'], url_path='request-invoice')
     @transaction.atomic
@@ -2905,6 +3319,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 orders_qs = orders_qs.filter(delivery_info__is_pos=True)
             else:
                 orders_qs = orders_qs.exclude(delivery_info__is_pos=True)
+
+        is_pos_invoice_param = request.query_params.get('is_pos_invoice')
+        if is_pos_invoice_param is not None:
+            is_pos_inv = is_pos_invoice_param.lower() == 'true'
+            if is_pos_inv:
+                orders_qs = orders_qs.filter(delivery_info__is_pos_invoice=True)
+            else:
+                orders_qs = orders_qs.exclude(delivery_info__is_pos_invoice=True)
+        elif is_pos_param and is_pos_param.lower() == 'true' and not request.query_params.get('status'):
+            # Default for standard POS sales history: only completed sales
+            orders_qs = orders_qs.exclude(status='INVOICE_GENERATED')
+
+        q_search = (request.query_params.get('q') or request.query_params.get('search') or '').strip()
+        if q_search:
+            from django.db.models import Q
+            search_cond = Q(delivery_info__customer_name__icontains=q_search) | Q(delivery_info__customer_phone__icontains=q_search)
+            if q_search.isdigit():
+                search_cond |= Q(id=int(q_search))
+            orders_qs = orders_qs.filter(search_cond)
 
         is_bulk_param = request.query_params.get('is_bulk_order')
         if is_bulk_param is not None:
