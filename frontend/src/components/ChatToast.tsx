@@ -9,7 +9,7 @@ export const ChatToastContainer: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-0 md:right-6 z-[9999] flex flex-col gap-3 w-full md:w-80 max-w-sm px-4 pointer-events-none">
+    <div className="fixed bottom-20 md:bottom-6 right-0 md:right-6 z-[9999] flex flex-col-reverse md:flex-col gap-3 w-full md:w-80 max-w-sm px-4 pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => (
           <ChatToastItem
@@ -63,13 +63,13 @@ const ChatToastItem: React.FC<ChatToastItemProps> = ({ toast, onDismiss, onClick
       initial={{ opacity: 0, y: 50, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-      className="pointer-events-auto flex items-stretch bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl overflow-hidden cursor-pointer hover:shadow-2xl transition-all duration-300 ring-1 ring-black/5 dark:ring-white/5 active:scale-98 group"
+      className="pointer-events-auto flex items-stretch bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl overflow-hidden cursor-pointer hover:shadow-2xl transition-all duration-300 active:scale-98 group border-0"
       onClick={onClick}
     >
       <div className="w-1.5 bg-brand-500 dark:bg-brand-500 shrink-0" />
 
       <div className="flex-1 p-3.5 flex items-center gap-3.5 min-w-0">
-        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold  ${getGradient(toast.senderUsername)} shadow-md ring-2 ring-white dark:ring-gray-900`}>
+        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold ${getGradient(toast.senderUsername)} shadow-md`}>
           {toast.avatarText}
         </div>
 
@@ -93,7 +93,7 @@ const ChatToastItem: React.FC<ChatToastItemProps> = ({ toast, onDismiss, onClick
           e.stopPropagation();
           onDismiss();
         }}
-        className="p-3.5 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-white border-l border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        className="p-3.5 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-0"
       >
         <X size={16} />
       </button>

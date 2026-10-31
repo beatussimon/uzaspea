@@ -5,64 +5,44 @@ import { MessageSquare, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useMessages } from '../../context/MessageContext';
 
-export const MobileIncomingMessageBubble: React.FC = () => {
-  const location = useLocation();
+interface MobileBubbleItemProps {
+  conv: any;
+  userId: number;
+  isTyping: boolean;
+  onDismiss: (convId: number) => void;
+}
+
+const MobileBubbleItem: React.FC<MobileBubbleItemProps> = ({
+  conv,
+  userId,
+  isTyping,
+  onDismiss,
+}) => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const userId = Number(user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0'));
+  const isBuyer = Number(conv.buyer) === userId;
+  const personName = isBuyer ? conv.seller_username : conv.buyer_username;
+  const unreadCount = conv.unread_count || 0;
 
-  const {
-    conversations,
-    totalUnread,
-    minimizedChatWindows,
-    typingStatus,
-  } = useMessages();
-
-  // Route exclusions: do not show inside full messages or checkout
-  const isMessagesRoute = location.pathname.startsWith('/messages');
-  const isCheckoutRoute = location.pathname.startsWith('/checkout');
-
-  // Identify active or incoming conversation
-  const unreadConvs = conversations.filter(c => c.unread_count > 0);
-  const minimizedConvs = conversations.filter(c => minimizedChatWindows.includes(c.id));
-  const targetConv = unreadConvs[0] || minimizedConvs[0] || (totalUnread > 0 ? conversations[0] : null);
-
-  const isBuyer = targetConv ? Number(targetConv.buyer) === userId : false;
-  const personName = targetConv ? (isBuyer ? targetConv.seller_username : targetConv.buyer_username) : '';
-  const isTyping = targetConv ? typingStatus[targetConv.id] || false : false;
-  const unreadCount = totalUnread > 0 ? totalUnread : (targetConv?.unread_count || 0);
-
-  // Track dismissal state until a new incoming message arrives
-  const [isDismissed, setIsDismissed] = useState(false);
-  const prevLastMsgIdRef = useRef<number | string | null>(null);
-  const prevUnreadRef = useRef<number>(unreadCount);
   const [isPopping, setIsPopping] = useState(false);
+  const prevMsgIdRef = useRef<number | string | null>(conv.last_message?.id || null);
+  const prevUnreadRef = useRef<number>(unreadCount);
 
   useEffect(() => {
-    const latestMsgId = targetConv?.last_message?.id;
-    const isNewMsg = latestMsgId && prevLastMsgIdRef.current && prevLastMsgIdRef.current !== latestMsgId;
+    const latestMsgId = conv.last_message?.id;
+    const isNewMsg = latestMsgId && prevMsgIdRef.current && prevMsgIdRef.current !== latestMsgId;
     const isCountIncreased = unreadCount > prevUnreadRef.current;
 
     if (isNewMsg || isCountIncreased) {
-      setIsDismissed(false); // Un-dismiss on new incoming message!
       setIsPopping(true);
       const timer = setTimeout(() => setIsPopping(false), 900);
-      prevLastMsgIdRef.current = latestMsgId || null;
+      prevMsgIdRef.current = latestMsgId || null;
       prevUnreadRef.current = unreadCount;
       return () => clearTimeout(timer);
     }
 
-    prevLastMsgIdRef.current = latestMsgId || null;
+    prevMsgIdRef.current = latestMsgId || null;
     prevUnreadRef.current = unreadCount;
-  }, [unreadCount, targetConv?.last_message?.id]);
-
-  const showBubble = Boolean(
-    isAuthenticated &&
-    !isMessagesRoute &&
-    !isCheckoutRoute &&
-    !isDismissed &&
-    (unreadCount > 0 || minimizedConvs.length > 0)
-  );
+  }, [unreadCount, conv.last_message?.id]);
 
   const getGradient = (name: string) => {
     const gradients = [
@@ -79,79 +59,164 @@ export const MobileIncomingMessageBubble: React.FC = () => {
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (targetConv?.id) {
-      navigate(`/messages/${targetConv.id}`);
-    } else {
-      navigate('/messages');
-    }
+    navigate(`/messages/${conv.id}`);
   };
 
   return (
-    <AnimatePresence>
-      {showBubble && (
-        <motion.div
-          key="mobile-incoming-message-bubble"
-          layout
-          initial={{ scale: 0, opacity: 0, y: 15 }}
-          animate={isPopping ? {
-            scale: [1, 1.3, 0.9, 1.12, 1],
-            opacity: 1,
-            y: [0, -10, 3, 0],
-          } : { scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0, opacity: 0, y: 15 }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.94 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 26 }}
-          onClick={handleClick}
-          className="pointer-events-auto group relative w-11 h-11 rounded-full shadow-2xl flex items-center justify-center cursor-pointer select-none shrink-0"
-          title={personName ? `Chat with ${personName}` : 'Messages'}
-          aria-label={personName ? `Open chat with ${personName}` : 'Open messages'}
-        >
-          <div className="relative w-full h-full">
-            {/* Sender avatar gradient or fallback icon */}
-            <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || 'Messages')} shadow-lg border-2 border-white dark:border-[#1f2022]`}>
-              {personName ? personName.substring(0, 2).toUpperCase() : <MessageSquare size={16} />}
-            </div>
+    <motion.div
+      key={`mobile-bubble-${conv.id}`}
+      layout
+      initial={{ scale: 0, opacity: 0, y: 15 }}
+      animate={isPopping ? {
+        scale: [1, 1.3, 0.9, 1.12, 1],
+        opacity: 1,
+        y: [0, -10, 3, 0],
+      } : { scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0, opacity: 0, y: 15 }}
+      whileHover={{ scale: 1.08 }}
+      whileTap={{ scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+      onClick={handleClick}
+      className="pointer-events-auto group relative w-11 h-11 rounded-full shadow-2xl flex items-center justify-center cursor-pointer select-none shrink-0"
+      title={personName ? `Chat with ${personName}` : 'Messages'}
+      aria-label={personName ? `Open chat with ${personName}` : 'Open messages'}
+    >
+      <div className="relative w-full h-full">
+        {/* Sender avatar gradient or fallback icon */}
+        <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || 'Messages')} shadow-lg border-2 border-white dark:border-[#1f2022]`}>
+          {personName ? personName.substring(0, 2).toUpperCase() : <MessageSquare size={16} />}
+        </div>
 
-            {/* Online indicator dot */}
-            {targetConv?.is_online && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#1f2022]" />
-            )}
+        {/* Online indicator dot */}
+        {conv.is_online && (
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#1f2022]" />
+        )}
 
-            {/* Typing indicator pulse */}
-            {isTyping && (
-              <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full border-2 border-white dark:border-[#1f2022] flex items-center justify-center animate-ping" />
-            )}
+        {/* Typing indicator pulse */}
+        {isTyping && (
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full border-2 border-white dark:border-[#1f2022] flex items-center justify-center animate-ping" />
+        )}
 
-            {/* Unread count badge with energetic pop animation */}
-            {unreadCount > 0 && (
-              <motion.span
-                key={`badge-mobile-${unreadCount}`}
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.45, 0.88, 1.12, 1] }}
-                transition={{ duration: 0.45, ease: 'easeOut' }}
-                className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-[#1f2022]"
-              >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </motion.span>
-            )}
-          </div>
-
-          {/* Dismiss button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsDismissed(true);
-            }}
-            className="absolute -top-1 -left-1 opacity-70 hover:opacity-100 w-4 h-4 bg-gray-900/90 text-white rounded-full flex items-center justify-center shadow-md border border-white/20 transition-opacity"
-            title="Dismiss bubble"
-            aria-label="Dismiss message bubble"
+        {/* Unread count badge with energetic pop animation */}
+        {unreadCount > 0 && (
+          <motion.span
+            key={`badge-mobile-${conv.id}-${unreadCount}`}
+            initial={{ scale: 0 }}
+            animate={{ scale: [0, 1.45, 0.88, 1.12, 1] }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-[#1f2022]"
           >
-            <X size={9} />
-          </button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </motion.span>
+        )}
+      </div>
+
+      {/* Dismiss button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss(conv.id);
+        }}
+        className="absolute -top-1 -left-1 opacity-70 hover:opacity-100 w-4 h-4 bg-gray-900/90 text-white rounded-full flex items-center justify-center shadow-md border-0 transition-opacity"
+        title="Dismiss bubble"
+        aria-label="Dismiss message bubble"
+      >
+        <X size={9} />
+      </button>
+    </motion.div>
+  );
+};
+
+export const MobileIncomingMessageBubble: React.FC = () => {
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const userId = Number(user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0'));
+
+  const {
+    conversations,
+    totalUnread,
+    minimizedChatWindows,
+    typingStatus,
+  } = useMessages();
+
+  // Route exclusions: do not show inside full messages or checkout
+  const isMessagesRoute = location.pathname.startsWith('/messages');
+  const isCheckoutRoute = location.pathname.startsWith('/checkout');
+
+  // Track dismissed conversation IDs
+  const [dismissedBubbleIds, setDismissedBubbleIds] = useState<number[]>([]);
+  const prevLastMsgIds = useRef<{ [convId: number]: string | number }>({});
+  const prevUnreadCounts = useRef<{ [convId: number]: number }>({});
+
+  // Auto un-dismiss if a new message arrives or unread increments
+  useEffect(() => {
+    conversations.forEach(c => {
+      const lastId = c.last_message?.id;
+      const prevId = prevLastMsgIds.current[c.id];
+      const prevUnread = prevUnreadCounts.current[c.id] || 0;
+
+      if ((lastId && prevId && lastId !== prevId) || c.unread_count > prevUnread) {
+        setDismissedBubbleIds(prev => prev.filter(id => id !== c.id));
+      }
+
+      if (lastId) prevLastMsgIds.current[c.id] = lastId;
+      prevUnreadCounts.current[c.id] = c.unread_count;
+    });
+  }, [conversations]);
+
+  const handleDismissBubble = (convId: number) => {
+    setDismissedBubbleIds(prev => prev.includes(convId) ? prev : [...prev, convId]);
+  };
+
+  if (!isAuthenticated || isMessagesRoute || isCheckoutRoute) {
+    return null;
+  }
+
+  // Active floating conversations with unread messages or minimized
+  const activeConversations = conversations.filter(c =>
+    (c.unread_count > 0 || minimizedChatWindows.includes(c.id)) &&
+    !dismissedBubbleIds.includes(c.id)
+  );
+
+  // Fallback if totalUnread > 0 but individual counts not populated
+  let candidateConversations = activeConversations;
+  if (candidateConversations.length === 0 && totalUnread > 0 && conversations.length > 0) {
+    candidateConversations = conversations
+      .filter(c => !dismissedBubbleIds.includes(c.id))
+      .slice(0, 1);
+  }
+
+  if (candidateConversations.length === 0) {
+    return null;
+  }
+
+  // Sort candidate conversations oldest to newest:
+  // In flex-col-reverse:
+  // - oldest (previous message) is at index 0 (BOTTOM of the stack)
+  // - newer messages from different people are at higher indices (rendered vertically ON TOP of previous message)
+  const sortedConversations = [...candidateConversations].sort((a, b) => {
+    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+    return timeA - timeB; // ascending -> oldest first
+  });
+
+  // Limit to at most 4 bubbles so it doesn't overflow the mobile viewport
+  const displayConversations = sortedConversations.slice(-4);
+
+  return (
+    <div className="flex flex-col-reverse items-center gap-2.5 pointer-events-none">
+      <AnimatePresence>
+        {displayConversations.map(conv => (
+          <MobileBubbleItem
+            key={conv.id}
+            conv={conv}
+            userId={userId}
+            isTyping={Boolean(typingStatus[conv.id])}
+            onDismiss={handleDismissBubble}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
   );
 };
