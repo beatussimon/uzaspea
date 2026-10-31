@@ -728,15 +728,22 @@ const ProfilePage: React.FC = () => {
               ) : currentUser ? (
                   <button 
                     onClick={handleFollow} 
-                    className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95 ${
+                    className={`px-6 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 ${
                       followStatus.following 
                         ? 'border border-gray-350 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-700 dark:text-neutral-300' 
-                        : 'bg-brand-500 hover:bg-brand-500 text-white shadow-sm'
+                        : 'bg-[#facc15] hover:bg-[#eab308] text-black shadow-sm'
                     }`}
                   >
                     {followStatus.following ? t('following') : t('follow')}
                   </button>
-              ) : null}
+              ) : (
+                <button 
+                  onClick={() => navigate('/login')} 
+                  className="px-6 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 bg-[#facc15] hover:bg-[#eab308] text-black shadow-sm"
+                >
+                  {t('follow')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -763,29 +770,6 @@ const ProfilePage: React.FC = () => {
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('following_count')}</span>
             </div>
           </div>
-
-          {/* Row 1.5: Secondary Action Buttons */}
-          {!isOwner && (
-            <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
-              {followStatus.following && profile?.phone_number && (
-                <a 
-                  href={`tel:${profile.phone_number}`}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                  {t('call')}
-                </a>
-              )}
-              <button 
-                onClick={() => handleStartMessage()}
-                disabled={startingChat}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-brand-500" />
-                {startingChat ? t('opening...', 'Opening...') : t('message', 'Message')}
-              </button>
-            </div>
-          )}
 
           {/* Row 3: Bio & Meta Details — Bounded to action buttons width with centered bottom meta */}
           <div className="space-y-3 text-sm text-gray-800 dark:text-neutral-200 w-full max-w-[335px] sm:max-w-[360px] md:max-w-lg mx-auto md:mx-0 text-left">
@@ -817,12 +801,67 @@ const ProfilePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Social Media Icons (Sellers Only) */}
-              {isSellerProfile && (
-                <div className="flex items-center justify-center md:justify-start w-full">
+              {/* Contact Actions (Message & Call) & Social Media Icons */}
+              <div className="flex items-center flex-wrap gap-1 justify-center md:justify-start w-full">
+                {/* Message Action (if not owner) */}
+                {!isOwner && (
+                  <>
+                    {/* Mobile: icon only */}
+                    <button
+                      type="button"
+                      onClick={() => handleStartMessage()}
+                      disabled={startingChat}
+                      className="md:hidden p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
+                      title={t('message', 'Message')}
+                      aria-label={t('message', 'Message')}
+                    >
+                      <MessageSquare size={16} />
+                    </button>
+
+                    {/* Desktop: [icon] Message */}
+                    <button
+                      type="button"
+                      onClick={() => handleStartMessage()}
+                      disabled={startingChat}
+                      className="hidden md:inline-flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-xs font-semibold border-0 text-gray-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                      title={t('message', 'Message')}
+                    >
+                      <MessageSquare size={14} className="text-gray-500 dark:text-gray-400" />
+                      <span>{startingChat ? t('opening...', 'Opening...') : t('message', 'Message')}</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Call Action (if phone number is available and not owner) */}
+                {!isOwner && profile?.phone_number && (
+                  <>
+                    {/* Mobile: icon only */}
+                    <a
+                      href={`tel:${profile.phone_number}`}
+                      className="md:hidden p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-200 active:scale-95"
+                      title={t('call', 'Call')}
+                      aria-label={t('call', 'Call')}
+                    >
+                      <Phone size={16} />
+                    </a>
+
+                    {/* Desktop: [icon] Call */}
+                    <a
+                      href={`tel:${profile.phone_number}`}
+                      className="hidden md:inline-flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-xs font-semibold border-0 text-gray-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-95"
+                      title={t('call', 'Call')}
+                    >
+                      <Phone size={14} className="text-gray-500 dark:text-gray-400" />
+                      <span>{t('call', 'Call')}</span>
+                    </a>
+                  </>
+                )}
+
+                {/* Social Media Links (Sellers Only) */}
+                {isSellerProfile && (
                   <SocialLinks profile={profile} iconSize={16} className="justify-center md:justify-start" />
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
