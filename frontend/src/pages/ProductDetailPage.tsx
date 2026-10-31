@@ -34,6 +34,7 @@ import { createProductInquiryPayload, parseMessageContent } from '../utils/messa
 import { launchNavigation, launchOpenMap } from '../utils/mapNavigation';
 import { MapAppModal } from '../components/MapAppModal';
 import { MobileIncomingMessageBubble } from '../components/chat/MobileIncomingMessageBubble';
+import { useMobileNavVisible } from '../hooks/useMobileNavVisible';
 import NetworkErrorState from '../components/common/NetworkErrorState';
 import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
 import {
@@ -487,6 +488,7 @@ const getCleanStem = (url?: string | null): string => {
 };
 
 const ProductDetailPage: React.FC = () => {
+  const isNavVisible = useMobileNavVisible();
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation();
   const { addToCart, cartCount } = useCart();
@@ -3006,11 +3008,11 @@ const ProductDetailPage: React.FC = () => {
         </div>
       ) : null}
 
-      {/* Mobile Floating Action Buttons (Positioned above MobileBottomNav) */}
+      {/* Mobile Floating Action Buttons (Positioned above MobileBottomNav or bottom when nav is hidden) */}
       <div 
-        className="md:hidden fixed z-[110] flex flex-col-reverse items-center gap-2.5 pointer-events-none"
+        className="md:hidden fixed z-[110] flex flex-col-reverse items-center gap-2.5 pointer-events-none transition-[bottom] duration-300 ease-out"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isNavVisible ? '80px' : '16px'})`,
           right: '20px',
         }}
       >

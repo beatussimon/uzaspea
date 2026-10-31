@@ -197,11 +197,31 @@ export const MobileIncomingMessageBubble: React.FC = () => {
     return null;
   }
 
+  // Deduplicate by personName so each person gets at most one bubble
+  const uniqueByPerson = new Map<string, any>();
+  candidateConversations.forEach(conv => {
+    const isBuyer = Number(conv.buyer) === userId;
+    const personName = isBuyer ? conv.seller_username : conv.buyer_username;
+    const key = personName || String(conv.id);
+    if (!uniqueByPerson.has(key)) {
+      uniqueByPerson.set(key, conv);
+    } else {
+      const existing = uniqueByPerson.get(key);
+      const isNewer = new Date(conv.updated_at || conv.created_at || 0) > new Date(existing.updated_at || existing.created_at || 0);
+      const higherUnread = Math.max(conv.unread_count || 0, existing.unread_count || 0);
+      const chosen = isNewer ? { ...conv } : { ...existing };
+      chosen.unread_count = higherUnread;
+      uniqueByPerson.set(key, chosen);
+    }
+  });
+
+  const displayCandidates = Array.from(uniqueByPerson.values());
+
   // Sort candidate conversations oldest to newest:
   // In flex-col-reverse:
   // - oldest (previous message) is at index 0 (BOTTOM of the stack)
   // - newer messages from different people are at higher indices (rendered vertically ON TOP of previous message)
-  const sortedConversations = [...candidateConversations].sort((a, b) => {
+  const sortedConversations = displayCandidates.sort((a, b) => {
     const timeA = new Date(a.updated_at || a.created_at || (a.last_message ? (a.last_message as any).created_at : 0) || 0).getTime();
     const timeB = new Date(b.updated_at || b.created_at || (b.last_message ? (b.last_message as any).created_at : 0) || 0).getTime();
     return timeA - timeB; // ascending -> oldest first

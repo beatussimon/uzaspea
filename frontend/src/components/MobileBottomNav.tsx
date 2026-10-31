@@ -60,12 +60,20 @@ const MobileBottomNav = () => {
   const isHomepage = location.pathname === '/';
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const notifyNavVisibility = (visible: boolean) => {
+    if (typeof window !== 'undefined') {
+      document.documentElement.style.setProperty('--mobile-nav-bottom-offset', visible ? '80px' : '16px');
+      window.dispatchEvent(new CustomEvent('mobileNavVisibilityChange', { detail: { visible } }));
+    }
+  };
+
   useEffect(() => {
     // Reset initial state when route changes (show briefly, then hide)
     if (navRef.current) {
       currentOffset.current = 0;
       navRef.current.style.transition = 'transform 0.3s ease-out';
       navRef.current.style.transform = `translateY(0px)`;
+      notifyNavVisibility(true);
       
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
       hideTimeout.current = setTimeout(() => {
@@ -73,6 +81,7 @@ const MobileBottomNav = () => {
           currentOffset.current = 100;
           navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
           navRef.current.style.transform = `translateY(100px)`;
+          notifyNavVisibility(false);
         }
       }, 2500);
     }
@@ -99,6 +108,7 @@ const MobileBottomNav = () => {
                 if (navRef.current) {
                   navRef.current.style.transition = 'transform 0.3s ease-out';
                   navRef.current.style.transform = `translateY(${maxHide}px)`;
+                  notifyNavVisibility(false);
                 }
               }
               if (hideTimeout.current) clearTimeout(hideTimeout.current);
@@ -109,6 +119,7 @@ const MobileBottomNav = () => {
                 if (navRef.current) {
                   navRef.current.style.transition = 'transform 0.3s ease-out';
                   navRef.current.style.transform = `translateY(0px)`;
+                  notifyNavVisibility(true);
                 }
               }
               
@@ -119,6 +130,7 @@ const MobileBottomNav = () => {
                   currentOffset.current = maxHide;
                   navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
                   navRef.current.style.transform = `translateY(${maxHide}px)`;
+                  notifyNavVisibility(false);
                 }
               }, 2000);
             }

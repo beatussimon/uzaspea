@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MobileIncomingMessageBubble } from '../chat/MobileIncomingMessageBubble';
+import { useMobileNavVisible } from '../../hooks/useMobileNavVisible';
 
 export const ScrollToTopFab: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const location = useLocation();
+  const isNavVisible = useMobileNavVisible();
 
   // Scroll visibility handler
   useEffect(() => {
@@ -63,9 +65,9 @@ export const ScrollToTopFab: React.FC = () => {
           When page IS scrolled (Up Button appears), Message Bubble hovers directly above the Up Button!
       */}
       <div
-        className="md:hidden fixed z-40 flex flex-col-reverse items-center gap-2.5 pointer-events-none"
+        className="md:hidden fixed z-40 flex flex-col-reverse items-center gap-2.5 pointer-events-none transition-[bottom] duration-300 ease-out"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isNavVisible ? '80px' : '16px'})`,
           right: '20px',
         }}
       >
