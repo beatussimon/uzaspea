@@ -447,7 +447,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                               {di.cancellation_reason || t('cancelled', 'Cancelled')}
                             </span>
                           ) : isExpired ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold bg-red-500/10 text-red-600 dark:text-red-400">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 dark:text-red-400">
                               <AlertCircle size={10} />
                               <span>{t('expired', 'Expired')} ({dueDate?.toLocaleDateString()})</span>
                             </span>
@@ -463,19 +463,19 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                         </td>
                         <td className="p-3 text-center">
                           {isUnpaid && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-amber-600 dark:text-amber-400">
                               <Clock size={10} />
                               <span>{t('unpaid', 'Unpaid')}</span>
                             </span>
                           )}
                           {isPaid && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
                               <Check size={10} />
                               <span>{t('paid', 'Paid')}</span>
                             </span>
                           )}
                           {isCancelled && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-neutral-500 dark:text-neutral-400">
                               <span>{t('cancelled', 'Cancelled')}</span>
                             </span>
                           )}
@@ -1432,13 +1432,24 @@ const DashboardPOS: React.FC = () => {
   return (
     <div className="space-y-6 pb-24 lg:pb-0 relative">
       {/* Header & Tab Switcher */}
-      <header className="space-y-1.5 sm:space-y-2">
+      <header className="space-y-2">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
-          <div className="min-w-0 flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                {t('point_of_sale', 'Point of Sale (POS)')}
-              </h1>
+          <div className="min-w-0 flex items-start sm:items-center justify-between md:justify-start gap-2.5 sm:gap-3 flex-wrap">
+            <div className="min-w-0 flex-1 md:flex-initial">
+              <div className="flex items-center justify-between gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                  {t('point_of_sale', 'Point of Sale (POS)')}
+                </h1>
+                {(activeTab === 'history' || activeTab === 'invoices') && (
+                  <div className="md:hidden shrink-0">
+                    <DateRangePicker 
+                      value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
+                      onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
+                      buttonClassName="rounded-full !py-1 text-xs font-semibold"
+                    />
+                  </div>
+                )}
+              </div>
               <p 
                 className="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm truncate mt-0.5"
                 title={t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
@@ -1495,16 +1506,16 @@ const DashboardPOS: React.FC = () => {
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end md:justify-start gap-1.5 sm:gap-2 w-full md:w-auto shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-end gap-2 w-full md:w-auto shrink-0">
             {activeTab === 'sale' && (
-              <div className="relative flex-1 min-w-0 md:w-60 lg:w-64 md:flex-initial">
-                <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+              <div className="hidden md:block relative md:w-60 lg:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
                 <input
                   type="text"
                   placeholder={t('search_pos_input', 'Search products...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-surface-muted dark:bg-[#161616] border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 rounded-full pl-7 sm:pl-8 pr-6 sm:pr-7 py-1 sm:py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 transition"
+                  className="w-full bg-surface-muted dark:bg-[#161616] border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 rounded-full pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 transition"
                 />
                 {searchQuery && (
                   <button
@@ -1520,14 +1531,16 @@ const DashboardPOS: React.FC = () => {
             )}
 
             {(activeTab === 'history' || activeTab === 'invoices') && (
-              <DateRangePicker 
-                value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
-                onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
-                buttonClassName="rounded-full !py-1 sm:!py-1.5 text-xs font-semibold"
-              />
+              <div className="hidden md:block">
+                <DateRangePicker 
+                  value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
+                  onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
+                  buttonClassName="rounded-full !py-1.5 text-xs font-semibold"
+                />
+              </div>
             )}
 
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar shrink-0">
               <button 
                 type="button"
                 onClick={() => setActiveTab('sale')}
@@ -1570,6 +1583,29 @@ const DashboardPOS: React.FC = () => {
                 )}
               </button>
             </div>
+
+            {activeTab === 'sale' && (
+              <div className="md:hidden relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+                <input
+                  type="text"
+                  placeholder={t('search_pos_input', 'Search products...')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-surface-muted dark:bg-[#161616] border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 rounded-full pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 transition"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -2085,7 +2121,7 @@ const DashboardPOS: React.FC = () => {
                   TSh {parseFloat(markPaidModalData.total_amount || 0).toLocaleString()}
                 </span>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-2xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <span className="text-2xs font-bold text-amber-600 dark:text-amber-400">
                 {t('unpaid', 'Unpaid')}
               </span>
             </div>
@@ -2248,7 +2284,7 @@ const DashboardPOS: React.FC = () => {
                       setInvoiceModalData(null);
                       handleOpenMarkPaid(inv);
                     }}
-                    className="inline-flex items-center px-2.5 py-1 text-2xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition cursor-pointer"
+                    className="inline-flex items-center px-2.5 py-1 text-2xs font-bold bg-emerald-500 hover:bg-emerald-600 text-black rounded-lg transition cursor-pointer"
                   >
                     <span>{t('mark_paid', 'Mark Paid')}</span>
                   </button>
