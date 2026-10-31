@@ -7996,3 +7996,289 @@ class PublicInvoiceVerifyView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+# --- Digital Products & Vault Fulfillment Engine ---
+from .models import DigitalAsset, DigitalAccessLicense, DigitalAccessToken
+from .serializers import DigitalAssetSerializer, DigitalAccessLicenseSerializer
+from .digital_services import (
+    generate_access_token,
+    validate_access_token,
+    apply_pdf_watermark,
+    ChunkedRangeFileStreamer,
+    issue_offline_lease
+)
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.http import FileResponse, Http404, HttpResponse
+
+
+class DigitalLibraryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Buyer Digital Library:
+    Lists all owned digital products and licenses with instant access tokens,
+    streaming URLs, and offline cryptographic leases.
+    """
+    serializer_class = DigitalAccessLicenseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = DigitalAccessLicense.objects.filter(
+            user=user
+        ).select_related(
+            'digital_asset',
+            'digital_asset__product',
+            'digital_asset__product__seller',
+            'digital_asset__product__seller__profile',
+            'variant',
+            'order'
+        ).prefetch_related(
+            'digital_asset__product__images'
+        ).order_by('-created_at')
+
+        # Filter by file type if provided
+        file_type = self.request.query_params.get('file_type')
+        if file_type:
+            qs = qs.filter(digital_asset__file_type__iexact=file_type)
+
+        # Filter by search keyword
+        query = self.request.query_params.get('search')
+        if query:
+            qs = qs.filter(
+                Q(digital_asset__title__icontains=query) |
+                Q(digital_asset__product__name__icontains=query) |
+                Q(digital_asset__product__seller__username__icontains=query)
+            )
+
+        return qs
+
+    @decorators.action(detail=True, methods=['post'], url_path='token')
+    def request_token(self, request, pk=None):
+        """
+        Issues a 15-minute cryptographically signed token for reading, streaming, or downloading.
+        """
+        license_obj = self.get_object()
+        if not license_obj.is_valid():
+            return Response(
+                {'error': f'This digital license is {license_obj.status.lower()} and cannot be accessed.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        token_type = request.data.get('token_type', 'READ').upper()
+        if token_type not in ('READ', 'STREAM', 'DOWNLOAD', 'OFFLINE'):
+            return Response({'error': f'Invalid token type: {token_type}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if token_type == 'DOWNLOAD' and not license_obj.can_download():
+            return Response(
+                {
+                    'error': f'Download limit reached ({license_obj.download_count}/{license_obj.digital_asset.max_downloads_per_license}). You can still read or stream online.'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        client_ip = request.META.get('REMOTE_ADDR')
+        token_obj = generate_access_token(
+            license_obj=license_obj,
+            token_type=token_type,
+            client_ip=client_ip,
+            expires_in_seconds=900
+        )
+
+        base_url = request.build_absolute_uri('/')[:-1]
+        stream_url = f"{base_url}/api/digital/stream/{token_obj.token}/"
+        download_url = f"{base_url}/api/digital/download/{token_obj.token}/"
+
+        return Response({
+            'token': token_obj.token,
+            'token_type': token_obj.token_type,
+            'expires_at': token_obj.expires_at.isoformat(),
+            'stream_url': stream_url,
+            'download_url': download_url if token_type == 'DOWNLOAD' else None,
+            'downloads_remaining': max(0, license_obj.digital_asset.max_downloads_per_license - license_obj.download_count)
+        })
+
+    @decorators.action(detail=True, methods=['post'], url_path='offline-lease')
+    def request_offline_lease(self, request, pk=None):
+        """
+        Issues a 30-day cryptographic offline lease for WebCrypto/IndexedDB caching.
+        """
+        license_obj = self.get_object()
+        if not license_obj.is_valid():
+            return Response(
+                {'error': f'This digital license is {license_obj.status.lower()} and cannot be cached offline.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        device_fingerprint = request.data.get('device_fingerprint') or 'web-browser'
+        lease_info = issue_offline_lease(
+            license_obj=license_obj,
+            device_fingerprint=device_fingerprint,
+            lease_days=30
+        )
+        return Response(lease_info, status=status.HTTP_200_OK)
+
+
+class DigitalAssetViewSet(viewsets.ModelViewSet):
+    """
+    Seller Digital Asset Vault Management:
+    Allows authorized sellers to upload master files, manage delivery modes, and set sample previews.
+    """
+    serializer_class = DigitalAssetSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return DigitalAsset.objects.all().select_related('product', 'variant')
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='manage_products') or [user.id]
+        return DigitalAsset.objects.filter(product__seller_id__in=sellers).select_related('product', 'variant')
+
+    def perform_create(self, serializer):
+        product = serializer.validated_data.get('product')
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(self.request.user, required_permission='manage_products') or [self.request.user.id]
+        if product.seller_id not in sellers and not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise drf_serializers.ValidationError("You do not have permission to attach digital assets to this product.")
+
+        master_file = self.request.FILES.get('file')
+        file_size = master_file.size if master_file else 0
+        sha256 = ''
+        if master_file:
+            import hashlib
+            hasher = hashlib.sha256()
+            for chunk in master_file.chunks():
+                hasher.update(chunk)
+            sha256 = hasher.hexdigest()
+
+        asset = serializer.save(
+            file_size_bytes=file_size,
+            sha256_checksum=sha256
+        )
+
+        if asset.product.product_type == 'PHYSICAL':
+            asset.product.product_type = 'DIGITAL'
+            asset.product.save(update_fields=['product_type'])
+
+    def perform_update(self, serializer):
+        master_file = self.request.FILES.get('file')
+        if master_file:
+            import hashlib
+            hasher = hashlib.sha256()
+            for chunk in master_file.chunks():
+                hasher.update(chunk)
+            serializer.save(
+                file_size_bytes=master_file.size,
+                sha256_checksum=hasher.hexdigest()
+            )
+        else:
+            serializer.save()
+
+
+class DigitalStreamView(APIView):
+    """
+    Protected streaming view for audio, video, and PDF reader.
+    Validates short-lived tokens and serves chunked content or watermarked PDF buffers.
+    No direct access to vault files is possible.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        token_obj, license_obj, err = validate_access_token(token, client_ip=request.META.get('REMOTE_ADDR'))
+        if err or not license_obj:
+            return HttpResponse(json.dumps({'error': err or 'Unauthorized'}), status=403, content_type='application/json')
+
+        asset = license_obj.digital_asset
+        if not asset.file:
+            return HttpResponse(json.dumps({'error': 'Master file not found in vault.'}), status=404, content_type='application/json')
+
+        try:
+            file_path = asset.file.path
+        except Exception:
+            return HttpResponse(json.dumps({'error': 'Vault file unreadable.'}), status=500, content_type='application/json')
+
+        if not os.path.exists(file_path):
+            return HttpResponse(json.dumps({'error': 'Vault file missing on disk.'}), status=404, content_type='application/json')
+
+        license_obj.last_accessed_at = timezone.now()
+        license_obj.save(update_fields=['last_accessed_at'])
+
+        if asset.file_type == 'PDF' or file_path.lower().endswith('.pdf'):
+            if asset.watermark_enabled:
+                watermarked_pdf = apply_pdf_watermark(file_path, license_obj)
+                response = HttpResponse(watermarked_pdf, content_type='application/pdf')
+            else:
+                with open(file_path, 'rb') as f:
+                    response = HttpResponse(f.read(), content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="document.pdf"'
+            response['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+            return response
+
+        content_type = 'audio/mpeg'
+        if file_path.lower().endswith('.mp3'): content_type = 'audio/mpeg'
+        elif file_path.lower().endswith('.m4b') or file_path.lower().endswith('.m4a'): content_type = 'audio/mp4'
+        elif file_path.lower().endswith('.mp4'): content_type = 'video/mp4'
+
+        streamer = ChunkedRangeFileStreamer(file_path, request)
+        return streamer.get_response(content_type=content_type)
+
+
+class DigitalDownloadView(APIView):
+    """
+    Protected download endpoint. Enforces license download quota,
+    increments usage counter, applies watermarks, and delivers attachment.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        token_obj, license_obj, err = validate_access_token(
+            token, expected_type='DOWNLOAD', client_ip=request.META.get('REMOTE_ADDR')
+        )
+        if err or not license_obj:
+            return HttpResponse(json.dumps({'error': err or 'Unauthorized'}), status=403, content_type='application/json')
+
+        if not license_obj.can_download():
+            return HttpResponse(
+                json.dumps({'error': f'Download limit reached ({license_obj.download_count}/{license_obj.digital_asset.max_downloads_per_license}).'}),
+                status=403, content_type='application/json'
+            )
+
+        asset = license_obj.digital_asset
+        if not asset.file:
+            return HttpResponse(json.dumps({'error': 'Master file not found in vault.'}), status=404, content_type='application/json')
+
+        try:
+            file_path = asset.file.path
+        except Exception:
+            return HttpResponse(json.dumps({'error': 'Vault file unreadable.'}), status=500, content_type='application/json')
+
+        if not os.path.exists(file_path):
+            return HttpResponse(json.dumps({'error': 'Vault file missing on disk.'}), status=404, content_type='application/json')
+
+        license_obj.download_count += 1
+        license_obj.last_accessed_at = timezone.now()
+        license_obj.save(update_fields=['download_count', 'last_accessed_at'])
+
+        token_obj.is_used = True
+        token_obj.save(update_fields=['is_used'])
+
+        raw_filename = os.path.basename(file_path)
+        safe_filename = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', raw_filename)
+
+        if asset.file_type == 'PDF' or file_path.lower().endswith('.pdf'):
+            if asset.watermark_enabled:
+                watermarked_pdf = apply_pdf_watermark(file_path, license_obj)
+                response = HttpResponse(watermarked_pdf, content_type='application/pdf')
+            else:
+                with open(file_path, 'rb') as f:
+                    response = HttpResponse(f.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+            response['Content-Length'] = len(response.content)
+            return response
+
+        response = FileResponse(open(file_path, 'rb'))
+        response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+        return response
+
+
+

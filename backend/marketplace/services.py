@@ -9,9 +9,9 @@ class OrderStateMachine:
         'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
         'CHECKOUT': ['PAID_PRODUCT', 'AWAITING_PAYMENT', 'CANCELLED'],
         'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'PREPARING', 'CANCELLED'],
-        'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
+        'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'PAID', 'EXPIRED', 'CANCELLED'],  # FIX L-15: direct payment support
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
-        'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE', 'COMPLETED'],
         'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'PREPARING': ['PACKAGING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'SHIPPED', 'READY_FOR_PICKUP', 'DELIVERED', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
@@ -131,6 +131,29 @@ class OrderStateMachine:
             if new_state in ('PAID', 'DELIVERED', 'COMPLETED'):
                 from .models import ReferralConversion
                 ReferralConversion.objects.filter(order=locked_order, status='PENDING').update(status='APPROVED')
+
+            # Digital Goods Fulfillment: Provision licenses upon payment/completion
+            if new_state in ('PAID', 'DELIVERED', 'COMPLETED'):
+                cls.fulfill_digital_licenses_for_order(locked_order)
+                # If purely digital order is paid, auto-advance directly to COMPLETED
+                if new_state == 'PAID':
+                    all_items = list(locked_order.orderitem_set.select_related('product', 'variant').all())
+                    if all_items and all(
+                        (it.variant and it.variant.format_type in ('DIGITAL_FILE', 'AUDIOBOOK', 'LICENSE_KEY')) or
+                        (not it.variant and it.product.product_type == 'DIGITAL')
+                        for it in all_items
+                    ):
+                        new_state = 'COMPLETED'
+                        locked_order.status = 'COMPLETED'
+                        locked_order.save(update_fields=['status'])
+                        order.status = 'COMPLETED'
+
+            # Anti-Piracy Kill-Switch: Revoke digital access on cancellation, dispute, or expiry
+            if new_state in ('CANCELLED', 'EXPIRED', 'DISPUTED'):
+                from .models import DigitalAccessLicense
+                DigitalAccessLicense.objects.filter(order=locked_order).update(status='REVOKED')
+            elif old_state == 'DISPUTED' and new_state not in ('CANCELLED', 'DISPUTED'):
+                cls.fulfill_digital_licenses_for_order(locked_order)
 
             # FIX: M-02 — restore stock on cancellation or expiration (only if stock was already decremented)
             if new_state in ('CANCELLED', 'EXPIRED') and old_state not in ('CANCELLED', 'EXPIRED'):
@@ -373,6 +396,45 @@ class OrderStateMachine:
             )
 
         cls._broadcast_update(order, new_state, old_state, event)
+
+    @classmethod
+    def fulfill_digital_licenses_for_order(cls, order):
+        """
+        Provisions or activates DigitalAccessLicense records for all digital items/variants in the order.
+        Idempotent and safe to run multiple times.
+        """
+        from .models import DigitalAccessLicense, DigitalAsset
+        created_licenses = []
+        for item in order.orderitem_set.select_related('product', 'variant').all():
+            product = item.product
+            variant = item.variant
+            
+            asset = None
+            if variant:
+                if hasattr(variant, 'digital_asset') and variant.digital_asset:
+                    asset = variant.digital_asset
+                elif variant.format_type in ('DIGITAL_FILE', 'AUDIOBOOK', 'LICENSE_KEY'):
+                    asset = product.digital_assets.filter(variant=variant).first() or product.digital_assets.first()
+            else:
+                if product.product_type in ('DIGITAL', 'HYBRID'):
+                    asset = product.digital_assets.filter(variant__isnull=True).first() or product.digital_assets.first()
+
+            if asset:
+                license_obj, created = DigitalAccessLicense.objects.get_or_create(
+                    user=order.user,
+                    order=order,
+                    order_item=item,
+                    digital_asset=asset,
+                    defaults={
+                        'status': 'ACTIVE',
+                        'download_count': 0,
+                    }
+                )
+                if not created and license_obj.status != 'ACTIVE':
+                    license_obj.status = 'ACTIVE'
+                    license_obj.save(update_fields=['status'])
+                created_licenses.append(license_obj)
+        return created_licenses
 
     @classmethod
     def _broadcast_update(cls, order, new_state, old_state, event):

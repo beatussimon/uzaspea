@@ -11,7 +11,8 @@ from .models import (
     TeamMember, TeamMemberAuditLog, StoreImage, ProductPriceTier, ProductRequest,
     VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
     Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername,
-    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem
+    StoreLocation, LocationStock, RegisterSession, StockTransfer, StockTransferItem,
+    DigitalAsset, DigitalAccessLicense, DigitalAccessToken
 )
 
 
@@ -1404,6 +1405,47 @@ class OrderSerializer(serializers.ModelSerializer):
         fulfillment_type = data.get('fulfillment_type')
 
         # Auto-infer sensible defaults when client omits fulfillment_type
+        # Check if order is purely digital (no physical freight or shipping required)
+        initial_items = self.initial_data.get('orderitem_set', [])
+        is_purely_digital = False
+        if initial_items:
+            try:
+                from marketplace.models import Product, ProductVariant
+                pure_digital = True
+                for raw_item in initial_items:
+                    p_id = raw_item.get('product')
+                    if isinstance(p_id, dict):
+                        p_id = p_id.get('id') or p_id.get('pk')
+                    v_id = raw_item.get('variant')
+                    if isinstance(v_id, dict):
+                        v_id = v_id.get('id') or v_id.get('pk')
+                    
+                    if v_id:
+                        v = ProductVariant.objects.filter(pk=v_id).first()
+                        if not v or v.format_type == 'PHYSICAL':
+                            pure_digital = False
+                            break
+                    elif p_id:
+                        p = Product.objects.filter(pk=p_id).first()
+                        if not p or p.product_type != 'DIGITAL':
+                            pure_digital = False
+                            break
+                    else:
+                        pure_digital = False
+                        break
+                is_purely_digital = pure_digital
+            except Exception:
+                is_purely_digital = False
+
+        if is_purely_digital:
+            data['shipping_fee'] = Decimal('0.00')
+            if not fulfillment_type:
+                data['fulfillment_type'] = 'DIRECT_DELIVERY'
+                fulfillment_type = 'DIRECT_DELIVERY'
+            if not shipping_method:
+                data['shipping_method'] = 'DELIVERY'
+                shipping_method = 'DELIVERY'
+
         if not fulfillment_type:
             if shipping_method == 'PICKUP':
                 data['fulfillment_type'] = 'WAREHOUSE_PICKUP'
@@ -1464,7 +1506,7 @@ class OrderSerializer(serializers.ModelSerializer):
                     elif hasattr(seller, 'profile') and seller.profile.location:
                         seller_region = seller.profile.location.strip().lower()
 
-                    if buyer_region and seller_region and buyer_region != seller_region:
+                    if not is_purely_digital and buyer_region and seller_region and buyer_region != seller_region:
                         # They are in different regions, ONLY PLATFORM_DELIVERY is allowed
                         if fulfillment_type != 'PLATFORM_DELIVERY':
                             raise serializers.ValidationError(
@@ -1961,7 +2003,18 @@ class OrderSerializer(serializers.ModelSerializer):
                             status='PENDING'
                         )
             
-            shipping_fee = validated_data.get('shipping_fee', 0)
+            # If all items in this order are digital, ensure shipping fee is strictly 0
+            order_items_list = list(order.orderitem_set.select_related('product', 'variant').all())
+            is_order_purely_digital = len(order_items_list) > 0 and all(
+                (it.variant and it.variant.format_type in ('DIGITAL_FILE', 'AUDIOBOOK', 'LICENSE_KEY')) or
+                (not it.variant and it.product.product_type == 'DIGITAL')
+                for it in order_items_list
+            )
+            if is_order_purely_digital:
+                shipping_fee = Decimal('0.00')
+                order.shipping_fee = Decimal('0.00')
+            else:
+                shipping_fee = validated_data.get('shipping_fee', 0)
             order.total_amount = max(Decimal('0.00'), total - discount_amount) + shipping_fee
             order.save(update_fields=['total_amount', 'promo_code', 'discount_amount'])
 
@@ -3082,5 +3135,80 @@ class StockTransferSerializer(serializers.ModelSerializer):
             'id', 'owner', 'tracking_number', 'dispatched_by', 'dispatched_at',
             'received_by', 'received_at', 'created_at', 'updated_at'
         ]
+
+
+class DigitalAssetSerializer(serializers.ModelSerializer):
+    variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)
+    has_master_file = serializers.SerializerMethodField()
+    sample_preview_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DigitalAsset
+        fields = [
+            'id', 'product', 'variant', 'variant_name', 'title', 'file_type',
+            'has_master_file', 'sample_preview_file', 'sample_preview_url',
+            'file_size_bytes', 'page_count', 'duration_seconds',
+            'delivery_mode', 'max_downloads_per_license', 'watermark_enabled',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'file_size_bytes', 'has_master_file', 'sample_preview_url']
+
+    def get_has_master_file(self, obj):
+        return bool(obj.file)
+
+    def get_sample_preview_url(self, obj):
+        if obj.sample_preview_file:
+            return obj.sample_preview_file.url
+        return None
+
+
+class DigitalAccessLicenseSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='digital_asset.product.id', read_only=True)
+    product_name = serializers.CharField(source='digital_asset.product.name', read_only=True)
+    product_slug = serializers.CharField(source='digital_asset.product.url_slug', read_only=True)
+    cover_image = serializers.SerializerMethodField()
+    seller_store_name = serializers.SerializerMethodField()
+    variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)
+    format_type = serializers.CharField(source='variant.format_type', read_only=True, default='DIGITAL_FILE')
+    asset_title = serializers.CharField(source='digital_asset.title', read_only=True)
+    file_type = serializers.CharField(source='digital_asset.file_type', read_only=True)
+    delivery_mode = serializers.CharField(source='digital_asset.delivery_mode', read_only=True)
+    page_count = serializers.IntegerField(source='digital_asset.page_count', read_only=True, allow_null=True)
+    duration_seconds = serializers.IntegerField(source='digital_asset.duration_seconds', read_only=True, allow_null=True)
+    sample_preview_url = serializers.SerializerMethodField()
+    can_download = serializers.SerializerMethodField()
+    max_downloads = serializers.IntegerField(source='digital_asset.max_downloads_per_license', read_only=True)
+
+    class Meta:
+        model = DigitalAccessLicense
+        fields = [
+            'id', 'license_key', 'status', 'download_count', 'max_downloads',
+            'can_download', 'last_accessed_at', 'offline_lease_expires_at',
+            'created_at', 'order_id',
+            'product_id', 'product_name', 'product_slug', 'cover_image',
+            'seller_store_name', 'variant_id', 'variant_name', 'format_type',
+            'asset_title', 'file_type', 'delivery_mode', 'page_count',
+            'duration_seconds', 'sample_preview_url'
+        ]
+        read_only_fields = ['id', 'license_key', 'status', 'created_at']
+
+    def get_cover_image(self, obj):
+        prod = obj.digital_asset.product
+        if prod.images.exists():
+            return prod.images.first().image.url
+        return None
+
+    def get_seller_store_name(self, obj):
+        seller = obj.digital_asset.product.seller
+        return resolve_seller_store_name(seller, self.context)
+
+    def get_sample_preview_url(self, obj):
+        if obj.digital_asset.sample_preview_file:
+            return obj.digital_asset.sample_preview_file.url
+        return None
+
+    def get_can_download(self, obj):
+        return obj.can_download()
+
 
 

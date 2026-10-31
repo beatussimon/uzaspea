@@ -20,7 +20,8 @@ from .api_views import (
     BrandViewSet, ReferenceProductViewSet,
     ReservedUsernameStaffViewSet, CheckUsernameView,
     StoreLocationViewSet, LocationStockViewSet, RegisterSessionViewSet, StockTransferViewSet,
-    PublicInvoiceVerifyView
+    PublicInvoiceVerifyView,
+    DigitalLibraryViewSet, DigitalAssetViewSet, DigitalStreamView, DigitalDownloadView
 )
 
 from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
@@ -71,6 +72,8 @@ router.register(r'register-sessions', RegisterSessionViewSet, basename='register
 router.register(r'stock-transfers', StockTransferViewSet, basename='stock-transfer')
 router.register(r'staff-admin/password-requests', PasswordResetRequestStaffViewSet, basename='staff-password-request')
 router.register(r'staff-admin/reserved-usernames', ReservedUsernameStaffViewSet, basename='staff-reserved-usernames')
+router.register(r'digital/library', DigitalLibraryViewSet, basename='digital-library')
+router.register(r'digital/assets', DigitalAssetViewSet, basename='digital-asset')
 urlpatterns = [
     path('api/products/discovery/', DiscoveryFeedView.as_view(), name='products-discovery'),
     path('api/products/recommendations/', CategoryRecommendationsView.as_view(), name='products-recommendations'),
@@ -85,6 +88,8 @@ urlpatterns = [
     path('api/recs/admin/simulate/', RecAdminSimulateView.as_view(), name='recs-admin-simulate'),
     path('api/recs/admin/health/', RecAdminHealthView.as_view(), name='recs-admin-health'),
     path('api/recs/admin/why-not-shown/', RecAdminWhyNotShownView.as_view(), name='recs-admin-why-not-shown'),
+    path('api/digital/stream/<str:token>/', DigitalStreamView.as_view(), name='digital-stream'),
+    path('api/digital/download/<str:token>/', DigitalDownloadView.as_view(), name='digital-download'),
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
