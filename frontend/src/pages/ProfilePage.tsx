@@ -21,7 +21,7 @@ import SocialLinks from '../components/SocialLinks';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 const ProductRequestModal = lazy(() => import('../components/ProductRequestModal'));
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useUserRoles } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { useMessages } from '../context/MessageContext';
 
@@ -222,6 +222,7 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { isBusiness: isCurrentUserBusiness } = useUserRoles();
   const { startDirectChat } = useMessages();
   const { openSearchForSeller } = useSearch();
   const [profile, setProfile] = useState<any>(null);
@@ -259,7 +260,12 @@ const ProfilePage: React.FC = () => {
     profile?.tier === 'business' ||
     (products && products.length > 0)
   );
+  const isBusinessProfile = Boolean(
+    profile?.tier === 'business' ||
+    (isOwner && (isCurrentUserBusiness || user?.tier === 'business' || user?.last_tier === 'business'))
+  );
   const showDemandsTab = isSellerProfile && Boolean(profile?.show_product_requests);
+  const showBranchesTab = isBusinessProfile && branches.length > 0;
 
   // Extract unique categories from seller's products for quick-filter pills
   const sellerCategories = useMemo(() => {
@@ -415,14 +421,16 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (profile && !isSellerProfile) {
       setActiveTab('about');
+    } else if (activeTab === 'branches' && !showBranchesTab) {
+      setActiveTab('listings');
     }
     if (profile && username) {
-      const count = (isSellerProfile ? 2 : 1) + (showDemandsTab ? 1 : 0) + (branches.length > 0 ? 1 : 0);
+      const count = (isSellerProfile ? 2 : 1) + (showDemandsTab ? 1 : 0) + (showBranchesTab ? 1 : 0);
       try {
         sessionStorage.setItem(`profile_tab_count_${username.toLowerCase()}`, String(count));
       } catch {}
     }
-  }, [profile, username, isSellerProfile, showDemandsTab, branches.length]);
+  }, [profile, username, isSellerProfile, showDemandsTab, showBranchesTab, activeTab]);
 
   const handleFollow = async () => {
       const action = followStatus.following ? 'unfollow' : 'follow';
@@ -888,7 +896,7 @@ const ProfilePage: React.FC = () => {
                 )}
               </button>
 
-              {branches.length > 0 && (
+              {showBranchesTab && (
                 <button
                   onClick={() => setActiveTab('branches')}
                   className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
@@ -1298,7 +1306,7 @@ const ProfilePage: React.FC = () => {
         ) : null}
 
         {/* Branches Tab Content */}
-        {isSellerProfile && activeTab === 'branches' && (
+        {isSellerProfile && showBranchesTab && activeTab === 'branches' && (
           <div className="pt-2 max-w-xl mx-auto px-4 sm:px-0 space-y-3 sm:space-y-4">
             {branches.map((b: any) => (
               <div
