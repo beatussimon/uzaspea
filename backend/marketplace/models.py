@@ -331,6 +331,12 @@ class Product(models.Model):
     )
     minimum_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
     is_available = models.BooleanField(default=True)
+    PRODUCT_TYPE_CHOICES = (
+        ('PHYSICAL', 'Physical'),
+        ('DIGITAL', 'Digital'),
+        ('HYBRID', 'Hybrid'),
+    )
+    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES, default='PHYSICAL', db_index=True)
     is_draft = models.BooleanField(default=False, db_index=True, help_text="True if listing is saved as draft and not published")
     pos_only = models.BooleanField(default=False, db_index=True, help_text="Exclusive to in-store POS register; hidden from public marketplace listings and public seller store")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
@@ -1399,14 +1405,22 @@ class Dispute(models.Model):
 
 # ─── Product Variants (B-16) ─────────────────────────────────────
 class ProductVariant(models.Model):
+    FORMAT_TYPE_CHOICES = (
+        ('PHYSICAL', 'Physical'),
+        ('DIGITAL_FILE', 'Digital File / PDF'),
+        ('AUDIOBOOK', 'Audiobook'),
+        ('LICENSE_KEY', 'License Key / Serial'),
+    )
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='variants')
     name = models.CharField(max_length=100, help_text='e.g. "Red / XL" or "128GB Black"')
     sku = models.CharField(max_length=50, blank=True)
+    format_type = models.CharField(max_length=20, choices=FORMAT_TYPE_CHOICES, default='PHYSICAL', db_index=True)
     price_adjustment = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         help_text='Added to base product price. Can be negative.'
     )
     stock = models.PositiveIntegerField(default=0)
+    is_unlimited_stock = models.BooleanField(default=False)
     is_available = models.BooleanField(default=True)
     image = models.ImageField(upload_to='variant_images/', blank=True, null=True, validators=[validate_image])
 
@@ -1427,6 +1441,144 @@ class ProductVariant(models.Model):
 
     class Meta:
         ordering = ['name']
+
+
+# ─── Digital Assets, Vault & Access Licenses ──────────────────────────────
+def get_vault_storage():
+    from django.core.files.storage import FileSystemStorage
+    from django.conf import settings
+    return FileSystemStorage(location=str(settings.SECURE_DIGITAL_ROOT), base_url=None)
+
+def digital_vault_upload_path(instance, filename):
+    import os, uuid
+    ext = os.path.splitext(filename)[1].lower()
+    product_id = instance.product_id or 'common'
+    return f"product_{product_id}/{uuid.uuid4().hex}{ext}"
+
+def digital_preview_upload_path(instance, filename):
+    import os, uuid
+    ext = os.path.splitext(filename)[1].lower()
+    product_id = instance.product_id or 'common'
+    return f"digital_previews/product_{product_id}_{uuid.uuid4().hex[:8]}{ext}"
+
+
+class DigitalAsset(models.Model):
+    DELIVERY_MODE_CHOICES = (
+        ('STREAM_ONLY', 'In-App Stream / Read Only'),
+        ('DOWNLOAD_ONLY', 'Watermarked Download Only'),
+        ('STREAM_AND_DOWNLOAD', 'Both Stream and Download'),
+        ('LICENSE_KEY', 'License Key Delivery'),
+    )
+    FILE_TYPE_CHOICES = (
+        ('PDF', 'PDF Document'),
+        ('AUDIO', 'Audio / Audiobook'),
+        ('EPUB', 'ePub eBook'),
+        ('VIDEO', 'Video / Course'),
+        ('SOFTWARE', 'Software / Archive'),
+        ('KEY', 'License Key'),
+    )
+
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='digital_assets')
+    variant = models.OneToOneField('ProductVariant', on_delete=models.CASCADE, null=True, blank=True, related_name='digital_asset')
+    title = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES, default='PDF')
+    
+    # Master file stored in private vault outside web root (base_url=None ensures no direct public URL)
+    file = models.FileField(storage=get_vault_storage, upload_to=digital_vault_upload_path, null=True, blank=True)
+    
+    # Sample / Preview file in public media
+    sample_preview_file = models.FileField(upload_to=digital_preview_upload_path, null=True, blank=True)
+    
+    file_size_bytes = models.BigIntegerField(default=0)
+    page_count = models.PositiveIntegerField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    delivery_mode = models.CharField(max_length=30, choices=DELIVERY_MODE_CHOICES, default='STREAM_AND_DOWNLOAD')
+    max_downloads_per_license = models.PositiveIntegerField(default=5)
+    watermark_enabled = models.BooleanField(default=True)
+    sha256_checksum = models.CharField(max_length=64, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.file_type}) - {self.product.name}"
+
+
+class DigitalAccessLicense(models.Model):
+    STATUS_CHOICES = (
+        ('ACTIVE', 'Active'),
+        ('REVOKED', 'Revoked'),
+        ('EXPIRED', 'Expired'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='digital_licenses')
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='digital_licenses')
+    order_item = models.ForeignKey('OrderItem', on_delete=models.CASCADE, related_name='digital_licenses')
+    digital_asset = models.ForeignKey(DigitalAsset, on_delete=models.CASCADE, related_name='licenses')
+    
+    license_key = models.CharField(max_length=64, unique=True, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE', db_index=True)
+    download_count = models.PositiveIntegerField(default=0)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    offline_lease_expires_at = models.DateTimeField(null=True, blank=True)
+    device_fingerprints = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['license_key']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.license_key:
+            import secrets
+            self.license_key = f"LIC-{secrets.token_hex(12).upper()}"
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return self.status == 'ACTIVE' and self.order.status in ['PAID', 'COMPLETED', 'DELIVERED', 'SHIPPED', 'PROCESSING']
+
+    def can_download(self):
+        return self.is_valid() and (self.download_count < self.digital_asset.max_downloads_per_license)
+
+    def __str__(self):
+        return f"License {self.license_key} ({self.user.username} -> {self.digital_asset.title})"
+
+
+class DigitalAccessToken(models.Model):
+    TOKEN_TYPE_CHOICES = (
+        ('READ', 'Read Online'),
+        ('STREAM', 'Audio Stream'),
+        ('DOWNLOAD', 'Download File'),
+        ('OFFLINE', 'Offline Cache'),
+    )
+
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    license = models.ForeignKey(DigitalAccessLicense, on_delete=models.CASCADE, related_name='tokens')
+    token_type = models.CharField(max_length=20, choices=TOKEN_TYPE_CHOICES, default='READ')
+    expires_at = models.DateTimeField(db_index=True)
+    client_ip = models.GenericIPAddressField(null=True, blank=True)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['token', 'expires_at']),
+        ]
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.token_type} Token for License {self.license.license_key}"
 
 
 # --- Cache Invalidation Signals ---

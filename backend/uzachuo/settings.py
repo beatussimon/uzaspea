@@ -270,6 +270,10 @@ STORAGES = {
 MEDIA_URL = '/media/'  # URL prefix for media files.  MUST start and end with a slash.
 MEDIA_ROOT = BASE_DIR / 'media'  # Absolute path to the media directory
 
+# Secure Digital Vault (Non-public, private storage for digital books/audio/files)
+SECURE_DIGITAL_ROOT = BASE_DIR / 'vault_storage'
+SECURE_DIGITAL_ROOT.mkdir(parents=True, exist_ok=True)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Crispy Forms settings
