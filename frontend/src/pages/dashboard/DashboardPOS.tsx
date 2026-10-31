@@ -463,20 +463,18 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                         </td>
                         <td className="p-3 text-center">
                           {isUnpaid && (
-                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-amber-600 dark:text-amber-400">
-                              <Clock size={10} />
-                              <span>{t('unpaid', 'Unpaid')}</span>
+                            <span className="text-2xs font-semibold text-amber-600 dark:text-amber-400">
+                              {t('unpaid', 'Unpaid')}
                             </span>
                           )}
                           {isPaid && (
-                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
-                              <Check size={10} />
-                              <span>{t('paid', 'Paid')}</span>
+                            <span className="text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
+                              {t('paid', 'Paid')}
                             </span>
                           )}
                           {isCancelled && (
-                            <span className="inline-flex items-center gap-1 text-2xs font-semibold text-neutral-500 dark:text-neutral-400">
-                              <span>{t('cancelled', 'Cancelled')}</span>
+                            <span className="text-2xs font-semibold text-neutral-500 dark:text-neutral-400">
+                              {t('cancelled', 'Cancelled')}
                             </span>
                           )}
                         </td>
