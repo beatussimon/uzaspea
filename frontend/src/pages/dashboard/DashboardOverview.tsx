@@ -788,76 +788,84 @@ const DashboardOverview: React.FC = () => {
         </div>
       )}
 
-      {/* Items Sold List */}
-      {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
+      {/* Items Sold Activity List */}
+      {stats?.has_advanced_analytics && (
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent print:shadow-none print:m-0 print:p-0">
           <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2 print-hide">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
-            <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Recent 100</span>
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold Activity ({dateRange.label})</h3>
+            {stats.items_sold_list && stats.items_sold_list.length > 0 && (
+              <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Recent {stats.items_sold_list.length}</span>
+            )}
           </div>
-          <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full text-left">
-              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
-                <tr>
-                  <th className="px-3 py-2.5 font-bold w-8 text-center">S/N</th>
-                  <th className="px-3 py-2.5 font-bold whitespace-nowrap">Date & Time</th>
-                  <th className="px-3 py-2.5 font-bold min-w-[150px]">Product</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Qty</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Cost (Unit)</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Price (Unit)</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Total Rev</th>
-                  <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap">Status</th>
-                </tr>
-              </thead>
-              <tbody className="print:divide-y print:divide-gray-300">
-                {stats.items_sold_list.map((item: any, idx: number) => (
-                  <tr key={`item-sold-${item.id != null ? item.id : ''}-${idx}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
-                    <td className="px-3 py-2.5 text-center text-gray-400 print:text-black font-medium">{idx + 1}</td>
-                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black whitespace-nowrap">
-                      {new Date(item.date).toLocaleDateString()} <span className="text-3xs text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    </td>
-                    <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white print:text-black" title={item.product_name}>
-                      <div className="line-clamp-1 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
-                    </td>
-                    <td className="px-3 py-2.5 font-bold text-gray-700 dark:text-gray-300 print:text-black text-right">
-                      {item.quantity}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
-                      {item.buying_price ? formatCompactCurrency(item.buying_price) : '-'}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
-                      {formatCompactCurrency(item.price)}
-                    </td>
-                    <td className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white print:text-black text-right whitespace-nowrap">
-                      {formatCompactCurrency(item.total)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                        {item.status}
-                      </span>
-                    </td>
+          {stats.items_sold_list && stats.items_sold_list.length > 0 ? (
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full text-left">
+                <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
+                  <tr>
+                    <th className="px-3 py-2.5 font-bold w-8 text-center">S/N</th>
+                    <th className="px-3 py-2.5 font-bold whitespace-nowrap">Date & Time</th>
+                    <th className="px-3 py-2.5 font-bold min-w-[150px]">Product</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Qty</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Cost (Unit)</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Price (Unit)</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Total Rev</th>
+                    <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap">Status</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot className="table-row-group print:border-t print:border-gray-300 font-extrabold" style={{ display: 'table-row-group' }}>
-                <tr className="bg-neutral-100/60 dark:bg-neutral-800/60 print:bg-transparent text-xs print:text-2xs">
-                  <td colSpan={3} className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-wider text-2xs">
-                    Grand Total
-                  </td>
-                  <td className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black">
-                    {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
-                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
-                  </td>
-                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap font-bold" colSpan={2}>
-                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
-                  </td>
-                  <td className="px-4 py-4"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                </thead>
+                <tbody className="print:divide-y print:divide-gray-300">
+                  {stats.items_sold_list.map((item: any, idx: number) => (
+                    <tr key={`item-sold-${item.id != null ? item.id : ''}-${idx}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
+                      <td className="px-3 py-2.5 text-center text-gray-400 print:text-black font-medium">{idx + 1}</td>
+                      <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black whitespace-nowrap">
+                        {new Date(item.date).toLocaleDateString()} <span className="text-3xs text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </td>
+                      <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white print:text-black" title={item.product_name}>
+                        <div className="line-clamp-1 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
+                      </td>
+                      <td className="px-3 py-2.5 font-bold text-gray-700 dark:text-gray-300 print:text-black text-right">
+                        {item.quantity}
+                      </td>
+                      <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
+                        {item.buying_price ? formatCompactCurrency(item.buying_price) : '-'}
+                      </td>
+                      <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
+                        {formatCompactCurrency(item.price)}
+                      </td>
+                      <td className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white print:text-black text-right whitespace-nowrap">
+                        {formatCompactCurrency(item.total)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="table-row-group print:border-t print:border-gray-300 font-extrabold" style={{ display: 'table-row-group' }}>
+                  <tr className="bg-neutral-100/60 dark:bg-neutral-800/60 print:bg-transparent text-xs print:text-2xs">
+                    <td colSpan={3} className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-wider text-2xs">
+                      Grand Total
+                    </td>
+                    <td className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black">
+                      {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
+                    </td>
+                    <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
+                      {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
+                    </td>
+                    <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap font-bold" colSpan={2}>
+                      {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
+                    </td>
+                    <td className="px-4 py-4"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-xs text-gray-400 font-medium print-hide">
+              No items sold during this period.
+            </div>
+          )}
         </div>
       )}
         </div>

@@ -1048,7 +1048,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             stats_user = user
 
-        is_business = stats_user.profile.tier == 'business' or stats_user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+        user_tier = getattr(getattr(stats_user, 'profile', None), 'tier', None)
+        is_business = user_tier == 'business' or stats_user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+        is_pro = user_tier in ['seller_pro', 'pro'] or stats_user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_pro', 'pro']).exists()
+        has_advanced_analytics = is_business or is_pro or stats_user.is_superuser or stats_user.is_staff
 
         products = Product.objects.filter(seller=stats_user)
         orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
@@ -1489,7 +1492,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'items_sold_list': items_sold_list,
             'stock_alerts': low_stock,
             'products_summary': products_summary,
-            'has_advanced_analytics': is_business,
+            'has_advanced_analytics': has_advanced_analytics,
             'location_breakdown': location_breakdown,
             'selected_location': selected_location_id,
             'commission_paid': commission_paid,
