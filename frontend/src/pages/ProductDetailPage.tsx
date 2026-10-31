@@ -1787,14 +1787,16 @@ const ProductDetailPage: React.FC = () => {
 
               {actionMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-xl shadow-2xl z-50 py-1.5 text-xs font-semibold animate-slide-up">
-                  <Link
-                    to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
-                    onClick={() => setActionMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
-                  >
-                    <Shield size={15} className="text-amber-500 shrink-0" />
-                    <span>{t('request_inspection', 'Request Inspection')}</span>
-                  </Link>
+                  {!isBookProduct && product.product_type !== 'DIGITAL' && (
+                    <Link
+                      to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
+                      onClick={() => setActionMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
+                    >
+                      <Shield size={15} className="text-amber-500 shrink-0" />
+                      <span>{t('request_inspection', 'Request Inspection')}</span>
+                    </Link>
+                  )}
 
                   {product.latitude && product.longitude && (
                     <button
@@ -2712,7 +2714,8 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Verification & Inspection Services */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] text-xs space-y-2">
+          {!isBookProduct && product.product_type !== 'DIGITAL' && (
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] text-xs space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 {product.is_verified && !product.has_post_inspection_changes && (
@@ -2835,7 +2838,8 @@ const ProductDetailPage: React.FC = () => {
                 })()}
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Map Location */}
           {product.latitude && product.longitude && !isBookProduct && product.product_type !== 'DIGITAL' && (

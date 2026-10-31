@@ -528,7 +528,7 @@ const ProductCard = memo(({
         {/* Card body */}
         <div className={compact ? "absolute bottom-0 left-0 right-0 p-1.5 sm:p-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 bg-transparent" : "absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent"}>
           {/* Badges row */}
-          {(product.oem_part_number || (product.has_inspection && !product.has_post_inspection_changes)) && (
+          {!isBook && (product.oem_part_number || (product.has_inspection && !product.has_post_inspection_changes)) && (
             <div className="flex flex-wrap items-center gap-1">
               {product.oem_part_number && (
                  <div className="flex items-center text-[7.5px] text-neutral-700 dark:text-neutral-300 font-mono font-bold bg-white/95 dark:bg-black/95 px-1.5 py-0.5 rounded-card whitespace-nowrap shrink-0 shadow-sm" title={`OEM Part: ${product.oem_part_number}`}>
@@ -543,10 +543,12 @@ const ProductCard = memo(({
             </div>
           )}
 
-          {/* Product Name Bubble */}
-          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm overflow-hidden">
-            <h3 className={`font-bold ${compact ? 'text-[10.5px] sm:text-xs' : 'text-xs'} text-gray-900 dark:text-white truncate transition-colors leading-tight`}>{product.name}</h3>
-          </div>
+          {/* Product Name Bubble - omitted on books & digital to keep cover art clear */}
+          {!isBook && (
+            <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm overflow-hidden">
+              <h3 className={`font-bold ${compact ? 'text-[10.5px] sm:text-xs' : 'text-xs'} text-gray-900 dark:text-white truncate transition-colors leading-tight`}>{product.name}</h3>
+            </div>
+          )}
           
           {/* Price Bubble */}
           <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 shadow-sm flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
