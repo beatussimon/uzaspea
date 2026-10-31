@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, MessageSquare, FileText, Clock } from 'lucide-react';
+import { Trash2, ShoppingBag, ArrowRight, MessageSquare, FileText, Clock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useMessages } from '../context/MessageContext';
@@ -12,7 +12,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import RequestInvoiceModal from '../components/cart/RequestInvoiceModal';
 import InvoiceReviewModal from '../components/cart/InvoiceReviewModal';
-import { DiscoveryShelf } from '../components/discovery/DiscoveryShelf';
+import ProductCard from '../components/ProductCard';
 import { trackRecImpression } from '../utils/recTracking';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -193,9 +193,8 @@ const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="container-page pb-24 md:pb-8">
-      <div className="max-w-4xl mx-auto">
-        <PageHeader
+    <div className="container-page max-w-4xl pb-24 md:pb-8">
+      <PageHeader
           title={t('shopping_cart')}
           actions={
             <Button
@@ -219,21 +218,21 @@ const CartPage: React.FC = () => {
           return (
             <div key={merchant} className="card overflow-hidden border-0 border-none hover:border-transparent dark:hover:border-transparent">
               {/* Header with Merchant Info and Bulk Mode Toggle (No bottom divider) */}
-              <div className="px-4 py-3 bg-surface-muted dark:bg-[#111]/60 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
+              <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-surface-muted dark:bg-[#111]/60 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider truncate">
                     {t('seller')}: <span className="text-brand-500 dark:text-brand-500 font-extrabold">@{merchant}</span>
                   </h3>
                   {isBulkMode && (
-                    <span className="px-2 py-0.5 rounded text-3xs font-bold uppercase tracking-wider bg-surface-muted dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300">
+                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wider bg-surface-muted dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 shrink-0">
                       {t('bulk_mode_badge', 'Bulk Mode')}
                     </span>
                   )}
                 </div>
 
                 {/* Bulk Order / Invoicing Toggle Switch */}
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] sm:text-2xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     {t('bulk_negotiate_toggle', 'Bulk / Invoicing')}
                   </span>
                   <button
@@ -266,7 +265,7 @@ const CartPage: React.FC = () => {
                         src={item.image}
                         alt={item.name}
                         category={item.category}
-                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-surface-border dark:border-surface-dark-border bg-neutral-100 dark:bg-neutral-900"
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl bg-neutral-100 dark:bg-neutral-900 border-0"
                       />
                     </Link>
 
@@ -304,30 +303,28 @@ const CartPage: React.FC = () => {
 
                       {/* Quantity Stepper & Desktop Price/Trash */}
                       <div className="flex items-center justify-between sm:justify-end gap-3 mt-1 sm:mt-0">
-                        <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#111] rounded-lg p-1 border border-surface-border dark:border-surface-dark-border">
+                        {/* Quantity Stepper (Pill style matching products page) */}
+                        <div className="flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 h-8 sm:h-9 px-1 border-0 select-none shrink-0">
                           <button
+                            type="button"
                             onClick={() => updateQuantity(item.productId, Math.max(0.01, item.quantity - 1))}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-neutral-800 transition text-gray-600 dark:text-gray-300"
+                            className="w-7 h-full flex items-center justify-center font-bold text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition cursor-pointer"
                             aria-label="Decrease quantity"
                           >
-                            <Minus size={12} />
+                            <span className="leading-none">−</span>
                           </button>
-                          <input
-                            type="number"
-                            step="any"
-                            value={item.quantity}
-                            onChange={(e) => updateQuantity(item.productId, parseFloat(e.target.value) || 1)}
-                            className="w-10 text-center font-bold text-gray-900 dark:text-white text-xs bg-transparent border-none focus:outline-none focus:ring-0 p-0"
-                          />
+                          <span className="px-2 font-bold text-xs text-gray-900 dark:text-white whitespace-nowrap text-center">
+                            {item.quantity} {item.quantity === 1 ? 'piece' : 'pieces'}
+                          </span>
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-neutral-800 transition text-gray-600 dark:text-gray-300"
+                            type="button"
+                            onClick={() => updateQuantity(item.productId, Math.min(item.stock || 9999, item.quantity + 1))}
+                            className="w-7 h-full flex items-center justify-center font-bold text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition cursor-pointer"
                             aria-label="Increase quantity"
                           >
-                            <Plus size={12} />
+                            <span className="leading-none">+</span>
                           </button>
                         </div>
-
 
                         {/* Desktop Trash Button */}
                         <button
@@ -423,21 +420,31 @@ const CartPage: React.FC = () => {
             </div>
           );
         })}
-        </div>
       </div>
 
       {/* Complete Your Order Recommendation Shelf */}
       {cartRecs.length > 0 && (
-        <div className="mt-12">
-          <DiscoveryShelf
-            id="cart_complements"
-            title={t('complete_your_order', 'Complete your order')}
-            subtitle={t('paired_with_cart', 'Pairs well with items in your cart')}
-            products={cartRecs}
-            trackSource="cart"
-            paginated={false}
-          />
-        </div>
+        <section className="mt-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
+              {t('complete_your_order', 'Complete your order')}
+            </h2>
+            <span className="text-xs text-gray-400 font-medium hidden sm:inline">
+              {t('paired_with_cart', 'Pairs well with items in your cart')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+            {cartRecs.slice(0, 6).map((product) => (
+              <div key={product.id} className="h-full">
+                <ProductCard
+                  product={product}
+                  trackSource="cart"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Request Bulk Invoice Modal */}
