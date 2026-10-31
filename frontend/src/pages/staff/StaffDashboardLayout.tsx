@@ -737,7 +737,7 @@ export const SubscriptionConfirmation: React.FC = () => {
       {/* Modal for image preview */}
       {previewImage && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border-0 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>
@@ -1703,7 +1703,7 @@ export const CommissionPaymentsManager: React.FC = () => {
       {/* Modal for image preview */}
       {previewImage && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border-0 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>
@@ -2172,7 +2172,7 @@ export const PromotionQueue: React.FC = () => {
       {/* Preview Modal */}
       {previewImage && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[90vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-3xl max-h-[90vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border-0 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>

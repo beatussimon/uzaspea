@@ -969,11 +969,11 @@ const DashboardOrders: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="relative max-w-3xl max-h-[90vh] bg-neutral-900 rounded-card overflow-hidden border border-white/10 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
+            className="relative max-w-3xl max-h-[90vh] bg-neutral-900 rounded-card overflow-hidden border-0 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
           >
             <button 
               onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 backdrop-blur-md border border-white/20 transition-all z-10"
+              className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 backdrop-blur-md border-0 transition-all z-10 cursor-pointer"
               title="Close"
             >
               <X size={16} />
