@@ -23,7 +23,6 @@ import {
   CheckCircle2,
   Eye,
   ArrowUpRight,
-  Info,
   UserCheck,
   Share2,
   Edit2
@@ -98,6 +97,7 @@ const location = useLocation();
   
   // Loading States
   const [initialLoading, setInitialLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   // Sponsored Listing Form State
   const [showForm, setShowForm] = useState(false);
@@ -106,7 +106,7 @@ const location = useLocation();
   const [selectedProduct, setSelectedProduct] = useState<any>(() => (location.state as any)?.boostedProduct || null);
   const [form, setForm] = useState({ 
     product: (location.state as any)?.boostedProduct ? String((location.state as any).boostedProduct.id) : '', 
-    title: (location.state as any)?.boostedProduct ? `Featured: ${(location.state as any).boostedProduct.name}` : '', 
+    title: '', 
     description: '', 
     duration_days: 7 
   });
@@ -150,6 +150,7 @@ const location = useLocation();
 
   // Fetch all initial data
   const loadAllData = async () => {
+    setProductsLoading(true);
     // 1. Fast primary view data: unblocks KPIs and active tab immediately
     const primaryPromise = Promise.allSettled([
       api.get('/api/sponsored/'),
@@ -200,7 +201,9 @@ const location = useLocation();
             .catch(() => {});
         }
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => {
+      setProductsLoading(false);
+    });
 
     await Promise.allSettled([primaryPromise, auxPromise]);
   };
@@ -934,8 +937,19 @@ const location = useLocation();
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t('select_target_product', 'Target Product')} <span className="text-red-500">*</span>
             </label>
-            {products.length === 0 ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400">{t('no_products_inventory', 'No products listed yet. Please add a product first.')}</p>
+            {productsLoading ? (
+              <div className="h-10 rounded-xl bg-neutral-100 dark:bg-[#1e1e22] animate-pulse" />
+            ) : products.length === 0 ? (
+              <div className="py-2.5 px-3 rounded-xl bg-white dark:bg-[#1e1e22] flex items-center justify-between gap-2 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap overflow-hidden shadow-2xs">
+                <span className="truncate min-w-0">
+                  <span className="sm:hidden">{t('no_products_listed', 'No products listed yet.')}</span>
+                  <span className="hidden sm:inline">{t('no_products_inventory', 'No products listed yet. Please add a product first.')}</span>
+                </span>
+                <Link to="/dashboard/products" className="shrink-0 font-medium text-neutral-900 dark:text-white hover:underline flex items-center gap-1 whitespace-nowrap">
+                  <span>{t('add_product_first', 'Add Product First')}</span>
+                  <ArrowUpRight size={13} className="shrink-0" />
+                </Link>
+              </div>
             ) : (
               <select
                 name="product_id"
@@ -1334,14 +1348,20 @@ const location = useLocation();
                             </button>
                           </div>
                         </div>
+                      ) : productsLoading ? (
+                        <div className="h-10 rounded-xl bg-neutral-100 dark:bg-[#1A1A1A] animate-pulse" />
                       ) : products.length === 0 ? (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
-                          <div className="flex items-center gap-2">
-                            <Info size={15} className="shrink-0" />
-                            <span>{t('no_products_yet', 'You do not have any active products listed yet.')}</span>
-                          </div>
-                          <Link to="/dashboard/products" className="font-semibold underline flex items-center gap-1">
-                            {t('add_product_first', 'Add Product First')} <ArrowUpRight size={12} />
+                        <div className="py-2.5 px-3 rounded-xl bg-white dark:bg-[#1A1A1A] flex items-center justify-between gap-2 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap overflow-hidden shadow-2xs">
+                          <span className="truncate min-w-0">
+                            <span className="sm:hidden">{t('no_products_listed', 'No products listed yet.')}</span>
+                            <span className="hidden sm:inline">{t('no_products_yet', 'No products listed yet. Post your first product!')}</span>
+                          </span>
+                          <Link 
+                            to="/dashboard/products" 
+                            className="shrink-0 font-medium text-neutral-900 dark:text-white hover:underline flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <span>{t('add_product_first', 'Add Product First')}</span>
+                            <ArrowUpRight size={13} className="shrink-0" />
                           </Link>
                         </div>
                       ) : (
@@ -1353,11 +1373,10 @@ const location = useLocation();
                             const found = products.find(p => String(p.id) === e.target.value);
                             if (found) {
                               setSelectedProduct(found);
-                              setForm(prev => ({ ...prev, title: prev.title || `Boost: ${found.name}` }));
                             }
                           }} 
                           required 
-                          className="input !border-none py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500"
+                          className="input !border-none py-2 text-xs w-full bg-white dark:bg-[#1A1A1A] rounded-xl focus:ring-1 focus:ring-brand-500 cursor-pointer"
                         >
                           <option value="">-- {t('choose_from_inventory', 'Choose from your listed inventory')} --</option>
                           {products.map(p => (
