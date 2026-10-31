@@ -117,7 +117,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                       >
                         <Link 
                           to={`/products?category=${cat.slug}`} 
-                          className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full relative overflow-hidden bg-black/40 border-2 border-white/20 hover:border-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)] transition-all duration-300 group-hover:scale-105 active:scale-95 shrink-0 shadow-lg shadow-black/50"
+                          className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full relative overflow-hidden bg-black/40 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)] transition-all duration-300 group-hover:scale-105 active:scale-95 shrink-0 shadow-lg shadow-black/50"
                         >
                           <SafeImage 
                             src={cat.image || getCategoryFallbackImage(cat.name)} 
