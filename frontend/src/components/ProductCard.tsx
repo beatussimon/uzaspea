@@ -191,7 +191,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} compact={compact} />}
           {((!isBook && product.product_type !== 'DIGITAL' && product.condition) || isSponsored) && (
             <div 
-              className="relative pointer-events-auto inline-flex items-center gap-1.5 w-fit"
+              className={`relative pointer-events-auto inline-flex items-center gap-1.5 w-fit ${compact ? 'h-6 sm:h-7' : 'h-8'}`}
               onMouseLeave={() => setIsAdHovered(false)}
             >
               {!isBook && product.product_type !== 'DIGITAL' && product.condition && (
@@ -628,7 +628,7 @@ const ProductCard = memo(({
           <span className={compact ? "text-[9px] sm:text-[10px] font-bold" : "text-[10px] font-bold"}>{likeCount}</span>
         </button>
 
-        <div className="relative">
+        <div className="relative flex items-center">
           <button
             onClick={(e) => {
               e.preventDefault();
