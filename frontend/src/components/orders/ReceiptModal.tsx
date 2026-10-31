@@ -1,11 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Printer } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { X, Printer, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../../context/AuthContext';
 import { printElement } from '../../utils/printHelper';
 import api from '../../api';
-import { trackRecClick, trackRecImpression } from '../../utils/recTracking';
+import { trackRecImpression } from '../../utils/recTracking';
+import ProductCard from '../ProductCard';
 
 interface ReceiptModalProps {
   order: any;
@@ -64,6 +64,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
   const rawSubtotal = totalAmount - shippingFee + discountVal;
 
   const [complements, setComplements] = useState<any[]>([]);
+  const [showComplements, setShowComplements] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const scrollLeft = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: -140, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: 140, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     const productIds = rawItems
@@ -76,9 +90,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
       .get(`/api/recs/cart/?cart_ids=${ids}`)
       .then((res) => {
         if (!cancelled && res.data?.products) {
-          setComplements(res.data.products.slice(0, 3));
+          setComplements(res.data.products.slice(0, 6));
           if (res.data.products.length > 0) {
-            trackRecImpression('order', Math.min(res.data.products.length, 3));
+            trackRecImpression('order', Math.min(res.data.products.length, 6));
           }
         }
       })
@@ -109,7 +123,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-surface-muted/40 dark:bg-[#161616] w-full max-w-sm rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border-0 print:shadow-none print:rounded-none print:max-h-none print:h-auto print:max-w-none"
+        className="relative bg-surface-muted/40 dark:bg-[#161616] w-full max-w-[420px] rounded-card shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border-0 print:shadow-none print:rounded-none print:max-h-none print:h-auto print:max-w-none"
       >
         <button 
           onClick={onClose} 
@@ -119,11 +133,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
           <X size={16} />
         </button>
         
-        <div className="p-4 pt-4 overflow-y-auto flex-1 flex justify-center scrollbar-thin print:bg-white print:p-0 print:overflow-visible">
+        <div className="p-3 sm:p-4 overflow-y-auto flex-1 flex flex-col items-center scrollbar-thin print:bg-white print:p-0 print:overflow-visible">
           {/* Actual Thermal Receipt Container */}
           <div 
             id="receipt-content" 
-            className="bg-white text-black p-5 w-[80mm] min-w-[80mm] max-w-[80mm] min-h-max mx-auto shadow-md rounded-xl relative my-2" 
+            className="bg-white text-black p-4 sm:p-5 w-full max-w-[80mm] min-h-max mx-auto shadow-md rounded-xl relative my-1 shrink-0 box-border" 
             ref={printRef}
             style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', lineHeight: '1.4' }}
           >
@@ -241,38 +255,71 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
 
           {/* Post-Purchase Complement Shelf (Print Hidden) */}
           {complements.length > 0 && (
-            <div className="w-[80mm] min-w-[80mm] max-w-[80mm] mx-auto mt-4 p-3 bg-white dark:bg-[#1f1f1f] rounded-xl border border-gray-200 dark:border-gray-800 print-hidden shadow-md">
-              <p className="text-[11px] font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-1.5">
-                <span>🛍️</span> Goes with your order
-              </p>
-              <div className="flex flex-col gap-2">
-                {complements.map((prod) => (
-                  <Link
-                    key={prod.id}
-                    to={`/products/${prod.url_slug || prod.slug}`}
-                    onClick={() => trackRecClick('order', prod.id)}
-                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition group"
-                  >
-                    {prod.images?.[0]?.image ? (
-                      <img
-                        src={prod.images[0].image}
-                        alt={prod.name}
-                        className="w-10 h-10 rounded object-cover shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded bg-gray-200 dark:bg-neutral-800 shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-2xs font-semibold text-gray-900 dark:text-gray-100 truncate group-hover:text-brand-500">
-                        {prod.name}
-                      </p>
-                      <p className="text-3xs text-gray-500 dark:text-gray-400 font-bold">
-                        TSh {Number(prod.price).toLocaleString()}
-                      </p>
+            <div className="w-full max-w-[80mm] mx-auto mt-2.5 print-hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowComplements((prev) => !prev)}
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-[#1a1a1a] hover:bg-neutral-200 dark:hover:bg-[#222222] text-gray-700 dark:text-gray-200 transition cursor-pointer border-0"
+                aria-expanded={showComplements}
+              >
+                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                  Goes with your order ({complements.length})
+                </span>
+                <ChevronDown
+                  size={15}
+                  className={`text-gray-400 dark:text-gray-400 transition-transform duration-200 ${
+                    showComplements ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {showComplements && (
+                <div className="relative mt-2 p-0 bg-transparent border-0 animate-fade-in">
+                  {/* Left / Right chevron buttons */}
+                  {complements.length > 2 && (
+                    <div className="flex items-center justify-end gap-1 mb-1.5 px-0.5">
+                      <button
+                        type="button"
+                        onClick={scrollLeft}
+                        aria-label="Previous items"
+                        className="p-1 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-[#1a1a1a] dark:hover:bg-[#252525] text-gray-600 dark:text-gray-300 transition cursor-pointer border-0"
+                      >
+                        <ChevronLeft size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={scrollRight}
+                        aria-label="Next items"
+                        className="p-1 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-[#1a1a1a] dark:hover:bg-[#252525] text-gray-600 dark:text-gray-300 transition cursor-pointer border-0"
+                      >
+                        <ChevronRight size={13} />
+                      </button>
                     </div>
-                  </Link>
-                ))}
-              </div>
+                  )}
+
+                  {/* Horizontal swipeable rail */}
+                  <div
+                    ref={carouselRef}
+                    className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-none pb-1"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                  >
+                    {complements.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className="w-[140px] min-w-[140px] max-w-[140px] aspect-[4/5] min-h-0 shrink-0 snap-start"
+                      >
+                        <ProductCard
+                          product={prod}
+                          viewMode="grid"
+                          compact
+                          className="w-full h-full border-0 !rounded-xl"
+                          trackSource="order_receipt"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
