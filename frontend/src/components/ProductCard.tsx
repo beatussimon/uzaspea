@@ -109,7 +109,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
   return (
     <div 
       onMouseEnter={() => setIsInteractive(true)}
-      className={`${viewMode === 'list' ? `relative w-24 h-24 md:w-32 md:h-32 shrink-0 ${isBook ? '!rounded-none' : 'rounded-lg'}` : 'absolute inset-0 w-full h-full'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel ${isBook ? '!rounded-none' : ''}`}
+      className={`${viewMode === 'list' ? `relative w-24 h-24 md:w-32 md:h-32 shrink-0 ${isBook ? '!rounded-none' : 'rounded-lg'}` : 'absolute inset-0 w-full h-full'} ${isBook ? 'bg-black dark:bg-[#0A0A0A]' : 'bg-gray-100 dark:bg-gray-800/50'} overflow-hidden group/carousel ${isBook ? '!rounded-none' : ''}`}
     >
       <div 
         ref={scrollRef}
@@ -118,13 +118,13 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
       >
         {visibleImages.length > 0 ? (
           visibleImages.map((img: any, i: number) => (
-            <div key={i} className="flex-none w-full h-full snap-center">
+            <div key={i} className={`flex-none w-full h-full snap-center flex items-center justify-center ${isBook ? 'bg-black/95 dark:bg-[#0A0A0A]' : ''}`}>
               <SafeImage
                 src={img.image || ''}
                 alt={`${product.name} - ${i + 1}`}
                 category={product.category_name}
-                className="w-full h-full"
-                containMode="cover"
+                className={`w-full h-full ${isBook ? 'object-contain' : 'object-cover'}`}
+                containMode={isBook ? "contain" : "cover"}
                 loading={isTopFold ? 'eager' : 'lazy'}
                 decoding="async"
                 {...(isTopFold && i === 0 ? { fetchpriority: 'high' } : {})}
@@ -132,13 +132,13 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
             </div>
           ))
         ) : (
-          <div className="flex-none w-full h-full snap-center">
+          <div className={`flex-none w-full h-full snap-center flex items-center justify-center ${isBook ? 'bg-black/95 dark:bg-[#0A0A0A]' : ''}`}>
             <SafeImage 
               src="" 
               alt={product.name} 
               category={product.category_name} 
-              className="w-full h-full"
-              containMode="cover"
+              className={`w-full h-full ${isBook ? 'object-contain' : 'object-cover'}`}
+              containMode={isBook ? "contain" : "cover"}
               loading={isTopFold ? 'eager' : 'lazy'}
             />
           </div>

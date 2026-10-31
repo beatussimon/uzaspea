@@ -379,7 +379,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
       ) : (
         <>
           {/* Grid - 3 items per row on desktop (matching pageSize multiple of 3) */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:px-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:px-6 pb-4 sm:pb-6">
             {loading
               ? Array.from({ length: pageSize }).map((_, idx) => (
                   <ProductCardSkeleton key={`skeleton-${idx}`} viewMode="grid" compact={!isDesktop} className={`aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px] ${isBook ? '!rounded-none' : ''}`} />
