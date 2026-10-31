@@ -2,18 +2,18 @@ import { Link } from 'react-router-dom';
 import { Megaphone, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export default function SponsorCard() {
+export default function SponsorCard({ isBookCategory = false, className = '' }: { isBookCategory?: boolean; className?: string }) {
   const { t } = useTranslation();
 
   return (
     <Link
       to="/dashboard/promotions?tab=sponsored&new=true"
-      className="group cursor-pointer flex flex-col items-center justify-center text-center
+      className={`group cursor-pointer flex flex-col items-center justify-center text-center
                  bg-surface-muted/60 dark:bg-[#0A0A0A]
-                 rounded-card p-6 border-2 border-dashed border-surface-border
+                 ${isBookCategory ? '!rounded-none' : 'rounded-card'} p-6 border-2 border-dashed border-surface-border
                  dark:border-surface-dark-border hover:border-gray-400
                  dark:hover:border-neutral-700 hover:shadow-card-hover active:scale-[0.98]
-                 transition-all duration-300 min-h-[320px] h-full"
+                 transition-all duration-300 min-h-[320px] h-full ${className}`}
     >
       <div className="w-12 h-12 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
         <Megaphone className="h-6 w-6 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />

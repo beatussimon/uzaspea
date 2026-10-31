@@ -933,48 +933,56 @@ const ProductList = () => {
                       </div>
                     )
                   ) : (
-                    gridEntries.map((entry, idx) => {
-                      if (entry.type === 'placeholder') {
-                        if (viewMode !== 'grid') return null;
-                        return (
-                          <React.Fragment key={`placeholder-${idx}`}>
-                            <div className="relative h-full">
-                              <SponsorCard />
-                            </div>
-                            {selectedCategory && idx === recInsertionIndex && (
-                              <CategoryRecommendationShelf
-                                category={selectedSubcategory || selectedCategory}
-                                excludeIds={products.map(p => p.id)}
-                                viewMode={viewMode}
-                                cols={COLS}
-                              />
-                            )}
-                          </React.Fragment>
-                        );
-                      }
-                      if ('product' in entry) {
-                        const product = entry.product;
-                        if (!product) return null;
-                        const isPromo = entry.type === 'promo' || Boolean(product.is_sponsored);
+                    (() => {
+                      const isBookCategory = Boolean(
+                        selectedCategory?.toLowerCase().includes('book') ||
+                        selectedSubcategory?.toLowerCase().includes('book') ||
+                        activeCategoryObj?.name?.toLowerCase().includes('book')
+                      );
 
-                        return (
-                          <React.Fragment key={`${product.id}-${idx}`}>
-                            <div className="h-full">
-                              <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} isTopFold={idx < 6} />
-                            </div>
-                            {selectedCategory && idx === recInsertionIndex && (
-                              <CategoryRecommendationShelf
-                                category={selectedSubcategory || selectedCategory}
-                                excludeIds={products.map(p => p.id)}
-                                viewMode={viewMode}
-                                cols={COLS}
-                              />
-                            )}
-                          </React.Fragment>
-                        );
-                      }
-                      return null;
-                    })
+                      return gridEntries.map((entry, idx) => {
+                        if (entry.type === 'placeholder') {
+                          if (viewMode !== 'grid') return null;
+                          return (
+                            <React.Fragment key={`placeholder-${idx}`}>
+                              <div className="relative h-full">
+                                <SponsorCard isBookCategory={isBookCategory} />
+                              </div>
+                              {selectedCategory && idx === recInsertionIndex && (
+                                <CategoryRecommendationShelf
+                                  category={selectedSubcategory || selectedCategory}
+                                  excludeIds={products.map(p => p.id)}
+                                  viewMode={viewMode}
+                                  cols={COLS}
+                                />
+                              )}
+                            </React.Fragment>
+                          );
+                        }
+                        if ('product' in entry) {
+                          const product = entry.product;
+                          if (!product) return null;
+                          const isPromo = entry.type === 'promo' || Boolean(product.is_sponsored);
+
+                          return (
+                            <React.Fragment key={`${product.id}-${idx}`}>
+                              <div className="h-full">
+                                <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} isTopFold={idx < 6} isBookCategory={isBookCategory} />
+                              </div>
+                              {selectedCategory && idx === recInsertionIndex && (
+                                <CategoryRecommendationShelf
+                                  category={selectedSubcategory || selectedCategory}
+                                  excludeIds={products.map(p => p.id)}
+                                  viewMode={viewMode}
+                                  cols={COLS}
+                                />
+                              )}
+                            </React.Fragment>
+                          );
+                        }
+                        return null;
+                      });
+                    })()
                   )}
                 </div>
 

@@ -50,7 +50,7 @@ const TrendingMetricBadge = ({ product, metricType = 'auto', compact = false }: 
   );
 };
 
-const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false, compact = false }: any) => {
+const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false, compact = false, isBook = false }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInteractive, setIsInteractive] = React.useState(false);
   const [isAdHovered, setIsAdHovered] = React.useState(false);
@@ -109,7 +109,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
   return (
     <div 
       onMouseEnter={() => setIsInteractive(true)}
-      className={`${viewMode === 'list' ? 'relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'absolute inset-0 w-full h-full'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}
+      className={`${viewMode === 'list' ? `relative w-24 h-24 md:w-32 md:h-32 shrink-0 ${isBook ? '!rounded-none' : 'rounded-lg'}` : 'absolute inset-0 w-full h-full'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel ${isBook ? '!rounded-none' : ''}`}
     >
       <div 
         ref={scrollRef}
@@ -262,7 +262,8 @@ const ProductCard = memo(({
   showTrendingMetrics = false,
   compact = false,
   className = '',
-  trackSource
+  trackSource,
+  isBookCategory = false
 }: { 
   product: any; 
   viewMode?: 'grid' | 'list'; 
@@ -272,6 +273,7 @@ const ProductCard = memo(({
   compact?: boolean;
   className?: string;
   trackSource?: string;
+  isBookCategory?: boolean;
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -281,6 +283,15 @@ const ProductCard = memo(({
     if (trackSource) trackRecClick(trackSource, product.id);
   };
   const effectiveSponsored = isSponsored || Boolean(product?.is_sponsored);
+
+  const isBook = Boolean(
+    isBookCategory ||
+    (product?.category_slug && product.category_slug.includes('book')) ||
+    (product?.category_name && product.category_name.toLowerCase().includes('book')) ||
+    (product?.category && typeof product.category === 'string' && product.category.toLowerCase().includes('book')) ||
+    (product?.category && product.category.slug && product.category.slug.includes('book')) ||
+    (product?.category && product.category.name && product.category.name.toLowerCase().includes('book'))
+  );
 
   const bgState = useMemo(() => {
     const existingBg = (location.state as any)?.backgroundLocation;
@@ -401,7 +412,7 @@ const ProductCard = memo(({
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card border-0 overflow-hidden flex flex-row items-center p-2 gap-4 hover:shadow-card-hover transition-all ${className}`}>
+      <div className={`group relative card border-0 overflow-hidden flex flex-row items-center p-2 gap-4 hover:shadow-card-hover transition-all ${isBook ? '!rounded-none' : ''} ${className}`}>
         <Link 
           to={`/product/${productTargetSlug}`} 
           {...bgState} 
@@ -412,7 +423,7 @@ const ProductCard = memo(({
           onTouchStart={preloadProductDetail}
         >
           {/* Horizontal Image Carousel */}
-          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
+          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} isBook={isBook} />
 
           {/* Content */}
           <div className="flex-1 min-w-0 pr-8">
@@ -483,7 +494,7 @@ const ProductCard = memo(({
   const sizingClasses = className ? className : 'min-h-[320px]';
 
   return (
-    <div className={`group relative card border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${sizingClasses}`}>
+    <div className={`group relative card border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${isBook ? '!rounded-none shadow-[inset_2px_0_4px_rgba(0,0,0,0.15)]' : ''} ${sizingClasses}`}>
       <Link 
         to={`/product/${productTargetSlug}`} 
         {...bgState} 
@@ -494,7 +505,7 @@ const ProductCard = memo(({
         onTouchStart={preloadProductDetail}
       >
         {/* Image Carousel — fixed height */}
-        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} compact={compact} />
+        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={effectiveSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} compact={compact} isBook={isBook} />
 
         {/* Card body */}
         <div className={compact ? "absolute bottom-0 left-0 right-0 p-1.5 sm:p-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 bg-transparent" : "absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent"}>

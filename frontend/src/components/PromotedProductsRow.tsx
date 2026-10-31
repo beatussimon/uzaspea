@@ -67,13 +67,13 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                                 <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none touch-pan-y overscroll-x-contain">
                                     {promos.slice(0, 4).map((promo) => (
                                         <div key={promo.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
-                                            <ProductCard product={promo.product_details} viewMode="grid" isSponsored={true} />
+                                            <ProductCard product={promo.product_details} viewMode="grid" isSponsored={true} isBookCategory={catName.toLowerCase().includes('book')} />
                                         </div>
                                     ))}
                                     {/* Pad with SponsorCards if less than 4 */}
                                     {Array.from({ length: Math.max(0, 4 - promos.slice(0, 4).length) }).map((_, i) => (
                                         <div key={`sponsor-placeholder-${catName}-${i}`} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
-                                            <SponsorCard />
+                                            <SponsorCard isBookCategory={catName.toLowerCase().includes('book')} />
                                         </div>
                                     ))}
                                 </div>
