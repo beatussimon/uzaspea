@@ -12,7 +12,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import RequestInvoiceModal from '../components/cart/RequestInvoiceModal';
 import InvoiceReviewModal from '../components/cart/InvoiceReviewModal';
-import ProductCard from '../components/ProductCard';
+import { DiscoveryShelf } from '../components/discovery/DiscoveryShelf';
 import { trackRecImpression } from '../utils/recTracking';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -193,22 +193,23 @@ const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="container-page max-w-4xl">
-      <PageHeader
-        title={t('shopping_cart')}
-        actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearCart}
-            className="text-red-500 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/10 font-bold"
-          >
-            {t('clear_all')}
-          </Button>
-        }
-      />
+    <div className="container-page pb-24 md:pb-8">
+      <div className="max-w-4xl mx-auto">
+        <PageHeader
+          title={t('shopping_cart')}
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearCart}
+              className="text-red-500 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/10 font-bold"
+            >
+              {t('clear_all')}
+            </Button>
+          }
+        />
 
-      <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-4 sm:space-y-5">
         {Object.entries(groupedItems).map(([merchant, storeItems]) => {
           const storeSubtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
           const isBulkMode = !!invoicingModes[merchant];
@@ -422,31 +423,21 @@ const CartPage: React.FC = () => {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Complete Your Order Recommendation Shelf */}
       {cartRecs.length > 0 && (
-        <section className="mt-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
-              {t('complete_your_order', 'Complete your order')}
-            </h2>
-            <span className="text-xs text-gray-400 font-medium hidden sm:inline">
-              {t('paired_with_cart', 'Pairs well with items in your cart')}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
-            {cartRecs.map((product) => (
-              <div key={product.id} className="h-full">
-                <ProductCard
-                  product={product}
-                  trackSource="cart"
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="mt-12">
+          <DiscoveryShelf
+            id="cart_complements"
+            title={t('complete_your_order', 'Complete your order')}
+            subtitle={t('paired_with_cart', 'Pairs well with items in your cart')}
+            products={cartRecs}
+            trackSource="cart"
+            paginated={false}
+          />
+        </div>
       )}
 
       {/* Request Bulk Invoice Modal */}
