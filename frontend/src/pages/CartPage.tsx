@@ -440,6 +440,8 @@ const CartPage: React.FC = () => {
                 <ProductCard
                   product={product}
                   trackSource="cart"
+                  compact
+                  className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"
                 />
               </div>
             ))}

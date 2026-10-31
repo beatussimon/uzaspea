@@ -1061,7 +1061,7 @@ const ProfilePage: React.FC = () => {
                         </div>
 
                         {/* Top Badges */}
-                        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+                        <div className="absolute top-3.5 left-3.5 sm:top-4 sm:left-4 flex flex-col gap-1.5 z-10 pointer-events-none">
                           {isFulfilled && (
                             <span className="text-[10px] font-black uppercase tracking-wider drop-shadow-sm w-fit text-emerald-500 dark:text-emerald-400">
                               In Stock

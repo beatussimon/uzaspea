@@ -187,7 +187,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
           )}
         </div>
       ) : (
-        <div className={compact ? "absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 pointer-events-none" : "absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none"}>
+        <div className={`absolute top-3.5 left-3.5 sm:top-4 sm:left-4 flex flex-col ${compact ? 'gap-1 sm:gap-1.5' : 'gap-4'} z-10 pointer-events-none`}>
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} compact={compact} />}
           {((!isBook && product.product_type !== 'DIGITAL' && product.condition) || isSponsored) && (
             <div 
@@ -509,7 +509,7 @@ const ProductCard = memo(({
     );
   }
 
-  const defaultSizing = isBook ? 'aspect-[3/4] min-h-0' : 'min-h-[320px]';
+  const defaultSizing = isBook ? 'aspect-[3/4] min-h-0' : 'aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[320px]';
   const sizingClasses = isBook
     ? (className ? className.replace(/aspect-\[[^\]]+\]/g, 'aspect-[3/4]').replace(/min-h-\[[^\]]+\]/g, 'min-h-0') : defaultSizing)
     : (className ? className : defaultSizing);
@@ -622,7 +622,7 @@ const ProductCard = memo(({
       </Link>
 
       {/* Top overlay: Like & 3-dots Menu */}
-      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-row items-center gap-1.5 z-10" : "absolute top-2 right-2 flex flex-row items-center gap-1.5 z-10"}>
+      <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex flex-row items-center gap-1.5 z-10">
         <button onClick={handleLike} className={compact ? `h-6 sm:h-7 px-1.5 sm:px-2 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}` : `h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
           <Heart size={compact ? 12 : 14} className={liked ? 'fill-current' : ''} />
           <span className={compact ? "text-[9px] sm:text-[10px] font-bold" : "text-[10px] font-bold"}>{likeCount}</span>

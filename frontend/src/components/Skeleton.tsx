@@ -300,12 +300,12 @@ export const ProductCardSkeleton: React.FC<{ viewMode?: 'grid' | 'list'; compact
     );
   }
 
-  const sizingClasses = className ? className : 'min-h-[320px]';
+  const sizingClasses = className ? className : 'aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[320px]';
 
   return (
     <div className={cn('relative card border-0 overflow-hidden flex flex-col h-full bg-gray-100 dark:bg-[#18191a]', sizingClasses)}>
       {/* Top overlay skeleton */}
-      <div className={compact ? "absolute top-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-none" : "absolute top-4 left-4 right-4 flex items-center justify-between z-10 pointer-events-none"}>
+      <div className="absolute top-3.5 left-3.5 right-3.5 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between z-10 pointer-events-none">
         <Skeleton className={compact ? "w-10 h-4 rounded-md" : "w-14 h-5 rounded-md"} />
         <Skeleton className={compact ? "w-8 h-6 rounded-full" : "w-10 h-8 rounded-full"} />
       </div>
