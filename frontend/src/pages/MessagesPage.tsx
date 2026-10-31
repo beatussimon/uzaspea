@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, Send, ArrowLeft, Search, Smile, 
-  CheckCheck, Check, Loader2
+  CheckCheck, Check, Loader2, Minus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';
@@ -202,7 +202,20 @@ const MessagesPage: React.FC = () => {
     typingStatus,
     sendTypingStatus,
     setConversations,
+    minimizeChatWindow,
   } = useMessages();
+
+  const handleMinimize = () => {
+    if (activeConv) {
+      minimizeChatWindow(activeConv.id);
+      setActiveConversationId(null);
+      if (window.history.length > 1 && !document.referrer.endsWith('/messages')) {
+        navigate(-1);
+      } else {
+        navigate('/');
+      }
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'main' | 'sokoni'>('main');
@@ -865,8 +878,16 @@ const MessagesPage: React.FC = () => {
                 </div>
 
                 {/* Header Actions */}
-                <div className="flex items-center gap-1 text-gray-400">
-                  {/* Mock buttons removed to prevent non-functional placeholders */}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleMinimize}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+                    title={t('minimize', 'Minimize to bubble')}
+                    aria-label={t('minimize', 'Minimize to bubble')}
+                  >
+                    <Minus size={20} strokeWidth={2.5} />
+                  </button>
                 </div>
               </div>
 

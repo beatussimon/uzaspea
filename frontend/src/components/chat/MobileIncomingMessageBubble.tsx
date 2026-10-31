@@ -138,6 +138,7 @@ export const MobileIncomingMessageBubble: React.FC = () => {
     totalUnread,
     minimizedChatWindows,
     typingStatus,
+    closeChatWindow,
   } = useMessages();
 
   // Route exclusions: do not show inside full messages or checkout
@@ -166,6 +167,7 @@ export const MobileIncomingMessageBubble: React.FC = () => {
   }, [conversations]);
 
   const handleDismissBubble = (convId: number) => {
+    closeChatWindow(convId);
     setDismissedBubbleIds(prev => prev.includes(convId) ? prev : [...prev, convId]);
   };
 
@@ -175,8 +177,8 @@ export const MobileIncomingMessageBubble: React.FC = () => {
 
   // Active floating conversations with unread messages or minimized
   const activeConversations = conversations.filter(c =>
-    (Number(c.unread_count) > 0 || minimizedChatWindows.includes(c.id)) &&
-    !dismissedBubbleIds.includes(c.id)
+    minimizedChatWindows.includes(c.id) ||
+    (Number(c.unread_count) > 0 && !dismissedBubbleIds.includes(c.id))
   );
 
   // Fallback if totalUnread > 0 but individual counts not populated
@@ -185,6 +187,10 @@ export const MobileIncomingMessageBubble: React.FC = () => {
     candidateConversations = conversations
       .filter(c => !dismissedBubbleIds.includes(c.id))
       .slice(0, 4);
+  }
+
+  if (candidateConversations.length === 0 && minimizedChatWindows.length > 0) {
+    candidateConversations = conversations.filter(c => minimizedChatWindows.includes(c.id));
   }
 
   if (candidateConversations.length === 0) {
