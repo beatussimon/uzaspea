@@ -426,25 +426,24 @@ const CartPage: React.FC = () => {
 
       {/* Complete Your Order Recommendation Shelf */}
       {cartRecs.length > 0 && (
-        <section className="mt-8 border-t border-surface-border dark:border-surface-dark-border pt-6">
+        <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-              <ShoppingBag size={18} className="text-brand-500" />
-              <span>{t('complete_your_order', 'Complete your order')}</span>
+            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
+              {t('complete_your_order', 'Complete your order')}
             </h2>
             <span className="text-xs text-gray-400 font-medium hidden sm:inline">
               {t('paired_with_cart', 'Pairs well with items in your cart')}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
             {cartRecs.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                trackSource="cart"
-                compact
-              />
+              <div key={product.id} className="h-full">
+                <ProductCard
+                  product={product}
+                  trackSource="cart"
+                />
+              </div>
             ))}
           </div>
         </section>

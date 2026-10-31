@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BookOpen, Headphones, Key, Download, HardDriveDownload, 
-  Search, ShieldCheck, Check, WifiOff, Loader2 
+  Search, Check, WifiOff, Loader2 
 } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -297,9 +297,9 @@ export const DigitalLibraryPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-muted/40 dark:bg-[#0A0A0A] text-gray-900 dark:text-white pb-32">
+    <div className="min-h-screen bg-surface-muted/40 dark:bg-black text-gray-900 dark:text-white pb-32">
       {/* Top Header */}
-      <div className="bg-surface dark:bg-[#141414] border-0 pt-6 pb-6 px-4 sm:px-6 lg:px-8">
+      <div className="bg-transparent border-0 pt-6 pb-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
@@ -316,19 +316,14 @@ export const DigitalLibraryPage: React.FC = () => {
           </div>
 
           {/* Offline Status Badge */}
-          <div className="flex items-center gap-2 text-xs">
-            {!isOnline ? (
+          {!isOnline && (
+            <div className="flex items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-neutral-200 dark:bg-neutral-800 text-amber-600 dark:text-amber-400">
                 <WifiOff size={13} />
                 <span>Offline Mode</span>
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-neutral-100 dark:bg-neutral-800/60 text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck size={13} />
-                <span>Vault Connected</span>
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Filters & Search Toolbar */}
@@ -383,11 +378,11 @@ export const DigitalLibraryPage: React.FC = () => {
           <div className="text-center py-16 bg-surface dark:bg-[#141414] rounded-xl p-8 border-0 max-w-lg mx-auto">
             <BookOpen size={40} className="mx-auto text-gray-400 mb-3" />
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">No items found</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {searchQuery
-                ? 'No digital items matching your search.'
-                : 'You have not purchased any digital books or audiobooks yet.'}
-            </p>
+            {searchQuery && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                No digital items matching your search.
+              </p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
