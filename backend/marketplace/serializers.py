@@ -478,6 +478,8 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     category_slug = serializers.CharField(source='category.slug', read_only=True)
     category_parent_name = serializers.CharField(source='category.parent.name', read_only=True, default=None)
     category_parent_slug = serializers.CharField(source='category.parent.slug', read_only=True, default=None)
+    product_type = serializers.CharField(required=False, default='PHYSICAL')
+    is_book = serializers.SerializerMethodField()
     images = ProductImageSerializer(many=True, read_only=True)
 
     brand = FlexibleBrandRelatedField(queryset=Brand.objects.all(), required=False, allow_null=True)
@@ -547,10 +549,20 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
             status='approved'
         ).exists()
 
+    def get_is_book(self, obj):
+        cat = getattr(obj, 'category', None)
+        if cat:
+            if 'book' in (cat.slug or ''):
+                return True
+            parent = getattr(cat, 'parent', None)
+            if parent and 'book' in (parent.slug or ''):
+                return True
+        return getattr(obj, 'product_type', '') in ('DIGITAL', 'HYBRID')
+
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft', 'pos_only',
-                  'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
+                  'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants', 'product_type', 'is_book',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'has_post_inspection_changes', 'inspection_events', 'is_verified', 'vehicle_ids', 'oem_part_number',
@@ -809,6 +821,16 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
             return name if name else None
         return None
 
+    def get_is_book(self, obj):
+        cat = getattr(obj, 'category', None)
+        if cat:
+            if 'book' in (cat.slug or ''):
+                return True
+            parent = getattr(cat, 'parent', None)
+            if parent and 'book' in (parent.slug or ''):
+                return True
+        return getattr(obj, 'product_type', '') in ('DIGITAL', 'HYBRID')
+
     def get_has_inspection(self, obj):  # FIX B-19
         if hasattr(obj, 'annotated_has_inspection'):
             return obj.annotated_has_inspection
@@ -840,6 +862,8 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
     category_slug = serializers.CharField(source='category.slug', read_only=True)
     category_parent_name = serializers.CharField(source='category.parent.name', read_only=True, default=None)
     category_parent_slug = serializers.CharField(source='category.parent.slug', read_only=True, default=None)
+    product_type = serializers.CharField(required=False, default='PHYSICAL')
+    is_book = serializers.SerializerMethodField()
 
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
@@ -862,7 +886,7 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
         model = Product
         fields = [
             'id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
-            'is_available', 'is_draft', 'pos_only', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
+            'is_available', 'is_draft', 'pos_only', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants', 'product_type', 'is_book',
             'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug',
             'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
             'condition', 'requires_quote',
@@ -877,6 +901,16 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
             name = f"{obj.seller.first_name} {obj.seller.last_name}".strip()
             return name if name else None
         return None
+
+    def get_is_book(self, obj):
+        cat = getattr(obj, 'category', None)
+        if cat:
+            if 'book' in (cat.slug or ''):
+                return True
+            parent = getattr(cat, 'parent', None)
+            if parent and 'book' in (parent.slug or ''):
+                return True
+        return getattr(obj, 'product_type', '') in ('DIGITAL', 'HYBRID')
 
     def get_seller_profile_picture(self, obj):
         if hasattr(obj.seller, 'profile') and obj.seller.profile.profile_picture:
@@ -2273,6 +2307,16 @@ class SponsoredProductSerializer(serializers.ModelSerializer):
             name = f"{obj.seller.first_name} {obj.seller.last_name}".strip()
             return name if name else None
         return None
+
+    def get_is_book(self, obj):
+        cat = getattr(obj, 'category', None)
+        if cat:
+            if 'book' in (cat.slug or ''):
+                return True
+            parent = getattr(cat, 'parent', None)
+            if parent and 'book' in (parent.slug or ''):
+                return True
+        return getattr(obj, 'product_type', '') in ('DIGITAL', 'HYBRID')
 
     def get_seller_profile_picture(self, obj):
         seller = getattr(obj, 'seller', None)

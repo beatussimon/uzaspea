@@ -60,6 +60,8 @@ interface ProductData {
   category_slug?: string;
   category_parent_name?: string | null;
   category_parent_slug?: string | null;
+  product_type?: string;
+  is_book?: boolean;
   seller: number;
   seller_username: string;
   seller_full_name?: string;
@@ -2841,28 +2843,43 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
         {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Recommendations & Similar Products ═══ */}
-        <div 
-          ref={similarProductsColRef}
-          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 lg:h-full lg:overflow-y-auto"
-        >
-          {/* Section 1: You Might Also Like */}
-          <YouMightAlsoLikeSection 
-            key={`rec-${product.id}`}
-            product={product}
-            currentProductId={product.id}
-            isDesktop={isDesktop}
-          />
+        {(() => {
+          const isBookProduct = Boolean(
+            product?.is_book ||
+            (product?.category_slug && product.category_slug.includes('book')) ||
+            (product?.category_name && product.category_name.toLowerCase().includes('book')) ||
+            (product?.category_parent_slug && product.category_parent_slug.includes('book')) ||
+            (product?.category_parent_name && product.category_parent_name.toLowerCase().includes('book')) ||
+            (product?.product_type === 'DIGITAL') ||
+            (product?.product_type === 'HYBRID')
+          );
+          return (
+            <div 
+              ref={similarProductsColRef}
+              className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-black text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 lg:h-full lg:overflow-y-auto"
+            >
+              {/* Section 1: You Might Also Like */}
+              <YouMightAlsoLikeSection 
+                key={`rec-${product.id}`}
+                product={product}
+                currentProductId={product.id}
+                isDesktop={isDesktop}
+                isBookCategory={isBookProduct}
+              />
 
-          {/* Section 2: Similar Products (and Section 3: A+ Content) */}
-          <SimilarProductsSection 
-            key={product.id}
-            product={product}
-            currentProductId={product.id}
-            categorySlug={product.category_slug}
-            categoryName={product.category_name}
-            isDesktop={isDesktop}
-          />
-        </div>
+              {/* Section 2: Similar Products (and Section 3: A+ Content) */}
+              <SimilarProductsSection 
+                key={product.id}
+                product={product}
+                currentProductId={product.id}
+                categorySlug={product.category_slug}
+                categoryName={product.category_name}
+                isDesktop={isDesktop}
+                isBookCategory={isBookProduct}
+              />
+            </div>
+          );
+        })()}
 
         {/* ═══ ROW 2 COL 2 (Desktop) / AT THE VERY END (Mobile): Product Reviews & Comments ═══ */}
         <div 

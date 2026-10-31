@@ -286,11 +286,17 @@ const ProductCard = memo(({
 
   const isBook = Boolean(
     isBookCategory ||
+    product?.is_book ||
     (product?.category_slug && product.category_slug.includes('book')) ||
     (product?.category_name && product.category_name.toLowerCase().includes('book')) ||
+    (product?.category_parent_slug && product.category_parent_slug.includes('book')) ||
+    (product?.category_parent_name && product.category_parent_name.toLowerCase().includes('book')) ||
     (product?.category && typeof product.category === 'string' && product.category.toLowerCase().includes('book')) ||
     (product?.category && product.category.slug && product.category.slug.includes('book')) ||
-    (product?.category && product.category.name && product.category.name.toLowerCase().includes('book'))
+    (product?.category && product.category.name && product.category.name.toLowerCase().includes('book')) ||
+    (product?.category && product.category.parent && product.category.parent.slug && product.category.parent.slug.includes('book')) ||
+    (product?.product_type === 'DIGITAL') ||
+    (product?.product_type === 'HYBRID')
   );
 
   const bgState = useMemo(() => {

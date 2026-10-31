@@ -14,6 +14,7 @@ export interface SimilarProductsSectionProps {
   className?: string;
   isDesktop?: boolean;
   product?: any;
+  isBookCategory?: boolean;
 }
 
 const getScrollContainer = (el: HTMLElement | null): HTMLElement | Window => {
@@ -44,8 +45,20 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
   className = '',
   isDesktop = false,
   product,
+  isBookCategory = false,
 }) => {
   const { t } = useTranslation();
+  const isBook = Boolean(
+    isBookCategory ||
+    product?.is_book ||
+    (product?.category_slug && product.category_slug.includes('book')) ||
+    (product?.category_name && product.category_name.toLowerCase().includes('book')) ||
+    (product?.category_parent_slug && product.category_parent_slug.includes('book')) ||
+    (categorySlug && categorySlug.includes('book')) ||
+    (categoryName && categoryName.toLowerCase().includes('book')) ||
+    (product?.product_type === 'DIGITAL') ||
+    (product?.product_type === 'HYBRID')
+  );
   const [activeTab, setActiveTab] = useState<'similar' | 'a_plus'>('similar');
   const sectionRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -332,7 +345,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
                   : 'text-gray-400 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200'
               }`}
             >
-              <span>{t('similar_products', 'Similar Products')}</span>
+              <span>{isBook ? t('similar_books', 'Similar Books') : t('similar_products', 'Similar Products')}</span>
               {activeTab === 'similar' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-500 rounded-full" />
               )}
@@ -355,7 +368,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
           </>
         ) : (
           <h2 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white tracking-tight leading-none pb-2">
-            {t('similar_products', 'Similar Products')}
+            {isBook ? t('similar_books', 'Similar Books') : t('similar_products', 'Similar Products')}
           </h2>
         )}
       </div>
@@ -369,7 +382,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:px-6">
             {loading
               ? Array.from({ length: pageSize }).map((_, idx) => (
-                  <ProductCardSkeleton key={`skeleton-${idx}`} viewMode="grid" compact={!isDesktop} className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]" />
+                  <ProductCardSkeleton key={`skeleton-${idx}`} viewMode="grid" compact={!isDesktop} className={`aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px] ${isBook ? '!rounded-none' : ''}`} />
                 ))
               : visibleProducts.map((prod) => (
                   <ProductCard
@@ -380,6 +393,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
                     className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"
                     trackSource="similar"
                     isSponsored={prod.rec_slot === 'sponsored'}
+                    isBookCategory={isBook}
                   />
                 ))}
           </div>

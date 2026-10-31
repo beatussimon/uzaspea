@@ -170,11 +170,36 @@ def rank(cands, ctx, limit, *, meta=None, personalize=True, diversify='full', sl
     return items[:limit]
 
 
+def _is_book_context(product_id):
+    from marketplace.models import Product, Category
+    prod = Product.objects.filter(id=product_id).select_related('category', 'category__parent').first()
+    if not prod:
+        return False, None, None
+    is_book = prod.product_type in ('DIGITAL', 'HYBRID')
+    cat = prod.category
+    root_book_cat_id = None
+    if cat:
+        ancestors = list(cat.get_ancestors(include_self=True))
+        for a in ancestors:
+            if 'book' in a.slug or 'book' in a.name.lower():
+                is_book = True
+                root_book_cat_id = a.id
+    return is_book, (cat.id if cat else None), root_book_cat_id
+
+
 # ─── Surfaces ─────────────────────────────────────────────────────
 def similar_for_product(product_id, page=1, page_size=12):
+    is_book, cat_id, root_book_id = _is_book_context(product_id)
     stored = ProductRecs.objects.filter(product_id=product_id).values_list('similar', flat=True).first()
     cands = _entries(stored, config.W_SIMILAR, 'similar')
-    if not cands:
+    if is_book:
+        target_cat = cat_id or root_book_id
+        if not cands or len(cands) < page_size:
+            if target_cat:
+                cands += [(pid, None, {}, 'similar_fallback') for pid in category_pool(target_cat, allow_hierarchy_expansion=True)]
+            if root_book_id and root_book_id != target_cat:
+                cands += [(pid, None, {}, 'similar_fallback') for pid in category_pool(root_book_id, allow_hierarchy_expansion=True)]
+    elif not cands:
         # Hierarchical tree expansion ensures Similar is never empty (D1 fix)
         cat_id = Product.objects.filter(id=product_id).values_list('category_id', flat=True).first()
         if cat_id:
@@ -186,8 +211,18 @@ def similar_for_product(product_id, page=1, page_size=12):
 
 
 def ymal_for_product(product_id, ctx, limit=12):
+    is_book, own_cat, root_book_id = _is_book_context(product_id)
     stored = ProductRecs.objects.filter(product_id=product_id).values_list('complements', flat=True).first()
     cands = _entries(stored, config.W_COMPLEMENT, 'ymal')
+
+    if is_book:
+        book_pool_id = root_book_id or own_cat
+        if book_pool_id:
+            book_cands = [(pid, None, {}, 'ymal_book_fallback') for pid in category_pool(book_pool_id, allow_hierarchy_expansion=True)]
+            cands = cands + book_cands if cands else book_cands
+        ctx.exclude_ids.add(product_id)
+        return rank(cands, ctx, limit, exclude_category_ids=None)
+
     own_cat = Product.objects.filter(id=product_id).values_list('category_id', flat=True).first()
     if len(cands) < limit * 2:
         cands += [(pid, None, {}, 'ymal_fallback') for pid in trending_pool(ctx.region or None)]
