@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Home, ShoppingBag, 
+  Home, ShoppingBag, BookOpen,
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
   Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, MessageSquare, Heart,
   AlertCircle, RefreshCw
@@ -251,6 +251,10 @@ const MobileBottomNav = () => {
                       <Link to="/orders" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
                         <ShoppingBag size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                         <span className="text-sm font-medium">{t('my_orders')}</span>
+                      </Link>
+                      <Link to="/library" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                        <BookOpen size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                        <span className="text-sm font-medium">{t('digital_library', 'Digital Library')}</span>
                       </Link>
                       {isTeamMember && (
                         <Link to="/teams-dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
