@@ -969,7 +969,7 @@ const DashboardOrders: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="relative max-w-3xl max-h-[90vh] bg-neutral-900 rounded-card overflow-hidden border-0 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
+            className="relative max-w-3xl max-h-[90vh] bg-neutral-900 rounded-none overflow-hidden border-0 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
           >
             <button 
               onClick={() => setZoomImage(null)}
@@ -981,7 +981,7 @@ const DashboardOrders: React.FC = () => {
             <img 
               src={zoomImage} 
               alt="Zoomed Payment Proof" 
-              className="max-w-full max-h-[85vh] object-contain rounded" 
+              className="max-w-full max-h-[85vh] object-contain rounded-none" 
             />
           </div>
         </div>

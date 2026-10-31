@@ -2557,7 +2557,7 @@ const location = useLocation();
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setPreviewImage(null)}
         >
-          <div className="relative max-w-2xl max-h-[90vh] bg-white dark:bg-[#121212] rounded-card p-2 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="relative max-w-2xl max-h-[90vh] bg-white dark:bg-[#121212] rounded-none p-2 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
@@ -2565,7 +2565,7 @@ const location = useLocation();
             >
               <X size={16} />
             </button>
-            <img src={previewImage} alt="Payment Proof" className="max-h-[80vh] w-auto object-contain rounded" />
+            <img src={previewImage} alt="Payment Proof" className="max-h-[80vh] w-auto object-contain rounded-none" />
           </div>
         </div>
       )}

@@ -1203,7 +1203,7 @@ const WarehouseStaffLayout: React.FC = () => {
             <img
               src={zoomReceipt}
               alt="Receipt zoom"
-              className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl border-0"
+              className="max-h-[85vh] max-w-full rounded-none object-contain shadow-2xl border-0"
             />
           </div>
         </div>
