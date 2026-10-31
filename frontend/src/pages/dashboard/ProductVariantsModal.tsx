@@ -18,7 +18,19 @@ export default function ProductVariantsModal({
   const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
+  const [form, setForm] = useState({ 
+    color: '', 
+    size: '', 
+    material: '', 
+    custom: '', 
+    format_type: 'PHYSICAL',
+    is_unlimited_stock: false,
+    price_adjustment: '0', 
+    stock: '0', 
+    is_available: true 
+  });
+  const [digitalFile, setDigitalFile] = useState<File | null>(null);
+  const [sampleFile, setSampleFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [productPhotos, setProductPhotos] = useState<string[]>([]);
   const [selectedProductPhoto, setSelectedProductPhoto] = useState<string | null>(null);
@@ -54,11 +66,14 @@ export default function ProductVariantsModal({
     
     const finalName = attributes.length > 0 ? attributes.join(' / ') : 'Default Variation';
 
+    const finalStock = form.is_unlimited_stock ? '99999' : form.stock;
     const formData = new FormData();
     formData.append('product', String(productId));
     formData.append('name', finalName);
+    formData.append('format_type', form.format_type);
+    formData.append('is_unlimited_stock', String(form.is_unlimited_stock));
     formData.append('price_adjustment', form.price_adjustment);
-    formData.append('stock', form.stock);
+    formData.append('stock', finalStock);
     formData.append('is_available', String(form.is_available));
     if (imageFile) {
       formData.append('image', imageFile);
@@ -67,11 +82,44 @@ export default function ProductVariantsModal({
     }
 
     try {
-      await api.post('/api/variants/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Variant added!');
+      const res = await api.post('/api/variants/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const createdVariant = res.data;
+
+      // If a digital master file was selected, upload it to /api/digital/assets/
+      if (digitalFile && createdVariant?.id) {
+        toast('Uploading digital master file to private vault...', { icon: '🔐' });
+        const assetFd = new FormData();
+        assetFd.append('product', String(productId));
+        assetFd.append('variant', String(createdVariant.id));
+        assetFd.append('title', `${finalName}`);
+        
+        let fileType = 'PDF';
+        if (form.format_type === 'AUDIOBOOK' || digitalFile.name.match(/\.(mp3|m4b|m4a|wav)$/i)) {
+          fileType = 'AUDIO';
+        } else if (form.format_type === 'LICENSE_KEY') {
+          fileType = 'KEY';
+        }
+        assetFd.append('file_type', fileType);
+        assetFd.append('file', digitalFile);
+        if (sampleFile) {
+          assetFd.append('sample_preview_file', sampleFile);
+        }
+        assetFd.append('delivery_mode', fileType === 'AUDIO' ? 'STREAM_AND_DOWNLOAD' : 'STREAM_AND_DOWNLOAD');
+        assetFd.append('watermark_enabled', fileType === 'PDF' ? 'true' : 'false');
+        
+        await api.post('/digital/assets/', assetFd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      }
+
+      toast.success('Variant added successfully!');
       setShowForm(false);
-      setForm({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
+      setForm({ 
+        color: '', size: '', material: '', custom: '', 
+        format_type: 'PHYSICAL', is_unlimited_stock: false,
+        price_adjustment: '0', stock: '0', is_available: true 
+      });
       setImageFile(null);
+      setDigitalFile(null);
+      setSampleFile(null);
       setSelectedProductPhoto(null);
       fetchVariants();
       onUpdated?.();
@@ -196,9 +244,16 @@ export default function ProductVariantsModal({
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-gray-900 dark:text-white text-xs truncate">{v.name}</p>
+                        <p className="font-bold text-gray-900 dark:text-white text-xs truncate flex items-center gap-1.5">
+                          <span>{v.name}</span>
+                          {v.format_type && v.format_type !== 'PHYSICAL' && (
+                            <span className="text-3xs font-mono px-1.5 py-0.5 rounded bg-black text-white dark:bg-white dark:text-black">
+                              {v.format_type === 'DIGITAL_FILE' ? 'PDF' : v.format_type === 'AUDIOBOOK' ? 'AUDIO' : v.format_type}
+                            </span>
+                          )}
+                        </p>
                         <p className="text-2xs text-gray-500 mt-0.5">
-                          Price Adj: <span className="font-bold text-brand-600 dark:text-brand-400">+TSh {parseFloat(v.price_adjustment).toLocaleString()}</span> • Stock: {v.stock}
+                          Price Adj: <span className="font-bold text-brand-600 dark:text-brand-400">+TSh {parseFloat(v.price_adjustment).toLocaleString()}</span> • Stock: {v.is_unlimited_stock ? 'Unlimited' : v.stock}
                         </p>
                       </div>
                     </div>
@@ -222,6 +277,64 @@ export default function ProductVariantsModal({
                   <div>
                     <h3 className="font-semibold text-xs text-gray-900 dark:text-white">Add New Variation</h3>
                   </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Format Type</label>
+                    <select
+                      value={form.format_type}
+                      onChange={e => setForm({...form, format_type: e.target.value, is_unlimited_stock: e.target.value !== 'PHYSICAL'})}
+                      className="input py-1.5 text-xs w-full bg-surface dark:bg-[#1a1a1a]"
+                    >
+                      <option value="PHYSICAL">Physical Edition / Hardcopy (Requires Shipping)</option>
+                      <option value="DIGITAL_FILE">Digital PDF / eBook (Forensic Watermarking)</option>
+                      <option value="AUDIOBOOK">Audiobook / Audio Course (Encrypted Streaming)</option>
+                      <option value="LICENSE_KEY">License Key / Activation Code</option>
+                    </select>
+                  </div>
+
+                  {form.format_type !== 'PHYSICAL' && (
+                    <div className="p-3 bg-surface-muted/60 dark:bg-[#1a1a1e] rounded-lg space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white">Digital Vault Settings</span>
+                        <label className="flex items-center gap-1.5 text-3xs font-semibold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.is_unlimited_stock}
+                            onChange={e => setForm({...form, is_unlimited_stock: e.target.checked})}
+                            className="rounded"
+                          />
+                          <span>Unlimited Digital Stock</span>
+                        </label>
+                      </div>
+
+                      <div>
+                        <label className="text-3xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                          Protected Master File ({form.format_type === 'AUDIOBOOK' ? 'MP3, M4B, M4A' : 'PDF, EPUB, ZIP'})
+                        </label>
+                        <input
+                          type="file"
+                          accept={form.format_type === 'AUDIOBOOK' ? '.mp3,.m4b,.m4a,.wav' : '.pdf,.epub,.zip'}
+                          onChange={e => setDigitalFile(e.target.files?.[0] || null)}
+                          className="input py-1 text-xs w-full file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-surface-muted"
+                        />
+                        <p className="text-3xs text-gray-400 mt-0.5">
+                          Stored securely in vault storage outside public web directory.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-3xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                          Free Sample / Preview (Optional)
+                        </label>
+                        <input
+                          type="file"
+                          accept={form.format_type === 'AUDIOBOOK' ? '.mp3,.m4a' : '.pdf'}
+                          onChange={e => setSampleFile(e.target.files?.[0] || null)}
+                          className="input py-1 text-xs w-full file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-surface-muted"
+                        />
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div>

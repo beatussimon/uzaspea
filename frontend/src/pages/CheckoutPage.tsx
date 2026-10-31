@@ -123,6 +123,16 @@ export const CheckoutPage: React.FC = () => {
   const checkoutTotal = useMemo(() => checkoutItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0), [checkoutItems]);
   const hasQuoteItem = useMemo(() => checkoutItems.some((i: any) => i.requires_quote), [checkoutItems]);
 
+  const isAllDigital = useMemo(() => {
+    if (checkoutItems.length === 0) return false;
+    return checkoutItems.every((item: any) => {
+      const isDigitalType = item.product_type === 'DIGITAL';
+      const isDigitalFormat = item.variant?.format_type && ['DIGITAL_FILE', 'AUDIOBOOK', 'LICENSE_KEY'].includes(item.variant.format_type);
+      const isDigitalName = item.variant_name && ['pdf', 'ebook', 'audiobook', 'digital'].some(w => item.variant_name.toLowerCase().includes(w));
+      return isDigitalType || isDigitalFormat || isDigitalName;
+    });
+  }, [checkoutItems]);
+
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [fulfillmentType, setFulfillmentType] = useState<string>('PLATFORM_DELIVERY');
@@ -148,6 +158,16 @@ export const CheckoutPage: React.FC = () => {
     deliveryAddress: '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (isAllDigital) {
+      setFulfillmentType('DIRECT_DELIVERY');
+      setShippingMethod('DELIVERY');
+      if (!form.deliveryAddress) {
+        setForm(f => ({ ...f, deliveryAddress: 'Digital Delivery' }));
+      }
+    }
+  }, [isAllDigital]);
 
   const [sellerBranches, setSellerBranches] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
@@ -961,19 +981,25 @@ export const CheckoutPage: React.FC = () => {
 
     const activeDial = selectedCountry.dialCode;
     const expectedDigits = selectedCountry.digitCount || 9;
-    const cleanDigits = localPhone.trim().replace(/\D/g, '').replace(/^0+/, '');
+    let cleanDigits = localPhone.trim().replace(/\D/g, '').replace(/^0+/, '');
 
-    if (shippingMethod === 'DELIVERY' && (!form.fullName || !cleanDigits || !form.deliveryAddress)) {
+    if (isAllDigital) {
+      if (!form.deliveryAddress) form.deliveryAddress = 'Digital Delivery Vault';
+      if (!form.fullName) form.fullName = localStorage.getItem('username') || 'Digital Customer';
+      if (!cleanDigits) cleanDigits = '700000000';
+    }
+
+    if (!isAllDigital && shippingMethod === 'DELIVERY' && (!form.fullName || !cleanDigits || !form.deliveryAddress)) {
       toast.error(t('fill_required_fields_error', 'Please provide recipient name, phone, and delivery address.'));
       return;
     }
 
-    if (shippingMethod === 'PICKUP' && (!form.fullName || !cleanDigits)) {
+    if (!isAllDigital && shippingMethod === 'PICKUP' && (!form.fullName || !cleanDigits)) {
       toast.error(t('fill_required_fields_error', 'Please provide your name and phone number for pickup.'));
       return;
     }
 
-    if (cleanDigits.length !== expectedDigits) {
+    if (!isAllDigital && cleanDigits.length !== expectedDigits) {
       toast.error(
         t(
           'phone_digit_count_error',
@@ -1305,42 +1331,82 @@ export const CheckoutPage: React.FC = () => {
           <div className="card p-4 sm:p-6 space-y-5 border-0 border-none hover:border-transparent dark:hover:border-transparent bg-white dark:bg-[#0A0A0A]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-white">
-                1. {t('delivery_destination', 'Delivery Destination & Contact')}
+                1. {isAllDigital ? t('digital_access', 'Digital Access & Watermark Contact') : t('delivery_destination', 'Delivery Destination & Contact')}
               </h2>
               {/* Minimal segmented toggle: full width on mobile for easy thumb tapping */}
-              <div className="grid grid-cols-2 sm:inline-flex rounded-lg bg-neutral-100 dark:bg-neutral-900 p-0.5 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShippingMethod('DELIVERY');
-                    const deliveryOpt = fulfillmentOptions.find(o => o.shipping_method === 'DELIVERY');
-                    if (deliveryOpt) setFulfillmentType(deliveryOpt.fulfillment_type);
-                  }}
-                  className={`py-2 sm:py-1.5 px-3 text-xs font-medium rounded-md transition-all text-center ${
-                    shippingMethod === 'DELIVERY'
-                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                >
-                  {t('delivery', 'Delivery')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShippingMethod('PICKUP');
-                    const pickupOpt = fulfillmentOptions.find(o => o.shipping_method === 'PICKUP');
-                    if (pickupOpt) setFulfillmentType(pickupOpt.fulfillment_type);
-                  }}
-                  className={`py-2 sm:py-1.5 px-3 text-xs font-medium rounded-md transition-all text-center ${
-                    shippingMethod === 'PICKUP'
-                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                >
-                  {t('pickup', 'Self-Pickup')}
-                </button>
-              </div>
+              {!isAllDigital && (
+                <div className="grid grid-cols-2 sm:inline-flex rounded-lg bg-neutral-100 dark:bg-neutral-900 p-0.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShippingMethod('DELIVERY');
+                      const deliveryOpt = fulfillmentOptions.find(o => o.shipping_method === 'DELIVERY');
+                      if (deliveryOpt) setFulfillmentType(deliveryOpt.fulfillment_type);
+                    }}
+                    className={`py-2 sm:py-1.5 px-3 text-xs font-medium rounded-md transition-all text-center ${
+                      shippingMethod === 'DELIVERY'
+                        ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {t('delivery', 'Delivery')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShippingMethod('PICKUP');
+                      const pickupOpt = fulfillmentOptions.find(o => o.shipping_method === 'PICKUP');
+                      if (pickupOpt) setFulfillmentType(pickupOpt.fulfillment_type);
+                    }}
+                    className={`py-2 sm:py-1.5 px-3 text-xs font-medium rounded-md transition-all text-center ${
+                      shippingMethod === 'PICKUP'
+                        ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {t('pickup', 'Self-Pickup')}
+                  </button>
+                </div>
+              )}
             </div>
+
+            {isAllDigital ? (
+              <div className="p-4 bg-surface-muted/60 dark:bg-[#141414] rounded-xl border-0 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white">
+                  <span>⚡ Instant Digital Delivery</span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  No physical freight or shipping fee required. Your items and encrypted offline leases will appear immediately in your <strong className="text-gray-900 dark:text-white">Digital Library</strong> once payment is recorded.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="text-2xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                      {t('full_name', 'Full Name (Forensic Stamp)')}
+                    </label>
+                    <input
+                      type="text"
+                      value={form.fullName}
+                      onChange={e => setForm({...form, fullName: e.target.value})}
+                      placeholder="Your full name"
+                      className="input py-2 text-xs w-full bg-surface dark:bg-[#1a1a1e] border-0"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-2xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                      {t('phone_number', 'Phone Number')}
+                    </label>
+                    <input
+                      type="tel"
+                      value={localPhone}
+                      onChange={handleLocalPhoneChange}
+                      placeholder="07XXXXXXXX"
+                      className="input py-2 text-xs w-full bg-surface dark:bg-[#1a1a1e] border-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
 
             {/* SAVED ADDRESS PREVIEW CARD (Shown when user has saved address and not in new/edit mode) */}
             {savedAddresses.length > 0 && !isEnteringNewAddress && !isEditingAddress ? (
@@ -1686,6 +1752,8 @@ export const CheckoutPage: React.FC = () => {
                   A collection code will be generated upon arrival at the pickup point.
                 </p>
               </div>
+            )}
+              </>
             )}
           </div>
 

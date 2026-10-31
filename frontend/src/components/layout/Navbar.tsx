@@ -5,7 +5,7 @@ import {
   Moon, Sun, Shield, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
   ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Heart, Search,
-  RefreshCw
+  RefreshCw, BookOpen
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
@@ -382,6 +382,10 @@ const Navbar = () => {
                           <Link to="/orders" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
                             <ShoppingBag size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                             <span className="text-sm font-medium">{t('my_orders')}</span>
+                          </Link>
+                          <Link to="/library" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                            <BookOpen size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('digital_library', 'Digital Library')}</span>
                           </Link>
                           {isTeamMember && (
                             <Link to="/teams-dashboard" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>

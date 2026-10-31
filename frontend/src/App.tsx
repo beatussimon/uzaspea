@@ -43,6 +43,7 @@ import ProfilePage from './pages/ProfilePage';
 import TeamsPage from './pages/TeamsPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrdersPage from './pages/OrdersPage';
+import { DigitalLibraryPage } from './pages/DigitalLibraryPage';
 import MessagesPage from './pages/MessagesPage';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import StaffAdminLayout from './pages/staff/StaffAdminLayout';
@@ -139,6 +140,7 @@ function AppRoutes() {
         <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
         <Route path="/teams-dashboard/*" element={<ProtectedRoute><TeamsDashboardLayout /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+        <Route path="/library" element={<ProtectedRoute><DigitalLibraryPage /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
