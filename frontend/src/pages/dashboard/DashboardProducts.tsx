@@ -368,6 +368,14 @@ const DashboardProducts: React.FC = () => {
     return null;
   }, [categories, selectedRootCatId, activeSelectedCat]);
 
+  const isBookCategory = useMemo(() => {
+    const catName = activeSelectedCat?.name?.toLowerCase() || '';
+    const rootName = currentRootCat?.name?.toLowerCase() || '';
+    const catSlug = activeSelectedCat?.slug?.toLowerCase() || '';
+    const rootSlug = currentRootCat?.slug?.toLowerCase() || '';
+    return catName.includes('book') || rootName.includes('book') || catSlug.includes('book') || rootSlug.includes('book');
+  }, [activeSelectedCat, currentRootCat]);
+
   useEffect(() => {
     if (!editingId && form.category) {
       const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
@@ -552,10 +560,12 @@ const DashboardProducts: React.FC = () => {
         img.onload = () => {
           const ratio = img.naturalWidth / img.naturalHeight;
           let status = 'Good (Landscape)';
-          if (ratio >= 0.85 && ratio <= 1.15) {
+          if (isBookCategory && ratio >= 0.65 && ratio <= 0.85) {
+            status = '✓ Ideal Book Cover (3:4)';
+          } else if (ratio >= 0.85 && ratio <= 1.15) {
             status = 'Perfect (1:1)';
           } else if (ratio < 0.85) {
-            status = '⚠️ Tall (Vertical)';
+            status = isBookCategory ? '✓ Ideal Book Cover (3:4)' : '⚠️ Tall (Vertical)';
           }
           setImagePreviews(prevList => 
             prevList.map(item => item.url === url ? { ...item, aspectStatus: status } : item)
@@ -1441,7 +1451,15 @@ const DashboardProducts: React.FC = () => {
             const item = { url, file, aspectStatus: 'Checking...' };
             const img = new Image(); img.onload = () => {
               const r = img.naturalWidth / img.naturalHeight;
-              setImagePreviews(prev => prev.map(p => p.url === url ? { ...p, aspectStatus: r >= 0.85 && r <= 1.15 ? 'Perfect' : r < 0.85 ? 'Vertical' : 'Good' } : p));
+              let status = 'Good';
+              if (isBookCategory && r >= 0.65 && r <= 0.85) {
+                status = '✓ Ideal (3:4)';
+              } else if (r >= 0.85 && r <= 1.15) {
+                status = 'Perfect';
+              } else if (r < 0.85) {
+                status = isBookCategory ? '✓ Ideal (3:4)' : 'Vertical';
+              }
+              setImagePreviews(prev => prev.map(p => p.url === url ? { ...p, aspectStatus: status } : p));
             }; img.src = url;
             return item;
           });
@@ -1698,7 +1716,9 @@ const DashboardProducts: React.FC = () => {
                           : `Product Photos (${imagePreviews.length})`} <span className="text-brand-500">*</span>
                       </p>
                       <span className="text-[10px] text-neutral-400">
-                        First image is current cover • Click or drag to add photos
+                        {isBookCategory 
+                          ? 'Recommended for books: 3:4 aspect ratio (e.g. 1200 × 1600 px or 600 × 800 px) • First image is cover'
+                          : 'First image is current cover • Click or drag to add photos'}
                       </span>
                     </div>
 
@@ -1779,6 +1799,18 @@ const DashboardProducts: React.FC = () => {
                           {existingImages.length > 0 && (
                             <span className="absolute top-1.5 right-1.5 bg-brand-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow z-10">
                               New
+                            </span>
+                          )}
+
+                          {p.aspectStatus && p.aspectStatus !== 'Checking...' && (
+                            <span className={`absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8.5px] font-semibold backdrop-blur-md pointer-events-none group-hover:opacity-0 transition-opacity z-10 ${
+                              p.aspectStatus.includes('Ideal') || p.aspectStatus.includes('Perfect')
+                                ? 'bg-emerald-500/90 text-white'
+                                : p.aspectStatus.includes('Tall') || p.aspectStatus.includes('Vertical')
+                                ? 'bg-amber-500/90 text-black'
+                                : 'bg-black/70 text-white'
+                            }`}>
+                              {p.aspectStatus}
                             </span>
                           )}
 

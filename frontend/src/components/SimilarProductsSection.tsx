@@ -382,7 +382,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:px-6 pb-4 sm:pb-6">
             {loading
               ? Array.from({ length: pageSize }).map((_, idx) => (
-                  <ProductCardSkeleton key={`skeleton-${idx}`} viewMode="grid" compact={!isDesktop} className={`aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px] ${isBook ? '!rounded-none' : ''}`} />
+                  <ProductCardSkeleton key={`skeleton-${idx}`} viewMode="grid" compact={!isDesktop} className={isBook ? "aspect-[3/4] min-h-0 !rounded-none" : "aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"} />
                 ))
               : visibleProducts.map((prod) => (
                   <ProductCard
@@ -390,7 +390,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
                     product={prod}
                     viewMode="grid"
                     compact={!isDesktop}
-                    className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"
+                    className={isBook ? "aspect-[3/4] min-h-0" : "aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[300px] md:min-h-[320px]"}
                     trackSource="similar"
                     isSponsored={prod.rec_slot === 'sponsored'}
                     isBookCategory={isBook}

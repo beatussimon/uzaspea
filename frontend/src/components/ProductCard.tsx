@@ -509,10 +509,13 @@ const ProductCard = memo(({
     );
   }
 
-  const sizingClasses = className ? className : 'min-h-[320px]';
+  const defaultSizing = isBook ? 'aspect-[3/4] min-h-0' : 'min-h-[320px]';
+  const sizingClasses = isBook
+    ? (className ? className.replace(/aspect-\[[^\]]+\]/g, 'aspect-[3/4]').replace(/min-h-\[[^\]]+\]/g, 'min-h-0') : defaultSizing)
+    : (className ? className : defaultSizing);
 
   return (
-    <div className={`group relative card border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${isBook ? '!rounded-none shadow-[inset_2px_0_4px_rgba(0,0,0,0.15)]' : ''} ${sizingClasses}`}>
+    <div className={`group relative card border-0 overflow-hidden flex flex-col ${isBook ? '!rounded-none shadow-[inset_2px_0_4px_rgba(0,0,0,0.15)] w-full' : 'h-full'} bg-white dark:bg-[#0A0A0A] hover:shadow-card-hover transition-all ${sizingClasses}`}>
       <Link 
         to={`/product/${productTargetSlug}`} 
         {...bgState} 
