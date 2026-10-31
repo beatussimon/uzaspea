@@ -91,28 +91,28 @@ export const FloatingBubble: React.FC<FloatingBubbleProps> = ({ conv, onDismiss 
       aria-label={`Chat with ${personName}`}
     >
       <div className="relative w-full h-full">
-        <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || '')} shadow-md border-2 border-white dark:border-[#1f2022]`}>
+        <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || '')} shadow-md border-0`}>
           {personName ? personName.substring(0, 2).toUpperCase() : <MessageSquare size={14} />}
         </div>
 
-        {/* Online dot */}
+        {/* Online dot without outline */}
         {conv.is_online && (
-          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-[#1f2022]" />
+          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full shadow-xs border-0" />
         )}
 
-        {/* Typing indicator pulse dot */}
+        {/* Typing indicator pulse dot without outline */}
         {isTyping && (
-          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full border-2 border-white dark:border-[#1f2022] flex items-center justify-center animate-ping" />
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full flex items-center justify-center animate-ping border-0" />
         )}
 
-        {/* Person-specific unread count badge with Pop effect */}
+        {/* Person-specific unread count badge without outline */}
         {conv.unread_count > 0 && (
           <motion.span
             key={`unread-${conv.id}-${conv.unread_count}`}
             initial={{ scale: 0 }}
             animate={{ scale: [0, 1.45, 0.85, 1.15, 1] }}
             transition={{ duration: 0.45, ease: 'easeOut' }}
-            className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-[#1f2022] z-10"
+            className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-lg border-0 z-10"
           >
             {conv.unread_count > 99 ? '99+' : conv.unread_count}
           </motion.span>
@@ -127,7 +127,7 @@ export const FloatingBubble: React.FC<FloatingBubbleProps> = ({ conv, onDismiss 
           closeChatWindow(conv.id); 
           onDismiss?.(conv.id);
         }}
-        className="absolute -top-1.5 -left-1.5 opacity-0 group-hover:opacity-100 w-5 h-5 bg-gray-900/90 dark:bg-black/90 text-white rounded-full hover:bg-red-500 dark:hover:bg-red-500 transition-all shadow-md z-10 flex items-center justify-center border border-white/20"
+        className="absolute -top-1.5 -left-1.5 opacity-0 group-hover:opacity-100 w-5 h-5 bg-gray-900/90 dark:bg-black/90 text-white rounded-full hover:bg-red-500 dark:hover:bg-red-500 transition-all shadow-md z-10 flex items-center justify-center border-0"
         title="Close bubble"
         aria-label="Close bubble"
       >

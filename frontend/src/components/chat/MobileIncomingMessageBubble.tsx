@@ -82,29 +82,29 @@ const MobileBubbleItem: React.FC<MobileBubbleItemProps> = ({
       aria-label={personName ? `Open chat with ${personName}` : 'Open messages'}
     >
       <div className="relative w-full h-full">
-        {/* Sender avatar gradient or fallback icon */}
-        <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || 'Messages')} shadow-lg border-2 border-white dark:border-[#1f2022]`}>
+        {/* Sender avatar gradient or fallback icon without outline */}
+        <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName || 'Messages')} shadow-lg border-0`}>
           {personName ? personName.substring(0, 2).toUpperCase() : <MessageSquare size={16} />}
         </div>
 
-        {/* Online indicator dot */}
+        {/* Online indicator dot without outline */}
         {conv.is_online && (
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#1f2022]" />
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full shadow-xs border-0" />
         )}
 
-        {/* Typing indicator pulse */}
+        {/* Typing indicator pulse without outline */}
         {isTyping && (
-          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full border-2 border-white dark:border-[#1f2022] flex items-center justify-center animate-ping" />
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-brand-500 rounded-full flex items-center justify-center animate-ping border-0" />
         )}
 
-        {/* Unread count badge with energetic pop animation */}
+        {/* Unread count badge without outline */}
         {unreadCount > 0 && (
           <motion.span
             key={`badge-mobile-${conv.id}-${unreadCount}`}
             initial={{ scale: 0 }}
             animate={{ scale: [0, 1.45, 0.88, 1.12, 1] }}
             transition={{ duration: 0.45, ease: 'easeOut' }}
-            className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-[#1f2022]"
+            className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md border-0"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </motion.span>
@@ -175,7 +175,7 @@ export const MobileIncomingMessageBubble: React.FC = () => {
 
   // Active floating conversations with unread messages or minimized
   const activeConversations = conversations.filter(c =>
-    (c.unread_count > 0 || minimizedChatWindows.includes(c.id)) &&
+    (Number(c.unread_count) > 0 || minimizedChatWindows.includes(c.id)) &&
     !dismissedBubbleIds.includes(c.id)
   );
 
@@ -184,7 +184,7 @@ export const MobileIncomingMessageBubble: React.FC = () => {
   if (candidateConversations.length === 0 && totalUnread > 0 && conversations.length > 0) {
     candidateConversations = conversations
       .filter(c => !dismissedBubbleIds.includes(c.id))
-      .slice(0, 1);
+      .slice(0, 4);
   }
 
   if (candidateConversations.length === 0) {
@@ -196,8 +196,8 @@ export const MobileIncomingMessageBubble: React.FC = () => {
   // - oldest (previous message) is at index 0 (BOTTOM of the stack)
   // - newer messages from different people are at higher indices (rendered vertically ON TOP of previous message)
   const sortedConversations = [...candidateConversations].sort((a, b) => {
-    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
-    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+    const timeA = new Date(a.updated_at || a.created_at || (a.last_message ? (a.last_message as any).created_at : 0) || 0).getTime();
+    const timeB = new Date(b.updated_at || b.created_at || (b.last_message ? (b.last_message as any).created_at : 0) || 0).getTime();
     return timeA - timeB; // ascending -> oldest first
   });
 
