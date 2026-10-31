@@ -3010,10 +3010,12 @@ const ProductDetailPage: React.FC = () => {
 
       {/* Mobile Floating Action Buttons (Positioned above MobileBottomNav or bottom when nav is hidden) */}
       <div 
-        className="md:hidden fixed z-[110] flex flex-col-reverse items-center gap-2.5 pointer-events-none transition-[bottom] duration-300 ease-out"
+        className="md:hidden fixed z-[110] flex flex-col-reverse items-center gap-2.5 pointer-events-none"
         style={{
-          bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isNavVisible ? '80px' : '16px'})`,
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
           right: '20px',
+          transform: isNavVisible ? 'translateY(-64px)' : 'translateY(0px)',
+          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Slot 1 (Bottom): Back To Top Button */}

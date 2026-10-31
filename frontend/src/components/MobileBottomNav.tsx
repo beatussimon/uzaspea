@@ -60,6 +60,8 @@ const MobileBottomNav = () => {
   const isHomepage = location.pathname === '/';
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const NAV_TRANSITION = 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)';
+
   const notifyNavVisibility = (visible: boolean) => {
     if (typeof window !== 'undefined') {
       document.documentElement.style.setProperty('--mobile-nav-bottom-offset', visible ? '80px' : '16px');
@@ -71,7 +73,7 @@ const MobileBottomNav = () => {
     // Reset initial state when route changes (show briefly, then hide)
     if (navRef.current) {
       currentOffset.current = 0;
-      navRef.current.style.transition = 'transform 0.3s ease-out';
+      navRef.current.style.transition = NAV_TRANSITION;
       navRef.current.style.transform = `translateY(0px)`;
       notifyNavVisibility(true);
       
@@ -79,7 +81,7 @@ const MobileBottomNav = () => {
       hideTimeout.current = setTimeout(() => {
         if (navRef.current && !isMenuOpen) {
           currentOffset.current = 100;
-          navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+          navRef.current.style.transition = NAV_TRANSITION;
           navRef.current.style.transform = `translateY(100px)`;
           notifyNavVisibility(false);
         }
@@ -106,7 +108,7 @@ const MobileBottomNav = () => {
               if (currentOffset.current !== maxHide) {
                 currentOffset.current = maxHide;
                 if (navRef.current) {
-                  navRef.current.style.transition = 'transform 0.3s ease-out';
+                  navRef.current.style.transition = NAV_TRANSITION;
                   navRef.current.style.transform = `translateY(${maxHide}px)`;
                   notifyNavVisibility(false);
                 }
@@ -117,7 +119,7 @@ const MobileBottomNav = () => {
               if (currentOffset.current !== 0) {
                 currentOffset.current = 0;
                 if (navRef.current) {
-                  navRef.current.style.transition = 'transform 0.3s ease-out';
+                  navRef.current.style.transition = NAV_TRANSITION;
                   navRef.current.style.transform = `translateY(0px)`;
                   notifyNavVisibility(true);
                 }
@@ -128,7 +130,7 @@ const MobileBottomNav = () => {
               hideTimeout.current = setTimeout(() => {
                 if (navRef.current && !isMenuOpen) {
                   currentOffset.current = maxHide;
-                  navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                  navRef.current.style.transition = NAV_TRANSITION;
                   navRef.current.style.transform = `translateY(${maxHide}px)`;
                   notifyNavVisibility(false);
                 }
