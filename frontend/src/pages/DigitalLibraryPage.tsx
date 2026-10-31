@@ -81,7 +81,7 @@ export const DigitalLibraryPage: React.FC = () => {
   const fetchLibrary = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/digital/library/');
+      const res = await api.get('/api/digital/library/');
       const data: DigitalLicense[] = res.data?.results || res.data || [];
       setLicenses(data);
 
@@ -145,7 +145,7 @@ export const DigitalLibraryPage: React.FC = () => {
       }
 
       // 2. Otherwise request short-lived 15-minute streaming token from server
-      const tokenRes = await api.post(`/digital/library/${lic.id}/token/`, {
+      const tokenRes = await api.post(`/api/digital/library/${lic.id}/token/`, {
         token_type: 'READ',
       });
 
@@ -184,7 +184,7 @@ export const DigitalLibraryPage: React.FC = () => {
       }
 
       // 2. Otherwise request short-lived 15-minute streaming token from server
-      const tokenRes = await api.post(`/digital/library/${lic.id}/token/`, {
+      const tokenRes = await api.post(`/api/digital/library/${lic.id}/token/`, {
         token_type: 'STREAM',
       });
 
@@ -211,7 +211,7 @@ export const DigitalLibraryPage: React.FC = () => {
     setActionLoadingKey(key);
 
     try {
-      const tokenRes = await api.post(`/digital/library/${lic.id}/token/`, {
+      const tokenRes = await api.post(`/api/digital/library/${lic.id}/token/`, {
         token_type: 'DOWNLOAD',
       });
 
@@ -257,12 +257,12 @@ export const DigitalLibraryPage: React.FC = () => {
       toast('Encrypting and saving for offline access...', { icon: '🔒' });
 
       // 1. Request 30-day offline lease
-      const leaseRes = await api.post(`/digital/library/${lic.id}/offline-lease/`, {
+      const leaseRes = await api.post(`/api/digital/library/${lic.id}/offline-lease/`, {
         device_fingerprint: navigator.userAgent,
       });
 
       // 2. Request download token to fetch file bytes
-      const tokenRes = await api.post(`/digital/library/${lic.id}/token/`, {
+      const tokenRes = await api.post(`/api/digital/library/${lic.id}/token/`, {
         token_type: 'READ',
       });
 

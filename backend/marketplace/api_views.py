@@ -1,3 +1,4 @@
+import os
 import json
 import re
 from decimal import Decimal
@@ -8029,7 +8030,9 @@ class DigitalLibraryViewSet(viewsets.ReadOnlyModelViewSet):
             'digital_asset__product',
             'digital_asset__product__seller',
             'digital_asset__product__seller__profile',
-            'variant',
+            'digital_asset__variant',
+            'order_item',
+            'order_item__variant',
             'order'
         ).prefetch_related(
             'digital_asset__product__images'

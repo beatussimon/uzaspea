@@ -86,3 +86,5 @@ cookies.txt
 # Backend logs
 backend/logs/
 backend/scripts/scratch/
+backend/vault_storage/*
+!backend/vault_storage/.gitkeep
