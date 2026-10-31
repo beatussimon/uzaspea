@@ -302,17 +302,9 @@ export const DigitalLibraryPage: React.FC = () => {
       <div className="bg-transparent border-0 pt-6 pb-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="w-full">
-            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-3.5 w-full">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                Digital Library & Books
-              </h1>
-              <span className="text-xs sm:text-sm font-bold h-7 sm:h-8 px-3.5 sm:px-4 rounded-full bg-neutral-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0">
-                {licenses.length} Items
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Your purchased eBooks, watermarked PDFs, audiobooks, and licenses. Available online and offline.
-            </p>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Digital Library & Books
+            </h1>
           </div>
 
           {/* Offline Status Badge */}
