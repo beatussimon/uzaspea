@@ -411,7 +411,7 @@ class Product(models.Model):
                 self.is_available = True
 
         # Ensure product automatically has accurate location info
-        if not self.location_name or self.latitude is None or self.longitude is None:
+        if self.product_type != 'DIGITAL' and (not self.location_name or self.latitude is None or self.longitude is None):
             seller_profile = getattr(self.seller, 'profile', None) if getattr(self, 'seller_id', None) else None
             if not self.location_name and seller_profile and seller_profile.location:
                 self.location_name = seller_profile.location

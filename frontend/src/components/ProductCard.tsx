@@ -147,74 +147,86 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 
       {viewMode === 'list' ? (
         <div className="absolute top-1 left-1 flex flex-col gap-1 z-10 pointer-events-none">
-          <div 
-            className="relative pointer-events-auto inline-flex items-center gap-1 h-6 px-1.5"
-            onMouseLeave={() => setIsAdHovered(false)}
-          >
-            <span className={`font-black text-[10px] uppercase tracking-wider w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
-              {getConditionLabel()}
-            </span>
-            {isSponsored && (
-              <>
-                <span className="font-bold text-[10px] text-gray-300 dark:text-neutral-600 select-none">|</span>
-                <button
-                  type="button"
-                  onClick={handleAdInfoClick}
-                  onMouseEnter={() => setIsAdHovered(true)}
-                  aria-label="What does AD mean? Click to view FAQ"
-                  className="font-black text-[10px] uppercase tracking-wider text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0"
-                >
-                  {t('ad_badge', 'AD')}
-                </button>
-                {isAdHovered && (
-                  <div
+          {((!isBook && product.product_type !== 'DIGITAL' && product.condition) || isSponsored) && (
+            <div 
+              className="relative pointer-events-auto inline-flex items-center gap-1 h-6 px-1.5"
+              onMouseLeave={() => setIsAdHovered(false)}
+            >
+              {!isBook && product.product_type !== 'DIGITAL' && product.condition && (
+                <span className={`font-black text-[10px] uppercase tracking-wider w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+                  {getConditionLabel()}
+                </span>
+              )}
+              {isSponsored && (
+                <>
+                  {!isBook && product.product_type !== 'DIGITAL' && product.condition && (
+                    <span className="font-bold text-[10px] text-gray-300 dark:text-neutral-600 select-none">|</span>
+                  )}
+                  <button
+                    type="button"
                     onClick={handleAdInfoClick}
-                    className="absolute top-full left-0 pt-0.5 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                    onMouseEnter={() => setIsAdHovered(true)}
+                    aria-label="What does AD mean? Click to view FAQ"
+                    className="font-black text-[10px] uppercase tracking-wider text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0"
                   >
-                    <span className="text-[8.5px] font-semibold leading-tight text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] block max-w-[85px]">
-                      {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                    {t('ad_badge', 'AD')}
+                  </button>
+                  {isAdHovered && (
+                    <div
+                      onClick={handleAdInfoClick}
+                      className="absolute top-full left-0 pt-0.5 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                    >
+                      <span className="text-[8.5px] font-semibold leading-tight text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] block max-w-[85px]">
+                        {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className={compact ? "absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 pointer-events-none" : "absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none"}>
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} compact={compact} />}
-          <div 
-            className="relative pointer-events-auto inline-flex items-center gap-1.5 w-fit"
-            onMouseLeave={() => setIsAdHovered(false)}
-          >
-            <span className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
-              {getConditionLabel()}
-            </span>
-            {isSponsored && (
-              <>
-                <span className="font-bold text-xs text-gray-300 dark:text-neutral-600 select-none">|</span>
-                <button
-                  type="button"
-                  onClick={handleAdInfoClick}
-                  onMouseEnter={() => setIsAdHovered(true)}
-                  aria-label="What does AD mean? Click to view FAQ"
-                  className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0`}
-                >
-                  {t('ad_badge', 'AD')}
-                </button>
-                {isAdHovered && (
-                  <div
+          {((!isBook && product.product_type !== 'DIGITAL' && product.condition) || isSponsored) && (
+            <div 
+              className="relative pointer-events-auto inline-flex items-center gap-1.5 w-fit"
+              onMouseLeave={() => setIsAdHovered(false)}
+            >
+              {!isBook && product.product_type !== 'DIGITAL' && product.condition && (
+                <span className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+                  {getConditionLabel()}
+                </span>
+              )}
+              {isSponsored && (
+                <>
+                  {!isBook && product.product_type !== 'DIGITAL' && product.condition && (
+                    <span className="font-bold text-xs text-gray-300 dark:text-neutral-600 select-none">|</span>
+                  )}
+                  <button
+                    type="button"
                     onClick={handleAdInfoClick}
-                    className="absolute top-full left-0 pt-1 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                    onMouseEnter={() => setIsAdHovered(true)}
+                    aria-label="What does AD mean? Click to view FAQ"
+                    className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none text-brand-500 dark:text-brand-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors p-0`}
                   >
-                    <span className="text-[10px] font-semibold tracking-normal text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
-                      {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                    {t('ad_badge', 'AD')}
+                  </button>
+                  {isAdHovered && (
+                    <div
+                      onClick={handleAdInfoClick}
+                      className="absolute top-full left-0 pt-1 pointer-events-auto cursor-pointer z-30 animate-in fade-in duration-150"
+                    >
+                      <span className="text-[10px] font-semibold tracking-normal text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+                        {t('ad_faq_tooltip', 'What does AD mean? Click to view FAQ')}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {!product.requires_quote && product.old_price > product.price && (
             <span className={compact ? "h-5 sm:h-6 px-1.5 sm:px-2 rounded-full font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400" : "h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400"}>
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
@@ -438,7 +450,7 @@ const ProductCard = memo(({
                  <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                  <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
                </div>
-                {(product.location_name || distanceLabel) && (
+                {(product.location_name || distanceLabel) && !isBook && product.product_type !== 'DIGITAL' && (
                   <>
                     <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
                     <span className="text-[10px] text-gray-500 truncate max-w-[85px] shrink-0" title={product.location_name ? (distanceLabel ? `${product.location_name} (${distanceLabel})` : product.location_name) : (distanceLabel || '')}>
@@ -578,7 +590,7 @@ const ProductCard = memo(({
             </div>
 
             {/* Location & Distance (simple subtle text, no nested card, no colored icons) */}
-            {(product.location_name || distanceLabel) && (
+            {(product.location_name || distanceLabel) && !isBook && product.product_type !== 'DIGITAL' && (
               <span 
                 className={`text-[8.5px] text-gray-500 dark:text-gray-400 font-medium truncate ${compact ? 'max-w-[55px]' : 'max-w-[70px]'} shrink-0`}
                 title={product.location_name ? (distanceLabel ? `${product.location_name} (${distanceLabel})` : product.location_name) : (distanceLabel || '')}
@@ -605,7 +617,7 @@ const ProductCard = memo(({
       </Link>
 
       {/* Top overlay: Like & 3-dots Menu */}
-      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-col gap-1.5 z-10" : "absolute top-2 right-2 flex flex-col gap-1.5 z-10"}>
+      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-row items-center gap-1.5 z-10" : "absolute top-2 right-2 flex flex-row items-center gap-1.5 z-10"}>
         <button onClick={handleLike} className={compact ? `h-6 sm:h-7 px-1.5 sm:px-2 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}` : `h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
           <Heart size={compact ? 12 : 14} className={liked ? 'fill-current' : ''} />
           <span className={compact ? "text-[9px] sm:text-[10px] font-bold" : "text-[10px] font-bold"}>{likeCount}</span>
@@ -619,8 +631,8 @@ const ProductCard = memo(({
               setMenuOpen((prev) => !prev);
             }}
             className={compact
-              ? "h-6 sm:h-7 w-6 sm:w-7 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors ml-auto"
-              : "h-8 w-8 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors ml-auto"
+              ? "h-6 sm:h-7 w-6 sm:w-7 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors"
+              : "h-8 w-8 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-md transition-colors"
             }
             title={t('more_options', 'More options')}
             aria-label="More options"

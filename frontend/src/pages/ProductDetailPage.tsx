@@ -501,6 +501,16 @@ const ProductDetailPage: React.FC = () => {
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
   const [isHydrating, setIsHydrating] = useState(false);
   const [loading, setLoading] = useState(!initialProduct);
+
+  const isBookProduct = Boolean(
+    product?.is_book ||
+    (product?.category_slug && product.category_slug.includes('book')) ||
+    (product?.category_name && product.category_name.toLowerCase().includes('book')) ||
+    (product?.category_parent_slug && product.category_parent_slug.includes('book')) ||
+    (product?.category_parent_name && product.category_parent_name.toLowerCase().includes('book')) ||
+    (product?.product_type === 'DIGITAL') ||
+    (product?.product_type === 'HYBRID')
+  );
   const [pageError, setPageError] = useState<ClassifiedError | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [liked, setLiked] = useState(initialProduct?.is_liked || false);
@@ -1933,10 +1943,10 @@ const ProductDetailPage: React.FC = () => {
               )}
 
               {/* Condition & Sponsored AD */}
-              {(product.condition || product.is_sponsored) && (
+              {((product.condition && !isBookProduct && product.product_type !== 'DIGITAL') || product.is_sponsored) && (
                 <div className="flex items-center gap-1.5 shrink-0 select-none">
                   {/* Condition Badge */}
-                  {product.condition && (
+                  {product.condition && !isBookProduct && product.product_type !== 'DIGITAL' && (
                     <span className={`min-w-[38px] px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider text-center shrink-0 ${
                       (product.condition || '').toLowerCase() === 'new' 
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
@@ -1978,7 +1988,7 @@ const ProductDetailPage: React.FC = () => {
               )}
 
               {/* Location */}
-              {product.location_name && (
+              {product.location_name && !isBookProduct && product.product_type !== 'DIGITAL' && (
                 <span className="flex items-center gap-1 shrink min-w-0" title={product.location_name}>
                   <MapPin size={12} className="text-gray-400 shrink-0" />
                   <span className="truncate max-w-[95px] xs:max-w-[125px] sm:max-w-none">{product.location_name}</span>
@@ -2828,7 +2838,7 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Map Location */}
-          {product.latitude && product.longitude && (
+          {product.latitude && product.longitude && !isBookProduct && product.product_type !== 'DIGITAL' && (
             <div>
               <ProductMap 
                 lat={product.latitude} 
