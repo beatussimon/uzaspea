@@ -11,6 +11,7 @@ import { ensureArray } from '../utils/arrayUtils';
 import SEO from '../components/SEO';
 import ExpandableSearch from '../components/ExpandableSearch';
 import { useUserLocation } from '../context/LocationContext';
+import { useSearch } from '../context/SearchContext';
 import DiscoveryFeed from '../components/discovery/DiscoveryFeed';
 import CategoryRecommendationShelf from '../components/discovery/CategoryRecommendationShelf';
 import { categoryStore } from '../utils/categoryStore';
@@ -31,6 +32,7 @@ type GridEntry =
 // ================================================================
 const ProductList = () => {
   const { t } = useTranslation();
+  const { openSearch } = useSearch();
   const { location, searchPrefs, setNearMe, setNationwide, isLocating } = useUserLocation();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -534,14 +536,6 @@ const ProductList = () => {
       onRemove: () => updateFilters({ oem_part_number: '' }),
     });
   }
-  if (saved) {
-    activePills.push({
-      id: 'saved',
-      label: '',
-      value: 'Saved Items',
-      onRemove: () => { updateFilters({ saved: '' }); },
-    });
-  }
   if (savedTime) {
     const label = savedTime === '24h' ? 'Last 24 Hours' : savedTime === '7d' ? 'Last 7 Days' : 'Last 30 Days';
     activePills.push({
@@ -907,16 +901,33 @@ const ProductList = () => {
                       ))
                     ) : (
                       <div className="col-span-full">
-                        <div className="card p-12 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur mb-6">
-                          <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
-                          <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                          <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                        <div className="py-12 px-4 text-center mb-6">
+                          <p className="text-gray-500 dark:text-gray-400 font-medium">
+                            {saved 
+                              ? t('saved_empty_message', 'Your saved items will appear here') 
+                              : t('no_products_match', 'No products match your filters.')}
+                          </p>
+                          {saved ? (
+                            <button 
+                              onClick={() => openSearch()} 
+                              className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline cursor-pointer"
+                            >
+                              {t('what_are_you_looking_for', 'What are you looking for?')}
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} 
+                              className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline"
+                            >
+                              {t('clear_all_filters', 'Clear all filters')}
+                            </button>
+                          )}
                         </div>
 
                         {emptySearchRecs.length > 0 && (
                           <div className="mt-6">
-                            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                              <span>🔥</span> {t('popular_recommendations', 'Popular items you may like')}
+                            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3">
+                              {t('popular_recommendations', 'Popular items you may like')}
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                               {emptySearchRecs.map((prod) => (
