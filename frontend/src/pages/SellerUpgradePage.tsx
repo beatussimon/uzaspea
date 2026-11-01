@@ -268,7 +268,7 @@ const SellerUpgradePage: React.FC = () => {
     setCurrentStep(1);
   };
 
-  const isAlreadySeller = user && (user.tier === 'seller_pro' || user.tier === 'business' || user.is_staff || user.is_superuser);
+  const isAlreadySeller = user && (user.tier === 'seller_lite' || user.tier === 'seller_pro' || user.tier === 'business' || user.is_staff || user.is_superuser);
 
   // Stepper items definition
   const steps = [

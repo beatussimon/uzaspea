@@ -80,8 +80,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           {Icon && (
             <Icon 
               size={14} 
-              className={cn("shrink-0", color ? "" : "text-brand-500")} 
-              style={color ? { color } : undefined} 
+              className="shrink-0 text-gray-400 dark:text-gray-400" 
             />
           )}
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400 leading-snug line-clamp-1" title={label}>

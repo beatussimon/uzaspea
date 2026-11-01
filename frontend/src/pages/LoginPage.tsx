@@ -87,7 +87,7 @@ const LoginPage: React.FC = () => {
 
       const isSubActive = res.data.subscription_active === true || res.data.subscription_active === 'true';
       const isExpired = res.data.subscription_expired === true || res.data.subscription_expired === 'true';
-      const isSeller = res.data.is_seller === true || res.data.is_seller === 'true' || res.data.tier === 'seller_pro' || res.data.tier === 'business';
+      const isSeller = res.data.is_seller === true || res.data.is_seller === 'true' || res.data.tier === 'seller_lite' || res.data.tier === 'seller_pro' || res.data.tier === 'business';
 
       let defaultRedirect = '/';
       if (res.data.is_inspector && !res.data.is_staff) {

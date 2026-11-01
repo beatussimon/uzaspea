@@ -22,6 +22,7 @@ const BranchesManagerPage = React.lazy(() => import('./BranchesManagerPage'));
 const DashboardPromotions = React.lazy(() => import('./DashboardPromotions'));
 import StockTransfersPage from './StockTransfersPage';
 import SubscriptionExpiredView from './SubscriptionExpiredView';
+import { useStoreBusinessMode } from '../../services/storeBusinessModeService';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -342,8 +343,10 @@ const DashboardLayout: React.FC = () => {
 
   const isBusiness = roles.isBusiness;
   const isWorker = roles.isTeamMember;
+  const isSellerLite = roles.isSellerLite;
   const isSuperuser = roles.isSuperuser;
   const perms = user?.team_permissions || {};
+  const { config: storeConfig } = useStoreBusinessMode();
 
   const downloadStoreQrCode = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -422,14 +425,14 @@ const DashboardLayout: React.FC = () => {
 
   const allNavItems = [
     { path: '/dashboard', label: t('overview', 'Overview'), icon: LayoutDashboard, show: !isWorker || perms.view_analytics },
-    { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/products', label: isSellerLite ? (storeConfig.inventoryLabel || t('inventory', 'Inventory')) : t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
     { path: '/dashboard/product-requests', label: t('product_requests', 'Product Requests'), icon: Lightbulb, show: !isWorker || perms.manage_products },
-    { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
-    { path: '/dashboard/invoices', label: t('invoices_and_quotes', 'Invoices & Quotes'), icon: FileText, show: !isWorker || perms.manage_orders },
-    { path: '/dashboard/promotions', label: t('promotions', 'Promotions'), icon: Megaphone, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: (!isSellerLite) && (!isWorker || perms.manage_orders) },
+    { path: '/dashboard/invoices', label: t('invoices_and_quotes', 'Invoices & Quotes'), icon: FileText, show: (!isSellerLite) && (!isWorker || perms.manage_orders) },
+    { path: '/dashboard/promotions', label: t('promotions', 'Promotions'), icon: Megaphone, show: (!isSellerLite) && (!isWorker || perms.manage_products) },
     { path: '/dashboard/pos', label: t('point_of_sale', 'Point of Sale'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/billing', label: t('billing_commission', 'Billing & Commission'), icon: Wallet, show: !isWorker || perms.view_analytics },
-    { path: '/dashboard/payment-numbers', label: t('payment_numbers', 'Payment Numbers'), icon: CreditCard, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/payment-numbers', label: t('payment_numbers', 'Payment Numbers'), icon: CreditCard, show: (!isSellerLite) && (!isWorker || perms.view_analytics) },
     { path: '/dashboard/branches', label: t('store_branches', 'Store Branches'), icon: MapPin, show: isBusiness },
     { path: '/dashboard/transfers', label: t('stock_transfers', 'Stock Transfers'), icon: ArrowLeftRight, show: isBusiness || (isWorker && perms.manage_products) },
     { path: '/dashboard/team', label: t('team_members', 'Team Members'), icon: Shield, show: isBusiness },
@@ -805,12 +808,12 @@ const DashboardLayout: React.FC = () => {
           <Route path="products" element={(!isWorker || perms.manage_products) ? <DashboardProducts /> : <Navigate to="/dashboard" replace />} />
           <Route path="product-requests" element={(!isWorker || perms.manage_products) ? <ProductRequestsBoard /> : <Navigate to="/dashboard" replace />} />
           <Route path="pos" element={(!isWorker || perms.manage_orders) ? <DashboardPOS /> : <Navigate to="/dashboard" replace />} />
-          <Route path="orders" element={(!isWorker || perms.manage_orders) ? <DashboardOrders /> : <Navigate to="/dashboard" replace />} />
-          <Route path="invoices" element={(!isWorker || perms.manage_orders) ? <InvoicesPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="orders" element={(!isSellerLite && (!isWorker || perms.manage_orders)) ? <DashboardOrders /> : <Navigate to="/dashboard" replace />} />
+          <Route path="invoices" element={(!isSellerLite && (!isWorker || perms.manage_orders)) ? <InvoicesPage /> : <Navigate to="/dashboard" replace />} />
           <Route 
             path="promotions" 
             element={
-              (!isWorker || perms.manage_products) ? (
+              (!isSellerLite && (!isWorker || perms.manage_products)) ? (
                 <React.Suspense fallback={<PromotionsSkeleton />}>
                   <DashboardPromotions />
                 </React.Suspense>
@@ -818,7 +821,7 @@ const DashboardLayout: React.FC = () => {
             } 
           />
           <Route path="billing" element={(!isWorker || perms.view_analytics) ? <BillingPage /> : <Navigate to="/dashboard" replace />} />
-          <Route path="payment-numbers" element={(!isWorker || perms.view_analytics) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
+          <Route path="payment-numbers" element={(!isSellerLite && (!isWorker || perms.view_analytics)) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
           {isBusiness && (
             <Route
               path="branches"

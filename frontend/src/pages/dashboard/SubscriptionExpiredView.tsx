@@ -54,7 +54,11 @@ export const SubscriptionExpiredView: React.FC = () => {
 
       if (tiersRes.status === 'fulfilled') {
         const rawTiers = tiersRes.value.data.results || tiersRes.value.data || [];
-        setTiers(rawTiers.filter((t: any) => t.is_active && ['seller_pro', 'business'].includes(t.tier_level)));
+        const sellerTiersOrder = ['seller_lite', 'seller_pro', 'business'];
+        const filteredTiers = rawTiers
+          .filter((t: any) => t.is_active && sellerTiersOrder.includes(t.tier_level))
+          .sort((a: any, b: any) => sellerTiersOrder.indexOf(a.tier_level) - sellerTiersOrder.indexOf(b.tier_level));
+        setTiers(filteredTiers);
       }
 
       if (invoicesRes.status === 'fulfilled') {
@@ -301,7 +305,7 @@ export const SubscriptionExpiredView: React.FC = () => {
   // State 2: Seller needs to choose and pay for a plan
   return (
     <div className="w-full flex flex-col items-center pt-4 sm:pt-6 pb-16 px-4">
-      <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
+      <div className="w-full max-w-4xl lg:max-w-5xl mx-auto flex flex-col items-center">
 
         {/* Back to pending button (if user chose to view plans while pending) */}
         {pendingPayment && showPlansAnyway && (
@@ -364,47 +368,63 @@ export const SubscriptionExpiredView: React.FC = () => {
             No seller plans available at this time. Please contact support.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
             {tiers.map((tier) => {
+              const isLite = tier.tier_level === 'seller_lite';
               const isPro = tier.tier_level === 'seller_pro';
               const isPreviousPlan = tier.tier_level === previousTierLevel;
 
               return (
                 <div 
                   key={tier.id} 
-                  className={`rounded-2xl p-6 flex flex-col justify-between transition-all ${
+                  className={`rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all ${
                     isPreviousPlan
                       ? 'bg-white dark:bg-neutral-900/90 border-2 border-neutral-900 dark:border-white'
                       : 'bg-white dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800'
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-base font-bold text-neutral-900 dark:text-white whitespace-nowrap">
                         {tier.name}
                       </h3>
                       {isPreviousPlan ? (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-200">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-200 whitespace-nowrap shrink-0">
                           Previous Plan
                         </span>
                       ) : (
-                        <span className="text-[10px] font-medium text-neutral-400">
+                        <span className="text-[10px] font-medium text-neutral-400 whitespace-nowrap shrink-0">
                           {tier.duration || 30} days
                         </span>
                       )}
                     </div>
 
                     <div className="mt-3 mb-4">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                      <div className="flex items-baseline gap-1.5 flex-nowrap whitespace-nowrap overflow-hidden">
+                        <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-neutral-900 dark:text-white whitespace-nowrap">
                           TZS {Number(tier.price).toLocaleString()}
                         </span>
-                        <span className="text-xs text-neutral-400 font-normal">/ 30 days</span>
+                        <span className="text-xs text-neutral-400 font-normal whitespace-nowrap">/ {tier.duration || 30} days</span>
                       </div>
                     </div>
 
                     <div className="space-y-2 text-xs text-neutral-600 dark:text-neutral-400 mb-6">
-                      {isPro ? (
+                      {isLite ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
+                            <span>Complete In-Store POS & receipt printing</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
+                            <span>QR scan check-in, memberships & claim tickets</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
+                            <span>1 store branch & daily staff attendant attribution</span>
+                          </div>
+                        </>
+                      ) : isPro ? (
                         <>
                           <div className="flex items-center gap-2">
                             <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
@@ -423,15 +443,15 @@ export const SubscriptionExpiredView: React.FC = () => {
                         <>
                           <div className="flex items-center gap-2">
                             <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
-                            <span>All Seller Pro features</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
-                            <span>Point of Sale (POS) receipt printing</span>
+                            <span>All Seller Pro & Lite features</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
                             <span>Multi-user team & worker roles</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Check size={14} className="text-neutral-900 dark:text-neutral-200 shrink-0" />
+                            <span>Multi-branch inventory & advanced reports</span>
                           </div>
                         </>
                       )}

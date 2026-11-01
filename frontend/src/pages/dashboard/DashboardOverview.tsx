@@ -1,12 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { 
+  Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, 
+  ChevronDown, Check, Sparkles, Users, UserCheck, Clock, CheckCircle2, 
+  Tag, Receipt
+} from 'lucide-react';
+import { 
+  useStoreBusinessMode, 
+  BUSINESS_MODE_CONFIG, 
+  StoreBusinessMode 
+} from '../../services/storeBusinessModeService';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
 import { LocationSelector } from '../../components/dashboard/LocationSelector';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, useUserRoles } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { printElement } from '../../utils/printHelper';
 import {
@@ -43,8 +53,10 @@ import { classifyApiError, type ClassifiedError } from '../../utils/errorUtils';
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, activeLocation } = useAuth();
+  const roles = useUserRoles();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
@@ -53,6 +65,26 @@ const DashboardOverview: React.FC = () => {
     endDate: null,
     label: t('all_time', 'All Time')
   });
+
+  const {
+    businessMode,
+    passExpiryWindow,
+    setBusinessMode,
+    setPassExpiryWindow,
+    config,
+    isRetailMode,
+    isGymMode,
+    isSalonMode,
+    isRestaurantMode,
+    isServiceMode,
+    hasMemberships,
+  } = useStoreBusinessMode(stats?.business_mode, stats?.membership_stats?.expiry_days);
+
+  // Business Mode & Expiry Dropdowns
+  const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const [isExpiryMenuOpen, setIsExpiryMenuOpen] = useState(false);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
+  const expiryMenuRef = useRef<HTMLDivElement>(null);
 
   // Top Products limit customization
   const [topProductsLimit, setTopProductsLimit] = useState<number>(10);
@@ -65,12 +97,18 @@ const DashboardOverview: React.FC = () => {
       if (topLimitRef.current && !topLimitRef.current.contains(e.target as Node)) {
         setIsTopLimitOpen(false);
       }
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setIsModeMenuOpen(false);
+      }
+      if (expiryMenuRef.current && !expiryMenuRef.current.contains(e.target as Node)) {
+        setIsExpiryMenuOpen(false);
+      }
     };
-    if (isTopLimitOpen) {
+    if (isTopLimitOpen || isModeMenuOpen || isExpiryMenuOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
     }
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isTopLimitOpen]);
+  }, [isTopLimitOpen, isModeMenuOpen, isExpiryMenuOpen]);
 
   const fetchStats = React.useCallback(() => {
     setLoading(true);
@@ -81,6 +119,8 @@ const DashboardOverview: React.FC = () => {
     if (dateRange.endDate) params.append('end_date', dateRange.endDate);
     if (activeLocation?.id) params.append('location_id', String(activeLocation.id));
     params.append('top_limit', '50');
+    params.append('business_mode', businessMode);
+    params.append('expiry_days', String(passExpiryWindow));
     if (params.toString()) url += `?${params.toString()}`;
 
     api.get(url)
@@ -92,7 +132,7 @@ const DashboardOverview: React.FC = () => {
         setFetchError(classifyApiError(err));
       })
       .finally(() => setLoading(false));
-  }, [dateRange, activeLocation]);
+  }, [dateRange, activeLocation, businessMode, passExpiryWindow]);
 
   useEffect(() => {
     fetchStats();
@@ -111,49 +151,193 @@ const DashboardOverview: React.FC = () => {
 
   const trendUp = (stats?.revenue_trend_pct || 0) >= 0;
 
-  const kpis = [
-    {
-      label: t('products', 'Products'),
-      value: stats?.total_products || 0,
-      icon: Package,
-    },
-    {
-      label: t('orders', 'Orders'),
-      value: stats?.total_orders || 0,
-      icon: ShoppingCart,
-    },
-    {
-      label: t('revenue', `Revenue (${dateRange.label})`),
-      value: formatCompactCurrency(stats?.total_revenue || 0),
-      fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
-      icon: Banknote,
-      trend: {
-        value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
-        direction: trendUp ? 'up' as const : 'down' as const,
+  const kpis = useMemo(() => {
+    // 1. Gym & Fitness Mode (Memberships / Passes Focus)
+    if (businessMode === 'gym' || (hasMemberships && stats?.membership_stats?.active_passes > 0)) {
+      return [
+        {
+          label: t('services_and_passes', 'Services & Passes'),
+          value: stats?.total_services ?? stats?.total_products ?? 0,
+          sub: `${stats?.total_products || 0} total listings`,
+          icon: Tag,
+        },
+        {
+          label: t('active_members', 'Active Members'),
+          value: stats?.membership_stats?.active_passes || 0,
+          sub: `${stats?.membership_stats?.total_passes_issued || 0} passes issued`,
+          icon: UserCheck,
+          className: 'border-emerald-500/30',
+        },
+        {
+          label: t('revenue', `Revenue (${dateRange.label})`),
+          value: formatCompactCurrency(stats?.total_revenue || 0),
+          fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+          icon: Banknote,
+          trend: {
+            value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
+            direction: trendUp ? 'up' as const : 'down' as const,
+          },
+        },
+        {
+          label: t('expiring_soon', `Expiring (${passExpiryWindow}d)`),
+          value: stats?.membership_stats?.expiring_passes || 0,
+          sub: 'renewal watchlist',
+          icon: Clock,
+          className: (stats?.membership_stats?.expiring_passes || 0) > 0 ? 'border-amber-500/40 text-amber-500' : undefined,
+        },
+        {
+          label: t('check_ins', 'Club Check-ins'),
+          value: stats?.membership_stats?.total_check_ins || 0,
+          sub: 'member visits',
+          icon: CheckCircle2,
+        },
+        {
+          label: t('avg_rating', 'Avg Rating'),
+          value: stats?.avg_rating || '—',
+          sub: `${stats?.total_reviews || 0} reviews`,
+          icon: Star,
+        },
+      ];
+    }
+
+    // 2. Salon & Spa or General Services Mode (Service & Client Focus)
+    if (businessMode === 'salon' || businessMode === 'service') {
+      return [
+        {
+          label: t('services', 'Services'),
+          value: stats?.total_services ?? stats?.total_products ?? 0,
+          sub: `${stats?.total_products || 0} offerings`,
+          icon: Tag,
+        },
+        {
+          label: t('clients_served', 'Clients Served'),
+          value: stats?.total_orders || 0,
+          sub: 'service bookings',
+          icon: Users,
+        },
+        {
+          label: t('revenue', `Revenue (${dateRange.label})`),
+          value: formatCompactCurrency(stats?.total_revenue || 0),
+          fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+          icon: Banknote,
+          trend: {
+            value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
+            direction: trendUp ? 'up' as const : 'down' as const,
+          },
+        },
+        {
+          label: t('avg_rating', 'Avg Rating'),
+          value: stats?.avg_rating || '—',
+          sub: `${stats?.total_reviews || 0} reviews`,
+          icon: Star,
+        },
+        {
+          label: t('avg_ticket', 'Avg Ticket'),
+          value: formatCompactCurrency(stats?.avg_order_value || 0),
+          sub: 'per service client',
+          icon: Receipt,
+        },
+        {
+          label: t('top_category', 'Top Category'),
+          value: stats?.category_breakdown?.[0]?.category || 'General',
+          sub: `${stats?.category_breakdown?.[0]?.items || 0} rendered`,
+          icon: Sparkles,
+        },
+      ];
+    }
+
+    // 3. Restaurant & Cafe Mode (Food & Dining Focus)
+    if (businessMode === 'restaurant') {
+      return [
+        {
+          label: t('menu_items', 'Menu Items'),
+          value: stats?.total_products || 0,
+          sub: 'food & drinks',
+          icon: Tag,
+        },
+        {
+          label: t('dining_orders', 'Orders Served'),
+          value: stats?.total_orders || 0,
+          sub: 'dine-in & takeaway',
+          icon: ShoppingCart,
+        },
+        {
+          label: t('revenue', `Revenue (${dateRange.label})`),
+          value: formatCompactCurrency(stats?.total_revenue || 0),
+          fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+          icon: Banknote,
+          trend: {
+            value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
+            direction: trendUp ? 'up' as const : 'down' as const,
+          },
+        },
+        {
+          label: t('low_stock', 'Low Stock / Items Left'),
+          value: stats?.stock_alerts?.length || 0,
+          sub: 'drinks & food ≤ 3',
+          icon: AlertTriangle,
+          className: (stats?.stock_alerts?.length || 0) > 0 ? 'border-red-500/30' : undefined,
+        },
+        {
+          label: t('avg_ticket', 'Avg Order Value'),
+          value: formatCompactCurrency(stats?.avg_order_value || 0),
+          sub: 'per dining ticket',
+          icon: Receipt,
+        },
+        {
+          label: t('top_category', 'Top Dish Category'),
+          value: stats?.category_breakdown?.[0]?.category || 'Menu',
+          sub: `${stats?.category_breakdown?.[0]?.items || 0} ordered`,
+          icon: Sparkles,
+        },
+      ];
+    }
+
+    // 4. Retail (Physical Goods) & Hybrid Default
+    return [
+      {
+        label: businessMode === 'hybrid' ? t('catalog_items', 'Catalog Items') : t('products', 'Products'),
+        value: stats?.total_products || 0,
+        sub: businessMode === 'hybrid' ? `${stats?.total_services || 0} services • ${stats?.total_physical_products || 0} goods` : undefined,
+        icon: Package,
       },
-    },
-    {
-      label: t('avg_rating', 'Avg Rating'),
-      value: stats?.avg_rating || '—',
-      sub: `${stats?.total_reviews || 0} reviews`,
-      icon: Star,
-    },
-    {
-      label: t('low_stock', 'Low Stock'),
-      value: stats?.stock_alerts?.length || 0,
-      sub: 'items ≤ 3',
-      icon: AlertTriangle,
-      className: stats?.stock_alerts?.length > 0 ? 'border-red-500/30' : undefined,
-    },
-    {
-      label: t('recommendation_reach', 'Rec Reach (30d)'),
-      value: `${(stats?.rec_reach?.clicks || 0).toLocaleString()} clicks`,
-      sub: `${stats?.rec_reach?.orders || 0} orders • TSh ${(stats?.rec_reach?.revenue || 0).toLocaleString()}`,
-      icon: Sparkles,
-      fullValue: `${(stats?.rec_reach?.clicks || 0).toLocaleString()} recommendation clicks, ${(stats?.rec_reach?.orders || 0).toLocaleString()} orders, TSh ${(stats?.rec_reach?.revenue || 0).toLocaleString()} revenue`,
-      className: 'border-brand-500/30',
-    },
-  ];
+      {
+        label: t('orders', 'Orders'),
+        value: stats?.total_orders || 0,
+        icon: ShoppingCart,
+      },
+      {
+        label: t('revenue', `Revenue (${dateRange.label})`),
+        value: formatCompactCurrency(stats?.total_revenue || 0),
+        fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+        icon: Banknote,
+        trend: {
+          value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
+          direction: trendUp ? 'up' as const : 'down' as const,
+        },
+      },
+      {
+        label: t('avg_rating', 'Avg Rating'),
+        value: stats?.avg_rating || '—',
+        sub: `${stats?.total_reviews || 0} reviews`,
+        icon: Star,
+      },
+      {
+        label: t('low_stock', 'Low Stock'),
+        value: stats?.stock_alerts?.length || 0,
+        sub: 'items ≤ 3',
+        icon: AlertTriangle,
+        className: (stats?.stock_alerts?.length || 0) > 0 ? 'border-red-500/30' : undefined,
+      },
+      {
+        label: roles.isSellerLite ? t('avg_order_value', 'Avg Order Value') : t('recommendation_reach', 'Rec Reach (30d)'),
+        value: roles.isSellerLite ? formatCompactCurrency(stats?.avg_order_value || 0) : `${(stats?.rec_reach?.clicks || 0).toLocaleString()} clicks`,
+        sub: roles.isSellerLite ? 'per checkout' : `${stats?.rec_reach?.orders || 0} orders • TSh ${(stats?.rec_reach?.revenue || 0).toLocaleString()}`,
+        icon: roles.isSellerLite ? Receipt : Sparkles,
+        className: 'border-brand-500/30',
+      },
+    ];
+  }, [businessMode, hasMemberships, stats, dateRange.label, trendUp, passExpiryWindow, roles.isSellerLite, t]);
 
   // Prepare pie data
   const pieData = Object.entries(stats?.orders_by_status || {}).map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v as number }));
@@ -180,10 +364,59 @@ const DashboardOverview: React.FC = () => {
     <div className="space-y-6">
       <header className="space-y-1">
         <div className="flex items-center justify-between gap-1.5 sm:gap-2 flex-nowrap min-w-0 min-h-[40px]">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap sm:truncate shrink-0">
-            {t('store_analytics', 'Store Analytics')}
-          </h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap sm:truncate shrink-0">
+              {config.analyticsLabel}
+            </h1>
+          </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-nowrap">
+            {/* Business Mode Dropdown Pill */}
+            <div className="relative" ref={modeMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
+                className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs font-semibold rounded-btn bg-surface-muted dark:bg-[#161616] hover:bg-surface-muted/80 dark:hover:bg-[#202020] text-gray-900 dark:text-white shrink-0 cursor-pointer transition select-none border-0"
+                title="Switch business analytics mode"
+              >
+                <Tag size={13} className="text-amber-500 shrink-0" />
+                <span className="hidden sm:inline font-bold">{config.shortLabel}</span>
+                <ChevronDown size={11} className={`text-gray-400 transition-transform ${isModeMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isModeMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-2xl z-40 p-1.5 space-y-1 animate-fade-in text-gray-900 dark:text-gray-100">
+                  <div className="px-2 py-1 text-3xs font-bold uppercase tracking-wider text-gray-400">
+                    Business Mode Focus
+                  </div>
+                  {(Object.keys(BUSINESS_MODE_CONFIG) as StoreBusinessMode[]).map((mk) => {
+                    const m = BUSINESS_MODE_CONFIG[mk];
+                    const isSelected = businessMode === mk;
+                    return (
+                      <button
+                        key={mk}
+                        type="button"
+                        onClick={() => {
+                          setBusinessMode(mk);
+                          setIsModeMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl text-xs transition flex items-center justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-bold'
+                            : 'text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-800/50 font-medium'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <p className="leading-tight truncate">{m.label.split('(')[0].trim()}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-neutral-500 font-normal truncate">{m.shortLabel}</p>
+                        </div>
+                        {isSelected && <Check size={13} className="text-amber-500 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <LocationSelector />
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <button 
@@ -200,7 +433,13 @@ const DashboardOverview: React.FC = () => {
           </div>
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          Real-time sales breakdown, order conversion pipeline, and inventory status.
+          {isGymMode
+            ? 'Real-time membership pass issuances, upcoming renewal watchlist, club check-ins, and revenue pipeline.'
+            : isRestaurantMode
+            ? 'Real-time dining orders, top-selling menu items, food & drink stock levels, and revenue.'
+            : isServiceMode || isSalonMode
+            ? 'Real-time service sales breakdown, client appointments, and treatment revenue.'
+            : 'Real-time sales breakdown, order conversion pipeline, and inventory status.'}
         </p>
       </header>
 
@@ -574,10 +813,10 @@ const DashboardOverview: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
-        {/* Top Products */}
+        {/* Top Performers */}
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
             <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
-              <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">{config.topPerformersLabel}</h3>
               
               <div className="flex items-center gap-2">
                 {/* Customizable Limit Dropdown Pill */}
@@ -662,8 +901,8 @@ const DashboardOverview: React.FC = () => {
                 <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
-                    <th className="px-3 py-2.5 font-bold">Product</th>
-                    <th className="px-3 py-2.5 font-bold text-right">Sold</th>
+                    <th className="px-3 py-2.5 font-bold">{isServiceMode || isGymMode || isSalonMode ? 'Service / Pass' : isRestaurantMode ? 'Dish / Drink' : 'Product'}</th>
+                    <th className="px-3 py-2.5 font-bold text-right">{isGymMode ? 'Passes' : isServiceMode || isSalonMode ? 'Rendered' : isRestaurantMode ? 'Ordered' : 'Sold'}</th>
                     <th className="px-3 py-2.5 font-bold text-right">Revenue</th>
                   </tr>
                 </thead>
@@ -685,7 +924,7 @@ const DashboardOverview: React.FC = () => {
                   {(!stats?.top_products || stats.top_products.length === 0) && (
                     <tr>
                       <td colSpan={4} className="p-6 text-center text-xs text-gray-400">
-                        No product sales recorded for this period
+                        No sales recorded for this period
                       </td>
                     </tr>
                   )}
@@ -694,50 +933,208 @@ const DashboardOverview: React.FC = () => {
             </div>
           </div>
 
-        {/* Low Stock Alerts */}
-        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-          <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white">
-              Stock Alerts
-            </h3>
-            <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">{stats?.stock_alerts?.length || 0} alerts</span>
+        {/* Right Widget: Membership Expirations Watchlist OR Service Categories OR Stock Alerts */}
+        {!isRestaurantMode && !isRetailMode && (isGymMode || (hasMemberships && (stats?.membership_stats?.expiring_passes_list?.length || 0) > 0)) ? (
+          <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+            <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">
+                Membership Expirations Watchlist
+              </h3>
+              
+              <div className="flex items-center gap-2">
+                {/* Customizable Expiry Window Pill */}
+                <div className="relative" ref={expiryMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsExpiryMenuOpen(!isExpiryMenuOpen)}
+                    className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-surface-muted dark:bg-[#161616] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 transition cursor-pointer select-none"
+                    title="Change expiration alert window"
+                  >
+                    <span>Next {passExpiryWindow}d</span>
+                    <ChevronDown size={11} className={`text-gray-400 transition-transform ${isExpiryMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isExpiryMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 w-44 bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-xl shadow-xl z-30 p-1.5 space-y-1 animate-fade-in text-gray-900 dark:text-gray-100">
+                      <div className="px-2 py-1 text-3xs font-bold uppercase tracking-wider text-gray-400">
+                        Renewal Alert Window
+                      </div>
+                      {[3, 7, 14, 30].map((days) => {
+                        const isSelected = passExpiryWindow === days;
+                        return (
+                          <button
+                            key={days}
+                            type="button"
+                            onClick={() => {
+                              setPassExpiryWindow(days);
+                              setIsExpiryMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
+                                : 'text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-800/50'
+                            }`}
+                          >
+                            <span>{days} Days {days === 7 ? '(Default)' : ''}</span>
+                            {isSelected && <Check size={12} className="text-amber-500" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-2xs font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider">
+                  {stats?.membership_stats?.expiring_passes || 0} alerts
+                </span>
+              </div>
+            </div>
+
+            {(stats?.membership_stats?.expiring_passes_list || []).length > 0 ? (
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full text-left">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
+                    <tr>
+                      <th className="px-3 py-2.5 font-bold w-8 text-center">#</th>
+                      <th className="px-3 py-2.5 font-bold">Member</th>
+                      <th className="px-3 py-2.5 font-bold">Pass / Plan</th>
+                      <th className="px-3 py-2.5 font-bold text-left whitespace-nowrap">Expires</th>
+                      <th className="px-3 py-2.5 font-bold text-center w-20">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.membership_stats.expiring_passes_list.map((p: any, i: number) => (
+                      <tr key={`pass-exp-${p.id || i}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                        <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
+                        <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[180px]">
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate font-bold">{p.customer_name}</span>
+                            {p.customer_phone && (
+                              <span className="text-[10px] text-gray-400 dark:text-neutral-500 font-mono truncate">
+                                {p.customer_phone}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-700 dark:text-neutral-300 truncate max-w-[150px]" title={p.pass_name}>
+                          {p.pass_name}
+                        </td>
+                        <td className="px-3 py-2.5 text-left whitespace-nowrap">
+                          {p.days_remaining === 0 ? (
+                            <span className="text-2xs font-extrabold uppercase text-red-500">Today</span>
+                          ) : (
+                            <span className="text-2xs font-bold text-amber-500">
+                              {p.days_remaining}d left
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => navigate('/dashboard/pos', { state: { renewMemberPhone: p.customer_phone, renewMemberName: p.customer_name } })}
+                            className="px-2.5 py-1 text-2xs font-bold bg-brand-500 hover:bg-brand-400 text-black rounded-lg transition shadow-2xs cursor-pointer"
+                            title="Renew membership in POS"
+                          >
+                            Renew
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-5 py-8 text-center text-gray-400 text-xs">
+                All memberships active and in good standing 🎉
+              </p>
+            )}
           </div>
-          {(stats?.stock_alerts?.length || 0) > 0 ? (
+        ) : (isServiceMode || isSalonMode) && (stats?.category_breakdown?.length || 0) > 0 ? (
+          /* Service Category Breakdown Table */
+          <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+            <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">
+                Service Category Breakdown
+              </h3>
+              <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">
+                {stats?.category_breakdown?.length || 0} categories
+              </span>
+            </div>
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left">
                 <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
-                    <th className="px-3 py-2.5 font-bold">Product</th>
-                    <th className="px-3 py-2.5 font-bold text-left w-28">Status</th>
+                    <th className="px-3 py-2.5 font-bold">Category</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Rendered</th>
+                    <th className="px-3 py-2.5 font-bold text-right">Revenue</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.stock_alerts.map((s: any, i: number) => (
-                    <tr key={`stock-alert-${i}-${s.name || ''}-${s.location_name || ''}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                  {stats.category_breakdown.map((cat: any, i: number) => (
+                    <tr key={`cat-${i}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
                       <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
-                      <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[220px]" title={s.name}>
-                        <div className="flex flex-col min-w-0">
-                          <span className="truncate">{s.name}</span>
-                          {s.location_name && (
-                            <span className="text-[10px] text-gray-400 dark:text-neutral-500 font-normal truncate">
-                              {s.location_name}
-                            </span>
-                          )}
-                        </div>
+                      <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white truncate">
+                        {cat.category}
                       </td>
-                      <td className="px-3 py-2.5 text-left whitespace-nowrap w-28">
-                        <span className={`text-xs font-semibold ${s.stock === 0 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
-                          {s.stock === 0 ? 'Out of Stock' : `${s.stock} Left`}
-                        </span>
+                      <td className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-gray-300">
+                        {cat.items}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-extrabold text-gray-900 dark:text-white whitespace-nowrap">
+                        TSh {Number(cat.revenue || 0).toLocaleString()}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : <p className="px-5 py-8 text-center text-gray-400 text-xs">All products well-stocked 🎉</p>}
-        </div>
+          </div>
+        ) : (
+          /* Low Stock Alerts (Physical Goods / Restaurant Drinks & Food Stock Alerts) */
+          <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+            <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">
+                {isRestaurantMode ? t('food_drink_stock_alerts', 'Food & Drink Stock Alerts') : t('stock_alerts', 'Stock Alerts')}
+              </h3>
+              <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">{stats?.stock_alerts?.length || 0} alerts</span>
+            </div>
+            {(stats?.stock_alerts?.length || 0) > 0 ? (
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full text-left">
+                  <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
+                    <tr>
+                      <th className="px-3 py-2.5 font-bold w-10 text-center">#</th>
+                      <th className="px-3 py-2.5 font-bold">{isRestaurantMode ? t('item_drink', 'Food / Drink Item') : t('product', 'Product')}</th>
+                      <th className="px-3 py-2.5 font-bold text-left w-28">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.stock_alerts.map((s: any, i: number) => (
+                      <tr key={`stock-alert-${i}-${s.name || ''}-${s.location_name || ''}`} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs">
+                        <td className="px-3 py-2.5 text-center text-gray-400 font-medium">{i + 1}</td>
+                        <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[220px]" title={s.name}>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">{s.name}</span>
+                            {s.location_name && (
+                              <span className="text-[10px] text-gray-400 dark:text-neutral-500 font-normal truncate">
+                                {s.location_name}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-left whitespace-nowrap w-28">
+                          <span className={`text-xs font-semibold ${s.stock === 0 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
+                            {s.stock === 0 ? 'Out of Stock' : `${s.stock} Left`}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="px-5 py-8 text-center text-gray-400 text-xs">{isRestaurantMode ? 'All drinks and food items well-stocked 🎉' : 'All inventory well-stocked 🎉'}</p>}
+          </div>
+        )}
       </div>
 
       {/* Multi-Branch Performance Widget (Business Tier HQ Consolidated View) */}
@@ -789,10 +1186,10 @@ const DashboardOverview: React.FC = () => {
       )}
 
       {/* Items Sold Activity List */}
-      {stats?.has_advanced_analytics && (
+      {(stats?.has_advanced_analytics || roles.isSellerLite || stats?.items_sold_list !== undefined) && (
         <div className="card overflow-hidden !border-none !rounded-none !bg-transparent print:shadow-none print:m-0 print:p-0">
           <div className="h-12 px-3 bg-transparent flex items-center justify-between gap-2 print-hide">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold Activity ({dateRange.label})</h3>
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white">{config.salesActivityLabel} ({dateRange.label})</h3>
             {stats.items_sold_list && stats.items_sold_list.length > 0 && (
               <span className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Recent {stats.items_sold_list.length}</span>
             )}
@@ -804,7 +1201,7 @@ const DashboardOverview: React.FC = () => {
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-8 text-center">S/N</th>
                     <th className="px-3 py-2.5 font-bold whitespace-nowrap">Date & Time</th>
-                    <th className="px-3 py-2.5 font-bold min-w-[150px]">Product</th>
+                    <th className="px-3 py-2.5 font-bold min-w-[150px]">{isServiceMode || isGymMode || isSalonMode ? 'Service / Pass' : isRestaurantMode ? 'Menu Item' : 'Product'}</th>
                     <th className="px-3 py-2.5 font-bold text-right">Qty</th>
                     <th className="px-3 py-2.5 font-bold text-right">Cost (Unit)</th>
                     <th className="px-3 py-2.5 font-bold text-right">Price (Unit)</th>
@@ -820,7 +1217,19 @@ const DashboardOverview: React.FC = () => {
                         {new Date(item.date).toLocaleDateString()} <span className="text-3xs text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </td>
                       <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white print:text-black" title={item.product_name}>
-                        <div className="line-clamp-1 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="line-clamp-1 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</span>
+                          {item.validity_days ? (
+                            <span className="text-3xs font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">
+                              Pass: {item.validity_days}d
+                            </span>
+                          ) : null}
+                          {item.attendant_name ? (
+                            <span className="text-3xs text-gray-400 dark:text-neutral-500 shrink-0">
+                              • {item.attendant_name}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 font-bold text-gray-700 dark:text-gray-300 print:text-black text-right">
                         {item.quantity}
@@ -851,7 +1260,9 @@ const DashboardOverview: React.FC = () => {
                       {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
                     </td>
                     <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
-                      {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
+                      {stats.items_sold_list.some((item: any) => (item.buying_price || 0) > 0)
+                        ? `${formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)`
+                        : '-'}
                     </td>
                     <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap font-bold" colSpan={2}>
                       {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
@@ -863,7 +1274,7 @@ const DashboardOverview: React.FC = () => {
             </div>
           ) : (
             <div className="py-8 text-center text-xs text-gray-400 font-medium print-hide">
-              No items sold during this period.
+              No sales activity during this period.
             </div>
           )}
         </div>

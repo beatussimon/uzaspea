@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, useUserRoles } from '../../context/AuthContext';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
   CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
   ChevronLeft, ChevronRight, Search, X, Megaphone,
-  ChevronDown
+  ChevronDown, Download
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import SafeImage from '../../components/SafeImage';
 import { useDialog } from '../../components/ui/Dialogs';
+import { useStoreBusinessMode } from '../../services/storeBusinessModeService';
 import ProductVariantsModal from './ProductVariantsModal';
 import { useTranslation } from 'react-i18next';
 import VehicleSelector from '../../components/VehicleSelector';
@@ -43,11 +46,266 @@ const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'home-furniture': ['Finish / Color', 'Dimensions'],
 };
 
+interface ProductQrPrintModalProps {
+  product: any;
+  user: any;
+  onClose: () => void;
+}
+
+const ProductQrPrintModal: React.FC<ProductQrPrintModalProps> = ({ product, user, onClose }) => {
+  const variants = product.variants || [];
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedVariantId) return null;
+    return variants.find((v: any) => v.id === selectedVariantId) || null;
+  }, [variants, selectedVariantId]);
+
+  const activePrice = selectedVariant
+    ? (selectedVariant.final_price != null ? selectedVariant.final_price : parseFloat(product.price) + parseFloat(selectedVariant.price_adjustment || 0))
+    : product.price;
+
+  const qrValue = selectedVariantId
+    ? `SKN:P${product.id}:V${selectedVariantId}`
+    : `SKN:P${product.id}`;
+
+  const storeHandle = user?.username ? `@${user.username}` : '@sokonimax';
+
+  const handleDownloadPng = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 700;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Border
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+
+    // Store Name
+    ctx.fillStyle = '#6b7280';
+    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(storeHandle, canvas.width / 2, 70);
+
+    // Product Title
+    ctx.fillStyle = '#111827';
+    ctx.font = 'bold 30px system-ui, -apple-system, sans-serif';
+    const title = product.name.length > 28 ? product.name.substring(0, 26) + '...' : product.name;
+    ctx.fillText(title, canvas.width / 2, 115);
+
+    // Variant Name
+    if (selectedVariant) {
+      ctx.fillStyle = '#d97706';
+      ctx.font = '600 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`[${selectedVariant.name}]`, canvas.width / 2, 150);
+    }
+
+    // Price
+    ctx.fillStyle = '#111827';
+    ctx.font = '900 36px system-ui, -apple-system, sans-serif';
+    const priceText = `TSh ${Math.round(parseFloat(activePrice || 0)).toLocaleString()}`;
+    ctx.fillText(priceText, canvas.width / 2, selectedVariant ? 195 : 175);
+
+    // QR Code drawing from SVG
+    const svgElem = document.getElementById('qr-modal-svg');
+    if (svgElem) {
+      const xml = new XMLSerializer().serializeToString(svgElem);
+      const svg64 = btoa(xml);
+      const image64 = 'data:image/svg+xml;base64,' + svg64;
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, (canvas.width - 300) / 2, 230, 300, 300);
+
+        // Footer
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '500 18px monospace';
+        ctx.fillText(qrValue, canvas.width / 2, 570);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+        ctx.fillText('SOKONIMAX POS REGISTER', canvas.width / 2, 630);
+
+        const link = document.createElement('a');
+        link.download = `${product.name.replace(/\s+/g, '_')}_qr_sticker.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast.success('Sticker PNG downloaded!');
+      };
+      img.src = image64;
+    }
+  };
+
+  const handlePrintLabel = () => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const contentWindow = iframe.contentWindow;
+    if (!contentWindow) return;
+
+    const svgElem = document.getElementById('qr-modal-svg');
+    const svgHtml = svgElem ? svgElem.outerHTML : '';
+    const priceText = `TSh ${Math.round(parseFloat(activePrice || 0)).toLocaleString()}`;
+
+    contentWindow.document.open();
+    contentWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Price Sticker</title>
+          <style>
+            @page { size: 58mm auto; margin: 0; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              margin: 0; 
+              padding: 6px; 
+              text-align: center; 
+              background: white; 
+              color: black;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .store { font-size: 10px; font-weight: bold; color: #4b5563; }
+            .title { font-size: 12px; font-weight: 800; margin: 2px 0; }
+            .variant { font-size: 10px; font-weight: bold; color: #b45309; }
+            .price { font-size: 14px; font-weight: 900; margin: 3px 0; }
+            .qr-wrap { display: flex; justify-content: center; margin: 4px 0; }
+            .code { font-size: 9px; font-family: monospace; color: #6b7280; }
+            .footer { font-size: 8px; font-weight: bold; color: #9ca3af; margin-top: 2px; }
+          </style>
+        </head>
+        <body>
+          <div class="store">${storeHandle}</div>
+          <div class="title">${product.name}</div>
+          ${selectedVariant ? `<div class="variant">[${selectedVariant.name}]</div>` : ''}
+          <div class="price">${priceText}</div>
+          <div class="qr-wrap">${svgHtml}</div>
+          <div class="code">${qrValue}</div>
+          <div class="footer">SOKONIMAX POS</div>
+        </body>
+      </html>
+    `);
+    contentWindow.document.close();
+
+    setTimeout(() => {
+      contentWindow.focus();
+      contentWindow.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 400);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 animate-fade-in">
+      <div className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-sm overflow-hidden flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider">
+            Download / Print QR Sticker
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-300 hover:text-black dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Variant Selector Tabs (if product has variants) */}
+        {variants.length > 0 && (
+          <div className="px-5 pt-1 pb-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setSelectedVariantId(null)}
+              className={`px-2.5 py-1 rounded-full text-3xs font-bold transition whitespace-nowrap cursor-pointer ${
+                selectedVariantId === null
+                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+              }`}
+            >
+              Base Product
+            </button>
+            {variants.map((v: any) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setSelectedVariantId(v.id)}
+                className={`px-2.5 py-1 rounded-full text-3xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  selectedVariantId === v.id
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                }`}
+              >
+                {v.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sticker Preview Card */}
+        <div className="p-5 flex flex-col items-center">
+          <div className="bg-white text-black p-4 rounded-2xl border-0 shadow-lg w-full max-w-[240px] flex flex-col items-center text-center">
+            <span className="text-[10px] font-bold text-neutral-500 tracking-wide uppercase">{storeHandle}</span>
+            <h4 className="text-xs font-black text-neutral-900 mt-0.5 leading-tight line-clamp-2">{product.name}</h4>
+            {selectedVariant && (
+              <span className="text-[10px] font-bold text-amber-600">[{selectedVariant.name}]</span>
+            )}
+            <div className="text-sm font-black text-neutral-950 mt-1">
+              TSh {Math.round(parseFloat(activePrice || 0)).toLocaleString()}
+            </div>
+
+            <div className="my-3 p-1.5 bg-white rounded-xl shadow-xs border-0">
+              <QRCodeSVG id="qr-modal-svg" value={qrValue} size={130} level="H" />
+            </div>
+
+            <span className="text-[9px] font-mono text-neutral-400 block">{qrValue}</span>
+            <span className="text-[8px] font-bold text-amber-500 tracking-wider mt-1 block">SOKONIMAX POS</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="px-5 pb-5 pt-1 flex gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPng}
+            className="flex-1 py-2 rounded-xl bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+          >
+            <Download size={13} />
+            <span>Download PNG</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePrintLabel}
+            className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+          >
+            <Printer size={13} />
+            <span>Print Label</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { isSellerLite } = useUserRoles();
   const { showConfirm } = useDialog();
   const { location: globalLocation } = useUserLocation();
   const [products, setProducts] = useState<any[]>([]);
@@ -58,6 +316,8 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
+  const [qrModalProduct, setQrModalProduct] = useState<any>(null);
+  const [isSkuScanning, setIsSkuScanning] = useState(false);
 
   const formRef = useRef<HTMLFormElement>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
@@ -105,10 +365,14 @@ const DashboardProducts: React.FC = () => {
       jumpToEdit();
     }
   }, [showForm, editingId, jumpToEdit]);
+  const { isServiceMode, isGymMode, isSalonMode, config: storeConfig } = useStoreBusinessMode();
   const INITIAL_FORM = { 
     name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', 
-    is_available: true, is_draft: false, pos_only: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', 
+    is_available: true, is_draft: false, pos_only: isSellerLite ? true : false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', 
     reference_product: '', structured_specs: {} as Record<string, any>,
+    is_service: isGymMode || isSalonMode || isServiceMode,
+    validity_days: isGymMode ? '30' : '',
+    modifiers: [] as Array<{ name: string; price: number }>,
     has_a_plus_content: false,
     a_plus_content: {
       headline: 'From the manufacturer',
@@ -274,6 +538,78 @@ const DashboardProducts: React.FC = () => {
         a_plus_content: { ...prev.a_plus_content, modules }
       };
     });
+  };
+
+  // Continuous SKU Barcode camera scanner
+  useEffect(() => {
+    if (!isSkuScanning) return;
+    let scanner: Html5Qrcode | null = null;
+
+    const startScanner = async () => {
+      try {
+        scanner = new Html5Qrcode('sku-barcode-reader', {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+          ],
+          verbose: false,
+        });
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 15,
+            qrbox: { width: 250, height: 160 },
+          },
+          (decodedText) => {
+            setForm(prev => ({ ...prev, sku: decodedText.trim() }));
+            toast.success(`Scanned: ${decodedText}`);
+            setIsSkuScanning(false);
+          },
+          () => {}
+        );
+      } catch (err) {
+        console.error('Failed to start SKU scanner', err);
+        setIsSkuScanning(false);
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(() => {});
+      }
+    };
+  }, [isSkuScanning]);
+
+  const handleAddModifier = () => {
+    setForm(prev => ({
+      ...prev,
+      modifiers: [...prev.modifiers, { name: '', price: 0 }]
+    }));
+  };
+
+  const handleUpdateModifier = (index: number, field: 'name' | 'price', value: any) => {
+    setForm(prev => {
+      const updated = [...prev.modifiers];
+      updated[index] = {
+        ...updated[index],
+        [field]: field === 'price' ? parseFloat(value) || 0 : value
+      };
+      return { ...prev, modifiers: updated };
+    });
+  };
+
+  const handleRemoveModifier = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      modifiers: prev.modifiers.filter((_, i) => i !== index)
+    }));
   };
 
   const updateAPlusModule = (idx: number, field: string, val: any) => {
@@ -677,6 +1013,9 @@ const DashboardProducts: React.FC = () => {
       brand: product.brand_details?.slug || '',
       reference_product: product.reference_product_details?.slug || '',
       structured_specs: product.structured_specs || {},
+      is_service: Boolean(product.is_service),
+      validity_days: product.validity_days ? String(product.validity_days) : '',
+      modifiers: Array.isArray(product.modifiers) ? product.modifiers : [],
       has_a_plus_content: Boolean(product.has_a_plus_content),
       a_plus_content: product.a_plus_content && typeof product.a_plus_content === 'object' && Object.keys(product.a_plus_content).length > 0
         ? product.a_plus_content
@@ -739,25 +1078,38 @@ const DashboardProducts: React.FC = () => {
   };
 
   const handleDelete = async (slug: string) => {
-    const confirmed = await showConfirm('Are you sure you want to delete this product?', 'Delete Listing');
+    const item = products.find(p => p.slug === slug);
+    const isService = Boolean(item?.is_service);
+    const confirmed = await showConfirm(
+      isService ? 'Are you sure you want to delete this service?' : 'Are you sure you want to delete this product?',
+      isService ? 'Delete Service' : 'Delete Listing'
+    );
     if (!confirmed) return;
     try {
       await api.delete(`/api/products/${slug}/`);
       invalidateProductCache(slug);
-      toast.success('Product deleted');
+      toast.success(isService ? 'Service deleted' : 'Product deleted');
       fetchProducts(1, true);
     } catch {
-      toast.error('Failed to delete product');
+      toast.error(isService ? 'Failed to delete service' : 'Failed to delete product');
     }
   };
 
   const handleTogglePosOnly = async (product: any) => {
+    if (isSellerLite) {
+      toast.error('Seller Lite inventory is strictly POS-only. Upgrade to Seller Pro to publish to the public SokoniMax marketplace!');
+      return;
+    }
+    const isService = Boolean(product?.is_service);
     const nextVal = !product.pos_only;
     setProducts(prev => prev.map(p => p.id === product.id ? { ...p, pos_only: nextVal } : p));
     try {
       await api.patch(`/api/products/${product.slug}/`, { pos_only: nextVal });
       invalidateProductCache(product.slug);
-      toast.success(nextVal ? t('product_set_pos', 'Product set to POS') : t('product_set_public', 'Product is now Public'));
+      toast.success(nextVal 
+        ? (isService ? 'Service set to POS' : t('product_set_pos', 'Product set to POS'))
+        : (isService ? 'Service is now Public' : t('product_set_public', 'Product is now Public'))
+      );
     } catch {
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, pos_only: !nextVal } : p));
       toast.error(t('failed_update_visibility', 'Failed to update visibility'));
@@ -871,7 +1223,7 @@ const DashboardProducts: React.FC = () => {
           {/* Top Row: Title + Desktop Actions / Mobile Add Button */}
           <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0 min-h-[36px]">
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap shrink-0">
-              {t('my_products', 'My Products')}
+              {isSellerLite ? (storeConfig.inventoryLabel ? `My ${storeConfig.inventoryLabel}` : t('my_inventory', 'My Inventory')) : t('my_products', 'My Products')}
             </h1>
 
             {/* Desktop Action Buttons */}
@@ -1076,7 +1428,7 @@ const DashboardProducts: React.FC = () => {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={t('search_products', 'Search products...')}
+                placeholder={isSellerLite ? t('search_inventory', 'Search inventory...') : t('search_products', 'Search products...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-8 pl-7 pr-6 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-xs placeholder:font-semibold placeholder:text-gray-600 dark:placeholder:text-gray-400 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
@@ -1101,7 +1453,7 @@ const DashboardProducts: React.FC = () => {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={t('search_products', 'Search products...')}
+                placeholder={isSellerLite ? t('search_inventory', 'Search inventory...') : t('search_products', 'Search products...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-8 pl-7 pr-6 text-xs font-semibold rounded-full bg-surface-muted dark:bg-[#161616] text-gray-900 dark:text-white placeholder:text-xs placeholder:font-semibold placeholder:text-gray-600 dark:placeholder:text-gray-400 border-0 outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-neutral-700 transition"
@@ -1250,20 +1602,30 @@ const DashboardProducts: React.FC = () => {
 
         const canProceedStep1 = Boolean(form.category && form.name.trim());
         const canProceedStep2 = Boolean(imagePreviews.length > 0 || existingImages.length > 0 || editingId);
-        const canProceedStep3 = Boolean(form.description.trim());
+        const canProceedStep3 = form.is_service
+          ? Boolean(form.price !== '' && !isNaN(Number(form.price)) && Number(form.price) >= 0)
+          : Boolean(form.description.trim());
         const canProceedStep4 = Boolean(
           form.price !== '' && !isNaN(Number(form.price)) && Number(form.price) >= 0 &&
-          form.stock !== '' && !isNaN(Number(form.stock)) && Number(form.stock) >= 0
+          (form.is_service || (form.stock !== '' && !isNaN(Number(form.stock)) && Number(form.stock) >= 0))
         );
-        const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4;
+        const canSubmit = form.is_service
+          ? Boolean(canProceedStep1 && canProceedStep2 && canProceedStep3 && (!form.is_service || form.description.trim()))
+          : Boolean(canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
 
-        const WIZARD_STEPS = [
-          { id: 1, title: 'Category & Identity', shortTitle: 'Identity', icon: Tag, desc: 'Category, Title & Condition' },
-          { id: 2, title: 'Photos & A+ Content', shortTitle: 'Media & A+', icon: ImageIcon, desc: 'Upload gallery photos & A+ brand storytelling' },
-          { id: 3, title: isAuto ? 'Vehicle, Brand & Fitment' : (categoryBrands.length > 0 || specSchema.length > 0 ? 'Brand & Specifications' : 'Specs & Details'), shortTitle: 'Specs', icon: Sliders, desc: 'Brand, Model & Specs' },
-          { id: 4, title: 'Pricing & Inventory', shortTitle: 'Pricing', icon: DollarSign, desc: 'Price, Stock & Variants' },
-          { id: 5, title: 'Review & Publish', shortTitle: 'Publish', icon: CheckCircle2, desc: 'Final review & launch' },
-        ];
+        const WIZARD_STEPS = form.is_service
+          ? [
+              { id: 1, title: 'Service Details', shortTitle: 'Details', icon: Tag, desc: 'Category, Name & Description' },
+              { id: 2, title: 'Photos & Media', shortTitle: 'Media', icon: ImageIcon, desc: 'Upload service photos' },
+              { id: 3, title: 'Pricing & Options', shortTitle: 'Pricing', icon: DollarSign, desc: 'Price, Validity & Options' },
+            ]
+          : [
+              { id: 1, title: 'Category & Identity', shortTitle: 'Identity', icon: Tag, desc: 'Category, Title & Condition' },
+              { id: 2, title: 'Photos & A+ Content', shortTitle: 'Media & A+', icon: ImageIcon, desc: 'Upload gallery photos & A+ brand storytelling' },
+              { id: 3, title: isAuto ? 'Vehicle, Brand & Fitment' : (categoryBrands.length > 0 || specSchema.length > 0 ? 'Brand & Specifications' : 'Specs & Details'), shortTitle: 'Specs', icon: Sliders, desc: 'Brand, Model & Specs' },
+              { id: 4, title: 'Pricing & Inventory', shortTitle: 'Pricing', icon: DollarSign, desc: 'Price, Stock & Variants' },
+              { id: 5, title: 'Review & Publish', shortTitle: 'Publish', icon: CheckCircle2, desc: 'Final review & launch' },
+            ];
 
         // XHR submit with real progress & draft support
         const handleSubmitWithProgress = async (e?: React.FormEvent, asDraft: boolean = false) => {
@@ -1283,7 +1645,7 @@ const DashboardProducts: React.FC = () => {
             const variantTotalStock = newVariants.length > 0
               ? newVariants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0)
               : null;
-            fd.append('stock', variantTotalStock !== null ? String(variantTotalStock) : (form.stock !== '' ? form.stock : (asDraft ? '0' : '0')));
+            fd.append('stock', variantTotalStock !== null ? String(variantTotalStock) : (form.stock !== '' ? form.stock : (form.is_service ? '999999' : (asDraft ? '0' : '0'))));
             if (form.category) fd.append('category', form.category);
             
             // Append Vehicle Fitment data
@@ -1294,9 +1656,14 @@ const DashboardProducts: React.FC = () => {
               fd.append('oem_part_number', oemPartNumber);
             }
             fd.append('condition', form.condition || 'New');
-            fd.append('is_available', asDraft ? 'false' : String(form.is_available));
+            fd.append('is_available', asDraft ? 'false' : (form.is_service ? 'true' : String(form.is_available)));
             fd.append('is_draft', asDraft ? 'true' : 'false');
-            fd.append('pos_only', String(form.pos_only));
+            fd.append('pos_only', String(isSellerLite ? true : form.pos_only));
+            fd.append('is_service', String(form.is_service));
+            if (form.validity_days) fd.append('validity_days', form.validity_days);
+            if (form.modifiers && form.modifiers.length > 0) {
+              fd.append('modifiers', JSON.stringify(form.modifiers));
+            }
             fd.append('requires_quote', String(form.requires_quote));
             fd.append('unit_of_measure', hasCustomUnit && form.unit_of_measure.trim() ? form.unit_of_measure.trim() : 'piece');
             fd.append('minimum_order_quantity', form.minimum_order_quantity || '1');
@@ -1379,8 +1746,9 @@ const DashboardProducts: React.FC = () => {
 
             setUploadProgress(100);
             setUploadStatus('Done!');
+            await new Promise((r) => setTimeout(r, 600));
             const baseProductId = editingId ? editingProductId : result.id;
-            toast.success(asDraft ? (editingId ? 'Draft updated!' : 'Draft saved!') : (editingId ? 'Product updated!' : 'Product published!'));
+            toast.success(asDraft ? (editingId ? (form.is_service ? 'Draft service updated!' : 'Draft updated!') : (form.is_service ? 'Draft service saved!' : 'Draft saved!')) : (editingId ? (form.is_service ? 'Service updated!' : 'Product updated!') : (form.is_service ? 'Service published!' : 'Product published!')));
 
             if (newVariants.length > 0 && baseProductId) {
               for (const nv of newVariants) {
@@ -1390,7 +1758,7 @@ const DashboardProducts: React.FC = () => {
                 vData.append('product', String(baseProductId));
                 vData.append('name', parts.join(' / '));
                 vData.append('price_adjustment', nv.price_adj_sign === '-' ? `-${nv.price_adjustment || '0'}` : (nv.price_adjustment || '0'));
-                vData.append('stock', nv.stock || '0');
+                vData.append('stock', nv.stock || (form.is_service ? '999999' : '0'));
                 vData.append('is_available', 'true');
                 if (nv.imageFile) {
                   vData.append('image', nv.imageFile);
@@ -1480,21 +1848,29 @@ const DashboardProducts: React.FC = () => {
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (
-              <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
-                <div className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center space-y-4">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-brand-500/10 flex items-center justify-center">
+              <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+                <div className="bg-[#18181b] border border-neutral-800/80 rounded-3xl p-7 w-full max-w-[320px] shadow-2xl text-center space-y-4">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
                     {uploadProgress < 100 ? (
-                      <svg className="w-6 h-6 text-brand-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      <svg className="w-7 h-7 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
                     ) : (
-                      <Check className="w-6 h-6 text-emerald-500" strokeWidth={3} />
+                      <Check className="w-7 h-7 text-white" strokeWidth={3.5} />
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">{uploadStatus}</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">{uploadProgress}%</p>
+                    <p className="text-base font-bold text-white tracking-tight">
+                      {uploadProgress >= 100 ? 'Done!' : uploadStatus}
+                    </p>
+                    <p className="text-xs text-neutral-400 font-medium mt-1">{uploadProgress}%</p>
                   </div>
-                  <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
-                    <div className="h-full bg-brand-500 rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                  <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${uploadProgress}%` }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -1505,7 +1881,7 @@ const DashboardProducts: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
-                    {editingId ? 'Edit Product' : 'New Product Listing'}
+                    {editingId ? (form.is_service ? 'Edit Service' : 'Edit Product') : (form.is_service ? 'New Service' : 'New Product Listing')}
                   </h3>
                   {fulfillRequestId && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -1524,7 +1900,7 @@ const DashboardProducts: React.FC = () => {
                   {WIZARD_STEPS.map((s) => {
                     const isActive = wizardStep === s.id;
                     const isCompleted = wizardStep > s.id;
-                    const canClick = isCompleted || Boolean(editingId) || (s.id === 1) || (s.id === 2 && canProceedStep1) || (s.id === 3 && canProceedStep1 && canProceedStep2) || (s.id === 4 && canProceedStep1 && canProceedStep2 && canProceedStep3) || (s.id === 5 && canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
+                    const canClick = isCompleted || Boolean(editingId) || (s.id === 1) || (s.id === 2 && canProceedStep1) || (s.id === 3 && canProceedStep1 && canProceedStep2) || (!form.is_service && s.id === 4 && canProceedStep1 && canProceedStep2 && canProceedStep3) || (!form.is_service && s.id === 5 && canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
 
                     return (
                       <button
@@ -1551,6 +1927,48 @@ const DashboardProducts: React.FC = () => {
             {/* ═══ STEP 1: PROGRESSIVE CATEGORY & BASIC INFO ═══ */}
             {wizardStep === 1 && (
               <div className="space-y-4">
+                {/* Item Type Classification */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                        <Tag size={14} className="text-neutral-500 dark:text-neutral-400" />
+                        <span>Classification</span>
+                      </h4>
+                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+                        Select whether this listing is a physical product or a service / food offering.
+                      </p>
+                    </div>
+                    <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, is_service: false }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center cursor-pointer ${
+                          !form.is_service
+                            ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs'
+                            : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <span>Physical Product</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm(prev => ({ ...prev, is_service: true }));
+                          if (wizardStep > 3) setWizardStep(3);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center cursor-pointer ${
+                          form.is_service
+                            ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs'
+                            : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <span>Service / Food</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Card 1: Category & Product Title */}
                 <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* Category & Subcategory Row */}
@@ -1616,11 +2034,11 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Product Title */}
+                  {/* Title */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-                        Product Title <span className="text-brand-500">*</span>
+                        {form.is_service ? 'Service Name' : 'Product Title'} <span className="text-brand-500">*</span>
                       </label>
                       <span className="text-xs text-neutral-400">{form.name.length}/120</span>
                     </div>
@@ -1628,7 +2046,7 @@ const DashboardProducts: React.FC = () => {
                       name="name" 
                       value={form.name} 
                       onChange={handleChange} 
-                      placeholder="e.g. Toyota RAV4 2018 White or MacBook Pro 14 M3 Pro 512GB" 
+                      placeholder={form.is_service ? "e.g. 1-Month VIP Gym Pass, Haircut & Beard Trim, Beef Burger Combo" : "e.g. Toyota RAV4 2018 White or MacBook Pro 14 M3 Pro 512GB"} 
                       maxLength={120}
                       required 
                       className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
@@ -1636,40 +2054,76 @@ const DashboardProducts: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Card 2: Condition, SKU & Actions */}
+                {/* Card 2: Condition / Code / Description */}
                 <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
                   {/* Condition & SKU Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                        Condition <span className="text-brand-500">*</span>
-                      </label>
-                      <select
-                        name="condition"
-                        value={form.condition}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
-                      >
-                        <option value="New">Brand New</option>
-                        <option value="Like_New">Like New</option>
-                        <option value="Refurbished">Refurbished</option>
-                        <option value="Used">Used / Pre-owned</option>
-                      </select>
-                    </div>
+                  <div className={`grid grid-cols-1 ${form.is_service ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-4`}>
+                    {!form.is_service && (
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                          Condition <span className="text-brand-500">*</span>
+                        </label>
+                        <select
+                          name="condition"
+                          value={form.condition}
+                          onChange={handleChange}
+                          className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-1 focus:ring-brand-500 transition-colors"
+                        >
+                          <option value="New">Brand New</option>
+                          <option value="Like_New">Like New</option>
+                          <option value="Refurbished">Refurbished</option>
+                          <option value="Used">Used / Pre-owned</option>
+                        </select>
+                      </div>
+                    )}
 
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                        SKU (Optional)
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                          {form.is_service ? 'Service Code / Barcode (Optional)' : 'SKU / Barcode (Optional)'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsSkuScanning(!isSkuScanning)}
+                          className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Camera size={12} />
+                          <span>{isSkuScanning ? 'Close Scanner' : 'Scan Barcode'}</span>
+                        </button>
+                      </div>
                       <input 
                         name="sku" 
                         value={form.sku} 
                         onChange={handleChange} 
-                        placeholder="e.g. PRD-001" 
+                        placeholder={form.is_service ? "e.g. SRV-001 or Pass Code" : "e.g. 880609123456 or PRD-001"} 
                         className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                       />
+                      {isSkuScanning && (
+                        <div className="mt-2 p-3 bg-neutral-900 rounded-xl text-center border border-neutral-800">
+                          <div id="sku-barcode-reader" className="w-full overflow-hidden rounded-lg mx-auto max-w-[280px]" />
+                          <p className="text-[11px] text-neutral-400 mt-2">Point camera at 1D Barcode (UPC/EAN) or QR Code</p>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Description for Service right on Step 1 */}
+                  {form.is_service && (
+                    <div className="pt-1">
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        Service Description <span className="text-brand-500">*</span>
+                      </label>
+                      <textarea 
+                        name="description" 
+                        value={form.description} 
+                        onChange={handleChange} 
+                        placeholder="Describe what this service or pass includes, session duration, rules or instructions..."
+                        required 
+                        rows={4}
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 resize-none outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
+                      />
+                    </div>
+                  )}
 
                   {/* Step 1 Actions */}
                   <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2">
@@ -1711,14 +2165,16 @@ const DashboardProducts: React.FC = () => {
                     <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                        {existingImages.length > 0 
-                          ? `Current Images (${existingImages.length + imagePreviews.length})` 
-                          : `Product Photos (${imagePreviews.length})`} <span className="text-brand-500">*</span>
+                        {form.is_service 
+                          ? (existingImages.length > 0 ? `Service Images (${existingImages.length + imagePreviews.length})` : `Service Photos (${imagePreviews.length})`)
+                          : (existingImages.length > 0 ? `Current Images (${existingImages.length + imagePreviews.length})` : `Product Photos (${imagePreviews.length})`)} <span className="text-brand-500">*</span>
                       </p>
                       <span className="text-[10px] text-neutral-400">
-                        {isBookCategory 
-                          ? 'Recommended for books: 3:4 aspect ratio (e.g. 1200 × 1600 px or 600 × 800 px) • First image is cover'
-                          : 'First image is current cover • Click or drag to add photos'}
+                        {form.is_service
+                          ? 'Upload photos showcasing your service, venue, or menu offering.'
+                          : isBookCategory 
+                            ? 'Recommended for books: 3:4 aspect ratio (e.g. 1200 × 1600 px or 600 × 800 px) • First image is cover'
+                            : 'First image is current cover • Click or drag to add photos'}
                       </span>
                     </div>
 
@@ -1883,31 +2339,32 @@ const DashboardProducts: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Card 2: A+ Content & Actions */}
-                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
-                  {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-1">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
-                            A+ Content (From the Manufacturer)
-                          </span>
+                {/* Card 2: A+ Content (Physical Products Only) */}
+                {!form.is_service && (
+                  <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                    {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-1">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
+                              A+ Content (From the Manufacturer)
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-500">
+                            Show rich visual storytelling, infographic banners, and feature highlights on your product page.
+                          </p>
                         </div>
-                        <p className="text-xs text-neutral-500">
-                          Show rich visual storytelling, infographic banners, and feature highlights on your product page.
-                        </p>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={form.has_a_plus_content}
+                            onChange={(e) => setForm({ ...form, has_a_plus_content: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={form.has_a_plus_content}
-                          onChange={(e) => setForm({ ...form, has_a_plus_content: e.target.checked })}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
-                      </label>
-                    </div>
 
                     {form.has_a_plus_content && (
                       <div className="space-y-4 pt-1">
@@ -2166,54 +2623,55 @@ const DashboardProducts: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
 
-                  {/* Step 2 Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
-                    <div className="flex items-center gap-2">
+                {/* Step 2 Actions */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setWizardStep(1)} 
+                      className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      <ArrowLeft size={14} /> Back
+                    </button>
+                    <button 
+                      type="button" 
+                      disabled={submitting} 
+                      onClick={(e) => handleSubmitWithProgress(e, true)}
+                      className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Save as Draft
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {editingId && (
                       <button 
                         type="button" 
-                        onClick={() => setWizardStep(1)} 
-                        className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        disabled={submitting || !canSubmit} 
+                        onClick={(e) => handleSubmitWithProgress(e, false)}
+                        className="h-9 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        title={form.is_service ? "Update service immediately" : "Update product immediately"}
                       >
-                        <ArrowLeft size={14} /> Back
+                        <Check size={14} /> {submitting ? 'Updating...' : (form.is_service ? 'Update Service' : 'Update Product')}
                       </button>
-                      <button 
-                        type="button" 
-                        disabled={submitting} 
-                        onClick={(e) => handleSubmitWithProgress(e, true)}
-                        className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        Save as Draft
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {editingId && (
-                        <button 
-                          type="button" 
-                          disabled={submitting || !canSubmit} 
-                          onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                          title="Save and update listing immediately"
-                        >
-                          <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
-                        </button>
-                      )}
-                      <button 
-                        type="button" 
-                        disabled={!canProceedStep2} 
-                        onClick={() => setWizardStep(3)}
-                        className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        Next: Specifications <ArrowRight size={14} />
-                      </button>
-                    </div>
+                    )}
+                    <button 
+                      type="button" 
+                      disabled={!canProceedStep2} 
+                      onClick={() => setWizardStep(3)}
+                      className="h-9 px-4.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      {form.is_service ? 'Next: Pricing & Options' : 'Next: Specifications'} <ArrowRight size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
             )}
 
-              {/* ═══ STEP 3: SPECIFICATIONS & FITMENT ═══ */}
-              {wizardStep === 3 && (
+              {/* ═══ STEP 3: SPECIFICATIONS & FITMENT (PHYSICAL PRODUCTS ONLY) ═══ */}
+              {!form.is_service && wizardStep === 3 && (
                 <div className="space-y-4">
                   {/* Card 1: Brand & Model Selection / Fitment */}
                   <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
@@ -2739,7 +3197,7 @@ const DashboardProducts: React.FC = () => {
                           type="button" 
                           disabled={submitting || !canSubmit} 
                           onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                          className="h-9 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Save and update listing immediately"
                         >
                           <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
@@ -2759,8 +3217,281 @@ const DashboardProducts: React.FC = () => {
               </div>
             )}
 
-              {/* ═══ STEP 4: PRICING & INVENTORY ═══ */}
-              {wizardStep === 4 && (
+            {/* ═══ STEP 3 (SERVICE): PRICING & OPTIONS ═══ */}
+            {form.is_service && wizardStep === 3 && (
+              <div className="space-y-4">
+                {/* Card 1: Service Pricing */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                  <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                    Service Pricing
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        Base Price (TZS) <span className="text-brand-500">*</span>
+                      </label>
+                      <input 
+                        name="price" 
+                        value={form.price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        required
+                        className="w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-500 mb-1.5">
+                        Special / Promo Price (Optional)
+                      </label>
+                      <input 
+                        name="sale_price" 
+                        value={form.sale_price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-500 mb-1.5">
+                        Direct Cost (Optional)
+                      </label>
+                      <input 
+                        name="buying_price" 
+                        value={form.buying_price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Pass & Membership Validity (Optional) */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-3">
+                  <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                    Pass & Membership Validity (Optional)
+                  </p>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5">
+                      Validity Period (Days)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.validity_days}
+                      onChange={(e) => setForm(prev => ({ ...prev, validity_days: e.target.value }))}
+                      placeholder="e.g. 30 (for 1 month), 7 (for 1 week) — leave blank if single session"
+                      className="w-full px-3.5 py-2.5 text-sm border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      Sets active pass duration in days when sold via POS (creates trackable digital pass with QR code).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 3: Add-ons & Extras (Optional) */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Add-ons & Extras ({form.modifiers.length})
+                      </p>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Optional add-ons customers can select at POS (e.g. Extra Sauce, Personal Coach, Oil Treatment).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddModifier}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition cursor-pointer flex items-center gap-1 shrink-0"
+                    >
+                      <Plus size={13} />
+                      <span>Add Extra</span>
+                    </button>
+                  </div>
+
+                  {form.modifiers.length === 0 ? (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 py-1">
+                      No add-ons configured.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {form.modifiers.map((mod, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Add-on Name (e.g. Personal Trainer, Extra Cheese)"
+                            value={mod.name}
+                            onChange={(e) => handleUpdateModifier(idx, 'name', e.target.value)}
+                            className="flex-1 px-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 border-0 outline-none focus:ring-1 focus:ring-brand-500"
+                          />
+                          <div className="relative w-36">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-neutral-400 font-bold">TZS</span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={mod.price}
+                              onChange={(e) => handleUpdateModifier(idx, 'price', e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 border-0 outline-none focus:ring-1 focus:ring-brand-500 font-bold"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveModifier(idx)}
+                            className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Card 4: Service Options / Tiers (Optional) */}
+                <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Service Options / Tiers ({newVariants.length})
+                      </p>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Options for session length, tier level, or portions (e.g. 30 Min vs 60 Min, Adult vs Child).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (variationColumns.length === 0) setVariationColumns(['Option']);
+                        setNewVariants([
+                          ...newVariants,
+                          { fields: { [variationColumns[0] || 'Option']: '' }, price_adj_sign: '+', price_adjustment: '0', stock: '999999' }
+                        ]);
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition cursor-pointer flex items-center gap-1 shrink-0"
+                    >
+                      <Plus size={13} />
+                      <span>Add Option</span>
+                    </button>
+                  </div>
+
+                  {newVariants.length === 0 ? (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 py-1">
+                      No options configured. Base price applies.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {newVariants.map((v, i) => {
+                        const primaryCol = variationColumns[0] || 'Option';
+                        const val = v.fields?.[primaryCol] || '';
+
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Option Name (e.g. 60 Minutes, VIP, Large Portion)"
+                              value={val}
+                              onChange={(e) => {
+                                const updated = [...newVariants];
+                                updated[i] = {
+                                  ...updated[i],
+                                  fields: { ...(updated[i].fields || {}), [primaryCol]: e.target.value },
+                                  stock: '999999'
+                                };
+                                setNewVariants(updated);
+                              }}
+                              className="flex-1 px-3 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 border-0 outline-none focus:ring-1 focus:ring-brand-500"
+                            />
+                            <div className="flex items-center gap-1 w-44 shrink-0">
+                              <select
+                                value={v.price_adj_sign || '+'}
+                                onChange={(e) => {
+                                  const updated = [...newVariants];
+                                  updated[i] = { ...updated[i], price_adj_sign: e.target.value };
+                                  setNewVariants(updated);
+                                }}
+                                className="px-2 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border-0 outline-none"
+                              >
+                                <option value="+">+</option>
+                                <option value="-">-</option>
+                              </select>
+                              <div className="relative flex-1">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-neutral-400 font-bold">TZS</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={v.price_adjustment || '0'}
+                                  onChange={(e) => {
+                                    const updated = [...newVariants];
+                                    updated[i] = { ...updated[i], price_adjustment: e.target.value };
+                                    setNewVariants(updated);
+                                  }}
+                                  className="w-full pl-9 pr-2.5 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border-0 outline-none font-bold"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewVariants(newVariants.filter((_, idx) => idx !== i));
+                                if (v.id) setDeletedVariantIds(prev => [...prev, v.id]);
+                              }}
+                              className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0"
+                              title="Remove Option"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions: Save Draft or Publish Service */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-4">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setWizardStep(2)} 
+                      className="h-9 px-3.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      <ArrowLeft size={14} /> Back
+                    </button>
+                    <button 
+                      type="button" 
+                      disabled={submitting} 
+                      onClick={(e) => handleSubmitWithProgress(e, true)}
+                      className="h-9 px-3.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Save as Draft
+                    </button>
+                  </div>
+                  <button 
+                    type="button" 
+                    disabled={submitting || !canSubmit} 
+                    onClick={(e) => handleSubmitWithProgress(e, false)}
+                    className="h-9 px-5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <Check size={14} /> {submitting ? (editingId ? 'Updating...' : 'Publishing...') : (editingId ? 'Update Service' : 'Publish Service')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+              {/* ═══ STEP 4: PRICING & INVENTORY (PHYSICAL PRODUCTS ONLY) ═══ */}
+              {!form.is_service && wizardStep === 4 && (
                 <div className="space-y-4">
                   {/* Card 1: Pricing & Stock Inventory */}
                   <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
@@ -2817,7 +3548,7 @@ const DashboardProducts: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                        <span>Stock Quantity <span className="text-brand-500">*</span></span>
+                        <span>{form.is_service ? 'Capacity / Stock (Optional - unlimited)' : 'Stock Quantity'} {!form.is_service && <span className="text-brand-500">*</span>}</span>
                         {newVariants.length > 0 && (
                           <span className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 lowercase">
                             (auto-calculated from variants)
@@ -2828,10 +3559,10 @@ const DashboardProducts: React.FC = () => {
                         name="stock" 
                         value={newVariants.length > 0 ? newVariants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0) : form.stock} 
                         onChange={handleChange} 
-                        placeholder="0" 
+                        placeholder={form.is_service ? "Unlimited" : "0"} 
                         type="number" 
                         min="0"
-                        required
+                        required={!form.is_service}
                         readOnly={newVariants.length > 0}
                         className={`w-full px-3.5 py-2.5 text-sm font-bold border-0 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-brand-500 ${newVariants.length > 0 ? 'bg-neutral-200/50 dark:bg-neutral-800/50 cursor-not-allowed opacity-90' : ''}`} 
                       />
@@ -3524,7 +4255,7 @@ const DashboardProducts: React.FC = () => {
                           type="button" 
                           disabled={submitting || !canSubmit} 
                           onClick={(e) => handleSubmitWithProgress(e, false)}
-                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                          className="h-9 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Save and update listing immediately"
                         >
                           <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
@@ -3545,7 +4276,7 @@ const DashboardProducts: React.FC = () => {
             )}
 
               {/* ═══ STEP 5: REVIEW & PUBLISH ═══ */}
-              {wizardStep === 5 && (
+              {!form.is_service && wizardStep === 5 && (
                 <div className="space-y-4">
                   {/* Card 1: Listing Summary */}
                   <div className="card !border-none bg-white dark:bg-[#111111] rounded-2xl shadow-sm p-6 space-y-4">
@@ -3606,10 +4337,11 @@ const DashboardProducts: React.FC = () => {
                         </div>
                       </label>
 
-                      <label className="flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition">
+                      <label className={`flex items-center gap-3 p-3.5 bg-neutral-50 dark:bg-[#141414] rounded-xl transition ${isSellerLite ? 'opacity-90 cursor-not-allowed' : 'hover:bg-neutral-100/80 dark:hover:bg-[#1a1a1a] cursor-pointer'}`}>
                         <input 
                           type="checkbox" 
-                          checked={form.pos_only} 
+                          checked={isSellerLite ? true : form.pos_only} 
+                          disabled={isSellerLite}
                           onChange={(e) => setForm({...form, pos_only: e.target.checked})} 
                           className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
                         />
@@ -3617,8 +4349,15 @@ const DashboardProducts: React.FC = () => {
                           <p className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
                             <span>Point of Sale (POS) Only</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">In-Store</span>
+                            {isSellerLite && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">Seller Lite Exclusive</span>
+                            )}
                           </p>
-                          <p className="text-[11px] text-neutral-500">Item will only be available on your in-store POS register and hidden from public marketplace listings and your profile store.</p>
+                          <p className="text-[11px] text-neutral-500">
+                            {isSellerLite 
+                              ? 'Seller Lite inventory is strictly POS register only. Upgrade to Seller Pro to list publicly.' 
+                              : 'Item will only be available on your in-store POS register and hidden from public marketplace listings and your profile store.'}
+                          </p>
                         </div>
                       </label>
 
@@ -3693,7 +4432,7 @@ const DashboardProducts: React.FC = () => {
       ) : products.length === 0 ? (
         <EmptyState
           icon={Package}
-          title={t('no_products_yet', 'No products yet. Create your first listing!')}
+          title={isSellerLite ? t('no_inventory_yet', 'No items yet. Create your first product or service!') : t('no_products_yet', 'No products yet. Create your first listing!')}
         />
       ) : (
         <div className="relative">
@@ -3721,7 +4460,12 @@ const DashboardProducts: React.FC = () => {
                     <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-white truncate" title={product.name}>
                       {product.name}
                     </h4>
-                    {Boolean(product.has_a_plus_content) && (
+                    {Boolean(product.is_service) && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                        Service
+                      </span>
+                    )}
+                    {Boolean(product.has_a_plus_content) && !product.is_service && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                         A+ Content
                       </span>
@@ -3731,6 +4475,11 @@ const DashboardProducts: React.FC = () => {
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                       Draft
+                    </span>
+                  ) : product.is_service ? (
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Active
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400 shrink-0">
@@ -3756,57 +4505,71 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   <div className="text-[11px] text-gray-400 shrink-0">
-                    {editingStockId === product.id ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={quickStockValue}
-                          onChange={(e) => setQuickStockValue(e.target.value)}
-                          className="input py-0.5 px-1.5 text-xs w-14"
-                          autoFocus
-                        />
-                        <button onClick={() => handleQuickStockUpdate(product.id)} className="text-emerald-500 hover:text-emerald-600 px-1 font-bold">✓</button>
-                        <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
-                      </div>
+                    {!product.is_service ? (
+                      editingStockId === product.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={quickStockValue}
+                            onChange={(e) => setQuickStockValue(e.target.value)}
+                            className="input py-0.5 px-1.5 text-xs w-14"
+                            autoFocus
+                          />
+                          <button onClick={() => handleQuickStockUpdate(product.id)} className="text-emerald-500 hover:text-emerald-600 px-1 font-bold">✓</button>
+                          <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 group">
+                          <span>Stock: <strong className="text-gray-700 dark:text-gray-300">{product.stock}</strong></span>
+                          <button
+                            onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
+                            className="text-brand-500 hover:text-brand-600 ml-0.5 text-3xs font-bold cursor-pointer"
+                            title="Quick Edit Stock"
+                          >
+                            ✎
+                          </button>
+                        </div>
+                      )
                     ) : (
-                      <div className="flex items-center gap-1 group">
-                        <span>Stock: <strong className="text-gray-700 dark:text-gray-300">{product.stock}</strong></span>
-                        <button
-                          onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
-                          className="text-brand-500 hover:text-brand-600 ml-0.5 text-3xs font-bold"
-                          title="Quick Edit Stock"
-                        >
-                          ✎
-                        </button>
-                      </div>
+                      product.validity_days ? (
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                          Pass: {product.validity_days} days
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-neutral-400 font-medium">
+                          Direct Service
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
 
                 {/* Row 3: Action Buttons placed beside the image and details */}
                 <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`, { state: { boostedProduct: product } })}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition inline-flex items-center gap-1 shrink-0"
-                    title="Boost / Sponsor this product"
-                  >
-                    <Megaphone size={11} />
-                    <span>Boost</span>
-                  </button>
+                  {!isSellerLite && !product.is_service && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`, { state: { boostedProduct: product } })}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                      title="Boost / Sponsor this product"
+                    >
+                      <Megaphone size={11} />
+                      <span>Boost</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleEdit(product)}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => setVariantProductId(product.id.toString())}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 cursor-pointer"
                   >
-                    Variants
+                    {product.is_service ? 'Options' : 'Variants'}
                   </button>
                   <button
                     type="button"
@@ -3818,7 +4581,16 @@ const DashboardProducts: React.FC = () => {
                     }`}
                     title={product.pos_only ? "Currently POS. Click to make Public" : "Currently Public. Click to make POS"}
                   >
-                    {product.pos_only ? '📟 POS' : '🌐 Public'}
+                    {product.pos_only ? 'POS' : 'Public'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQrModalProduct(product)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0 flex items-center gap-1 cursor-pointer"
+                    title="Download QR code sticker / thermal label"
+                  >
+                    <Download size={11} className="shrink-0" />
+                    <span className="hidden sm:inline">Download </span>QR
                   </button>
                   <button
                     type="button"
@@ -3841,6 +4613,13 @@ const DashboardProducts: React.FC = () => {
         <ProductVariantsModal 
           productId={variantProductId} 
           onClose={() => setVariantProductId(null)} 
+        />
+      )}
+      {qrModalProduct && (
+        <ProductQrPrintModal
+          product={qrModalProduct}
+          user={user}
+          onClose={() => setQrModalProduct(null)}
         />
       )}
       </div>

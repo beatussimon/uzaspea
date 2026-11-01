@@ -609,41 +609,47 @@ const { showConfirm } = useDialog();
                         Select a Plan to Reactivate
                       </h3>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {tiers.filter((t: any) => t.tier_level === 'seller_pro' || t.tier_level === 'business').map((t: any) => {
-                          const isBusinessPlan = t.tier_level === 'business';
-                          return (
-                            <div key={t.id} className="p-5 rounded-card bg-gray-200/70 dark:bg-neutral-900/90 hover:bg-gray-200/90 dark:hover:bg-neutral-900 transition-all flex flex-col justify-between">
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                                    {t.name} Plan
-                                  </h4>
-                                  <div className="text-right">
-                                    <span className="text-sm font-bold text-gray-900 dark:text-white">
-                                      TZS {Number(t.price).toLocaleString()}
-                                    </span>
-                                    <span className="text-3xs text-gray-400"> / 30 days</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {tiers
+                          .filter((t: any) => ['seller_lite', 'seller_pro', 'business'].includes(t.tier_level))
+                          .sort((a: any, b: any) => ['seller_lite', 'seller_pro', 'business'].indexOf(a.tier_level) - ['seller_lite', 'seller_pro', 'business'].indexOf(b.tier_level))
+                          .map((t: any) => {
+                            const isLite = t.tier_level === 'seller_lite';
+                            const isBusinessPlan = t.tier_level === 'business';
+                            return (
+                              <div key={t.id} className="p-5 rounded-card bg-gray-200/70 dark:bg-neutral-900/90 hover:bg-gray-200/90 dark:hover:bg-neutral-900 transition-all flex flex-col justify-between">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                      {t.name} Plan
+                                    </h4>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                        TZS {Number(t.price).toLocaleString()}
+                                      </span>
+                                      <span className="text-3xs text-gray-400"> / 30 days</span>
+                                    </div>
                                   </div>
+
+                                  <p className="text-xs text-gray-500 dark:text-neutral-400">
+                                    {isLite
+                                      ? 'Complete POS for physical services & retail, QR member check-in, claim tickets, and 1 store.'
+                                      : isBusinessPlan 
+                                      ? 'Includes marketplace listings, POS receipt printing, team roles, and advanced reports.' 
+                                      : 'Includes marketplace listings, order management, and seller dashboard access.'}
+                                  </p>
                                 </div>
 
-                                <p className="text-xs text-gray-500 dark:text-neutral-400">
-                                  {isBusinessPlan 
-                                    ? 'Includes marketplace listings, POS receipt printing, team roles, and advanced reports.' 
-                                    : 'Includes marketplace listings, order management, and seller dashboard access.'}
-                                </p>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
+                                  className="mt-5 w-full text-xs font-semibold"
+                                >
+                                  Select {t.name}
+                                </Button>
                               </div>
-
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                                className="mt-5 w-full text-xs font-semibold"
-                              >
-                                Select {t.name}
-                              </Button>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
 
                       <p className="text-2xs text-gray-400 dark:text-neutral-500 pt-2">

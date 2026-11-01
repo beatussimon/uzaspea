@@ -254,17 +254,22 @@ const ProfilePage: React.FC = () => {
   // Authenticated context
   const currentUser = user?.username || localStorage.getItem('username');
   const isOwner = Boolean(username && currentUser && currentUser.toLowerCase() === username.toLowerCase());
+  const isSellerLite = Boolean(
+    (profile?.tier || '').toLowerCase() === 'seller_lite' ||
+    (isOwner && (user?.tier || '').toLowerCase() === 'seller_lite')
+  );
   const isSellerProfile = Boolean(
-    (isOwner && (user?.is_seller || user?.tier === 'seller_pro' || user?.tier === 'business')) ||
+    (isOwner && (user?.is_seller || user?.tier === 'seller_pro' || user?.tier === 'business' || user?.tier === 'seller_lite')) ||
     profile?.tier === 'seller_pro' ||
     profile?.tier === 'business' ||
+    profile?.tier === 'seller_lite' ||
     (products && products.length > 0)
   );
   const isBusinessProfile = Boolean(
     profile?.tier === 'business' ||
     (isOwner && (isCurrentUserBusiness || user?.tier === 'business' || user?.last_tier === 'business'))
   );
-  const showDemandsTab = isSellerProfile && Boolean(profile?.show_product_requests);
+  const showDemandsTab = isSellerProfile && !isSellerLite && Boolean(profile?.show_product_requests);
   const showBranchesTab = isBusinessProfile && branches.length > 0;
 
   // Extract unique categories from seller's products for quick-filter pills
@@ -349,6 +354,11 @@ const ProfilePage: React.FC = () => {
       if (results[0].status === 'fulfilled' && results[0].value?.data) {
         const pData = results[0].value.data;
         setProfile(pData);
+        if (pData?.tier) {
+          try {
+            sessionStorage.setItem(`profile_tier_${username.toLowerCase()}`, pData.tier);
+          } catch {}
+        }
         setEditForm({
           bio: pData.bio || '',
           location: pData.location || '',
@@ -419,18 +429,21 @@ const ProfilePage: React.FC = () => {
   }, [fetchProfile]);
 
   useEffect(() => {
-    if (profile && !isSellerProfile) {
+    if (profile && (!isSellerProfile || isSellerLite)) {
       setActiveTab('about');
     } else if (activeTab === 'branches' && !showBranchesTab) {
       setActiveTab('listings');
     }
     if (profile && username) {
-      const count = (isSellerProfile ? 2 : 1) + (showDemandsTab ? 1 : 0) + (showBranchesTab ? 1 : 0);
+      const count = (isSellerProfile ? (isSellerLite ? 1 : 2) : 1) + (showDemandsTab ? 1 : 0) + (showBranchesTab ? 1 : 0);
       try {
         sessionStorage.setItem(`profile_tab_count_${username.toLowerCase()}`, String(count));
+        if (profile?.tier) {
+          sessionStorage.setItem(`profile_tier_${username.toLowerCase()}`, profile.tier);
+        }
       } catch {}
     }
-  }, [profile, username, isSellerProfile, showDemandsTab, showBranchesTab, activeTab]);
+  }, [profile, username, isSellerProfile, isSellerLite, showDemandsTab, showBranchesTab, activeTab]);
 
   const handleFollow = async () => {
       const action = followStatus.following ? 'unfollow' : 'follow';
@@ -616,51 +629,108 @@ const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs Skeleton — Well-contained for 2, 3, or 4 tabs */}
+      {/* Navigation Tabs Skeleton — Dynamic for 1 tab (Seller Lite About) or 2-4 tabs (Pro / Business) */}
       <div className="space-y-6">
         <div className="w-full max-w-full overflow-x-auto hide-scrollbar">
           <div className="flex items-center justify-center min-w-max mx-auto gap-3 sm:gap-6 md:gap-10 px-3 sm:px-4 pb-3">
-            {Array.from({ length: expectedTabs }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-5 bg-gray-200 dark:bg-neutral-800 rounded-md shrink-0 ${
-                  i === 0 ? 'w-16 sm:w-20' :
-                  i === 1 ? 'w-24 sm:w-32' :
-                  i === 2 ? 'w-14 sm:w-16' :
-                  'w-20 sm:w-28'
-                }`}
-              />
-            ))}
+            {expectedTabs === 1 ? (
+              <div className="relative pb-3 flex items-center justify-center">
+                <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white" />
+              </div>
+            ) : (
+              Array.from({ length: expectedTabs }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-5 bg-gray-200 dark:bg-neutral-800 rounded-md shrink-0 ${
+                    i === 0 ? 'w-16 sm:w-20' :
+                    i === 1 ? 'w-24 sm:w-32' :
+                    i === 2 ? 'w-14 sm:w-16' :
+                    'w-20 sm:w-28'
+                  }`}
+                />
+              ))
+            )}
           </div>
         </div>
 
-        {/* Quick Filter Pills Skeleton */}
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 px-4 sm:px-0">
-          <div className="h-7 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
-          <div className="h-7 w-16 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
-          <div className="h-7 w-24 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
-          <div className="h-7 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
-        </div>
+        {expectedTabs === 1 ? (
+          /* About Tab Content Skeleton for Seller Lite (Reflecting Biography and Store Details instead of products) */
+          <div className="max-w-xl mx-auto space-y-3 sm:space-y-4">
+            {/* Biography Card Skeleton */}
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 space-y-3 border-0">
+              <div className="h-3.5 w-24 bg-gray-200 dark:bg-neutral-800 rounded" />
+              <div className="space-y-2 pt-1">
+                <div className="h-3.5 w-full bg-gray-200 dark:bg-neutral-800 rounded" />
+                <div className="h-3.5 w-5/6 bg-gray-200 dark:bg-neutral-800 rounded" />
+                <div className="h-3.5 w-2/3 bg-gray-200 dark:bg-neutral-800 rounded" />
+              </div>
+            </div>
 
-        {/* Products Grid Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-72 rounded-card bg-gray-200 dark:bg-neutral-800/70 border border-gray-100 dark:border-neutral-800" />
-          ))}
-        </div>
+            {/* Store & Contact Details Card Skeleton */}
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 space-y-4 border-0">
+              <div className="h-3.5 w-40 bg-gray-200 dark:bg-neutral-800 rounded" />
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-neutral-800 shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3 w-16 bg-gray-200 dark:bg-neutral-800 rounded" />
+                    <div className="h-3.5 w-36 bg-gray-200 dark:bg-neutral-800 rounded" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-neutral-800 shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3 w-16 bg-gray-200 dark:bg-neutral-800 rounded" />
+                    <div className="h-3.5 w-48 bg-gray-200 dark:bg-neutral-800 rounded" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Quick Filter Pills Skeleton */}
+            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 px-4 sm:px-0">
+              <div className="h-7 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+              <div className="h-7 w-16 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+              <div className="h-7 w-24 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+              <div className="h-7 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+            </div>
+
+            {/* Products Grid Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-72 rounded-card bg-gray-200 dark:bg-neutral-800/70 border border-gray-100 dark:border-neutral-800" />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 
+  const isExpectedSellerLite = useMemo(() => {
+    if (!username) return false;
+    const cleanUser = username.toLowerCase();
+    if (user?.username && user.username.toLowerCase() === cleanUser) {
+      return (user?.tier || '').toLowerCase() === 'seller_lite';
+    }
+    const cachedTier = sessionStorage.getItem(`profile_tier_${cleanUser}`);
+    return cachedTier === 'seller_lite';
+  }, [user, username]);
+
   const cachedTabs = useMemo(() => {
     if (!username) return 4;
-    const stored = localStorage.getItem(`profile_tab_count_${username.toLowerCase()}`) || sessionStorage.getItem(`profile_tab_count_${username.toLowerCase()}`);
+    if (isExpectedSellerLite) return 1;
+    const cleanUser = username.toLowerCase();
+    const stored = localStorage.getItem(`profile_tab_count_${cleanUser}`) || sessionStorage.getItem(`profile_tab_count_${cleanUser}`);
     if (stored) {
       const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= 2 && parsed <= 4) return parsed;
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 4) return parsed;
     }
     return 4;
-  }, [username]);
+  }, [username, isExpectedSellerLite]);
 
   if (loading && !profile) {
     return <ProfileSkeleton expectedTabs={cachedTabs} />;
@@ -876,24 +946,36 @@ const ProfilePage: React.FC = () => {
         {isSellerProfile ? (
           <div className="w-full max-w-full overflow-x-auto hide-scrollbar">
             <div className="flex items-center justify-center min-w-max mx-auto gap-3 sm:gap-6 md:gap-10 px-3 sm:px-4">
-              <button
-                onClick={() => setActiveTab('listings')}
-                className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                  activeTab === 'listings' 
-                    ? 'text-black dark:text-white font-black' 
-                    : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
-                }`}
-              >
-                <ShoppingBag size={14} className="shrink-0" />
-                <span>{t('listings_tab', 'Listings')}</span>
-                {activeTab === 'listings' && (
-                  <motion.div
-                    layoutId="profile-nav-indicator"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </button>
+              {!isSellerLite && (
+                <button
+                  onClick={() => setActiveTab('listings')}
+                  className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                    activeTab === 'listings' 
+                      ? 'text-black dark:text-white font-black' 
+                      : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+                  }`}
+                >
+                  <ShoppingBag size={14} className="shrink-0" />
+                  <span>
+                    {profile.business_mode === 'gym' 
+                      ? 'Services & Passes' 
+                      : profile.business_mode === 'salon' 
+                      ? 'Services & Treatments' 
+                      : profile.business_mode === 'service' 
+                      ? 'Services' 
+                      : profile.business_mode === 'restaurant' 
+                      ? 'Menu' 
+                      : t('listings_tab', 'Listings')}
+                  </span>
+                  {activeTab === 'listings' && (
+                    <motion.div
+                      layoutId="profile-nav-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </button>
+              )}
 
               {showDemandsTab && (
                 <button
@@ -969,7 +1051,7 @@ const ProfilePage: React.FC = () => {
         )}
 
         {/* Tab content renders */}
-        {isSellerProfile && activeTab === 'demands' ? (
+        {isSellerProfile && showDemandsTab && activeTab === 'demands' ? (
           <div className="pt-2">
             {/* Sub-Filters with rounded-full pill buttons matching Listings tab */}
             {productRequests.length > 0 && (
@@ -1024,7 +1106,7 @@ const ProfilePage: React.FC = () => {
                   </button>
                 </div>
 
-                {!isOwner && (
+                {!isOwner && !isSellerLite && (
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
                     className="shrink-0 px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-full transition inline-flex items-center gap-1 shadow-sm active:scale-95"
@@ -1058,11 +1140,11 @@ const ProfilePage: React.FC = () => {
                         : t('no_upcoming_requests', 'No upcoming product requests')
                     }
                     description={
-                      !isOwner && demandFilter === 'all'
+                      !isOwner && !isSellerLite && demandFilter === 'all'
                         ? `Looking for an item not listed in @${username}'s store? Let them know what you need.`
                         : undefined
                     }
-                    action={!isOwner && demandFilter === 'all' ? {
+                    action={!isOwner && !isSellerLite && demandFilter === 'all' ? {
                       label: t('request_product', 'Request a Product'),
                       onClick: () => setIsRequestModalOpen(true)
                     } : undefined}
@@ -1285,7 +1367,7 @@ const ProfilePage: React.FC = () => {
             </div>
 
             {/* Store Showcase (Max 9 images) */}
-            {(profile.tier === 'seller_pro' || profile.tier === 'business' || (profile.store_images && profile.store_images.length > 0)) && (
+            {(profile.tier === 'seller_lite' || profile.tier === 'seller_pro' || profile.tier === 'business' || (profile.store_images && profile.store_images.length > 0)) && (
               <div className="bg-white dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 border-0 shadow-none space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">

@@ -785,7 +785,7 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
         expired_sub_users = Subscription.objects.exclude(tier__isnull=True).values_list('user_id', flat=True)
         candidate_user_ids.update(expired_sub_users)
 
-        tier_users = User.objects.filter(profile__tier__in=['seller_pro', 'business']).values_list('id', flat=True)
+        tier_users = User.objects.filter(profile__tier__in=['seller_lite', 'seller_pro', 'business']).values_list('id', flat=True)
         candidate_user_ids.update(tier_users)
 
         inv_sub_users = MonthlyInvoice.objects.filter(
@@ -882,7 +882,7 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
         pending_user_ids = set(pending_qs.values_list('user_id', flat=True))
         active_user_ids = set(Subscription.objects.filter(is_active=True, end_date__gt=now).values_list('user_id', flat=True))
         all_candidate_ids = set(Subscription.objects.exclude(tier__isnull=True).values_list('user_id', flat=True))
-        all_candidate_ids.update(User.objects.filter(profile__tier__in=['seller_pro', 'business']).values_list('id', flat=True))
+        all_candidate_ids.update(User.objects.filter(profile__tier__in=['seller_lite', 'seller_pro', 'business']).values_list('id', flat=True))
         overdue_ids = all_candidate_ids - active_user_ids - pending_user_ids
         overdue_count = len(overdue_ids)
         overdue_potential_revenue = overdue_count * 29000.0

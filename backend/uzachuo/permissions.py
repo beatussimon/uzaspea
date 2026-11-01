@@ -200,9 +200,9 @@ class HasTeamPermission:
                     return True
                 # Owner themselves
                 profile = getattr(user, 'profile', None)
-                if profile and profile.tier in ['seller_pro', 'business']:
+                if profile and profile.tier in ['seller_lite', 'seller_pro', 'business']:
                     return True
-                if user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_pro', 'business']).exists():
+                if user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_lite', 'seller_pro', 'business']).exists():
                     return True
                 # Team member check
                 from marketplace.models import TeamMember
@@ -267,7 +267,7 @@ class IsSellerOrAbove(permissions.BasePermission):
         # Either the user has active subscription themselves:
         has_sub = request.user.subscriptions.filter(
             is_active=True,
-            tier__tier_level__in=['seller_pro', 'business'],
+            tier__tier_level__in=['seller_lite', 'seller_pro', 'business'],
             end_date__gte=timezone.now()
         ).exists()
         if has_sub:

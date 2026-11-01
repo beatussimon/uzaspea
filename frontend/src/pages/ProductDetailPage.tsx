@@ -1821,15 +1821,20 @@ const ProductDetailPage: React.FC = () => {
 
         {/* Ambient blurred background */}
         {currentImageSrc && (
-          <>
-            <img src={currentImageSrc} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none" />
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            <img
+              src={currentImageSrc}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover filter blur-[50px] scale-110 select-none"
+            />
             <div className="absolute inset-0 bg-black/30 pointer-events-none" />
-          </>
+          </div>
         )}
 
         {/* Main image */}
         <div 
-          className="relative z-10 w-full h-full flex items-center justify-center cursor-zoom-in overflow-hidden"
+          className="relative z-10 w-full h-full flex items-center justify-center p-6 sm:p-10 cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
           onTouchStart={(e) => { (e.currentTarget as any)._touchStartX = e.touches[0].clientX; (e.currentTarget as any)._touchStartY = e.touches[0].clientY; }}
           onTouchEnd={(e) => {
@@ -1845,27 +1850,26 @@ const ProductDetailPage: React.FC = () => {
             }
           }}
         >
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={selectedImage}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.08, ease: 'easeOut' }}
-              className="w-full h-full flex items-center justify-center"
-            >
-              {currentImageSrc ? (
-                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl" containMode="contain" loading="eager" />
-              ) : (
-                <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
-              )}
-            </motion.div>
-          </AnimatePresence>
+          {currentImageSrc ? (
+            <img
+              src={currentImageSrc}
+              alt={product.name}
+              className="max-w-full max-h-full object-contain drop-shadow-2xl select-none"
+              loading="eager"
+            />
+          ) : (
+            <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
+          )}
         </div>
 
         {/* Previous Arrow */}
         {images.length > 1 && selectedImage > 0 && (
-          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => Math.max(0, prev - 1)); }}
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              setSelectedImage(prev => Math.max(0, prev - 1)); 
+            }}
             className="flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
             aria-label="Previous image">
             <ChevronLeft size={24} strokeWidth={2.5} />
@@ -1874,7 +1878,12 @@ const ProductDetailPage: React.FC = () => {
 
         {/* Next Arrow */}
         {images.length > 1 && selectedImage < images.length - 1 && (
-          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => Math.min(images.length - 1, prev + 1)); }}
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              setSelectedImage(prev => Math.min(images.length - 1, prev + 1)); 
+            }}
             className="flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
             aria-label="Next image">
             <ChevronRight size={24} strokeWidth={2.5} />
@@ -1885,7 +1894,13 @@ const ProductDetailPage: React.FC = () => {
         {images.length > 1 && (
           <div className="flex absolute bottom-3 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5">
             {images.map((_, idx) => (
-              <button key={idx} onClick={(e) => { e.stopPropagation(); setSelectedImage(idx); }}
+              <button 
+                key={idx} 
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setSelectedImage(idx); 
+                }}
                 className={`rounded-full transition-all cursor-pointer ${idx === selectedImage ? 'w-2.5 h-2.5 bg-white shadow-lg' : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'}`}
                 aria-label={`Image ${idx + 1}`} />
             ))}

@@ -131,6 +131,7 @@ export interface UserRoleState {
   isStaff: boolean;
   isInspector: boolean;
   isTeamMember: boolean;
+  isSellerLite: boolean;
   isSellerPro: boolean;
   isBusiness: boolean;
   hasActiveSubscription: boolean;
@@ -148,6 +149,7 @@ export const getUserRoleState = (user: User | null): UserRoleState => {
       isStaff: false,
       isInspector: false,
       isTeamMember: false,
+      isSellerLite: false,
       isSellerPro: false,
       isBusiness: false,
       hasActiveSubscription: false,
@@ -168,15 +170,16 @@ export const getUserRoleState = (user: User | null): UserRoleState => {
   // hasActiveSubscription is strictly true only if subscription_active is true AND subscription_expired is NOT true.
   const hasActiveSubscription = user.subscription_active === true && user.subscription_expired !== true;
 
+  const isSellerLite = user.tier === 'seller_lite' || (hasActiveSubscription && user.last_tier === 'seller_lite');
   const isSellerPro = user.tier === 'seller_pro' || (hasActiveSubscription && user.last_tier === 'seller_pro');
   const isBusiness = user.tier === 'business' || (hasActiveSubscription && user.last_tier === 'business');
 
-  // Valid seller tiers are exclusively seller_pro and business
-  const hasValidSellerTier = user.last_tier === 'seller_pro' || user.last_tier === 'business' || isSellerPro || isBusiness;
+  // Valid seller tiers are seller_lite, seller_pro and business
+  const hasValidSellerTier = user.last_tier === 'seller_lite' || user.last_tier === 'seller_pro' || user.last_tier === 'business' || isSellerLite || isSellerPro || isBusiness;
 
   // isSellerAccount: only users who have seller flag, active/past seller tier, or expired seller subscription
   // A customer tier or basic user is NEVER a seller account
-  const isSellerAccount = (user.is_seller === true && user.tier !== 'customer') || isSellerPro || isBusiness || (user.subscription_expired === true && hasValidSellerTier);
+  const isSellerAccount = (user.is_seller === true && user.tier !== 'customer') || isSellerLite || isSellerPro || isBusiness || (user.subscription_expired === true && hasValidSellerTier);
 
   // Active seller: has seller account AND valid active subscription (superuser is exempt)
   const isActiveSeller = isSuperuser || (isSellerAccount && hasActiveSubscription);
@@ -202,6 +205,7 @@ export const getUserRoleState = (user: User | null): UserRoleState => {
     isStaff,
     isInspector,
     isTeamMember,
+    isSellerLite,
     isSellerPro,
     isBusiness,
     hasActiveSubscription,
@@ -265,7 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('subscription_expired', String(isExpired));
             localStorage.setItem('subscription_active', String(isActive));
             localStorage.setItem('is_seller', String(isSeller));
-            if (lastTier && ['seller_pro', 'business'].includes(lastTier)) {
+            if (lastTier && ['seller_lite', 'seller_pro', 'business'].includes(lastTier)) {
               localStorage.setItem('last_tier', lastTier);
               if (isActive) localStorage.setItem('tier', lastTier);
             }
@@ -273,7 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             setUser(prev => prev ? {
               ...prev,
-              tier: (isActive && lastTier) ? lastTier : (prev.tier === 'seller_pro' || prev.tier === 'business' ? (isActive ? prev.tier : 'customer') : prev.tier),
+              tier: (isActive && lastTier) ? lastTier : (['seller_lite', 'seller_pro', 'business'].includes(prev.tier) ? (isActive ? prev.tier : 'customer') : prev.tier),
               subscription_expired: isExpired,
               subscription_active: isActive,
               is_seller: isSeller,

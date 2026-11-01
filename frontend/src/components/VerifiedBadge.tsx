@@ -15,6 +15,10 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ tier, isVerified, classNa
     return <img src="/gold_checkmark.png" alt="Business Verified" className={className} title="Business Verified Seller" loading="eager" />;
   }
   
+  if (normalizedTier === 'seller_lite') {
+    return <img src="/gray_checkmark.png" alt="Verified Merchant" className={`${className} scale-[0.85]`} title="Verified Merchant (In-Store POS & Services)" loading="eager" />;
+  }
+  
   return <img src="/greeen_ckeckmark.png?v=2" alt="Verified" className={`${className} scale-[0.85]`} title="Verified User" loading="eager" />;
 };
 

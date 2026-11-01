@@ -11,6 +11,13 @@ import VerifiedBadge from '../../components/VerifiedBadge';
 import SocialLinks from '../../components/SocialLinks';
 import { useUserRoles } from '../../context/AuthContext';
 import { SUPPORTED_COUNTRIES, getDefaultCountry, setDefaultCountry } from '../../services/addressService';
+import { 
+    saveStoreBusinessMode, 
+    getStoredBusinessMode, 
+    getStoredPassExpiryWindow, 
+    BUSINESS_MODE_CONFIG, 
+    StoreBusinessMode 
+} from '../../services/storeBusinessModeService';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -46,7 +53,9 @@ const SettingsPage: React.FC = () => {
         twitter_username: '', 
         youtube_url: '', 
         linkedin_url: '', 
-        show_product_requests: false 
+        show_product_requests: false,
+        business_mode: getStoredBusinessMode() as StoreBusinessMode,
+        pass_expiry_window_days: getStoredPassExpiryWindow(),
     });
     const [defaultCountryCode, setDefaultCountryCode] = useState<string>(() => getDefaultCountry(username).code);
     const [initialCountryCode, setInitialCountryCode] = useState<string>(() => getDefaultCountry(username).code);
@@ -157,6 +166,8 @@ const SettingsPage: React.FC = () => {
                     youtube_url: r.data.youtube_url || '',
                     linkedin_url: r.data.linkedin_url || '',
                     show_product_requests: Boolean(r.data.show_product_requests),
+                    business_mode: (r.data.business_mode || getStoredBusinessMode()) as StoreBusinessMode,
+                    pass_expiry_window_days: r.data.pass_expiry_window_days || getStoredPassExpiryWindow(),
                 };
                 setForm(loaded);
                 setInitialForm(loaded);
@@ -191,14 +202,22 @@ const SettingsPage: React.FC = () => {
     );
 
     const isFeaturesDirty = Boolean(
-        initialForm && form.show_product_requests !== initialForm.show_product_requests
+        initialForm && (
+            form.show_product_requests !== initialForm.show_product_requests ||
+            form.business_mode !== initialForm.business_mode ||
+            form.pass_expiry_window_days !== initialForm.pass_expiry_window_days
+        )
     );
 
     const handleProfileSave = async () => {
         setSaving(true);
         try {
             const res = await api.patch(`/api/profiles/${username}/`, form);
-            toast.success('Profile updated');
+            // Synchronize business mode across POS and Analytics
+            if (form.business_mode) {
+                await saveStoreBusinessMode(form.business_mode as StoreBusinessMode, form.pass_expiry_window_days, username);
+            }
+            toast.success('Store settings updated');
             setInitialForm({ ...form });
             setProfile((prev: any) => ({
                 ...prev,
@@ -964,6 +983,7 @@ const SettingsPage: React.FC = () => {
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md pt-1">
                                         {profile.tier === 'free' && 'Upgrade to list more products, unlock verified badges, and get priority search placement.'}
+                                        {profile.tier === 'seller_lite' && 'Seller Lite membership with in-store POS register, QR passes & claim tickets, and store analytics.'}
                                         {profile.tier === 'seller_pro' && 'Seller Pro membership with expanded catalogue limits and analytics.'}
                                         {profile.tier === 'business' && 'Business enterprise tier with verified seller badge and priority reach.'}
                                     </p>
@@ -985,26 +1005,105 @@ const SettingsPage: React.FC = () => {
                     {!isCustomer && activeTab === 'features' && (
                         <div className="space-y-6">
                             <div className="border-b border-gray-100 dark:border-neutral-800 pb-4">
-                                <h2 className="text-base font-bold text-gray-900 dark:text-white">Store Features</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Configure interactive features and public customer request tools.</p>
+                                <h2 className="text-base font-bold text-gray-900 dark:text-white">Store Features & Operating Mode</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Configure your business operating focus, membership renewal rules, and interactive tools.</p>
                             </div>
 
-                            <div className="flex items-center justify-between gap-4 py-2">
+                            {/* Section 1: Business Operating Mode */}
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                                        Primary Business Operating Mode
+                                    </h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Select your business type. This tailors your Seller Lite navigation terms, product creation wizard, POS presets, and Store Analytics KPIs.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                    {(Object.keys(BUSINESS_MODE_CONFIG) as StoreBusinessMode[]).map((modeKey) => {
+                                        const m = BUSINESS_MODE_CONFIG[modeKey];
+                                        const isSelected = form.business_mode === modeKey;
+                                        return (
+                                            <div
+                                                key={modeKey}
+                                                onClick={() => setForm(prev => ({ ...prev, business_mode: modeKey }))}
+                                                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                                                    isSelected
+                                                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white shadow-sm'
+                                                        : 'bg-gray-50/70 dark:bg-neutral-900/40 border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700 text-gray-900 dark:text-gray-100'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-xs font-bold leading-tight">{m.label}</span>
+                                                    {isSelected && <CheckCircle2 size={15} className="shrink-0 text-amber-500 dark:text-amber-500" />}
+                                                </div>
+                                                <p className={`text-2xs leading-relaxed ${isSelected ? 'text-gray-300 dark:text-neutral-600' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                    {m.description}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Section 2: Pass Expiry Alert Window (For Gyms, Salons, Clubs, Hybrid) */}
+                            {['gym', 'salon', 'service', 'hybrid'].includes(form.business_mode) && (
+                                <div className="p-4 rounded-2xl bg-gray-50/70 dark:bg-neutral-900/40 border border-gray-200 dark:border-neutral-800 space-y-3">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="space-y-0.5">
+                                            <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                                                Membership / Pass Expiration Watchlist Window
+                                            </h4>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                How many days before expiration should member passes appear on your Store Analytics renewal watchlist?
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                                            {[3, 7, 14, 30].map((days) => (
+                                                <button
+                                                    key={days}
+                                                    type="button"
+                                                    onClick={() => setForm(prev => ({ ...prev, pass_expiry_window_days: days }))}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                                        form.pass_expiry_window_days === days
+                                                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
+                                                            : 'bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 border border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-700/60'
+                                                    }`}
+                                                >
+                                                    {days} Days {days === 7 ? '(Default)' : ''}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Section 3: Coming Soon & Customer Requests */}
+                            <div className="flex items-center justify-between gap-4 py-2 pt-3 border-t border-gray-100 dark:border-neutral-800">
                                 <div className="pr-4 space-y-1">
                                     <div className="text-sm font-semibold text-gray-900 dark:text-white">Coming Soon & Customer Requests</div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 max-w-lg">
-                                        Show the "Coming Soon / Requested" tab on your public storefront so buyers can vote on upcoming inventory and submit custom product requests.
+                                        {roles.isSellerLite 
+                                            ? 'Manage upcoming items and customer requests in your dashboard. Public storefront display is exclusive to Seller Pro & Business plans.'
+                                            : 'Show the "Coming Soon / Requested" tab on your public storefront so buyers can vote on upcoming inventory and submit custom product requests.'}
                                     </p>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.show_product_requests}
-                                        onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 dark:bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:bg-gray-900 dark:peer-checked:bg-white peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:peer-checked:after:bg-black after:border-gray-300 dark:after:border-neutral-700 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                                </label>
+                                {roles.isSellerLite ? (
+                                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 shrink-0">
+                                      Dashboard Only
+                                    </span>
+                                ) : (
+                                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.show_product_requests}
+                                            onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 dark:bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:bg-gray-900 dark:peer-checked:bg-white peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:peer-checked:after:bg-black after:border-gray-300 dark:after:border-neutral-700 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                    </label>
+                                )}
                             </div>
 
                             <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-neutral-800">

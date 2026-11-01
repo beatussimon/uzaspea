@@ -82,7 +82,7 @@ def generate_monthly_invoices():
             latest_app = SellerApplication.objects.filter(user=seller, status='approved').select_related('requested_tier').first()
             if latest_app and latest_app.requested_tier and latest_app.requested_tier.price:
                 sub_fee = Decimal(str(latest_app.requested_tier.price))
-            elif getattr(getattr(seller, 'profile', None), 'tier', None) in ['seller_pro', 'business']:
+            elif getattr(getattr(seller, 'profile', None), 'tier', None) in ['seller_lite', 'seller_pro', 'business']:
                 t = SubscriptionTier.objects.filter(tier_level=seller.profile.tier, is_active=True).first()
                 if t and t.price:
                     sub_fee = Decimal(str(t.price))

@@ -200,7 +200,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
     class Meta:
         model = ProductVariant
         fields = ['id', 'product', 'name', 'sku', 'price_adjustment', 'stock',
-                  'is_available', 'image', 'final_price', 'copy_from_image']
+                  'validity_days', 'is_available', 'image', 'final_price', 'copy_from_image']
 
     def create(self, validated_data):
         copy_url = validated_data.pop('copy_from_image', None)
@@ -562,6 +562,7 @@ class ProductSerializer(CostPriceVisibilityMixin, serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft', 'pos_only',
+                  'is_service', 'validity_days', 'modifiers',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants', 'product_type', 'is_book',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
@@ -886,7 +887,7 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
         model = Product
         fields = [
             'id', 'name', 'slug', 'public_id', 'url_slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
-            'is_available', 'is_draft', 'pos_only', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants', 'product_type', 'is_book',
+            'is_available', 'is_draft', 'pos_only', 'is_service', 'validity_days', 'modifiers', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants', 'product_type', 'is_book',
             'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug',
             'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
             'condition', 'requires_quote',
@@ -1128,7 +1129,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'seller_name', 'seller_store_name', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review', 'rec_surface', 'rec_variant']
+        fields = ['id', 'product', 'product_slug', 'product_url_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'seller_name', 'seller_store_name', 'quantity', 'price', 'selected_addons', 'attendant_name', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review', 'rec_surface', 'rec_variant']
         read_only_fields = ['price']
 
     def get_seller_name(self, obj):
@@ -1412,6 +1413,14 @@ class OrderSerializer(serializers.ModelSerializer):
     fulfillment_location_city = serializers.CharField(source='fulfillment_location.city', read_only=True, default=None)
     seller_region = serializers.SerializerMethodField()
     buyer_destination_region = serializers.SerializerMethodField()
+    service_passes = serializers.SerializerMethodField()
+
+    def get_service_passes(self, obj):
+        try:
+            passes = obj.service_passes.all()
+            return CustomerServicePassSerializer(passes, many=True).data
+        except Exception:
+            return []
     
     class Meta:
         model = Order
@@ -1424,7 +1433,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
-            'negotiation_data', 'is_bulk_order'
+            'negotiation_data', 'is_bulk_order', 'service_passes'
         ]
         read_only_fields = ['user', 'total_amount', 'status']
 
@@ -2128,7 +2137,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
                   'website', 'bio', 'tier', 'gender', 'gender_locked', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'preferred_language', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
-                  'show_product_requests']
+                  'show_product_requests', 'business_mode', 'pass_expiry_window_days']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude', 'gender_locked']  # FIX: S-07 — only staff/admin should set these
 
     def validate_gender(self, value):
@@ -2211,7 +2220,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         is_owner = request and request.user.is_authenticated and request.user.id == instance.user_id
         is_staff = request and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
-        is_commercial_seller = instance.tier in ['seller_pro', 'business', 'worker']
+        is_commercial_seller = instance.tier in ['seller_lite', 'seller_pro', 'business', 'worker']
         
         # Protect PII: mask private phone number and coordinates for non-sellers from public visitors
         if not (is_owner or is_staff or is_commercial_seller):
@@ -2231,7 +2240,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             validated_data.pop('longitude', None)
             validated_data.pop('is_location_verified', None)
             # If user is a seller, lock business location address from regular profile settings
-            if instance.tier in ['seller_pro', 'business', 'worker']:
+            if instance.tier in ['seller_lite', 'seller_pro', 'business', 'worker']:
                 validated_data.pop('location', None)
 
         # Lock gender once set to female or male
@@ -3254,6 +3263,25 @@ class DigitalAccessLicenseSerializer(serializers.ModelSerializer):
 
     def get_can_download(self, obj):
         return obj.can_download()
+
+
+class CustomerServicePassSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    variant_name = serializers.CharField(source='variant.name', read_only=True, default='')
+    variant_id = serializers.IntegerField(source='variant.id', read_only=True, allow_null=True)
+    is_valid = serializers.BooleanField(source='is_currently_valid', read_only=True)
+
+    class Meta:
+        from .models import CustomerServicePass
+        model = CustomerServicePass
+        fields = [
+            'id', 'seller', 'customer_name', 'customer_phone', 'product', 'product_id', 'product_name',
+            'variant', 'variant_id', 'variant_name', 'order', 'pass_code', 'start_date', 'expires_at',
+            'status', 'is_valid', 'check_in_count', 'last_checked_in', 'notes', 'created_at'
+        ]
+        read_only_fields = ['pass_code', 'created_at']
+
 
 
 

@@ -52,6 +52,7 @@ class SubscriptionTier(models.Model):
     is_active = models.BooleanField(default=True)
     TIER_LEVEL_CHOICES = [
         ('customer', 'Customer'),
+        ('seller_lite', 'Seller Lite'),
         ('seller_pro', 'Seller Pro'),
         ('business', 'Business'),
     ]
@@ -339,6 +340,9 @@ class Product(models.Model):
     product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES, default='PHYSICAL', db_index=True)
     is_draft = models.BooleanField(default=False, db_index=True, help_text="True if listing is saved as draft and not published")
     pos_only = models.BooleanField(default=False, db_index=True, help_text="Exclusive to in-store POS register; hidden from public marketplace listings and public seller store")
+    is_service = models.BooleanField(default=False, db_index=True, help_text="True if item is a service or prepared food/beverage rather than a shippable product")
+    validity_days = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in days for service memberships / passes (e.g. 30, 90, 365)")
+    modifiers = models.JSONField(default=list, blank=True, help_text="List of optional add-ons/modifiers, e.g. [{'name': 'Extra Cheese', 'price': 1000}]")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -403,12 +407,21 @@ class Product(models.Model):
         # Handle draft state vs published availability
         if self.is_draft:
             self.is_available = False
+        elif self.is_service:
+            # Services are not constrained by physical warehouse stock
+            self.is_available = True
         else:
             # Auto-set availability based on stock - FIX: M-03
             if self.stock <= 0:
                 self.is_available = False
             elif not self.is_available and self.stock > 0:
                 self.is_available = True
+
+        # Enforce pos_only if seller is on seller_lite tier
+        if getattr(self, 'seller_id', None):
+            seller_prof = getattr(self.seller, 'profile', None)
+            if seller_prof and seller_prof.tier == 'seller_lite':
+                self.pos_only = True
 
         # Ensure product automatically has accurate location info
         if self.product_type != 'DIGITAL' and (not self.location_name or self.latitude is None or self.longitude is None):
@@ -886,6 +899,8 @@ class OrderItem(models.Model):
     )
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    selected_addons = models.JSONField(default=list, blank=True, help_text="List of applied add-ons/modifiers, e.g. [{'name': 'Locker', 'price': 15000, 'quantity': 1}]")
+    attendant_name = models.CharField(max_length=100, blank=True, default='', help_text="Staff/attendant who performed the service (e.g. Barber Juma)")
     rec_surface = models.CharField(max_length=32, blank=True, default='', help_text="Rec surface that influenced this item")
     rec_variant = models.CharField(max_length=16, blank=True, default='', help_text="A/B variant active when item was added")
 
@@ -961,7 +976,7 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     tier = models.CharField(
         max_length=20,
-        choices=[('customer', 'Customer'), ('worker', 'Worker'), ('seller_pro', 'Seller Pro'), ('business', 'Business')],
+        choices=[('customer', 'Customer'), ('seller_lite', 'Seller Lite'), ('worker', 'Worker'), ('seller_pro', 'Seller Pro'), ('business', 'Business')],
         default='customer'
     )
     location = models.CharField(max_length=100, blank=True)
@@ -999,6 +1014,23 @@ class UserProfile(models.Model):
         help_text="True if gender was set at signup or updated once in settings. Once locked, cannot be changed."
     )
     show_product_requests = models.BooleanField(default=False, help_text="Show Coming Soon / Requested items tab on profile")
+    business_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('retail', 'Retail Shop (Products)'),
+            ('gym', 'Gym & Fitness (Memberships)'),
+            ('salon', 'Salon & Spa (Services)'),
+            ('restaurant', 'Restaurant & Cafe'),
+            ('service', 'General Services'),
+            ('hybrid', 'Hybrid (Products & Services)'),
+        ],
+        default='retail',
+        help_text="Primary business operating mode for tailored Seller Lite UX and analytics"
+    )
+    pass_expiry_window_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Customizable window in days for upcoming membership pass expiration alerts"
+    )
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
     def __str__(self):
@@ -1421,6 +1453,7 @@ class ProductVariant(models.Model):
     )
     stock = models.PositiveIntegerField(default=0)
     is_unlimited_stock = models.BooleanField(default=False)
+    validity_days = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in days for service memberships / passes (e.g. 30, 90, 365)")
     is_available = models.BooleanField(default=True)
     image = models.ImageField(upload_to='variant_images/', blank=True, null=True, validators=[validate_image])
 
@@ -2872,6 +2905,48 @@ class EditorialShelf(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.key})"
+
+
+def generate_pass_code():
+    return f"PASS-{generate_public_id(8).upper()}"
+
+
+class CustomerServicePass(models.Model):
+    STATUS_CHOICES = (
+        ('ACTIVE', 'Active'),
+        ('EXPIRED', 'Expired'),
+        ('CANCELLED', 'Cancelled'),
+    )
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='service_passes')
+    customer_name = models.CharField(max_length=150)
+    customer_phone = models.CharField(max_length=30, blank=True, db_index=True)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='issued_passes')
+    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name='issued_passes')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='service_passes', null=True, blank=True)
+    pass_code = models.CharField(max_length=32, unique=True, db_index=True, default=generate_pass_code)
+    start_date = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE', db_index=True)
+    check_in_count = models.PositiveIntegerField(default=0)
+    last_checked_in = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['seller', 'status', 'expires_at']),
+            models.Index(fields=['customer_phone', 'status']),
+            models.Index(fields=['pass_code']),
+        ]
+
+    def is_currently_valid(self):
+        from django.utils import timezone
+        return self.status == 'ACTIVE' and timezone.now() <= self.expires_at
+
+    def __str__(self):
+        return f"Pass {self.pass_code} - {self.customer_name} ({self.status})"
 
 
 @receiver(post_save, sender=Product)

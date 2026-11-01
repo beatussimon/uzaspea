@@ -1,21 +1,35 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {  } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { 
-  Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronDown, 
+  Search, ShoppingCart, Plus, Trash2, Printer, X, ChevronUp, ChevronDown, 
   History, Receipt, Banknote, Tag, MapPin, Check, Loader2, FileText, Clock, 
-  AlertCircle, CheckCircle2, Phone 
+  AlertCircle, CheckCircle2, Phone, Camera, UserCheck, RefreshCw, Send, Settings
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { TableSkeleton, POSProductGridSkeleton } from '../../components/Skeleton';
 import { getVariantDimensions, isColorValue } from '../../utils/variantUtils';
 import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
+import { saveStoreBusinessMode } from '../../services/storeBusinessModeService';
 
-interface Product {
+export interface ProductModifier {
+  name: string;
+  price: number;
+}
+
+export interface SelectedAddon {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Product {
   id: number;
   name: string;
   price: string;
@@ -26,25 +40,271 @@ interface Product {
   category_name?: string;
   category_slug?: string;
   pos_only?: boolean;
+  sku?: string;
+  is_service?: boolean;
+  validity_days?: number | null;
+  modifiers?: ProductModifier[];
 }
 
-interface CartItem {
+export interface CartItem {
   id: string;
   product_id: number;
   variant_id: number | null;
   name: string;
   variant_name: string | null;
-  price: number;
+  price: number; // total unit price including selected addons
+  base_price?: number;
+  addons?: SelectedAddon[];
+  attendant_name?: string;
+  is_service?: boolean;
+  validity_days?: number | null;
   quantity: number;
   max_stock: number;
 }
 
+export interface POSModuleConfig {
+  preset: 'shop' | 'gym' | 'restaurant' | 'salon' | 'custom' | 'all';
+  enableDiningModes: boolean; // Dine-in vs Takeaway vs Walk-in (Table #)
+  enableMemberships: boolean; // Memberships & Service Passes, QR check-in
+  enableInvoices: boolean;    // Invoices & Layaway
+  enableAttendants: boolean;  // Staff attendant attribution
+  enableDropOffClaim: boolean; // Drop-off & Claim tickets
+}
+
+export const DEFAULT_POS_CONFIG: POSModuleConfig = {
+  preset: 'custom',
+  enableDiningModes: false,
+  enableMemberships: false,
+  enableInvoices: false,
+  enableAttendants: false,
+  enableDropOffClaim: false,
+};
+
+export const getStoredPOSConfig = (_username?: string): POSModuleConfig => {
+  try {
+    if (localStorage.getItem('pos_module_config_v2')) {
+      const parsed = JSON.parse(localStorage.getItem('pos_module_config_v2') || '{}');
+      return {
+        ...DEFAULT_POS_CONFIG,
+        ...parsed,
+      };
+    }
+  } catch {}
+  
+  return { ...DEFAULT_POS_CONFIG };
+};
+
+interface POSModeSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  config: POSModuleConfig;
+  onSave: (config: POSModuleConfig) => void;
+}
+
+const POSModeSettingsModal: React.FC<POSModeSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  config,
+  onSave,
+}) => {
+  const [localConfig, setLocalConfig] = useState<POSModuleConfig>(config);
+
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config, isOpen]);
+
+  if (!isOpen) return null;
+
+  const applyPreset = (preset: 'shop' | 'gym' | 'restaurant' | 'salon' | 'all') => {
+    let next: POSModuleConfig;
+    if (preset === 'shop') {
+      next = { preset: 'shop', enableDiningModes: false, enableMemberships: false, enableInvoices: true, enableAttendants: false, enableDropOffClaim: false };
+    } else if (preset === 'gym') {
+      next = { preset: 'gym', enableDiningModes: false, enableMemberships: true, enableInvoices: true, enableAttendants: false, enableDropOffClaim: false };
+    } else if (preset === 'restaurant') {
+      next = { preset: 'restaurant', enableDiningModes: true, enableMemberships: false, enableInvoices: true, enableAttendants: false, enableDropOffClaim: false };
+    } else if (preset === 'salon') {
+      next = { preset: 'salon', enableDiningModes: false, enableMemberships: true, enableInvoices: true, enableAttendants: true, enableDropOffClaim: true };
+    } else {
+      next = { preset: 'all', enableDiningModes: true, enableMemberships: true, enableInvoices: true, enableAttendants: true, enableDropOffClaim: true };
+    }
+    setLocalConfig(next);
+  };
+
+  const toggleModule = (key: keyof Omit<POSModuleConfig, 'preset'>) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      preset: 'custom',
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSave = () => {
+    onSave(localConfig);
+    // Automatically synchronize store operating mode across the app
+    let targetMode: 'retail' | 'gym' | 'salon' | 'restaurant' | 'hybrid' | null = null;
+    if (localConfig.preset === 'shop') targetMode = 'retail';
+    else if (localConfig.preset === 'gym') targetMode = 'gym';
+    else if (localConfig.preset === 'salon') targetMode = 'salon';
+    else if (localConfig.preset === 'restaurant') targetMode = 'restaurant';
+    else if (localConfig.preset === 'all') targetMode = 'hybrid';
+    else if (localConfig.enableMemberships) targetMode = 'gym';
+
+    if (targetMode) {
+      saveStoreBusinessMode(targetMode);
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 animate-[fadeIn_0.08s_ease-out]">
+      <div className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl animate-[scaleIn_0.08s_ease-out]">
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider">
+            POS Mode & Feature Settings
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-300 hover:text-black dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
+          {/* Quick Business Presets */}
+          <div className="space-y-1.5">
+            <span className="text-3xs font-bold uppercase tracking-wider text-neutral-400">Business Presets</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              {[
+                { id: 'shop', label: 'Retail Shop' },
+                { id: 'gym', label: 'Gym & Club' },
+                { id: 'restaurant', label: 'Restaurant' },
+                { id: 'salon', label: 'Salon / Spa' },
+                { id: 'all', label: 'All Modes' },
+              ].map(p => {
+                const isSelected = localConfig.preset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyPreset(p.id as any)}
+                    className={`px-3 py-2.5 rounded-xl text-left transition flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold shadow-xs'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700/60 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs font-semibold leading-tight">{p.label}</span>
+                    {isSelected && <Check size={12} className="shrink-0 text-amber-500 dark:text-amber-400" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Feature Toggles */}
+          <div className="space-y-2 pt-2">
+            <span className="text-3xs font-bold uppercase tracking-wider text-neutral-400">Custom Feature Toggles</span>
+
+            {/* Dine-in vs Takeaway */}
+            <div 
+              onClick={() => toggleModule('enableDiningModes')}
+              className="px-3.5 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                Dine-in / Table # & Takeaway
+              </span>
+              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${localConfig.enableDiningModes ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out shadow-xs ${localConfig.enableDiningModes ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+
+            {/* Membership and access */}
+            <div 
+              onClick={() => toggleModule('enableMemberships')}
+              className="px-3.5 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                Membership and access
+              </span>
+              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${localConfig.enableMemberships ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out shadow-xs ${localConfig.enableMemberships ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+
+            {/* Invoices & Quotations */}
+            <div 
+              onClick={() => toggleModule('enableInvoices')}
+              className="px-3.5 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                Invoices & Quotations
+              </span>
+              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${localConfig.enableInvoices ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out shadow-xs ${localConfig.enableInvoices ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+
+            {/* Staff / Attendant Attribution */}
+            <div 
+              onClick={() => toggleModule('enableAttendants')}
+              className="px-3.5 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                Staff / Attendant Attribution
+              </span>
+              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${localConfig.enableAttendants ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out shadow-xs ${localConfig.enableAttendants ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+
+            {/* Drop-off / Claim */}
+            <div 
+              onClick={() => toggleModule('enableDropOffClaim')}
+              className="px-3.5 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                Drop-off / Claim
+              </span>
+              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${localConfig.enableDropOffClaim ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out shadow-xs ${localConfig.enableDropOffClaim ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold text-xs transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-black font-bold text-xs transition cursor-pointer shadow-xs"
+            >
+              Save & Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface POSHistoryProps {
   onPrint: (order: any) => void;
   dateRange: DateRange;
+  onDateRangeChange?: (range: DateRange) => void;
 }
 
-const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
+const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange, onDateRangeChange }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,8 +394,23 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
   if (loading) return <TableSkeleton rows={5} cols={7} withHeader={false} />;
 
   return (
-    <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
-      <div className="overflow-x-auto">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2.5 pb-0.5">
+        <div className="flex items-center gap-2">
+          <History size={14} className="text-neutral-400" />
+          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{t('sales_history', 'Sales History')}</span>
+        </div>
+        {onDateRangeChange && (
+          <DateRangePicker 
+            value={dateRange} 
+            onChange={onDateRangeChange} 
+            buttonClassName="rounded-full !py-1 text-xs font-semibold"
+          />
+        )}
+      </div>
+
+      <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+        <div className="overflow-x-auto">
         <table className="w-full text-left text-xs whitespace-nowrap">
           <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
             <tr>
@@ -215,6 +490,7 @@ const POSHistory: React.FC<POSHistoryProps> = ({ onPrint, dateRange }) => {
       )}
 
       <div ref={sentinelRef} className="h-4" />
+      </div>
     </div>
   );
 };
@@ -225,6 +501,7 @@ interface POSInvoiceHistoryProps {
   onMarkPaid: (invoice: any) => void;
   onCancelInvoice: (invoice: any) => void;
   dateRange: DateRange;
+  onDateRangeChange?: (range: DateRange) => void;
   refreshTrigger: number;
   onUnpaidCountChange?: (count: number) => void;
 }
@@ -235,6 +512,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
   onMarkPaid,
   onCancelInvoice,
   dateRange,
+  onDateRangeChange,
   refreshTrigger,
   onUnpaidCountChange
 }) => {
@@ -328,8 +606,8 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {[
             { key: 'all', label: t('all_invoices', 'All Invoices') },
-            { key: 'unpaid', label: t('unpaid_pending', 'Unpaid (Pending)') },
-            { key: 'paid', label: t('paid_settled', 'Paid (Settled)') },
+            { key: 'unpaid', label: t('pending', 'Pending') },
+            { key: 'paid', label: t('paid', 'Paid') },
             { key: 'cancelled', label: t('cancelled', 'Cancelled') }
           ].map(f => (
             <button
@@ -347,24 +625,33 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
           ))}
         </div>
 
-        <div className="relative min-w-[200px] sm:w-64">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('search_invoices_placeholder', 'Search customer, phone, or invoice #...')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface-muted dark:bg-[#161616] border-0 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-            >
-              <X size={12} />
-            </button>
+        <div className="flex items-center gap-2">
+          {onDateRangeChange && (
+            <DateRangePicker 
+              value={dateRange} 
+              onChange={onDateRangeChange} 
+              buttonClassName="rounded-full !py-1 text-xs font-semibold"
+            />
           )}
+          <div className="relative min-w-[200px] sm:w-64">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder={t('search_invoices_placeholder', 'Search customer, phone, or invoice #...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface-muted dark:bg-[#161616] border-0 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -440,7 +727,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                           {isPaid ? (
                             <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                               <CheckCircle2 size={11} />
-                              <span>{t('settled', 'Settled')}</span>
+                              <span>{t('paid', 'Paid')}</span>
                             </span>
                           ) : isCancelled ? (
                             <span className="text-[11px] text-neutral-400 font-medium">
@@ -504,7 +791,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onPrintReceipt(inv)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
                                 title={t('view_receipt', 'View Receipt')}
                               >
                                 <Receipt size={11} />
@@ -515,7 +802,7 @@ const POSInvoiceHistory: React.FC<POSInvoiceHistoryProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onCancelInvoice(inv)}
-                                className="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer rounded-lg hover:bg-red-500/10"
+                                className="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                 title={t('cancel_invoice', 'Cancel Invoice')}
                               >
                                 <Trash2 size={12} />
@@ -613,20 +900,58 @@ const CartQuantityInput: React.FC<{
 interface POSVariantMatrixOverlayProps {
   product: Product;
   cart: CartItem[];
-  addToCart: (product: any, variant?: any) => void;
+  addToCart: (product: any, variant?: any, addons?: SelectedAddon[], attendantName?: string) => void;
   onClose: () => void;
   t: (key: string, defaultText: string) => string;
+  posConfig?: POSModuleConfig;
 }
 
-// In-card options matrix selector: pick Color, Size, Specs with clean Add action
+// In-card options matrix selector: pick Color, Size, Modifiers with real-time live price and clean Add action
 const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
   product,
   cart,
   addToCart,
   onClose,
   t,
+  posConfig,
 }) => {
   const variants = product.variants || [];
+  const modifiersList: ProductModifier[] = useMemo(() => {
+    if (Array.isArray(product.modifiers)) return product.modifiers;
+    return [];
+  }, [product.modifiers]);
+
+  const isService = Boolean(product.is_service);
+
+  // Selected add-ons: map of name -> quantity
+  const [selectedAddons, setSelectedAddons] = useState<Record<string, number>>({});
+  const [attendantName, setAttendantName] = useState<string>('');
+
+  const toggleAddon = (name: string, checked: boolean) => {
+    setSelectedAddons(prev => {
+      const next = { ...prev };
+      if (checked) {
+        next[name] = 1;
+      } else {
+        delete next[name];
+      }
+      return next;
+    });
+  };
+
+  const updateAddonQty = (name: string, delta: number) => {
+    setSelectedAddons(prev => {
+      const current = prev[name] || 0;
+      const nextVal = current + delta;
+      const next = { ...prev };
+      if (nextVal <= 0) {
+        delete next[name];
+      } else {
+        next[name] = nextVal;
+      }
+      return next;
+    });
+  };
 
   // Extract dimensions (e.g. Color, Size, Spec)
   const dimensions = useMemo(() => {
@@ -651,7 +976,7 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
 
   // Selected option values per dimension index
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string>>(() => {
-    const inCartVariant = variants.find(v => cart.some(ci => ci.id === `${product.id}-${v.id}`));
+    const inCartVariant = variants.find(v => cart.some(ci => ci.id.startsWith(`${product.id}-${v.id}`)));
     const inStockVariant = variants.find(v => parseFloat(String(v.stock || 0)) > 0);
     const initialVariant = inCartVariant || inStockVariant || variants[0];
 
@@ -697,6 +1022,27 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
     }
     return best;
   }, [variants, dimensions, selectedOptions]);
+
+  // Base price for current variant (or base product)
+  const basePrice = useMemo(() => {
+    if (selectedVariant) {
+      if (selectedVariant.final_price != null) return parseFloat(selectedVariant.final_price);
+      return parseFloat(product.price) + parseFloat(selectedVariant.price_adjustment || 0);
+    }
+    return parseFloat(product.price || '0');
+  }, [product.price, selectedVariant]);
+
+  // Total add-ons price
+  const addonsCost = useMemo(() => {
+    return Object.entries(selectedAddons).reduce((sum, [name, qty]) => {
+      const mod = modifiersList.find(m => m.name === name);
+      return sum + (mod ? parseFloat(String(mod.price || 0)) * qty : 0);
+    }, 0);
+  }, [modifiersList, selectedAddons]);
+
+  const liveTotalPrice = basePrice + addonsCost;
+  const vStock = selectedVariant ? parseFloat(String(selectedVariant.stock || 0)) : parseFloat(String(product.stock || 0));
+  const canAdd = isService || vStock > 0 || variants.length === 0;
 
   // Handle clicking an option chip on a dimension
   const handleSelectOption = (dimIdx: number, val: string) => {
@@ -747,7 +1093,6 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
     }
   };
 
-  // Check if an option value has stock across variants
   const isOptionInStock = (dimIdx: number, val: string) => {
     return variants.some((v: any) => {
       const parts = (v.name || '').split('/').map((p: string) => p.trim());
@@ -755,7 +1100,6 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
     });
   };
 
-  // Clean, concise label for each dimension
   const getDimensionLabel = (dim: any) => {
     const vals = dim.values || [];
     if (vals.some((v: string) => isColorValue(v))) return t('color', 'Color');
@@ -766,92 +1110,868 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
     return dim.label || t('option', 'Option');
   };
 
-  // Stock data for the resolved variant
-  const vStock = parseFloat(String(selectedVariant?.stock || 0));
+  const handleCommitToSale = () => {
+    if (!canAdd) return;
+    const preparedAddons: SelectedAddon[] = Object.entries(selectedAddons)
+      .filter(([_, qty]) => qty > 0)
+      .map(([name, qty]) => {
+        const mod = modifiersList.find(m => m.name === name);
+        return {
+          name,
+          price: mod ? parseFloat(String(mod.price || 0)) : 0,
+          quantity: qty,
+        };
+      });
+
+    addToCart(product, selectedVariant || null, preparedAddons, attendantName.trim() || undefined);
+    onClose();
+  };
 
   return (
     <div 
-      className="absolute inset-0 z-30 bg-neutral-950/95 dark:bg-black/95 backdrop-blur-md p-2.5 rounded-2xl flex flex-col animate-fade-in pointer-events-auto cursor-default"
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-[fadeIn_0.08s_ease-out]"
+      onClick={onClose}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-white/10 shrink-0">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold text-white truncate leading-tight">{product.name}</p>
-          <span className="text-3xs text-neutral-400 block truncate">
-            {variants.length} {t('variations', 'variations')}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
-          title={t('close', 'Close')}
-        >
-          <X size={12} />
-        </button>
-      </div>
-
-      {/* Options Matrix (Rows of chips per dimension) */}
-      <div className="flex-1 overflow-y-auto space-y-2 py-1.5 pr-0.5 scrollbar-thin">
-        {dimensions.map((dim) => (
-          <div key={dim.index} className="space-y-1">
-            <div className="flex items-center justify-between text-3xs text-neutral-400">
-              <span className="uppercase tracking-wider font-semibold text-[9px]">{getDimensionLabel(dim)}</span>
-              <span className="text-neutral-200 font-semibold truncate max-w-[120px]">{selectedOptions[dim.index] || '—'}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {dim.values.map((val: string) => {
-                const isSelected = selectedOptions[dim.index]?.toLowerCase() === val.toLowerCase();
-                const inStock = isOptionInStock(dim.index, val);
-
-                return (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => handleSelectOption(dim.index, val)}
-                    className={`px-2 py-0.5 rounded-lg text-2xs transition cursor-pointer ${
-                      isSelected
-                        ? 'bg-white text-neutral-950 font-bold shadow-xs'
-                        : inStock
-                          ? 'bg-white/[0.08] hover:bg-white/[0.15] text-neutral-200 hover:text-white'
-                          : 'bg-white/[0.02] text-neutral-500 line-through opacity-40'
-                    }`}
-                    title={`${val}${!inStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                  >
-                    {val}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer (Stock / In-sale status & Add button) */}
-      <div className="pt-2 border-t border-white/10 flex justify-between items-center shrink-0 mt-auto">
-        <div className="min-w-0 flex-1 pr-2 text-3xs text-neutral-400 tabular-nums font-medium truncate">
-          <span>{vStock > 0 ? `${vStock} left` : t('out_of_stock', 'Out of stock')}</span>
-          {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0) > 0 && (
-            <span className="text-neutral-500">
-              {' '}• {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0)} {t('in_sale', 'in sale')}
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl animate-[scaleIn_0.08s_ease-out] max-h-[90vh]"
+      >
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="min-w-0 flex-1 pr-2">
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white truncate">
+              {product.name}
+            </h3>
+            <span className="text-3xs text-neutral-500 dark:text-neutral-400 block truncate mt-0.5">
+              {variants.length > 0 ? `${variants.length} variations` : ''}
+              {variants.length > 0 && modifiersList.length > 0 ? ' • ' : ''}
+              {modifiersList.length > 0 ? `${modifiersList.length} add-ons` : ''}
+              {variants.length === 0 && modifiersList.length === 0 ? 'Options & modifiers' : ''}
             </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-300 hover:text-black dark:hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
+            title={t('close', 'Close')}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="px-5 py-4 overflow-y-auto space-y-4 max-h-[60vh]">
+          {/* Dimensions / Variations */}
+          {dimensions.map((dim) => (
+            <div key={dim.index} className="space-y-1.5">
+              <div className="flex items-center justify-between text-2xs text-neutral-500 dark:text-neutral-400">
+                <span className="uppercase tracking-wider font-bold text-3xs text-neutral-400 dark:text-neutral-500">
+                  {getDimensionLabel(dim)}
+                </span>
+                <span className="text-neutral-900 dark:text-white font-semibold truncate max-w-[160px]">
+                  {selectedOptions[dim.index] || '—'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {dim.values.map((val: string) => {
+                  const isSelected = selectedOptions[dim.index]?.toLowerCase() === val.toLowerCase();
+                  const inStock = isOptionInStock(dim.index, val);
+
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => handleSelectOption(dim.index, val)}
+                      className={`px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold shadow-xs'
+                          : inStock || isService
+                            ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                            : 'bg-neutral-100 dark:bg-neutral-800/50 text-neutral-400 line-through opacity-40 cursor-not-allowed'
+                      }`}
+                      title={`${val}${!inStock && !isService ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                    >
+                      {val}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Optional Add-ons / Modifiers */}
+          {modifiersList.length > 0 && (
+            <div className="pt-1 space-y-2">
+              <span className="text-3xs uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500 block">
+                {t('addons_extras', 'Add-ons / Extras')}
+              </span>
+              <div className="space-y-1.5">
+                {modifiersList.map((mod) => {
+                  const isChecked = (selectedAddons[mod.name] || 0) > 0;
+                  const qty = selectedAddons[mod.name] || 0;
+                  const modPrice = parseFloat(String(mod.price || 0));
+
+                  return (
+                    <div 
+                      key={mod.name} 
+                      className={`flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer ${
+                        isChecked 
+                          ? 'bg-neutral-100 dark:bg-neutral-800/90 text-neutral-900 dark:text-white' 
+                          : 'bg-neutral-50 dark:bg-neutral-800/40 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/70'
+                      }`}
+                      onClick={() => toggleAddon(mod.name, !isChecked)}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleAddon(mod.name, e.target.checked);
+                          }}
+                          className="rounded accent-neutral-900 dark:accent-neutral-200 w-4 h-4 cursor-pointer shrink-0"
+                        />
+                        <span className="text-xs font-semibold truncate">{mod.name}</span>
+                        <span className="text-2xs text-neutral-500 dark:text-neutral-400 font-medium shrink-0">
+                          +{modPrice.toLocaleString()} TSh
+                        </span>
+                      </div>
+                      {isChecked && (
+                        <div 
+                          className="flex items-center rounded-full bg-neutral-200 dark:bg-neutral-950 h-7 px-1 border-0 select-none shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => updateAddonQty(mod.name, -1)}
+                            className="w-5 h-full flex items-center justify-center font-bold text-xs text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition cursor-pointer"
+                            aria-label="Decrease quantity"
+                          >
+                            <span className="leading-none">−</span>
+                          </button>
+                          <span className="w-5 text-center font-bold text-xs text-neutral-900 dark:text-white tabular-nums">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateAddonQty(mod.name, 1)}
+                            className="w-5 h-full flex items-center justify-center font-bold text-xs text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition cursor-pointer"
+                            aria-label="Increase quantity"
+                          >
+                            <span className="leading-none">+</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Attendant attribution (if service item and attendants enabled) */}
+          {isService && posConfig?.enableAttendants && (
+            <div className="pt-1">
+              <label className="text-3xs uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500 block mb-1">
+                {t('attendant_staff', 'Staff / Attendant')}
+              </label>
+              <input
+                type="text"
+                value={attendantName}
+                onChange={(e) => setAttendantName(e.target.value)}
+                placeholder={t('attendant_placeholder', 'e.g. Barber Juma, Stylist Amina')}
+                className="w-full text-xs bg-neutral-100 dark:bg-neutral-800/80 rounded-xl px-3 py-2 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none border-0 focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-600 transition"
+              />
+            </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (selectedVariant && vStock > 0) {
-              addToCart(product, selectedVariant);
-              onClose();
-            }
-          }}
-          disabled={!selectedVariant || vStock <= 0}
-          className="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/25 text-white text-2xs font-medium border border-white/10 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-        >
-          {vStock <= 0 ? t('out_of_stock', 'Out of stock') : t('add', 'Add')}
-        </button>
+
+        {/* Footer */}
+        <div className="px-5 pb-5 pt-2 flex items-center justify-between gap-3 shrink-0">
+          <div className="min-w-0 flex-1">
+            <div className="text-base font-black text-neutral-900 dark:text-white tabular-nums">
+              TSh {liveTotalPrice.toLocaleString()}
+            </div>
+            <div className="text-3xs text-neutral-500 dark:text-neutral-400 tabular-nums font-medium truncate">
+              {isService ? (
+                <span className="text-neutral-500 dark:text-neutral-400 font-medium">{t('service', 'Service Available')}</span>
+              ) : vStock > 0 ? (
+                `${vStock} ${t('left', 'left')}`
+              ) : (
+                <span className="text-rose-500 font-semibold">{t('out_of_stock', 'Out of stock')}</span>
+              )}
+              {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0) > 0 && (
+                <span className="text-neutral-400">
+                  {' '}• {cart.filter(ci => ci.product_id === product.id).reduce((s, ci) => s + ci.quantity, 0)} {t('in_sale', 'in sale')}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCommitToSale}
+            disabled={!canAdd}
+            className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:scale-95 text-black text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            {vStock <= 0 && !isService ? t('out_of_stock', 'Out of stock') : t('add_to_sale', 'Add to Sale')}
+          </button>
+        </div>
       </div>
+    </div>
+  );
+};
+
+const playAudioBeep = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+    if (navigator.vibrate) navigator.vibrate(40);
+  } catch {
+    // Audio Context blocked or not supported
+  }
+};
+
+interface POSContinuousScannerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  products: Product[];
+  cart: CartItem[];
+  cartTotal: number;
+  addToCart: (product: any, variant?: any, addons?: SelectedAddon[], attendantName?: string) => void;
+  onSelectProductForCustomization: (product: Product) => void;
+  onPassCheckInComplete?: () => void;
+  t: (key: string, defaultText: string) => string;
+}
+
+const POSContinuousScannerModal: React.FC<POSContinuousScannerModalProps> = ({
+  isOpen,
+  onClose,
+  products,
+  cart,
+  cartTotal,
+  addToCart,
+  onSelectProductForCustomization,
+  onPassCheckInComplete,
+  t,
+}) => {
+  const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [verifiedPass, setVerifiedPass] = useState<any>(null);
+  const [claimTicket, setClaimTicket] = useState<any>(null);
+  const scannedRecently = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isOpen) {
+      setVerifiedPass(null);
+      setClaimTicket(null);
+      return;
+    }
+
+    const scannerElementId = 'pos-continuous-scanner-reader';
+    const html5Qr = new Html5Qrcode(scannerElementId, {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+      ],
+      verbose: false,
+    });
+
+    const handleScanSuccess = async (decodedText: string) => {
+      const code = decodedText.trim();
+      if (!code) return;
+
+      // Anti-duplicate debounce: 1.5 seconds per code
+      if (scannedRecently.current.has(code)) return;
+      scannedRecently.current.add(code);
+      setTimeout(() => {
+        scannedRecently.current.delete(code);
+      }, 1500);
+
+      playAudioBeep();
+      setLastScanned(code);
+
+      // 1. Gym / Service Membership Pass
+      if (code.toUpperCase().startsWith('SKN:PASS:')) {
+        const passCode = code.substring(9).trim();
+        try {
+          const res = await api.get(`/api/orders/pos-verify-pass/?pass_code=${encodeURIComponent(passCode)}`);
+          setVerifiedPass(res.data);
+          if (res.data.valid) {
+            toast.success(`Check-in verified: ${res.data.customer_name}`, { icon: '🟢' });
+            if (onPassCheckInComplete) onPassCheckInComplete();
+          } else {
+            toast.error(res.data.message || 'Pass Expired', { icon: '🔴' });
+          }
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Pass verification failed');
+        }
+        return;
+      }
+
+      // 2. Drop-off Claim Ticket (Laundry / Repair)
+      if (code.toUpperCase().startsWith('SKN:CLM:')) {
+        const orderId = code.substring(8).trim();
+        try {
+          const res = await api.get(`/api/orders/${orderId}/`);
+          setClaimTicket(res.data);
+          toast.success(`Claim ticket #${orderId} loaded`, { icon: '📋' });
+        } catch {
+          toast.error(`Claim ticket #${orderId} not found`);
+        }
+        return;
+      }
+
+      // 3. SokoniMax Product / Variant QR (SKN:P12:V34 or SKN:P12)
+      const pMatch = code.match(/^SKN:P(\d+)(?::V(\d+))?$/i);
+      if (pMatch) {
+        const pId = parseInt(pMatch[1], 10);
+        const vId = pMatch[2] ? parseInt(pMatch[2], 10) : null;
+        const targetProd = products.find(p => p.id === pId);
+        if (targetProd) {
+          if (vId) {
+            const targetVariant = (targetProd.variants || []).find(v => v.id === vId);
+            if (targetVariant) {
+              addToCart(targetProd, targetVariant);
+              toast.success(`Added ${targetProd.name} (${targetVariant.name})`, { icon: '🛍️' });
+            } else {
+              addToCart(targetProd);
+            }
+          } else {
+            const hasVariants = Boolean(targetProd.variants && targetProd.variants.length > 0);
+            const hasModifiers = Boolean(targetProd.modifiers && targetProd.modifiers.length > 0);
+            if (hasVariants || hasModifiers) {
+              onClose();
+              onSelectProductForCustomization(targetProd);
+            } else {
+              addToCart(targetProd);
+              toast.success(`Added ${targetProd.name}`, { icon: '🛍️' });
+            }
+          }
+        } else {
+          toast.error(`Product ID ${pId} not in loaded inventory`);
+        }
+        return;
+      }
+
+      // 4. Barcode / SKU lookup
+      const matchedProdBySku = products.find(p => p.sku && p.sku.toLowerCase() === code.toLowerCase());
+      if (matchedProdBySku) {
+        const hasVariants = Boolean(matchedProdBySku.variants && matchedProdBySku.variants.length > 0);
+        const hasModifiers = Boolean(matchedProdBySku.modifiers && matchedProdBySku.modifiers.length > 0);
+        if (hasVariants || hasModifiers) {
+          onClose();
+          onSelectProductForCustomization(matchedProdBySku);
+        } else {
+          addToCart(matchedProdBySku);
+          toast.success(`Added ${matchedProdBySku.name}`, { icon: '🛍️' });
+        }
+        return;
+      }
+
+      // 5. Variant SKU lookup
+      for (const p of products) {
+        const vMatch = (p.variants || []).find(v => v.sku && v.sku.toLowerCase() === code.toLowerCase());
+        if (vMatch) {
+          addToCart(p, vMatch);
+          toast.success(`Added ${p.name} (${vMatch.name})`, { icon: '🛍️' });
+          return;
+        }
+      }
+
+      toast.error(`Barcode / QR "${code}" not found in inventory`, { icon: '⚠️' });
+    };
+
+    html5Qr.start(
+      { facingMode: 'environment' },
+      { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+      handleScanSuccess,
+      () => {}
+    ).catch(err => {
+      console.error('Camera start error:', err);
+      toast.error('Unable to access camera for scanning');
+    });
+
+    return () => {
+      if (html5Qr.isScanning) {
+        html5Qr.stop().then(() => html5Qr.clear()).catch(() => {});
+      }
+    };
+  }, [isOpen, products]);
+
+  if (!isOpen) return null;
+
+  const totalCartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  const handleRenewExpiredPass = (pass: any) => {
+    const targetProd = products.find(p => p.id === pass.product_id);
+    if (targetProd) {
+      const targetVar = pass.variant_id ? (targetProd.variants || []).find(v => v.id === pass.variant_id) : null;
+      addToCart(targetProd, targetVar);
+      toast.success(`Renewing ${pass.product_name} - loaded into cart`, { icon: '🔄' });
+      setVerifiedPass(null);
+      onClose();
+    } else {
+      toast.error('Plan product not found in inventory');
+    }
+  };
+
+  const handleMarkCollected = async (orderId: number) => {
+    try {
+      await api.patch(`/api/orders/${orderId}/`, { status: 'DELIVERED' });
+      toast.success(`Order #${orderId} marked as collected!`, { icon: '✅' });
+      setClaimTicket(null);
+    } catch {
+      toast.error('Failed to update status');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 animate-fade-in">
+      <div className="bg-neutral-900 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl relative">
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+            {t('continuous_scanner', 'POS Continuous Scanner')}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Viewfinder Area */}
+        <div className="p-4 relative flex flex-col items-center">
+          <div 
+            id="pos-continuous-scanner-reader" 
+            className="w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden bg-black relative shadow-inner"
+          />
+
+          <p className="text-3xs text-neutral-400 mt-2 text-center">
+            Point camera at product barcodes, QR stickers, or member check-in passes
+          </p>
+
+          {lastScanned && (
+            <div className="mt-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-3xs font-mono">
+              Scanned: {lastScanned}
+            </div>
+          )}
+
+          {/* Member Check-in Overlay Card */}
+          {verifiedPass && (
+            <div className="absolute inset-x-4 top-4 bottom-4 z-20 bg-neutral-950/95 border border-neutral-700 rounded-2xl p-4 flex flex-col justify-between animate-fade-in shadow-2xl">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    {verifiedPass.valid ? (
+                      <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</span>
+                    ) : (
+                      <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-xs">✕</span>
+                    )}
+                    <div>
+                      <h4 className="text-xs font-bold text-white">
+                        {verifiedPass.valid ? 'MEMBER VERIFIED' : 'MEMBERSHIP EXPIRED'}
+                      </h4>
+                      <span className="text-3xs text-neutral-400 font-mono">#{verifiedPass.pass_code}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setVerifiedPass(null)} className="text-neutral-400 hover:text-white text-xs">✕</button>
+                </div>
+
+                <div className="mt-3 space-y-1.5 text-xs text-neutral-200">
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Customer:</span>
+                    <span className="font-bold text-white">{verifiedPass.customer_name}</span>
+                  </div>
+                  {verifiedPass.customer_phone && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">Phone:</span>
+                      <span className="font-mono text-neutral-300">{verifiedPass.customer_phone}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Plan:</span>
+                    <span className="font-semibold text-amber-400">{verifiedPass.product_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Status:</span>
+                    <span className={`font-bold ${verifiedPass.valid ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {verifiedPass.valid ? `${verifiedPass.days_remaining} day(s) left` : `Expired ${verifiedPass.days_ago || 0} day(s) ago`}
+                    </span>
+                  </div>
+                  {verifiedPass.valid && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">Check-ins:</span>
+                      <span className="font-bold text-white">#{verifiedPass.check_in_count}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-white/10 flex gap-2">
+                {!verifiedPass.valid && (
+                  <button
+                    type="button"
+                    onClick={() => handleRenewExpiredPass(verifiedPass)}
+                    className="flex-1 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RefreshCw size={12} /> Renew in Cart
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setVerifiedPass(null)}
+                  className="flex-1 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition cursor-pointer"
+                >
+                  {verifiedPass.valid ? 'Continue Scanning' : 'Dismiss'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Claim Ticket Overlay Card */}
+          {claimTicket && (
+            <div className="absolute inset-x-4 top-4 bottom-4 z-20 bg-neutral-950/95 border border-neutral-700 rounded-2xl p-4 flex flex-col justify-between animate-fade-in shadow-2xl">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Receipt size={16} className="text-amber-400" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white">CLAIM TICKET #{claimTicket.id}</h4>
+                      <span className="text-3xs text-neutral-400">Status: {claimTicket.status}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setClaimTicket(null)} className="text-neutral-400 hover:text-white text-xs">✕</button>
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-neutral-200">
+                  <p className="text-neutral-400">Customer: <strong className="text-white">{claimTicket.delivery_info?.customer_name || 'Customer'}</strong></p>
+                  <p className="text-neutral-400">Total: <strong className="text-amber-400">TSh {parseFloat(claimTicket.total_amount || 0).toLocaleString()}</strong></p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-white/10 flex gap-2">
+                {claimTicket.status !== 'DELIVERED' && (
+                  <button
+                    type="button"
+                    onClick={() => handleMarkCollected(claimTicket.id)}
+                    className="flex-1 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    ✓ Mark as Collected
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setClaimTicket(null)}
+                  className="flex-1 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer with Mini-Cart */}
+        <div className="px-5 pb-5 pt-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center font-bold">
+              {totalCartCount}
+            </span>
+            <div>
+              <span className="text-3xs text-neutral-400 block uppercase">Register Cart</span>
+              <span className="font-bold text-white tabular-nums">TSh {cartTotal.toLocaleString()}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-full bg-white hover:bg-neutral-200 active:scale-95 text-black text-xs font-bold transition cursor-pointer"
+          >
+            Review Cart
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface POSServicePassesViewProps {
+  onRenewPass: (pass: any) => void;
+  onOpenScanner: () => void;
+}
+
+const POSServicePassesView: React.FC<POSServicePassesViewProps> = ({
+  onRenewPass,
+  onOpenScanner,
+}) => {
+  const [passes, setPasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'active' | 'expiring' | 'expired'>('all');
+  const [search, setSearch] = useState('');
+  const [checkingInId, setCheckingInId] = useState<number | null>(null);
+
+  const fetchPasses = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    try {
+      const params: any = {};
+      if (filter !== 'all') params.status = filter;
+      if (search.trim()) params.search = search.trim();
+      const res = await api.get('/api/orders/pos-service-passes/', { params });
+      setPasses(Array.isArray(res.data) ? res.data : (res.data?.results || []));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (isInitial) setLoading(false);
+    }
+  }, [filter, search]);
+
+  useEffect(() => {
+    fetchPasses(true);
+  }, [fetchPasses]);
+
+  const handleCheckIn = async (passCode: string, passId: number) => {
+    setCheckingInId(passId);
+    try {
+      const res = await api.get(`/api/orders/pos-verify-pass/?pass_code=${encodeURIComponent(passCode)}`);
+      if (res.data.valid) {
+        toast.success(`Check-in recorded for ${res.data.customer_name} (Pass #${passCode})!`, { icon: '🟢' });
+        // Optimistically increment count smoothly without table skeleton reload
+        setPasses(prev => prev.map(p => p.id === passId ? {
+          ...p,
+          check_in_count: (p.check_in_count || 0) + 1,
+          last_checked_in: new Date().toISOString()
+        } : p));
+        // Silent background sync
+        fetchPasses(false);
+      } else {
+        toast.error(res.data.message || 'Pass has expired', { icon: '🔴' });
+      }
+    } catch {
+      toast.error('Check-in failed');
+    } finally {
+      setCheckingInId(null);
+    }
+  };
+
+  const handleWhatsAppReminder = (pass: any) => {
+    const rawPhone = String(pass.customer_phone || '').replace(/\D/g, '');
+    let cleanPhone = rawPhone;
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '255' + cleanPhone.slice(1);
+    } else if (!cleanPhone.startsWith('255') && cleanPhone.length === 9) {
+      cleanPhone = '255' + cleanPhone;
+    }
+
+    const expiryStr = new Date(pass.expires_at).toLocaleDateString();
+    const msg = encodeURIComponent(
+      `Habari ${pass.customer_name}, huu ni ukumbusho wa uanachama wako wa ${pass.product_name}${pass.variant_name ? ` (${pass.variant_name})` : ''} unaoisha tarehe ${expiryStr}. Tafadhali fanya upya kuendelea kufurahia huduma zetu! Asante.`
+    );
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Filters and Search Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { id: 'all', label: 'All Passes' },
+            { id: 'active', label: 'Active' },
+            { id: 'expiring', label: 'Expiring This Week' },
+            { id: 'expired', label: 'Expired' },
+          ].map(f => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id as any)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+                filter === f.id
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-bold shadow-xs'
+                  : 'bg-surface-muted dark:bg-[#161616] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-[200px] sm:w-64">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search member, phone, or pass #..."
+              className="w-full pl-8 pr-8 py-1.5 text-xs rounded-xl bg-surface-muted dark:bg-[#161616] border-0 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenScanner}
+            className="px-3 py-1.5 rounded-full bg-surface-muted dark:bg-[#161616] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
+          >
+            <Camera size={13} />
+            <span className="hidden sm:inline">Scan Check-In QR</span>
+            <span className="sm:hidden">Scan</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Passes Table */}
+      {loading ? (
+        <TableSkeleton rows={5} cols={7} withHeader={false} />
+      ) : (
+        <div className="card overflow-hidden !border-none !rounded-none !bg-transparent">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-neutral-100 dark:bg-neutral-800/80 text-2xs uppercase tracking-wider text-gray-600 dark:text-gray-300 font-bold">
+                <tr>
+                  <th className="p-3">PASS CODE</th>
+                  <th className="p-3">MEMBER / CUSTOMER</th>
+                  <th className="p-3">SERVICE PLAN</th>
+                  <th className="p-3">EXPIRATION</th>
+                  <th className="p-3 text-center">CHECK-INS</th>
+                  <th className="p-3 text-center">STATUS</th>
+                  <th className="p-3 text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {passes.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">
+                      No membership passes found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  passes.map((pass: any) => {
+                    const isExpired = !pass.is_valid || new Date(pass.expires_at) < new Date();
+                    const daysLeft = Math.ceil((new Date(pass.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    const isExpiringSoon = !isExpired && daysLeft <= 7;
+
+                    return (
+                      <tr key={pass.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                        <td className="p-3 font-mono text-gray-900 dark:text-white font-bold">
+                          #{pass.pass_code}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {pass.customer_name}
+                          </div>
+                          {pass.customer_phone && (
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                              <Phone size={10} className="opacity-70" />
+                              <span>{pass.customer_phone}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300">
+                          <div className="font-medium text-gray-900 dark:text-white">{pass.product_name}</div>
+                          {pass.variant_name && (
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {pass.variant_name}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-600 dark:text-gray-400">
+                          <div className="text-gray-900 dark:text-white font-medium">
+                            {new Date(pass.expires_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {isExpired ? 'Expired' : `${daysLeft} days remaining`}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center font-bold text-gray-900 dark:text-white">
+                          {pass.check_in_count || 0}
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`text-2xs font-semibold ${
+                            isExpired
+                              ? 'text-rose-500 dark:text-rose-400'
+                              : isExpiringSoon
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-neutral-900 dark:text-white'
+                          }`}>
+                            {isExpired ? 'Expired' : isExpiringSoon ? 'Expiring Soon' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {!isExpired && (
+                              <button
+                                type="button"
+                                disabled={checkingInId === pass.id}
+                                onClick={() => handleCheckIn(pass.pass_code, pass.id)}
+                                className="px-2.5 py-1 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white text-2xs font-semibold transition flex items-center gap-1 cursor-pointer border-0 outline-none disabled:opacity-60"
+                                title="Record member visit"
+                              >
+                                {checkingInId === pass.id ? (
+                                  <Loader2 size={12} className="animate-spin text-neutral-400 shrink-0" />
+                                ) : (
+                                  <Check size={12} className="shrink-0" />
+                                )}
+                                <span>Check In</span>
+                              </button>
+                            )}
+
+                            {pass.customer_phone && (
+                              <button
+                                type="button"
+                                onClick={() => handleWhatsAppReminder(pass)}
+                                className="px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white text-2xs font-semibold transition flex items-center gap-1 cursor-pointer border-0"
+                                title="Send WhatsApp renewal reminder"
+                              >
+                                <Send size={11} />
+                                <span>WhatsApp</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => onRenewPass(pass)}
+                              className="px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white text-2xs font-semibold transition flex items-center gap-1 cursor-pointer border-0"
+                              title="Renew membership in cart"
+                            >
+                              <RefreshCw size={11} />
+                              <span>Renew</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -859,7 +1979,12 @@ const POSVariantMatrixOverlay: React.FC<POSVariantMatrixOverlayProps> = ({
 const DashboardPOS: React.FC = () => {
   const { user, activeLocation, setActiveLocation, assignedLocations } = useAuth();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'sale' | 'history' | 'invoices'>('sale');
+  const [activeTab, setActiveTab] = useState<'sale' | 'history' | 'invoices' | 'passes'>('sale');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [orderType, setOrderType] = useState<'walk_in' | 'dine_in' | 'takeaway'>('walk_in');
+  const [tableNumber, setTableNumber] = useState('');
+  const [pickupRequired, setPickupRequired] = useState(false);
+  const [pickupPromisedTime, setPickupPromisedTime] = useState('');
   const [historyDateRange, setHistoryDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
@@ -906,7 +2031,84 @@ const DashboardPOS: React.FC = () => {
   const [receiptData, setReceiptData] = useState<any>(null);
   
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
-  const [activeVariantCardId, setActiveVariantCardId] = useState<number | null>(null);
+  const [selectedProductForOptions, setSelectedProductForOptions] = useState<Product | null>(null);
+
+  // POS Mode & Feature Configurations (Shop / Gym / Restaurant / Salon)
+  const [posConfig, setPosConfig] = useState<POSModuleConfig>(() => getStoredPOSConfig(user?.username));
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isRecordsDropdownOpen, setIsRecordsDropdownOpen] = useState(false);
+  const [recordsDropdownPos, setRecordsDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const recordsBtnRef = useRef<HTMLButtonElement>(null);
+  const recordsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const toggleRecordsDropdown = () => {
+    if (!isRecordsDropdownOpen && recordsBtnRef.current) {
+      const rect = recordsBtnRef.current.getBoundingClientRect();
+      setRecordsDropdownPos({
+        top: rect.bottom + 6,
+        right: Math.max(12, window.innerWidth - rect.right),
+      });
+      setIsRecordsDropdownOpen(true);
+    } else {
+      setIsRecordsDropdownOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isRecordsDropdownOpen) return;
+    const updatePos = () => {
+      if (recordsBtnRef.current) {
+        const rect = recordsBtnRef.current.getBoundingClientRect();
+        setRecordsDropdownPos({
+          top: rect.bottom + 6,
+          right: Math.max(12, window.innerWidth - rect.right),
+        });
+      }
+    };
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [isRecordsDropdownOpen]);
+
+  const handleUpdateConfig = (newConfig: POSModuleConfig) => {
+    setPosConfig(newConfig);
+    try {
+      localStorage.setItem('pos_module_config_v2', JSON.stringify(newConfig));
+      localStorage.setItem('pos_module_config', JSON.stringify(newConfig));
+    } catch {}
+    toast.success('POS mode updated', { icon: '⚙️' });
+
+    if (activeTab === 'invoices' && !newConfig.enableInvoices) {
+      setActiveTab('sale');
+    }
+    if (activeTab === 'passes' && !newConfig.enableMemberships) {
+      setActiveTab('sale');
+    }
+    if (!newConfig.enableDropOffClaim) {
+      setPickupRequired(false);
+      setPickupPromisedTime('');
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        recordsDropdownRef.current && 
+        !recordsDropdownRef.current.contains(e.target as Node) &&
+        recordsBtnRef.current &&
+        !recordsBtnRef.current.contains(e.target as Node)
+      ) {
+        setIsRecordsDropdownOpen(false);
+      }
+    };
+    if (isRecordsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isRecordsDropdownOpen]);
 
   const printRef = useRef<HTMLDivElement>(null);
   const invoicePrintRef = useRef<HTMLDivElement>(null);
@@ -1000,13 +2202,13 @@ const DashboardPOS: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && activeVariantCardId !== null) {
-        setActiveVariantCardId(null);
+      if (e.key === 'Escape' && selectedProductForOptions !== null) {
+        setSelectedProductForOptions(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeVariantCardId]);
+  }, [selectedProductForOptions]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -1017,14 +2219,20 @@ const DashboardPOS: React.FC = () => {
     });
   }, [products, searchQuery]);
 
-  const addToCart = (product: Product, variant: any = null) => {
-    const id = variant ? `${product.id}-${variant.id}` : `${product.id}-null`;
-    const stock = variant ? variant.stock : product.stock;
-    let price = variant 
+  const addToCart = useCallback((
+    product: Product,
+    variant: any = null,
+    addons: SelectedAddon[] = [],
+    attendantName?: string
+  ) => {
+    const isService = Boolean(product.is_service);
+    const stock = variant ? parseFloat(String(variant.stock || 0)) : parseFloat(String(product.stock || 0));
+
+    let basePrice = variant 
       ? (variant.final_price != null ? parseFloat(variant.final_price) : parseFloat(product.price) + parseFloat(variant.price_adjustment || 0))
       : parseFloat(product.price);
     
-    if (stock <= 0) {
+    if (!isService && stock <= 0) {
       toast.error(t('out_of_stock', 'Out of stock!'));
       return;
     }
@@ -1035,13 +2243,22 @@ const DashboardPOS: React.FC = () => {
         toast.error(t('valid_price_required', 'Valid price is required for this product'));
         return;
       }
-      price = parseFloat(userPrice);
+      basePrice = parseFloat(userPrice);
     }
+
+    const addonsTotal = (addons || []).reduce((acc, a) => acc + (a.price * a.quantity), 0);
+    const unitPrice = basePrice + addonsTotal;
+
+    const addonKey = addons && addons.length > 0 
+      ? `_add_${addons.map(a => `${a.name}:${a.quantity}`).sort().join(';')}` 
+      : '';
+    const attendantKey = attendantName ? `_att_${attendantName}` : '';
+    const id = `${product.id}-${variant ? variant.id : 'null'}${addonKey}${attendantKey}`;
 
     setCart(prev => {
       const existing = prev.find(item => item.id === id);
       if (existing) {
-        if (existing.quantity >= stock) {
+        if (!isService && existing.quantity >= stock) {
           toast.error(t('max_stock_reached', 'Maximum stock reached!'));
           return prev;
         }
@@ -1053,20 +2270,25 @@ const DashboardPOS: React.FC = () => {
         variant_id: variant ? variant.id : null,
         name: product.name,
         variant_name: variant ? variant.name : null,
-        price,
+        price: unitPrice,
+        base_price: basePrice,
+        addons: addons && addons.length > 0 ? addons : undefined,
+        attendant_name: attendantName,
+        is_service: isService,
+        validity_days: variant?.validity_days || product.validity_days,
         quantity: 1,
-        max_stock: stock
+        max_stock: isService ? 999999 : stock
       }];
     });
     
     toast.success(t('pos_added_to_sale', 'Added to sale'), { duration: 1500, icon: '🛍️' });
-  };
+  }, [t]);
 
   const updateQuantity = (id: string, delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQ = item.quantity + delta;
-        if (newQ > 0 && newQ <= item.max_stock) {
+        if (newQ > 0 && (item.is_service || newQ <= item.max_stock)) {
           return { ...item, quantity: newQ };
         }
       }
@@ -1077,12 +2299,77 @@ const DashboardPOS: React.FC = () => {
   const setQuantity = (id: string, newQty: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
-        const clamped = Math.max(1, Math.min(item.max_stock, Math.floor(newQty)));
+        const maxAllowed = item.is_service ? 999999 : item.max_stock;
+        const clamped = Math.max(1, Math.min(maxAllowed, Math.floor(newQty)));
         return { ...item, quantity: clamped };
       }
       return item;
     }));
   };
+
+  // Hardware USB Barcode Scanner listener (keyboard wedge)
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = 0;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastKeyTime > 80) {
+        buffer = '';
+      }
+      lastKeyTime = now;
+
+      if (e.key === 'Enter') {
+        if (buffer.length >= 3) {
+          e.preventDefault();
+          const code = buffer.trim();
+          playAudioBeep();
+          
+          const pMatch = code.match(/^SKN:P(\d+)(?::V(\d+))?$/i);
+          if (pMatch) {
+            const pId = parseInt(pMatch[1], 10);
+            const vId = pMatch[2] ? parseInt(pMatch[2], 10) : null;
+            const targetProd = products.find(p => p.id === pId);
+            if (targetProd) {
+              if (vId) {
+                const targetVar = (targetProd.variants || []).find(v => v.id === vId);
+                if (targetVar) addToCart(targetProd, targetVar);
+              } else {
+                addToCart(targetProd);
+              }
+              toast.success(`Scanned: ${targetProd.name}`, { icon: '📟' });
+            }
+          } else {
+            const matched = products.find(p => p.sku && p.sku.toLowerCase() === code.toLowerCase());
+            if (matched) {
+              addToCart(matched);
+              toast.success(`Scanned: ${matched.name}`, { icon: '📟' });
+            } else {
+              for (const p of products) {
+                const v = (p.variants || []).find(varItem => varItem.sku && varItem.sku.toLowerCase() === code.toLowerCase());
+                if (v) {
+                  addToCart(p, v);
+                  toast.success(`Scanned: ${p.name} (${v.name})`, { icon: '📟' });
+                  break;
+                }
+              }
+            }
+          }
+        }
+        buffer = '';
+      } else if (e.key.length === 1) {
+        buffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [products, addToCart]);
 
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
@@ -1186,6 +2473,11 @@ const DashboardPOS: React.FC = () => {
     try {
       const payload = {
         customer_name: customerName,
+        customer_phone: customerPhone ? customerPhone.trim().replace(/[\s-]/g, '') : '',
+        order_type: orderType,
+        table_number: orderType === 'dine_in' ? tableNumber : '',
+        pickup_required: pickupRequired,
+        pickup_promised_time: pickupRequired ? pickupPromisedTime : '',
         amount_paid: amountPaid ? parseFloat(amountPaid) : null,
         promo_code: appliedPromo ? appliedPromo.code : null,
         discount_amount: discountAmount,
@@ -1194,7 +2486,9 @@ const DashboardPOS: React.FC = () => {
           product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          addons: item.addons || [],
+          attendant_name: item.attendant_name || '',
         }))
       };
 
@@ -1206,6 +2500,11 @@ const DashboardPOS: React.FC = () => {
       setPromoCode('');
       setCustomDiscount(0);
       setCustomerName(t('walk_in_customer', 'Walk-in Customer'));
+      setCustomerPhone('');
+      setOrderType('walk_in');
+      setTableNumber('');
+      setPickupRequired(false);
+      setPickupPromisedTime('');
       setAmountPaid('');
       setIsMobileCartOpen(false);
       fetchProducts(); // Refresh stock
@@ -1287,7 +2586,7 @@ const DashboardPOS: React.FC = () => {
     try {
       const payload = {
         customer_name: customerName,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone ? customerPhone.trim().replace(/[\s-]/g, '') : '',
         customer_tin: customerTin,
         notes: invoiceNotes,
         validity_period: validityPeriod,
@@ -1298,7 +2597,9 @@ const DashboardPOS: React.FC = () => {
           product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          addons: item.addons || [],
+          attendant_name: item.attendant_name || '',
         }))
       };
 
@@ -1434,20 +2735,9 @@ const DashboardPOS: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
           <div className="min-w-0 flex items-start sm:items-center justify-between md:justify-start gap-2.5 sm:gap-3 flex-wrap">
             <div className="min-w-0 flex-1 md:flex-initial">
-              <div className="flex items-center justify-between gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
-                  {t('point_of_sale', 'Point of Sale (POS)')}
-                </h1>
-                {(activeTab === 'history' || activeTab === 'invoices') && (
-                  <div className="md:hidden shrink-0">
-                    <DateRangePicker 
-                      value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
-                      onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
-                      buttonClassName="rounded-full !py-1 text-xs font-semibold"
-                    />
-                  </div>
-                )}
-              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                {t('point_of_sale', 'Point of Sale (POS)')}
+              </h1>
               <p 
                 className="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm truncate mt-0.5"
                 title={t('pos_subtitle', 'Make direct sales and print receipts. Click on a product to add.')}
@@ -1504,7 +2794,7 @@ const DashboardPOS: React.FC = () => {
             ) : null}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-end gap-2 w-full md:w-auto shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-center md:justify-end gap-2 w-full md:w-auto shrink-0">
             {activeTab === 'sale' && (
               <div className="hidden md:block relative md:w-60 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
@@ -1528,17 +2818,18 @@ const DashboardPOS: React.FC = () => {
               </div>
             )}
 
-            {(activeTab === 'history' || activeTab === 'invoices') && (
-              <div className="hidden md:block">
-                <DateRangePicker 
-                  value={activeTab === 'history' ? historyDateRange : invoiceDateRange} 
-                  onChange={activeTab === 'history' ? setHistoryDateRange : setInvoiceDateRange} 
-                  buttonClassName="rounded-full !py-1.5 text-xs font-semibold"
-                />
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+            <div className="flex items-center justify-between md:justify-end gap-1 sm:gap-1.5 shrink-0 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold bg-surface-muted dark:bg-[#161616] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer shrink-0"
+                title="Continuous camera scanner for QR codes and manufacturer barcodes"
+              >
+                <Camera size={13} className="shrink-0" />
+                <span className="hidden sm:inline">Scan QR / Barcode</span>
+                <span className="hidden min-[360px]:inline sm:hidden">Scan QR</span>
+                <span className="min-[360px]:hidden">Scan</span>
+              </button>
               <button 
                 type="button"
                 onClick={() => setActiveTab('sale')}
@@ -1551,34 +2842,124 @@ const DashboardPOS: React.FC = () => {
                 <Receipt size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
                 <span>{t('new_sale', 'New Sale')}</span>
               </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab('history')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'history'
-                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <History size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
-                <span>{t('sales_history', 'Sales History')}</span>
-              </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab('invoices')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'invoices'
-                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <FileText size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
-                <span>{t('invoice_history', 'Invoice History')}</span>
-                {unpaidInvoicesCount > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-bold tabular-nums">
-                    {unpaidInvoicesCount}
-                  </span>
+              {/* History & Records Dropdown */}
+              <div className="relative">
+                <button
+                  ref={recordsBtnRef}
+                  type="button"
+                  onClick={toggleRecordsDropdown}
+                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer ${
+                    activeTab !== 'sale'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                      : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                  title="View sales records, invoices, or memberships"
+                >
+                  <History size={12} className="shrink-0 sm:w-[13px] sm:h-[13px]" />
+                  <span>{t('records', 'Records')}</span>
+                  {unpaidInvoicesCount > 0 && posConfig.enableInvoices && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  )}
+                  <ChevronDown size={11} className={`transition-transform duration-150 shrink-0 ${isRecordsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isRecordsDropdownOpen && recordsDropdownPos && createPortal(
+                  <div 
+                    ref={recordsDropdownRef}
+                    style={{
+                      position: 'fixed',
+                      top: `${recordsDropdownPos.top}px`,
+                      right: `${recordsDropdownPos.right}px`,
+                      zIndex: 99999,
+                    }}
+                    className="w-56 rounded-2xl bg-neutral-800 text-white border-0 shadow-2xl py-1.5 animate-scale-in overflow-hidden"
+                  >
+                    {/* Sales History */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('history');
+                        setIsRecordsDropdownOpen(false);
+                      }}
+                      className={`w-full px-3.5 py-2.5 text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'history'
+                          ? 'bg-neutral-700 text-white font-bold'
+                          : 'text-neutral-300 hover:text-white hover:bg-neutral-700/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <History size={13} className="text-neutral-400" />
+                        <span>{t('sales_history', 'Sales History')}</span>
+                      </div>
+                      {activeTab === 'history' && <Check size={12} className="text-amber-500" />}
+                    </button>
+
+                    {/* Invoice History (if enabled) */}
+                    {posConfig.enableInvoices && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('invoices');
+                          setIsRecordsDropdownOpen(false);
+                        }}
+                        className={`w-full px-3.5 py-2.5 text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                          activeTab === 'invoices'
+                            ? 'bg-neutral-700 text-white font-bold'
+                            : 'text-neutral-300 hover:text-white hover:bg-neutral-700/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText size={13} className="text-neutral-400" />
+                          <span>{t('invoice_history', 'Invoice History')}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {unpaidInvoicesCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-bold tabular-nums">
+                              {unpaidInvoicesCount}
+                            </span>
+                          )}
+                          {activeTab === 'invoices' && <Check size={12} className="text-amber-500" />}
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Memberships (if enabled) */}
+                    {posConfig.enableMemberships && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('passes');
+                          setIsRecordsDropdownOpen(false);
+                        }}
+                        className={`w-full px-3.5 py-2.5 text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                          activeTab === 'passes'
+                            ? 'bg-neutral-700 text-white font-bold'
+                            : 'text-neutral-300 hover:text-white hover:bg-neutral-700/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <UserCheck size={13} className="text-neutral-400" />
+                          <span>{t('memberships_tab', 'Memberships')}</span>
+                        </div>
+                        {activeTab === 'passes' && <Check size={12} className="text-amber-500" />}
+                      </button>
+                    )}
+                  </div>,
+                  document.body
                 )}
+              </div>
+
+              {/* POS Mode Settings Icon Button */}
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold bg-surface-muted dark:bg-[#161616] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0"
+                title="POS Mode & Module Settings (Food / Gym / Retail / Salon)"
+              >
+                <Settings size={12} className="shrink-0 sm:w-[13px] sm:h-[13px] text-gray-400" />
+                <span className="capitalize whitespace-nowrap">
+                  {posConfig.preset === 'all' ? 'Mode' : posConfig.preset}
+                </span>
               </button>
             </div>
 
@@ -1611,7 +2992,7 @@ const DashboardPOS: React.FC = () => {
       {activeTab === 'sale' ? (
         <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch items-start lg:h-[calc(100vh-210px)] lg:min-h-[580px]">
           {/* Products Section */}
-          <div className="flex-1 w-full card !border-none overflow-hidden flex flex-col h-full">
+          <div className="flex-1 w-full bg-white dark:bg-[#141414] rounded-3xl border-0 outline-none ring-0 overflow-hidden flex flex-col h-full shadow-none">
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto flex-1 min-h-0">
               {loading ? (
@@ -1626,8 +3007,10 @@ const DashboardPOS: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                   {filteredProducts.map((product) => {
                     const stockNum = parseFloat(String(product.stock || 0));
+                    const isService = Boolean(product.is_service);
                     const hasVariants = Boolean(product.variants && product.variants.length > 0);
-                    const isVariantOpen = activeVariantCardId === product.id;
+                    const hasModifiers = Boolean(product.modifiers && product.modifiers.length > 0);
+                    const requiresCustomization = hasVariants || hasModifiers;
                     const effectiveStock = hasVariants
                       ? product.variants!.reduce((sum: number, v: any) => sum + parseFloat(String(v.stock || 0)), 0)
                       : stockNum;
@@ -1636,17 +3019,13 @@ const DashboardPOS: React.FC = () => {
                       <div 
                         key={product.id} 
                         onClick={() => {
-                          if (hasVariants) {
-                            setActiveVariantCardId(prev => prev === product.id ? null : product.id);
-                          } else if (effectiveStock > 0) {
+                          if (requiresCustomization) {
+                            setSelectedProductForOptions(product);
+                          } else if (effectiveStock > 0 || isService) {
                             addToCart(product);
                           }
                         }}
-                        className={`group relative rounded-2xl overflow-hidden cursor-pointer border bg-gray-100 dark:bg-[#141414] transition-all flex flex-col aspect-[3/4] select-none ${
-                          isVariantOpen
-                            ? 'border-neutral-700 shadow-xl ring-1 ring-white/10'
-                            : 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-600 hover:shadow-card-hover'
-                        }`}
+                        className="group relative rounded-2xl overflow-hidden cursor-pointer border-0 bg-gray-100 dark:bg-[#141414] transition-all flex flex-col aspect-[3/4] select-none hover:shadow-card-hover"
                       >
                         {/* Image covering entire card - clearly visible, no dark fade */}
                         <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-100 dark:bg-[#161616]">
@@ -1656,7 +3035,7 @@ const DashboardPOS: React.FC = () => {
                             category={product.category_name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
-                          {effectiveStock <= 0 && (
+                          {!isService && effectiveStock <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-20">
                               <span className="text-white font-bold uppercase px-2.5 py-1 bg-red-600 rounded-full text-2xs shadow-md">{t('out_of_stock', 'Out of Stock')}</span>
                             </div>
@@ -1666,12 +3045,14 @@ const DashboardPOS: React.FC = () => {
                         {/* Top Badges */}
                         <div className="relative z-10 p-2 flex justify-between items-start pointer-events-none">
                           <div className="flex flex-col gap-1 items-start">
-                            <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm">
-                              {effectiveStock > 0 ? t('items_left', '{{count}} left', { count: Math.round(effectiveStock) }) : t('items_left', '0 left', { count: 0 })}
-                            </span>
-                            {product.pos_only && (
-                              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-blue-600/90 text-white shadow-sm flex items-center gap-0.5">
-                                📟 POS
+                            {!isService && (
+                              <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border-0 shadow-sm">
+                                {effectiveStock > 0 ? t('items_left', '{{count}} left', { count: Math.round(effectiveStock) }) : t('items_left', '0 left', { count: 0 })}
+                              </span>
+                            )}
+                            {isService && (
+                              <span className="text-3xs font-bold text-emerald-400 select-none whitespace-nowrap pl-0.5 pt-0.5">
+                                Service
                               </span>
                             )}
                           </div>
@@ -1679,15 +3060,15 @@ const DashboardPOS: React.FC = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (hasVariants) {
-                                setActiveVariantCardId(prev => prev === product.id ? null : product.id);
-                              } else if (effectiveStock > 0) {
+                              if (requiresCustomization) {
+                                setSelectedProductForOptions(product);
+                              } else if (effectiveStock > 0 || isService) {
                                 addToCart(product);
                               }
                             }}
-                            disabled={effectiveStock <= 0}
-                            className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border border-white/10 shadow-sm group-hover:bg-white group-hover:text-black group-hover:border-transparent hover:!bg-neutral-200 disabled:opacity-40 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
-                            title={hasVariants ? t('select_variant', 'Select variation') : t('add_to_cart', 'Add to cart')}
+                            disabled={!isService && effectiveStock <= 0}
+                            className="pointer-events-auto w-7 h-7 rounded-full bg-black/80 dark:bg-black/90 backdrop-blur-xs text-white border-0 shadow-sm hover:bg-neutral-800 disabled:opacity-40 flex items-center justify-center cursor-pointer transition-colors"
+                            title={requiresCustomization ? t('select_variant', 'Select variation / options') : t('add_to_cart', 'Add to cart')}
                           >
                             <Plus size={14} className="stroke-[2.5]" />
                           </button>
@@ -1700,41 +3081,40 @@ const DashboardPOS: React.FC = () => {
                             <h3 className="font-bold text-xs text-white truncate leading-tight">{product.name}</h3>
                           </div>
 
-                          {/* Price Bubble - Pure white text */}
-                          {(() => {
-                            const priceNum = parseInt(product.price || '0', 10);
-                            const priceFormatted = `TSh ${priceNum.toLocaleString()}`;
-                            return (
-                              <div className="w-fit max-w-full px-2 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center gap-1 whitespace-nowrap overflow-hidden">
-                                <span className={`font-black text-white tabular-nums leading-none tracking-tight whitespace-nowrap ${
-                                  priceFormatted.length >= 14
-                                    ? 'text-[10px] sm:text-2xs'
-                                    : priceFormatted.length >= 11
-                                      ? 'text-[11px] sm:text-xs'
-                                      : 'text-xs sm:text-sm'
-                                }`}>
-                                  {priceFormatted}
-                                </span>
-                                {hasVariants && (
-                                  <span className="text-[9px] text-neutral-400 font-medium ml-0.5 whitespace-nowrap shrink-0">
-                                    ({product.variants!.length})
+                          {/* Price Row with POS badge */}
+                          <div className="flex items-stretch justify-between gap-1.5 w-full">
+                            {/* Price Bubble - Pure white text */}
+                            {(() => {
+                              const priceNum = parseInt(product.price || '0', 10);
+                              const priceFormatted = `TSh ${priceNum.toLocaleString()}`;
+                              return (
+                                <div className="w-fit max-w-full px-2 py-0.5 rounded-full bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                                  <span className={`font-black text-white tabular-nums leading-none tracking-tight whitespace-nowrap ${
+                                    priceFormatted.length >= 14
+                                      ? 'text-[10px] sm:text-2xs'
+                                      : priceFormatted.length >= 11
+                                        ? 'text-[11px] sm:text-xs'
+                                        : 'text-xs sm:text-sm'
+                                  }`}>
+                                    {priceFormatted}
                                   </span>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
+                                  {hasVariants && (
+                                    <span className="text-[9px] text-neutral-400 font-medium ml-0.5 whitespace-nowrap shrink-0">
+                                      ({product.variants!.length})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
-                        {/* In-Card Variation Selection Matrix Overlay */}
-                        {isVariantOpen && hasVariants && (
-                          <POSVariantMatrixOverlay
-                            product={product}
-                            cart={cart}
-                            addToCart={addToCart}
-                            onClose={() => setActiveVariantCardId(null)}
-                            t={t}
-                          />
-                        )}
+                            {/* POS Badge: black like the price, matching exact height */}
+                            {product.pos_only && (
+                              <div className="px-2 py-0.5 rounded-full text-2xs font-black tracking-wide text-white bg-black/85 dark:bg-black/95 backdrop-blur-xs border border-white/10 shadow-md flex items-center justify-center shrink-0">
+                                POS
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -1744,7 +3124,7 @@ const DashboardPOS: React.FC = () => {
           </div>
 
           {/* Desktop Cart Sidebar */}
-          <div className="hidden lg:flex w-[380px] card !border-none overflow-hidden flex-col shrink-0 h-full">
+          <div className="hidden lg:flex w-[380px] bg-white dark:bg-[#141414] rounded-3xl border-0 outline-none ring-0 overflow-hidden flex-col shrink-0 h-full shadow-none">
             <CartContent 
               cart={cart} 
               cartTotal={cartTotal}
@@ -1778,6 +3158,15 @@ const DashboardPOS: React.FC = () => {
               setValidityPeriod={setValidityPeriod}
               invoiceNotes={invoiceNotes}
               setInvoiceNotes={setInvoiceNotes}
+              orderType={orderType}
+              setOrderType={setOrderType}
+              tableNumber={tableNumber}
+              setTableNumber={setTableNumber}
+              pickupRequired={pickupRequired}
+              setPickupRequired={setPickupRequired}
+              pickupPromisedTime={pickupPromisedTime}
+              setPickupPromisedTime={setPickupPromisedTime}
+              posConfig={posConfig}
             />
           </div>
 
@@ -1829,7 +3218,7 @@ const DashboardPOS: React.FC = () => {
             {isMobileCartOpen && (
               <div className="fixed inset-0 z-50 flex flex-col justify-end">
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setIsMobileCartOpen(false)} />
-                <div className="relative bg-white dark:bg-[#141414] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-t border-surface-border dark:border-surface-dark-border">
+                <div className="relative bg-white dark:bg-[#141414] w-full h-[85vh] rounded-t-card shadow-2xl flex flex-col animate-slide-up overflow-hidden border-0">
                   <div className="p-4 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                       {t('current_sale', 'Current Sale')}
@@ -1872,6 +3261,15 @@ const DashboardPOS: React.FC = () => {
                       setValidityPeriod={setValidityPeriod}
                       invoiceNotes={invoiceNotes}
                       setInvoiceNotes={setInvoiceNotes}
+                      orderType={orderType}
+                      setOrderType={setOrderType}
+                      tableNumber={tableNumber}
+                      setTableNumber={setTableNumber}
+                      pickupRequired={pickupRequired}
+                      setPickupRequired={setPickupRequired}
+                      pickupPromisedTime={pickupPromisedTime}
+                      setPickupPromisedTime={setPickupPromisedTime}
+                      posConfig={posConfig}
                     />
                   </div>
                 </div>
@@ -1880,16 +3278,50 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
       ) : activeTab === 'history' ? (
-        <POSHistory onPrint={(order) => setReceiptData(order)} dateRange={historyDateRange} />
-      ) : (
+        <POSHistory 
+          onPrint={(order) => setReceiptData(order)} 
+          dateRange={historyDateRange} 
+          onDateRangeChange={setHistoryDateRange}
+        />
+      ) : activeTab === 'invoices' ? (
         <POSInvoiceHistory
           onPrintInvoice={(inv) => setInvoiceModalData(inv)}
           onPrintReceipt={(order) => setReceiptData(order)}
           onMarkPaid={handleOpenMarkPaid}
           onCancelInvoice={handleCancelInvoice}
           dateRange={invoiceDateRange}
+          onDateRangeChange={setInvoiceDateRange}
           refreshTrigger={invoiceRefreshKey}
           onUnpaidCountChange={setUnpaidInvoicesCount}
+        />
+      ) : (
+        <POSServicePassesView
+          onRenewPass={async (pass) => {
+            const prodId = Number(pass.product || pass.product_id);
+            const varId = pass.variant != null ? Number(pass.variant) : (pass.variant_id != null ? Number(pass.variant_id) : null);
+
+            let targetProd = products.find(p => p.id === prodId);
+            if (!targetProd && prodId) {
+              try {
+                const res = await api.get(`/api/products/${prodId}/`);
+                targetProd = res.data;
+              } catch (err) {
+                console.error(err);
+              }
+            }
+
+            if (targetProd) {
+              const targetVar = varId ? (targetProd.variants || []).find((v: any) => v.id === varId) : null;
+              addToCart(targetProd, targetVar);
+              if (pass.customer_name) setCustomerName(pass.customer_name);
+              if (pass.customer_phone) setCustomerPhone(pass.customer_phone);
+              setActiveTab('sale');
+              toast.success(`Renewing ${pass.product_name || targetProd.name} - loaded into register`, { icon: '🔄' });
+            } else {
+              toast.error('Product not found in current inventory');
+            }
+          }}
+          onOpenScanner={() => setIsScannerOpen(true)}
         />
       )}
 
@@ -1971,6 +3403,15 @@ const DashboardPOS: React.FC = () => {
                   <p><strong>{t('customer', 'Customer:')}</strong> {receiptData?.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}</p>
                 </div>
                 
+                {/* Dining Order Type Tag */}
+                {receiptData?.delivery_info?.order_type && receiptData.delivery_info.order_type !== 'walk_in' && (
+                  <div className="text-center font-bold text-xs uppercase border-y border-dashed border-gray-400 py-1 mb-2">
+                    {receiptData.delivery_info.order_type === 'dine_in' 
+                      ? `🍽️ DINE-IN ${receiptData.delivery_info.table_number ? `(TABLE ${receiptData.delivery_info.table_number})` : ''}`
+                      : '🥡 TAKEAWAY / PACKAGED'}
+                  </div>
+                )}
+
                 {/* Items List */}
                 <div className="border-t border-b border-dashed border-gray-400 py-2 mb-3">
                   <div className="flex font-bold text-xs mb-1">
@@ -1992,6 +3433,21 @@ const DashboardPOS: React.FC = () => {
                       <div key={i} className="text-[11px] mb-2 last:mb-0">
                         <div className="font-bold whitespace-normal leading-tight">{name}</div>
                         {variantName && <div className="text-[10px] text-gray-600">[{variantName}]</div>}
+                        {item.selected_addons && item.selected_addons.length > 0 && (
+                          <div className="pl-2 text-[10px] text-gray-600 space-y-0.5">
+                            {item.selected_addons.map((add: any, ai: number) => (
+                              <div key={ai} className="flex justify-between">
+                                <span>+ {add.quantity > 1 ? `${add.quantity}x ` : ''}{add.name}</span>
+                                <span>+{(parseFloat(add.price || 0) * (add.quantity || 1)).toLocaleString()}/=</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {item.attendant_name && (
+                          <div className="text-[9px] text-gray-500 italic pl-2">
+                            Served by: {item.attendant_name}
+                          </div>
+                        )}
                         <div className="flex justify-between mt-0.5">
                           <span className="text-gray-600">{qty} x {price.toLocaleString()}/=</span>
                           <span className="font-bold">{total.toLocaleString()}/=</span>
@@ -2053,6 +3509,36 @@ const DashboardPOS: React.FC = () => {
                   </>
                 )}
                 
+                {/* Issued Member Service Passes */}
+                {(receiptData.service_passes || []).map((sp: any) => (
+                  <div key={sp.id} className="border-t border-dashed border-gray-400 mt-3 pt-2 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700">MEMBER CHECK-IN PASS</p>
+                    <p className="text-xs font-black">{sp.product_name} {sp.variant_name ? `(${sp.variant_name})` : ''}</p>
+                    <p className="text-[10px] text-gray-600">MEMBER: {sp.customer_name}</p>
+                    <p className="text-[10px] font-bold text-gray-800">VALID UNTIL: {new Date(sp.expires_at).toLocaleDateString()}</p>
+                    <div className="flex justify-center my-2">
+                      <QRCodeSVG value={`SKN:PASS:${sp.pass_code}`} size={76} level="M" />
+                    </div>
+                    <p className="text-[9px] text-gray-500">Scan at entrance on each visit</p>
+                  </div>
+                ))}
+
+                {/* Drop-off Claim Ticket (Laundry / Repair) */}
+                {receiptData?.delivery_info?.pickup_required && (
+                  <div className="border-t border-dashed border-gray-400 mt-3 pt-2 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700">CLAIM / PICKUP TICKET</p>
+                    <p className="text-xs font-black">CLAIM #{receiptData.id}</p>
+                    <p className="text-[10px] text-gray-600">CUSTOMER: {receiptData.delivery_info?.customer_name || 'Customer'}</p>
+                    {receiptData.delivery_info?.pickup_promised_time && (
+                      <p className="text-[10px] font-bold text-gray-800">READY BY: {receiptData.delivery_info.pickup_promised_time}</p>
+                    )}
+                    <div className="flex justify-center my-2">
+                      <QRCodeSVG value={`SKN:CLM:${receiptData.id}`} size={76} level="M" />
+                    </div>
+                    <p className="text-[9px] text-gray-500">Present this ticket when picking up</p>
+                  </div>
+                )}
+                
                 <div className="border-t border-dashed border-gray-400 mt-3 pt-4 text-center">
                   <p className="text-[10px] font-bold mb-3">{t('scan_store_receipt', 'Scan to visit our store!')}</p>
                   <div className="flex justify-center">
@@ -2095,7 +3581,7 @@ const DashboardPOS: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                  {t('mark_invoice_as_paid', 'Settle Invoice & Record Sale')}
+                  {t('mark_invoice_as_paid', 'Mark as Paid & Record Sale')}
                 </h3>
                 <p className="text-2xs text-gray-400 mt-0.5">
                   INV-#{markPaidModalData.id} • {markPaidModalData.delivery_info?.customer_name || t('walk_in_customer', 'Walk-in Customer')}
@@ -2388,6 +3874,21 @@ const DashboardPOS: React.FC = () => {
                       <div key={i} className="text-[11px] mb-2 last:mb-0">
                         <div className="font-bold whitespace-normal leading-tight">{name}</div>
                         {variantName && <div className="text-[10px] text-gray-600">[{variantName}]</div>}
+                        {item.selected_addons && item.selected_addons.length > 0 && (
+                          <div className="pl-2 text-[10px] text-gray-600 space-y-0.5">
+                            {item.selected_addons.map((add: any, ai: number) => (
+                              <div key={ai} className="flex justify-between">
+                                <span>+ {add.quantity > 1 ? `${add.quantity}x ` : ''}{add.name}</span>
+                                <span>+{(parseFloat(add.price || 0) * (add.quantity || 1)).toLocaleString()}/=</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {item.attendant_name && (
+                          <div className="text-[9px] text-gray-500 italic pl-2">
+                            Served by: {item.attendant_name}
+                          </div>
+                        )}
                         <div className="flex justify-between mt-0.5">
                           <span className="text-gray-600">{qty} x {price.toLocaleString()}/=</span>
                           <span className="font-bold">{total.toLocaleString()}/=</span>
@@ -2446,6 +3947,38 @@ const DashboardPOS: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* POS Continuous Camera Scanner Modal */}
+      <POSContinuousScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        products={products}
+        cart={cart}
+        cartTotal={cartTotal}
+        addToCart={addToCart}
+        onSelectProductForCustomization={(p) => setSelectedProductForOptions(p)}
+        t={t}
+      />
+
+      {/* POS Mode & Feature Settings Modal */}
+      <POSModeSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        config={posConfig}
+        onSave={handleUpdateConfig}
+      />
+
+      {/* Product Options & Variations Modal Overlay */}
+      {selectedProductForOptions && (
+        <POSVariantMatrixOverlay
+          product={selectedProductForOptions}
+          cart={cart}
+          addToCart={addToCart}
+          onClose={() => setSelectedProductForOptions(null)}
+          t={t}
+          posConfig={posConfig}
+        />
+      )}
     </div>
   );
 };
@@ -2483,7 +4016,16 @@ const CartContent = ({
   validityPeriod = '7d',
   setValidityPeriod,
   invoiceNotes = '',
-  setInvoiceNotes
+  setInvoiceNotes,
+  orderType = 'walk_in',
+  setOrderType,
+  tableNumber = '',
+  setTableNumber,
+  pickupRequired = false,
+  setPickupRequired,
+  pickupPromisedTime = '',
+  setPickupPromisedTime,
+  posConfig
 }: any) => {
   const { t } = useTranslation();
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
@@ -2514,31 +4056,146 @@ const CartContent = ({
 
   return (
     <div className="flex flex-col flex-1 h-full bg-white dark:bg-[#141414]">
-      {/* 1. Customer & Status Header */}
-      <div className="px-4 py-3 flex items-center justify-between gap-3 shrink-0 border-b border-gray-100/60 dark:border-neutral-800/60">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <input
-            type="text"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            placeholder={t('walk_in_customer', 'Walk-in Customer')}
-            className="bg-transparent border-none text-xs font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-0 w-full p-0 leading-tight outline-none"
-            title={t('customer', 'Customer')}
-          />
-          {customerName && customerName !== t('walk_in_customer', 'Walk-in Customer') && customerName !== 'Walk-in Customer' && (
-            <button
-              type="button"
-              onClick={() => setCustomerName(t('walk_in_customer', 'Walk-in Customer'))}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xs font-medium shrink-0 p-0.5 rounded transition cursor-pointer"
-              title={t('reset_walk_in', 'Reset to Walk-in')}
-            >
-              <X size={12} />
-            </button>
-          )}
+      {/* 1. Customer Info & Header Controls */}
+      <div className="px-3.5 pt-3 pb-1 space-y-1.5 shrink-0">
+        {/* Row 1: Customer Name + Customer Phone in the same horizontal space + Items Count */}
+        <div className="flex items-center gap-1.5">
+          {/* Customer Name */}
+          <div className="h-8 flex items-center gap-1.5 flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl px-2.5 transition-colors focus-within:ring-1 focus-within:ring-neutral-400 dark:focus-within:ring-neutral-600">
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder={t('walk_in_customer', 'Walk-in Customer')}
+              className="bg-transparent border-0 text-xs font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-0 w-full p-0 leading-tight outline-none truncate"
+              title={t('customer', 'Customer')}
+            />
+            {customerName && customerName !== t('walk_in_customer', 'Walk-in Customer') && customerName !== 'Walk-in Customer' && (
+              <button
+                type="button"
+                onClick={() => setCustomerName(t('walk_in_customer', 'Walk-in Customer'))}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xs font-medium shrink-0 p-0.5 rounded transition cursor-pointer"
+                title={t('reset_walk_in', 'Reset to Walk-in')}
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* Customer Phone */}
+          <div className="h-8 flex items-center gap-1 flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl px-2.5 transition-colors focus-within:ring-1 focus-within:ring-neutral-400 dark:focus-within:ring-neutral-600">
+            <Phone size={11} className="text-gray-400 shrink-0" />
+            <input
+              type="tel"
+              value={customerPhone}
+              maxLength={10}
+              onChange={(e) => {
+                let rawDigits = e.target.value.replace(/\D/g, '');
+                if (rawDigits.startsWith('255') && rawDigits.length > 10) {
+                  rawDigits = '0' + rawDigits.slice(3);
+                }
+                const cleaned = rawDigits.slice(0, 10);
+                if (setCustomerPhone) {
+                  setCustomerPhone(cleaned);
+                }
+              }}
+              placeholder="Phone (07...)"
+              className="w-full bg-transparent border-0 text-xs text-gray-800 dark:text-neutral-200 placeholder:text-gray-400 outline-none p-0 focus:ring-0 focus:outline-none truncate"
+              title="Customer Phone"
+            />
+            {customerPhone && (
+              <button
+                type="button"
+                onClick={() => setCustomerPhone && setCustomerPhone('')}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xs shrink-0 cursor-pointer"
+                title="Clear phone"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* Items count: locked shrink-0 with tabular-nums so 2 digits (e.g. 12 items, 99 items) never wrap or break */}
+          <div className="shrink-0 flex items-center justify-end pl-1">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
+              {cart.reduce((s: number, i: any) => s + i.quantity, 0)} {cart.reduce((s: number, i: any) => s + i.quantity, 0) === 1 ? t('item_one', 'item') : t('item_other', 'items')}
+            </span>
+          </div>
         </div>
-        <span className="text-xs font-medium text-gray-400 dark:text-gray-400 shrink-0 whitespace-nowrap px-1 tabular-nums">
-          {cart.reduce((s: number, i: any) => s + i.quantity, 0)} {cart.reduce((s: number, i: any) => s + i.quantity, 0) === 1 ? t('item_one', 'item') : t('item_other', 'items')}
-        </span>
+
+        {/* Row 2: Dining Selector (if enabled) + Drop-off / Claim (if enabled) */}
+        {(posConfig?.enableDiningModes || posConfig?.enableDropOffClaim) && (
+          <div className="flex items-center justify-between gap-2 px-0.5 text-2xs">
+            {posConfig?.enableDiningModes ? (
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-neutral-800/80 p-0.5 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setOrderType && setOrderType('walk_in')}
+                    className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
+                      orderType === 'walk_in' ? 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-900 dark:text-neutral-400'
+                    }`}
+                  >
+                    Walk-in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderType && setOrderType('dine_in')}
+                    className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      orderType === 'dine_in' ? 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-900 dark:text-neutral-400'
+                    }`}
+                  >
+                    <span>Dine-in</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderType && setOrderType('takeaway')}
+                    className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      orderType === 'takeaway' ? 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-900 dark:text-neutral-400'
+                    }`}
+                  >
+                    <span>Takeaway</span>
+                  </button>
+                </div>
+
+                {orderType === 'dine_in' && (
+                  <input
+                    type="text"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber && setTableNumber(e.target.value)}
+                    placeholder="Table #"
+                    className="w-16 px-1.5 py-0.5 text-2xs bg-gray-100 dark:bg-neutral-800 border-none rounded-md text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-amber-500 text-center font-bold"
+                  />
+                )}
+              </div>
+            ) : <div className="flex-1" />}
+
+            {posConfig?.enableDropOffClaim && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0 text-3xs text-gray-500 hover:text-gray-700 dark:text-neutral-400">
+                <input
+                  type="checkbox"
+                  checked={pickupRequired}
+                  onChange={(e) => setPickupRequired && setPickupRequired(e.target.checked)}
+                  className="rounded accent-amber-500 w-3.5 h-3.5 cursor-pointer"
+                />
+                <span>Drop-off / Claim</span>
+              </label>
+            )}
+          </div>
+        )}
+
+        {posConfig?.enableDropOffClaim && pickupRequired && (
+          <div className="px-3 py-1.5 bg-amber-500/10 rounded-xl flex items-center justify-between gap-2 text-3xs text-amber-700 dark:text-amber-300">
+            <span>Ready time / date:</span>
+            <input
+              type="text"
+              value={pickupPromisedTime}
+              onChange={(e) => setPickupPromisedTime && setPickupPromisedTime(e.target.value)}
+              placeholder="e.g. Thu 3:00 PM"
+              className="bg-white dark:bg-neutral-900 border border-amber-500/30 rounded px-1.5 py-0.5 text-3xs outline-none text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
       </div>
 
       {/* 2. Register Items List */}
@@ -2557,6 +4214,20 @@ const CartContent = ({
               <div className="flex-1 min-w-0 pr-1">
                 <p className="font-semibold text-xs text-gray-900 dark:text-white truncate">{item.name}</p>
                 {item.variant_name && <span className="text-[10px] text-gray-400 block">{item.variant_name}</span>}
+                {item.addons && item.addons.length > 0 && (
+                  <div className="text-[10px] text-amber-500/90 space-y-0.5 mt-0.5">
+                    {item.addons.map((a: any, idx: number) => (
+                      <span key={idx} className="block truncate">
+                        + {a.quantity > 1 ? `${a.quantity}x ` : ''}{a.name} (+{(a.price * a.quantity).toLocaleString()})
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {item.attendant_name && (
+                  <span className="text-[9px] text-emerald-500 font-medium block mt-0.5 italic">
+                    Staff: {item.attendant_name}
+                  </span>
+                )}
                 <span className="text-2xs text-gray-400 tabular-nums">
                   TSh {item.price.toLocaleString()}
                 </span>
@@ -2564,27 +4235,30 @@ const CartContent = ({
 
               {/* Stepper + Item Total */}
               <div className="flex items-center gap-2.5 shrink-0">
-                <div className="flex items-center bg-gray-100 dark:bg-[#181818] rounded-lg p-0.5 border border-gray-200/50 dark:border-neutral-800/80">
+                <div className="flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 h-7 sm:h-8 px-1 border-0 select-none shrink-0">
                   <button 
                     type="button"
                     onClick={() => updateQuantity(item.id, -1)} 
                     disabled={item.quantity <= 1} 
-                    className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition cursor-pointer"
+                    className="w-5 sm:w-6 h-full flex items-center justify-center font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white disabled:opacity-20 transition cursor-pointer"
+                    aria-label="Decrease quantity"
                   >
-                    <Minus size={10} />
+                    <span className="leading-none">−</span>
                   </button>
                   <CartQuantityInput
                     quantity={item.quantity}
                     maxStock={item.max_stock}
                     onChangeQty={(newQ) => setQuantity ? setQuantity(item.id, newQ) : null}
+                    className="w-5 sm:w-6 text-center font-bold text-xs text-gray-900 dark:text-white bg-transparent border-none outline-none p-0 tabular-nums select-all cursor-text"
                   />
                   <button 
                     type="button"
                     onClick={() => updateQuantity(item.id, 1)} 
                     disabled={item.quantity >= item.max_stock} 
-                    className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition cursor-pointer"
+                    className="w-5 sm:w-6 h-full flex items-center justify-center font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white disabled:opacity-20 transition cursor-pointer"
+                    aria-label="Increase quantity"
                   >
-                    <Plus size={10} />
+                    <span className="leading-none">+</span>
                   </button>
                 </div>
 
@@ -2842,9 +4516,17 @@ const CartContent = ({
                 </label>
                 <input
                   type="tel"
-                  placeholder="0712 345 678"
+                  maxLength={10}
+                  placeholder="0712345678"
                   value={customerPhone}
-                  onChange={(e) => setCustomerPhone && setCustomerPhone(e.target.value)}
+                  onChange={(e) => {
+                    let rawDigits = e.target.value.replace(/\D/g, '');
+                    if (rawDigits.startsWith('255') && rawDigits.length > 10) {
+                      rawDigits = '0' + rawDigits.slice(3);
+                    }
+                    const cleaned = rawDigits.slice(0, 10);
+                    if (setCustomerPhone) setCustomerPhone(cleaned);
+                  }}
                   className="w-full px-2.5 py-1.5 rounded-lg bg-surface-muted dark:bg-[#1a1a1e] border-0 text-xs text-gray-900 dark:text-white outline-none transition"
                 />
               </div>
@@ -2902,105 +4584,119 @@ const CartContent = ({
           </div>
         )}
 
-        {/* Split Action Button with Dropdown: Complete Sale vs Generate Invoice */}
-        <div className="relative flex items-stretch rounded-xl shadow-sm">
-          <button 
-            type="button"
-            onClick={checkoutMode === 'sale' ? handleCheckout : handleCreateInvoice} 
-            disabled={cart.length === 0 || submitting}
-            className={`flex-1 py-3 px-4 rounded-l-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-              checkoutMode === 'sale'
-                ? 'bg-brand-500 hover:bg-brand-400 text-black'
-                : 'bg-amber-500 hover:bg-amber-400 text-black'
-            }`}
-          >
-            {checkoutMode === 'sale' ? (
+        {/* Action Button: Single Complete Sale button if invoices disabled, or Split Action Button if invoices enabled */}
+        {posConfig?.enableInvoices ? (
+          <div className="relative flex items-stretch rounded-xl shadow-sm">
+            <button 
+              type="button"
+              onClick={checkoutMode === 'sale' ? handleCheckout : handleCreateInvoice} 
+              disabled={cart.length === 0 || submitting}
+              className={`flex-1 py-3 px-4 rounded-l-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                checkoutMode === 'sale'
+                  ? 'bg-brand-500 hover:bg-brand-400 text-black'
+                  : 'bg-amber-500 hover:bg-amber-400 text-black'
+              }`}
+            >
+              {checkoutMode === 'sale' ? (
+                <>
+                  <Receipt size={15} className="shrink-0 text-black stroke-[2.2]" />
+                  <span className="text-black font-bold tracking-wide">
+                    {submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <FileText size={15} className="shrink-0 text-black stroke-[2.2]" />
+                  <span className="text-black font-bold tracking-wide">
+                    {submitting ? t('generating_invoice', 'Generating invoice...') : t('generate_invoice', 'Generate Invoice')}
+                  </span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              disabled={cart.length === 0 || submitting}
+              onClick={() => setCartDropdownOpen(prev => !prev)}
+              aria-label="Select checkout action"
+              className={`px-3 border-l rounded-r-xl transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                checkoutMode === 'sale'
+                  ? 'bg-brand-500 hover:bg-brand-400 text-black border-black/15'
+                  : 'bg-amber-500 hover:bg-amber-400 text-black border-black/15'
+              }`}
+            >
+              <ChevronDown size={14} className={`transition-transform duration-150 ${cartDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {cartDropdownOpen && (
               <>
-                <Receipt size={15} className="shrink-0 text-black stroke-[2.2]" />
-                <span className="text-black font-bold tracking-wide">
-                  {submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}
-                </span>
-              </>
-            ) : (
-              <>
-                <FileText size={15} className="shrink-0 text-black stroke-[2.2]" />
-                <span className="text-black font-bold tracking-wide">
-                  {submitting ? t('generating_invoice', 'Generating invoice...') : t('generate_invoice', 'Generate Invoice')}
-                </span>
+                <div className="fixed inset-0 z-40" onClick={() => setCartDropdownOpen(false)} />
+                <div className="absolute right-0 bottom-full mb-2 w-64 bg-neutral-800 text-white border-0 rounded-2xl shadow-2xl z-50 p-1.5 animate-in fade-in duration-150">
+                  <div className="px-2.5 py-1.5 text-3xs font-bold uppercase tracking-wider text-neutral-400">
+                    {t('select_action', 'Select POS Action')}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setCheckoutMode) setCheckoutMode('sale');
+                      setCartDropdownOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl text-xs transition cursor-pointer mt-0.5 ${
+                      checkoutMode === 'sale'
+                        ? 'bg-neutral-700 text-white font-bold'
+                        : 'text-neutral-300 hover:text-white hover:bg-neutral-700/60'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold flex items-center justify-between gap-1.5">
+                        <span>{t('complete_sale', 'Complete Sale')}</span>
+                        {checkoutMode === 'sale' && <Check size={12} className="text-amber-500" />}
+                      </div>
+                      <p className="text-[10px] text-neutral-400 font-normal mt-0.5">
+                        {t('complete_sale_desc', 'Deduct stock immediately & print cash receipt')}
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setCheckoutMode) setCheckoutMode('invoice');
+                      setCartDropdownOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl text-xs transition cursor-pointer mt-0.5 ${
+                      checkoutMode === 'invoice'
+                        ? 'bg-neutral-700 text-white font-bold'
+                        : 'text-neutral-300 hover:text-white hover:bg-neutral-700/60'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold flex items-center justify-between gap-1.5">
+                        <span>{t('generate_invoice', 'Generate Invoice')}</span>
+                        {checkoutMode === 'invoice' && <Check size={12} className="text-amber-500" />}
+                      </div>
+                      <p className="text-[10px] text-neutral-400 font-normal mt-0.5">
+                        {t('generate_invoice_desc', 'Issue unpaid proforma / quote with payment terms')}
+                      </p>
+                    </div>
+                  </button>
+                </div>
               </>
             )}
-          </button>
-
-          <button
+          </div>
+        ) : (
+          <button 
             type="button"
+            onClick={handleCheckout} 
             disabled={cart.length === 0 || submitting}
-            onClick={() => setCartDropdownOpen(prev => !prev)}
-            aria-label="Select checkout action"
-            className={`px-3 border-l rounded-r-xl transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-              checkoutMode === 'sale'
-                ? 'bg-brand-500 hover:bg-brand-400 text-black border-black/15'
-                : 'bg-amber-500 hover:bg-amber-400 text-black border-black/15'
-            }`}
+            className="w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 bg-brand-500 hover:bg-brand-400 text-black shadow-sm"
           >
-            <ChevronDown size={14} className={`transition-transform duration-150 ${cartDropdownOpen ? 'rotate-180' : ''}`} />
+            <Receipt size={15} className="shrink-0 text-black stroke-[2.2]" />
+            <span className="text-black font-bold tracking-wide">
+              {submitting ? t('processing_sale', 'Processing sale...') : t('complete_sale', 'Complete Sale')}
+            </span>
           </button>
-
-          {cartDropdownOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setCartDropdownOpen(false)} />
-              <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-[#1a1a1e] border-0 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in duration-150">
-                <div className="px-2.5 py-1.5 text-3xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  {t('select_action', 'Select POS Action')}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCheckoutMode) setCheckoutMode('sale');
-                    setCartDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-lg text-xs transition cursor-pointer mt-0.5 ${
-                    checkoutMode === 'sale'
-                      ? 'bg-surface-muted dark:bg-[#242429] text-gray-900 dark:text-white font-bold'
-                      : 'hover:bg-surface-muted dark:hover:bg-[#242429] text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold flex items-center justify-between gap-1.5">
-                      <span>{t('complete_sale', 'Complete Sale')}</span>
-                      {checkoutMode === 'sale' && <Check size={12} className="text-brand-500" />}
-                    </div>
-                    <p className="text-[10px] text-gray-400 font-normal mt-0.5">
-                      {t('complete_sale_desc', 'Deduct stock immediately & print cash receipt')}
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCheckoutMode) setCheckoutMode('invoice');
-                    setCartDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-lg text-xs transition cursor-pointer mt-0.5 ${
-                    checkoutMode === 'invoice'
-                      ? 'bg-surface-muted dark:bg-[#242429] text-gray-900 dark:text-white font-bold'
-                      : 'hover:bg-surface-muted dark:hover:bg-[#242429] text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold flex items-center justify-between gap-1.5">
-                      <span>{t('generate_invoice', 'Generate Invoice')}</span>
-                      {checkoutMode === 'invoice' && <Check size={12} className="text-amber-500" />}
-                    </div>
-                    <p className="text-[10px] text-gray-400 font-normal mt-0.5">
-                      {t('generate_invoice_desc', 'Issue unpaid proforma / quote with payment terms')}
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

@@ -228,11 +228,14 @@ class Command(BaseCommand):
             {'name': 'Customer', 'tier_level': 'customer', 'price': Decimal('0.00'),
              'duration': 36500, 'benefits': 'Buy, inspect, track orders, message sellers',
              'commission_rate': Decimal('0.00')},
-            {'name': 'Seller Pro', 'tier_level': 'seller_pro', 'price': Decimal('29000.00'),
-             'duration': 30, 'benefits': 'Create listings, manage inventory, seller dashboard',
+            {'name': 'Seller Lite', 'tier_level': 'seller_lite', 'price': Decimal('19000.00'),
+             'duration': 30, 'benefits': 'In-store POS register, store analytics overview, inventory management, gray verified merchant checkmark',
+             'commission_rate': Decimal('0.025')},
+            {'name': 'Seller Pro', 'tier_level': 'seller_pro', 'price': Decimal('39000.00'),
+             'duration': 30, 'benefits': 'Create listings, manage inventory, seller dashboard, nationwide marketplace shipping',
              'commission_rate': Decimal('10.00')},
             {'name': 'Business', 'tier_level': 'business', 'price': Decimal('79000.00'),
-             'duration': 30, 'benefits': 'Everything in Seller Pro + team management + advanced analytics',
+             'duration': 30, 'benefits': 'Everything in Seller Pro + multi-branch store management + team roles + advanced analytics',
              'commission_rate': Decimal('10.00')},
         ]
         for t in tiers:

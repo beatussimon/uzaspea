@@ -1051,7 +1051,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         user_tier = getattr(getattr(stats_user, 'profile', None), 'tier', None)
         is_business = user_tier == 'business' or stats_user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
         is_pro = user_tier in ['seller_pro', 'pro'] or stats_user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_pro', 'pro']).exists()
-        has_advanced_analytics = is_business or is_pro or stats_user.is_superuser or stats_user.is_staff
+        is_lite = user_tier in ['seller_lite', 'lite'] or stats_user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_lite', 'lite']).exists()
+        has_advanced_analytics = is_business or is_pro or is_lite or stats_user.is_superuser or stats_user.is_staff
 
         products = Product.objects.filter(seller=stats_user)
         orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
@@ -1305,6 +1306,10 @@ class ProductViewSet(viewsets.ModelViewSet):
                 'id': item.id,
                 'date': item.order.order_date.isoformat(),
                 'product_name': item.product.name,
+                'is_service': getattr(item.product, 'is_service', False),
+                'validity_days': getattr(item.product, 'validity_days', None),
+                'attendant_name': getattr(item, 'attendant_name', ''),
+                'selected_addons': getattr(item, 'selected_addons', []),
                 'quantity': item.quantity,
                 'price': float(item.price),
                 'buying_price': float(item.product.buying_price) if item.product.buying_price is not None else None,
@@ -1313,11 +1318,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 'location_name': loc_label,
             })
 
-        # --- Stock alerts (stock <= 3) --- always visible
+        # --- Stock alerts (stock <= 3) --- only for physical inventory
         if selected_location_id:
             from marketplace.models import LocationStock
             loc_low_stock = list(
-                LocationStock.objects.filter(location_id=selected_location_id, quantity__lte=3)
+                LocationStock.objects.filter(location_id=selected_location_id, product__is_service=False, quantity__lte=3)
                 .select_related('product', 'location')
                 .values('product__name', 'product__slug', 'quantity', 'price_override', 'product__price', 'location__name')[:30]
             )
@@ -1342,6 +1347,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 loc_low_stock = list(
                     LocationStock.objects.filter(
                         location__in=user_loc_qs,
+                        product__is_service=False,
                         quantity__lte=3
                     )
                     .select_related('product', 'location')
@@ -1362,7 +1368,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 # Also include standalone products without LocationStock whose base stock <= 3
                 tracked_product_ids = LocationStock.objects.filter(location__in=user_loc_qs).values_list('product_id', flat=True)
                 standalone_low = list(
-                    products.exclude(id__in=tracked_product_ids).filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10]
+                    products.filter(is_service=False).exclude(id__in=tracked_product_ids).filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10]
                 )
                 for s in standalone_low:
                     low_stock.append({
@@ -1373,7 +1379,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                         'location_name': 'All Branches (HQ)',
                     })
             else:
-                low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:20])
+                low_stock = list(products.filter(is_service=False, stock__lte=3).values('name', 'slug', 'stock', 'price')[:20])
                 for ls in low_stock:
                     ls['stock'] = int(ls['stock'])
                     ls['price'] = float(ls['price'])
@@ -1477,6 +1483,69 @@ class ProductViewSet(viewsets.ModelViewSet):
             'estimated_impressions': rec_clicks_30 * 18 if rec_clicks_30 > 0 else 0,
         }
 
+        # --- Business Mode & Offerings Breakdown ---
+        user_profile = getattr(stats_user, 'profile', None)
+        stored_mode = getattr(user_profile, 'business_mode', 'retail') or 'retail'
+        param_mode = request.query_params.get('business_mode')
+        active_mode = param_mode if param_mode in ['retail', 'gym', 'salon', 'restaurant', 'service', 'hybrid'] else stored_mode
+
+        # Customizable expiry window (default 7 days)
+        try:
+            default_window = getattr(user_profile, 'pass_expiry_window_days', 7) or 7
+            expiry_days = int(request.query_params.get('expiry_days') or default_window)
+            if expiry_days <= 0 or expiry_days > 365:
+                expiry_days = 7
+        except (ValueError, TypeError):
+            expiry_days = 7
+
+        total_services_count = products.filter(is_service=True).count()
+        total_physical_count = products.filter(is_service=False).count()
+
+        # --- Membership Passes Analytics ---
+        from marketplace.models import CustomerServicePass
+        now_dt = timezone.now()
+
+        if active_mode in ['restaurant', 'retail']:
+            active_passes_count = 0
+            expiring_passes_count = 0
+            total_passes_issued = 0
+            total_check_ins = 0
+            expiring_passes_list = []
+        else:
+            active_passes_qs = CustomerServicePass.objects.filter(seller=stats_user, status='ACTIVE', expires_at__gte=now_dt)
+            active_passes_count = active_passes_qs.count()
+
+            target_expiry = now_dt + datetime.timedelta(days=expiry_days)
+            expiring_passes_qs = CustomerServicePass.objects.filter(
+                seller=stats_user,
+                status='ACTIVE',
+                expires_at__gte=now_dt,
+                expires_at__lte=target_expiry
+            ).select_related('product', 'variant').order_by('expires_at')
+            expiring_passes_count = expiring_passes_qs.count()
+
+            total_passes_issued = CustomerServicePass.objects.filter(seller=stats_user).count()
+            total_check_ins = int(CustomerServicePass.objects.filter(seller=stats_user).aggregate(s=Sum('check_in_count'))['s'] or 0)
+
+            expiring_passes_list = []
+            for p in expiring_passes_qs[:50]:
+                remaining_hours = max(0, int((p.expires_at - now_dt).total_seconds() // 3600))
+                remaining_days = remaining_hours // 24
+                expiring_passes_list.append({
+                    'id': p.id,
+                    'customer_name': p.customer_name,
+                    'customer_phone': p.customer_phone,
+                    'pass_name': p.variant.name if p.variant else p.product.name,
+                    'pass_code': p.pass_code,
+                    'expires_at': p.expires_at.isoformat(),
+                    'days_remaining': remaining_days,
+                    'hours_remaining': remaining_hours,
+                    'check_in_count': p.check_in_count,
+                    'last_checked_in': p.last_checked_in.isoformat() if p.last_checked_in else None,
+                    'product_id': p.product_id,
+                    'variant_id': p.variant_id,
+                })
+
         return Response({
             'total_products': products.count(),
             'total_orders': total_orders_count,
@@ -1499,6 +1568,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             'commission_rate': commission_rate_val,
             'store_profile': store_profile,
             'rec_reach': rec_reach_data,
+            'business_mode': active_mode,
+            'total_services': total_services_count,
+            'total_physical_products': total_physical_count,
+            'membership_stats': {
+                'active_passes': active_passes_count,
+                'expiring_passes': expiring_passes_count,
+                'total_passes_issued': total_passes_issued,
+                'total_check_ins': total_check_ins,
+                'expiry_days': expiry_days,
+                'expiring_passes_list': expiring_passes_list,
+            },
         })
 
 from .models import LipaNumber, FAQ, SupportTicket
@@ -2429,7 +2509,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                         sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
                     )
                 
-                if stock_available < quantity:
+                is_service = getattr(product, 'is_service', False)
+                if not is_service and stock_available < quantity:
                     loc_label = f" at {active_loc.name}" if active_loc else ""
                     return Response({'error': f'Insufficient stock{loc_label} for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -2447,11 +2528,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                     else:
                         return Response({'error': f'Price is required for {product.name} because it requires a quote.'}, status=status.HTTP_400_BAD_REQUEST)
                 
+                # Calculate optional add-on modifiers total
+                selected_addons = item_data.get('addons') or item_data.get('selected_addons') or []
+                addons_total = Decimal('0.00')
+                if isinstance(selected_addons, list):
+                    for add in selected_addons:
+                        try:
+                            addons_total += Decimal(str(add.get('price', 0))) * int(add.get('quantity', 1))
+                        except (ValueError, TypeError):
+                            pass
+
+                item_final_price = Decimal(str(price)) + addons_total
+
                 order_items.append({
                     'product': product,
                     'variant': variant,
                     'quantity': quantity,
-                    'price': price,
+                    'price': item_final_price,
+                    'selected_addons': selected_addons,
+                    'attendant_name': str(item_data.get('attendant_name') or '').strip()[:100],
                     'loc_stock': loc_stock,
                     'rec_surface': str(item_data.get('rec_surface') or '').strip()[:32],
                     'rec_variant': str(item_data.get('rec_variant') or 'control').strip()[:16]
@@ -2505,6 +2600,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             delivery_info = {
                 'is_pos': True,
                 'customer_name': customer_name or 'Walk-in Customer',
+                'customer_phone': request.data.get('customer_phone', ''),
+                'order_type': request.data.get('order_type', 'walk_in'),
+                'table_number': request.data.get('table_number', ''),
+                'pickup_required': bool(request.data.get('pickup_required', False)),
+                'pickup_promised_time': request.data.get('pickup_promised_time', ''),
                 'amount_paid': amount_paid,
                 'amount_tendered': amount_paid,
                 'change_due': 0,
@@ -2542,29 +2642,53 @@ class OrderViewSet(viewsets.ModelViewSet):
                     variant=item['variant'],
                     quantity=item['quantity'],
                     price=item['price'],
+                    selected_addons=item.get('selected_addons', []),
+                    attendant_name=item.get('attendant_name', ''),
                     rec_surface=item_rec_surface,
                     rec_variant=item_rec_variant
                 )
-                loc_stock = item.get('loc_stock')
-                if not loc_stock and active_loc:
-                    loc_stock = LocationStock.objects.select_for_update().filter(
-                        location=active_loc, product=item['product'], variant=item['variant']
-                    ).first()
 
-                if loc_stock:
-                    loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item['quantity'])))
-                    loc_stock.save(update_fields=['quantity'])
-                    # LocationStock.save() automatically triggers sync_parent_product_stock!
-                else:
-                    if item['variant']:
-                        item['variant'].stock = max(0, item['variant'].stock - item['quantity'])
-                        if item['variant'].stock <= 0:
-                            item['variant'].is_available = False
-                        item['variant'].save(update_fields=['stock', 'is_available'])
-                    item['product'].stock = max(0, item['product'].stock - item['quantity'])
-                    if item['product'].stock <= 0:
-                        item['product'].is_available = False
-                    item['product'].save(update_fields=['stock', 'is_available'])
+                # Check if item grants a validity pass (e.g. Gym membership / class pass)
+                val_days = getattr(item['variant'], 'validity_days', None) or getattr(item['product'], 'validity_days', None)
+                if val_days and int(val_days) > 0:
+                    from datetime import timedelta
+                    from django.utils import timezone
+                    from marketplace.models import CustomerServicePass
+                    expires_at = timezone.now() + timedelta(days=int(val_days))
+                    CustomerServicePass.objects.create(
+                        seller=item['product'].seller,
+                        customer_name=customer_name or 'Valued Member',
+                        customer_phone=request.data.get('customer_phone', ''),
+                        product=item['product'],
+                        variant=item['variant'],
+                        order=order,
+                        start_date=timezone.now(),
+                        expires_at=expires_at,
+                        status='ACTIVE',
+                        notes=f"Issued via POS Order #{order.id}"
+                    )
+
+                # Deduct inventory only for physical non-service goods
+                if not getattr(item['product'], 'is_service', False):
+                    loc_stock = item.get('loc_stock')
+                    if not loc_stock and active_loc:
+                        loc_stock = LocationStock.objects.select_for_update().filter(
+                            location=active_loc, product=item['product'], variant=item['variant']
+                        ).first()
+
+                    if loc_stock:
+                        loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item['quantity'])))
+                        loc_stock.save(update_fields=['quantity'])
+                    else:
+                        if item['variant']:
+                            item['variant'].stock = max(0, item['variant'].stock - item['quantity'])
+                            if item['variant'].stock <= 0:
+                                item['variant'].is_available = False
+                            item['variant'].save(update_fields=['stock', 'is_available'])
+                        item['product'].stock = max(0, item['product'].stock - item['quantity'])
+                        if item['product'].stock <= 0:
+                            item['product'].is_available = False
+                        item['product'].save(update_fields=['stock', 'is_available'])
                 
             order.update_total()
             
@@ -2723,7 +2847,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                         sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
                     )
                 
-                if stock_available < quantity:
+                is_service = getattr(product, 'is_service', False)
+                if not is_service and stock_available < quantity:
                     loc_label = f" at {active_loc.name}" if active_loc else ""
                     return Response({'error': f'Insufficient stock{loc_label} for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -2741,11 +2866,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                     else:
                         return Response({'error': f'Price is required for {product.name} because it requires a quote.'}, status=status.HTTP_400_BAD_REQUEST)
                 
+                # Calculate optional add-on modifiers total
+                selected_addons = item_data.get('addons') or item_data.get('selected_addons') or []
+                addons_total = Decimal('0.00')
+                if isinstance(selected_addons, list):
+                    for add in selected_addons:
+                        try:
+                            addons_total += Decimal(str(add.get('price', 0))) * int(add.get('quantity', 1))
+                        except (ValueError, TypeError):
+                            pass
+
+                item_final_price = Decimal(str(price)) + addons_total
+
                 order_items.append({
                     'product': product,
                     'variant': variant,
                     'quantity': quantity,
-                    'price': price,
+                    'price': item_final_price,
+                    'selected_addons': selected_addons,
+                    'attendant_name': str(item_data.get('attendant_name') or '').strip()[:100],
                     'loc_stock': loc_stock,
                     'rec_surface': str(item_data.get('rec_surface') or '').strip()[:32],
                     'rec_variant': str(item_data.get('rec_variant') or 'control').strip()[:16]
@@ -2840,6 +2979,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     variant=item['variant'],
                     quantity=item['quantity'],
                     price=item['price'],
+                    selected_addons=item.get('selected_addons', []),
+                    attendant_name=item.get('attendant_name', ''),
                     rec_surface=item_rec_surface,
                     rec_variant=item_rec_variant
                 )
@@ -3496,6 +3637,121 @@ class OrderViewSet(viewsets.ModelViewSet):
         data = [format_order(o) for o in orders]
         return Response(data)
 
+    @decorators.action(detail=False, methods=['get', 'post'], url_path='pos-verify-pass', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    def pos_verify_pass(self, request):
+        """Verify and check in a member's service pass via QR code or phone number."""
+        from marketplace.models import CustomerServicePass
+        from django.utils import timezone
+        
+        query = (
+            (request.data.get('code') if hasattr(request, 'data') else None) or 
+            (request.data.get('query') if hasattr(request, 'data') else None) or 
+            (request.data.get('phone') if hasattr(request, 'data') else None) or 
+            request.query_params.get('pass_code') or 
+            request.query_params.get('code') or 
+            request.query_params.get('query') or 
+            request.query_params.get('phone') or 
+            ''
+        ).strip()
+        if not query:
+            return Response({'error': 'QR code or phone number required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(request.user)
+
+        # Match either exact pass code (case-insensitive) or phone number for current seller
+        service_pass = CustomerServicePass.objects.filter(
+            seller_id__in=sellers
+        ).filter(
+            models.Q(pass_code__iexact=query) | models.Q(customer_phone__icontains=query)
+        ).select_related('product', 'variant').order_by('-created_at').first()
+
+        if not service_pass:
+            return Response({'valid': False, 'not_found': True, 'message': 'No membership pass found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        now = timezone.now()
+        is_active = service_pass.status == 'ACTIVE' and now <= service_pass.expires_at
+
+        if is_active:
+            service_pass.check_in_count = models.F('check_in_count') + 1
+            service_pass.last_checked_in = now
+            service_pass.save(update_fields=['check_in_count', 'last_checked_in'])
+            service_pass.refresh_from_db()
+
+            days_remaining = max(0, (service_pass.expires_at - now).days)
+            return Response({
+                'valid': True,
+                'customer_name': service_pass.customer_name,
+                'customer_phone': service_pass.customer_phone,
+                'pass_code': service_pass.pass_code,
+                'product_name': service_pass.product.name if service_pass.product else 'Service Pass',
+                'variant_name': service_pass.variant.name if service_pass.variant else '',
+                'expires_at': service_pass.expires_at.isoformat(),
+                'days_remaining': days_remaining,
+                'check_in_count': service_pass.check_in_count,
+                'last_checked_in': service_pass.last_checked_in.isoformat() if service_pass.last_checked_in else None,
+                'status': 'ACTIVE'
+            })
+        else:
+            if service_pass.status == 'ACTIVE' and now > service_pass.expires_at:
+                service_pass.status = 'EXPIRED'
+                service_pass.save(update_fields=['status'])
+
+            days_ago = (now - service_pass.expires_at).days
+            return Response({
+                'valid': False,
+                'expired': True,
+                'customer_name': service_pass.customer_name,
+                'customer_phone': service_pass.customer_phone,
+                'pass_code': service_pass.pass_code,
+                'product_id': service_pass.product_id,
+                'variant_id': service_pass.variant_id,
+                'product_name': service_pass.product.name if service_pass.product else 'Service Pass',
+                'expires_at': service_pass.expires_at.isoformat(),
+                'days_ago': max(1, days_ago),
+                'message': f"Membership expired {max(1, days_ago)} day(s) ago."
+            })
+
+    @decorators.action(detail=False, methods=['get'], url_path='pos-service-passes', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    def pos_service_passes(self, request):
+        """List and filter active, expiring, and expired service passes for the seller."""
+        from marketplace.models import CustomerServicePass
+        from marketplace.serializers import CustomerServicePassSerializer
+        from django.utils import timezone
+        from datetime import timedelta
+
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(request.user)
+
+        qs = CustomerServicePass.objects.filter(seller_id__in=sellers).select_related('product', 'variant')
+
+        status_filter = request.query_params.get('status')
+        now = timezone.now()
+
+        if status_filter == 'active':
+            qs = qs.filter(status='ACTIVE', expires_at__gte=now)
+        elif status_filter == 'expiring':
+            week_ahead = now + timedelta(days=7)
+            qs = qs.filter(status='ACTIVE', expires_at__gte=now, expires_at__lte=week_ahead)
+        elif status_filter == 'expired':
+            qs = qs.filter(models.Q(status='EXPIRED') | models.Q(expires_at__lt=now))
+
+        search_q = request.query_params.get('search')
+        if search_q:
+            qs = qs.filter(
+                models.Q(customer_name__icontains=search_q) |
+                models.Q(customer_phone__icontains=search_q) |
+                models.Q(pass_code__icontains=search_q)
+            )
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = CustomerServicePassSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = CustomerServicePassSerializer(qs[:50], many=True)
+        return Response(serializer.data)
+
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ProductReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -3759,22 +4015,24 @@ def get_user_seller_subscription_claims(user):
     from django.utils import timezone
     now = timezone.now()
 
-    # 1. Prioritize any actively valid seller subscription (seller_pro or business with end_date >= now)
+    SELLER_TIERS = ['seller_lite', 'seller_pro', 'business']
+
+    # 1. Prioritize any actively valid seller subscription (seller_lite, seller_pro or business with end_date >= now)
     active_sub = Subscription.objects.filter(
         user=user,
         is_active=True,
-        tier__tier_level__in=['seller_pro', 'business'],
+        tier__tier_level__in=SELLER_TIERS,
         end_date__gte=now
     ).select_related('tier').first()
 
-    # 2. If no active sub, look for the most recent seller subscription (seller_pro or business)
+    # 2. If no active sub, look for the most recent seller subscription (seller_lite, seller_pro or business)
     sub = active_sub or Subscription.objects.filter(
         user=user,
-        tier__tier_level__in=['seller_pro', 'business']
+        tier__tier_level__in=SELLER_TIERS
     ).select_related('tier').order_by('-end_date', '-start_date').first()
 
     has_seller_app = SellerApplication.objects.filter(user=user, status='approved').exists()
-    has_had_sub = sub is not None and sub.tier is not None and sub.tier.tier_level in ['seller_pro', 'business']
+    has_had_sub = sub is not None and sub.tier is not None and sub.tier.tier_level in SELLER_TIERS
     has_products = Product.objects.filter(seller=user).exists()
     user_profile_tier = getattr(getattr(user, 'profile', None), 'tier', None)
 
@@ -3783,7 +4041,7 @@ def get_user_seller_subscription_claims(user):
         has_seller_app or 
         has_had_sub or 
         has_products or 
-        user_profile_tier in ['seller_pro', 'business']
+        user_profile_tier in SELLER_TIERS
     )
 
     if not is_seller_account:
@@ -3806,11 +4064,11 @@ def get_user_seller_subscription_claims(user):
             'last_tier_name': active_sub.tier.name,
         }
 
-    last_tier = sub.tier.tier_level if (sub and sub.tier) else (user_profile_tier if user_profile_tier in ['seller_pro', 'business'] else 'seller_pro')
-    last_tier_name = sub.tier.name if (sub and sub.tier) else ('Business' if user_profile_tier == 'business' else 'Seller Pro')
+    last_tier = sub.tier.tier_level if (sub and sub.tier) else (user_profile_tier if user_profile_tier in SELLER_TIERS else 'seller_pro')
+    last_tier_name = sub.tier.name if (sub and sub.tier) else ('Business' if user_profile_tier == 'business' else ('Seller Lite' if user_profile_tier == 'seller_lite' else 'Seller Pro'))
 
     if sub and sub.end_date:
-        is_sub_active = (now <= sub.end_date) and sub.is_active and (sub.tier and sub.tier.tier_level in ['seller_pro', 'business'])
+        is_sub_active = (now <= sub.end_date) and sub.is_active and (sub.tier and sub.tier.tier_level in SELLER_TIERS)
         return {
             'is_seller': True,
             'subscription_active': is_sub_active,
@@ -5766,8 +6024,8 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 'last_tier_name': None,
             }, status=200)
 
-        # For sellers, only look at seller tier subscriptions (seller_pro, business)
-        sub = self.get_queryset().filter(tier__tier_level__in=['seller_pro', 'business']).first()
+        # For sellers, only look at seller tier subscriptions (seller_lite, seller_pro, business)
+        sub = self.get_queryset().filter(tier__tier_level__in=['seller_lite', 'seller_pro', 'business']).first()
 
         if sub:
             data = SubscriptionSerializer(sub).data
@@ -5854,8 +6112,8 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not (user.is_staff or user.is_superuser):
             profile = user.profile
-            if profile.tier not in ['seller_pro', 'business']:
-                raise serializers.ValidationError("Only sellers with a premium subscription (Seller Pro or Business) can create promo codes.")
+            if profile.tier not in ['seller_lite', 'seller_pro', 'business']:
+                raise serializers.ValidationError("Only sellers with an active seller subscription can create promo codes.")
         try:
             serializer.save(seller=user)
         except DjangoValidationError as exc:
@@ -6263,7 +6521,7 @@ class SellerSiteVisitViewSet(viewsets.ReadOnlyModelViewSet):
         site_visit = self.get_queryset().first()
         profile = getattr(request.user, 'profile', None)
         is_location_verified = bool(profile and profile.is_location_verified)
-        is_seller = bool(getattr(request.user, 'is_seller', False) or (profile and profile.tier in ['seller_pro', 'business']))
+        is_seller = bool(getattr(request.user, 'is_seller', False) or (profile and profile.tier in ['seller_lite', 'seller_pro', 'business']))
 
         if not site_visit:
             return Response({
@@ -6790,6 +7048,14 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
 
         effective_sellers = get_effective_sellers(request.user, required_permission='manage_products') if request.user.is_authenticated else []
         is_seller_creating = request.user.is_authenticated and (seller.id == request.user.id or seller.id in effective_sellers or request.user.is_superuser)
+
+        # Enforce seller_lite restriction: Only seller themselves can create demand announcements
+        seller_tier = getattr(getattr(seller, 'profile', None), 'tier', None)
+        if seller_tier == 'seller_lite' and not is_seller_creating:
+            return Response(
+                {'error': 'This merchant only displays self-listed upcoming demands. Direct customer requests are not accepted.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Case insensitive check
         pr = ProductRequest.objects.filter(seller=seller, name__iexact=name).first()

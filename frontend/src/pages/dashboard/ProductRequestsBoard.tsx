@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, Printer, DollarSign, Edit, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, Printer, Banknote, Edit, PieChart as PieChartIcon, List, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -654,7 +654,7 @@ const ProductRequestsBoard: React.FC = () => {
                 label="Missed Cost"
                 value={formatCompactCurrency(totalMissedCost)}
                 fullValue={`TZS ${totalMissedCost.toLocaleString()}`}
-                icon={DollarSign}
+                icon={Banknote}
               />
               <KpiCard
                 label="Potential Profit"
@@ -816,9 +816,8 @@ const ProductRequestsBoard: React.FC = () => {
                     </div>
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-                      <DollarSign size={36} className="mb-2 opacity-30 text-blue-500" />
+                      <Banknote size={36} className="mb-2 opacity-30 text-gray-400 dark:text-gray-500" />
                       <p className="text-xs font-semibold">No price or cost data available</p>
-                      <p className="text-3xs text-gray-500 mt-1">Set selling and buying prices on requests to view profitability ranking</p>
                     </div>
                   )}
                 </div>
@@ -833,9 +832,11 @@ const ProductRequestsBoard: React.FC = () => {
                     {sortedActiveRequests.length} active
                   </span>
                 </div>
-                <span className="text-2xs text-gray-400 truncate">
-                  {dateRange.startDate || dateRange.endDate ? `Filtered: ${dateRange.label}` : 'Products gathering customer interest'}
-                </span>
+                {(dateRange.startDate || dateRange.endDate) && (
+                  <span className="text-2xs text-gray-400 truncate">
+                    Filtered: {dateRange.label}
+                  </span>
+                )}
               </div>
               <div className="overflow-x-auto min-h-[160px]">
                 <table className="w-full text-left text-xs min-w-[900px]">
@@ -864,7 +865,7 @@ const ProductRequestsBoard: React.FC = () => {
                       </th>
                       <th scope="col" className="p-3 text-center w-36 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('projected_profit')}>
                         <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-                          <DollarSign size={12} className="opacity-60" />
+                          <Banknote size={12} className="opacity-60" />
                           Projected Profit {getSortIcon('projected_profit')}
                         </div>
                       </th>
@@ -887,11 +888,6 @@ const ProductRequestsBoard: React.FC = () => {
                           <Package size={28} className="mx-auto mb-2 opacity-30 text-gray-400" />
                           <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
                             {dateRange.startDate || dateRange.endDate ? `No active demands in ${dateRange.label}` : 'No active demands'}
-                          </p>
-                          <p className="text-3xs text-gray-400 mt-0.5">
-                            {dateRange.startDate || dateRange.endDate 
-                              ? `No active customer demands were recorded during "${dateRange.label}".`
-                              : 'All customer demand requests have been fulfilled or none have been created yet.'}
                           </p>
                         </td>
                       </tr>
@@ -1121,9 +1117,11 @@ const ProductRequestsBoard: React.FC = () => {
                     Converted & Cancelled
                   </span>
                 </div>
-                <span className="text-2xs text-gray-400 shrink-0">
-                  {dateRange.startDate || dateRange.endDate ? `${sortedFulfilledRequests.length} in ${dateRange.label}` : `${sortedFulfilledRequests.length} historical items`}
-                </span>
+                {(dateRange.startDate || dateRange.endDate) && (
+                  <span className="text-2xs text-gray-400 shrink-0">
+                    {sortedFulfilledRequests.length} in {dateRange.label}
+                  </span>
+                )}
               </div>
 
               {sortedFulfilledRequests.length === 0 ? (
@@ -1131,11 +1129,6 @@ const ProductRequestsBoard: React.FC = () => {
                   <CheckCircle2 size={32} className="mx-auto mb-2 opacity-30 text-emerald-500" />
                   <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
                     {dateRange.startDate || dateRange.endDate ? `No fulfilled requests in ${dateRange.label}` : 'No fulfilled requests yet'}
-                  </p>
-                  <p className="text-3xs text-gray-400 mt-0.5">
-                    {dateRange.startDate || dateRange.endDate 
-                      ? `No demand requests in your inventory history match "${dateRange.label}".`
-                      : 'When active demand requests are converted into inventory, they will appear here as history.'}
                   </p>
                 </div>
               ) : (
