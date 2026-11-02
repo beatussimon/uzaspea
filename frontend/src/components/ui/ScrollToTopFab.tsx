@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +7,7 @@ import { useMobileNavVisible } from '../../hooks/useMobileNavVisible';
 
 export const ScrollToTopFab: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const isVisibleRef = useRef(false);
   const location = useLocation();
   const isNavVisible = useMobileNavVisible();
 
@@ -17,13 +18,14 @@ export const ScrollToTopFab: React.FC = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-          const currentY = snapContainer ? snapContainer.scrollTop : window.scrollY;
+          const isHome = location.pathname === '/';
+          const snapContainer = isHome ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
+          const currentY = snapContainer ? snapContainer.scrollTop : (window.scrollY || window.pageYOffset || 0);
           
-          if (currentY > 300) {
-            setIsVisible(true);
-          } else {
-            setIsVisible(false);
+          const nextVisible = currentY > 300;
+          if (isVisibleRef.current !== nextVisible) {
+            isVisibleRef.current = nextVisible;
+            setIsVisible(nextVisible);
           }
           ticking = false;
         });
@@ -37,7 +39,7 @@ export const ScrollToTopFab: React.FC = () => {
     return () => {
       document.removeEventListener('scroll', handleScroll, { capture: true });
     };
-  }, []);
+  }, [location.pathname]);
 
   const scrollToTop = () => {
     const snapContainer = document.querySelector('.snap-container') as HTMLElement;

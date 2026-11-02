@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
@@ -26,6 +26,7 @@ function interpolateColor(color1: string, color2: string, factor: number): strin
 export function useStatusBar() {
   const location = useLocation();
   const { isDark } = useTheme();
+  const currentColorRef = useRef<string>('');
 
   useEffect(() => {
     // Determine the current context
@@ -40,36 +41,53 @@ export function useStatusBar() {
       const startColor = '#000000';
       const endColor = isDark ? '#000000' : '#ffffff';
       
+      // In dark mode, start and end colors are both #000000; no scroll listener needed
+      if (isDark) {
+        updateMetaTag('#000000', currentColorRef);
+        return;
+      }
+
+      let ticking = false;
       const handleScroll = () => {
-         const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-         const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-         const currentY = snapContainer 
-           ? snapContainer.scrollTop 
-           : Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
-         
-         // Dynamically interpolate color between 0 and 120px scroll
-         const scrollFactor = Math.min(1, Math.max(0, currentY / 120));
-         const interpolatedColor = interpolateColor(startColor, endColor, scrollFactor);
-         
-         updateMetaTag(interpolatedColor);
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            const snapContainer = document.querySelector('.snap-container') as HTMLElement | null;
+            const currentY = snapContainer 
+              ? snapContainer.scrollTop 
+              : Math.max(0, window.pageYOffset || window.scrollY || 0);
+            
+            // Dynamically interpolate color between 0 and 120px scroll
+            const scrollFactor = Math.min(1, Math.max(0, currentY / 120));
+            const interpolatedColor = interpolateColor(startColor, endColor, scrollFactor);
+            
+            updateMetaTag(interpolatedColor, currentColorRef);
+            ticking = false;
+          });
+          ticking = true;
+        }
       };
 
-      // Set initial color immediately based on current scroll position if any
+      // Set initial color immediately based on current scroll position
       handleScroll();
 
       document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-      
-      // Cleanup scroll listener when leaving landing page
       return () => document.removeEventListener('scroll', handleScroll, { capture: true } as any);
 
     } else {
-      updateMetaTag('#000000');
+      updateMetaTag('#000000', currentColorRef);
     }
 
   }, [location.pathname, isDark, location.state]);
 }
 
-function updateMetaTag(color: string) {
+function updateMetaTag(color: string, currentColorRef?: React.MutableRefObject<string>) {
+  if (currentColorRef && currentColorRef.current === color) {
+    return;
+  }
+  if (currentColorRef) {
+    currentColorRef.current = color;
+  }
+
   // Update light theme meta tag
   let metaLight = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: light)"]') as HTMLMetaElement;
   if (!metaLight) {

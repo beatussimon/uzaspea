@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
@@ -56,15 +56,19 @@ const HelpCenterPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState(qParam);
     const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
     const [isScrollTopVisible, setIsScrollTopVisible] = useState(false);
+    const isScrollTopVisibleRef = useRef(false);
 
     useEffect(() => {
         let ticking = false;
         const handleScroll = () => {
             if (!ticking) {
                 window.requestAnimationFrame(() => {
-                    const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-                    const currentY = snapContainer ? snapContainer.scrollTop : window.scrollY;
-                    setIsScrollTopVisible(currentY > 300);
+                    const currentY = window.scrollY || window.pageYOffset || 0;
+                    const nextVisible = currentY > 300;
+                    if (isScrollTopVisibleRef.current !== nextVisible) {
+                        isScrollTopVisibleRef.current = nextVisible;
+                        setIsScrollTopVisible(nextVisible);
+                    }
                     ticking = false;
                 });
                 ticking = true;

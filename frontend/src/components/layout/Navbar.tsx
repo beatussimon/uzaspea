@@ -31,9 +31,11 @@ const Navbar = () => {
   const location = useLocation();
 
   const [isAtTop, setIsAtTop] = useState(true);
+  const isAtTopRef = useRef(true);
   const lastScrollY = useRef(0);
   const currentOffset = useRef(0);
   const navbarRef = useRef<HTMLElement>(null);
+  const navHeightRef = useRef(80);
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -61,6 +63,7 @@ const Navbar = () => {
       return;
     }
 
+    isAtTopRef.current = true;
     setIsAtTop(true);
     currentOffset.current = 0;
     if (navbarRef.current) {
@@ -71,6 +74,18 @@ const Navbar = () => {
 
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Measure navbar height on mount & window resize (never inside scroll loop to prevent forced reflow)
+  useEffect(() => {
+    const updateMetrics = () => {
+      if (navbarRef.current) {
+        navHeightRef.current = navbarRef.current.offsetHeight || 80;
+      }
+    };
+    updateMetrics();
+    window.addEventListener('resize', updateMetrics, { passive: true });
+    return () => window.removeEventListener('resize', updateMetrics);
+  }, []);
+
   // Smooth scroll listener with direct 1:1 hardware-accelerated movement
   useEffect(() => {
     let ticking = false;
@@ -78,19 +93,23 @@ const Navbar = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-          const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          const isHome = location.pathname === '/';
+          const snapContainer = isHome ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
           const currentY = snapContainer 
             ? snapContainer.scrollTop 
-            : Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
+            : Math.max(0, window.pageYOffset || window.scrollY || 0);
           const delta = currentY - lastScrollY.current;
           const nav = navbarRef.current;
 
-          // Toggle background class based on scroll position (120px ensures navbar is fully hidden before bg change)
-          setIsAtTop(currentY < 120);
+          // Toggle background class only when state transition occurs (prevents 60 re-renders/sec on scroll)
+          const nextIsAtTop = currentY < 120;
+          if (isAtTopRef.current !== nextIsAtTop) {
+            isAtTopRef.current = nextIsAtTop;
+            setIsAtTop(nextIsAtTop);
+          }
 
           if (nav) {
-            const maxHide = nav.offsetHeight || 80;
+            const maxHide = navHeightRef.current || 80;
             if (delta > 0) {
               // Scrolling down: hide the navbar instantly as we scroll
               currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
@@ -108,12 +127,13 @@ const Navbar = () => {
                 if (hideTimeout.current) clearTimeout(hideTimeout.current);
                 hideTimeout.current = setTimeout(() => {
                   if (navbarRef.current) {
-                    const snapCheck = document.querySelector('.snap-container') as HTMLElement;
-                    const yCheck = snapCheck ? snapCheck.scrollTop : window.pageYOffset;
+                    const snapCheck = location.pathname === '/' ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
+                    const yCheck = snapCheck ? snapCheck.scrollTop : (window.pageYOffset || window.scrollY || 0);
                     if (yCheck > 120) {
-                      currentOffset.current = maxHide;
+                      const maxHideTimeout = navHeightRef.current || 80;
+                      currentOffset.current = maxHideTimeout;
                       navbarRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-                      navbarRef.current.style.transform = `translateY(-${maxHide}px)`;
+                      navbarRef.current.style.transform = `translateY(-${maxHideTimeout}px)`;
                       
                       // Remove transition after it completes so manual scrolling feels instant again
                       setTimeout(() => {
@@ -140,7 +160,7 @@ const Navbar = () => {
       document.removeEventListener('scroll', handleScroll, { capture: true } as any);
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
     };
-  }, []);
+  }, [location.pathname]);
 
 
   // Close dropdowns on outside click

@@ -96,8 +96,8 @@ const MobileBottomNav = () => {
       
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-          const currentY = snapContainer ? snapContainer.scrollTop : window.scrollY;
+          const snapContainer = isHomepage ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
+          const currentY = snapContainer ? snapContainer.scrollTop : (window.scrollY || window.pageYOffset || 0);
             
           const delta = currentY - lastScrollY.current;
           const maxHide = 100;

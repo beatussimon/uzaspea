@@ -107,12 +107,14 @@ const LandingPage = () => {
     { id: 'redirect', label: 'Products' } // Invisible redirect section
   ];
   
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const bgBlurRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-    const progress = target.scrollTop / (window.innerHeight || 800);
-    setScrollProgress(Math.min(progress, 1));
+    if (bgBlurRef.current) {
+      const progress = Math.min(1, Math.max(0, target.scrollTop / 800));
+      bgBlurRef.current.style.filter = `blur(${progress * 10}px)`;
+    }
   };
 
   // When the redirect section comes into view, navigate to products
@@ -170,8 +172,9 @@ const LandingPage = () => {
       {/* Global Fixed Background */}
       <div className="fixed inset-0 z-0 overflow-hidden flex pointer-events-none bg-black">
         <div 
+          ref={bgBlurRef}
           className="absolute inset-[-5%] w-[110%] h-[110%]"
-          style={{ filter: `blur(${scrollProgress * 10}px)` }}
+          style={{ filter: 'blur(0px)' }}
         >
           <AnimatePresence mode="wait">
             <motion.img
