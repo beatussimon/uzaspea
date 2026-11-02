@@ -270,6 +270,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
   const activeConvIdRef = useRef<number | null>(null);
 
   const userRef = useRef(user);
@@ -458,6 +459,7 @@ const subscribeToWebPush = async () => {
 
     ws.onopen = () => {
       // Websocket connected
+      reconnectAttemptsRef.current = 0;
     };
 
     ws.onmessage = (e) => {
@@ -633,9 +635,11 @@ const subscribeToWebPush = async () => {
     ws.onclose = (e) => {
       // Avoid reconnect loop if logged out, normal closure, or geofence/auth rejection
       if (isAuthenticated && e.code !== 1000 && e.code !== 4451 && e.code !== 4001 && e.code !== 4003) {
+        const delay = Math.min(30000, 5000 * Math.pow(1.5, reconnectAttemptsRef.current));
+        reconnectAttemptsRef.current += 1;
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connectWS();
-        }, 5000);
+        }, delay);
       }
     };
 

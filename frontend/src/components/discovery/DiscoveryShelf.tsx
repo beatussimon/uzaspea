@@ -50,7 +50,6 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     setShelfProducts(products);
     setPage(1);
     setHasMore(paginated && products.length >= 12);
-    hasAutoScrolledRef.current = false;
   }, [products, paginated]);
 
   // Guarantee that in a 2-row horizontal shelf, only complete pairs (even count) are rendered so the bottom row is never empty
@@ -107,7 +106,6 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     const el = scrollRef.current;
     if (!el) return;
 
-    pauseAutoScrollTemporarily();
     isDraggingRef.current = true;
     startXRef.current = e.pageX;
     scrollLeftStartRef.current = el.scrollLeft;
@@ -197,22 +195,49 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
       });
   }, [id, page, hasMore, loadingMore, gender]);
 
+  const canScrollLeftRef = useRef(false);
+  const canScrollRightRef = useRef(false);
+  const activeColIndexRef = useRef(0);
+  const stepRef = useRef<number>(0);
+
+  const measureStep = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const firstChild = el.children[0] as HTMLElement | undefined;
+    const secondChild = el.children[2] as HTMLElement | undefined;
+    if (firstChild && secondChild) {
+      stepRef.current = secondChild.offsetLeft - firstChild.offsetLeft;
+    } else {
+      stepRef.current = el.clientWidth;
+    }
+  }, []);
+
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 10);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
 
-    const firstChild = el.children[0] as HTMLElement | undefined;
-    const secondChild = el.children[2] as HTMLElement | undefined;
-    const step = (secondChild && firstChild) ? (secondChild.offsetLeft - firstChild.offsetLeft) : el.clientWidth;
+    const nextCanLeft = el.scrollLeft > 10;
+    if (canScrollLeftRef.current !== nextCanLeft) {
+      canScrollLeftRef.current = nextCanLeft;
+      setCanScrollLeft(nextCanLeft);
+    }
 
+    const nextCanRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 10;
+    if (canScrollRightRef.current !== nextCanRight) {
+      canScrollRightRef.current = nextCanRight;
+      setCanScrollRight(nextCanRight);
+    }
+
+    const step = stepRef.current || el.clientWidth;
     if (step > 0 && totalColumns > 1) {
       const idx = Math.min(
         totalColumns - 1,
         Math.max(0, Math.round(el.scrollLeft / step))
       );
-      setActiveColIndex((prev) => (prev !== idx ? idx : prev));
+      if (activeColIndexRef.current !== idx) {
+        activeColIndexRef.current = idx;
+        setActiveColIndex(idx);
+      }
 
       // As user approaches the end, load the next batch of section products
       const isNearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 350;
@@ -223,6 +248,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   }, [totalColumns, hasMore, loadingMore, fetchNextPage]);
 
   useEffect(() => {
+    measureStep();
     checkScroll();
     const el = scrollRef.current;
     if (!el) return;
@@ -237,31 +263,28 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
       }
     };
 
+    const onResize = () => {
+      measureStep();
+      onScroll();
+    };
+
     el.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize, { passive: true });
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       el.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
     };
-  }, [checkScroll, products]);
+  }, [checkScroll, measureStep, displayProducts.length]);
 
   const scrollToColumn = useCallback((colIdx: number) => {
     const el = scrollRef.current;
     if (!el) return;
-    const firstChild = el.children[0] as HTMLElement | undefined;
-    const targetChild = el.children[colIdx * 2] as HTMLElement | undefined;
-    if (firstChild && targetChild) {
-      el.scrollTo({
-        left: targetChild.offsetLeft - firstChild.offsetLeft,
-        behavior: 'smooth',
-      });
-    } else {
-      el.scrollTo({
-        left: colIdx * el.clientWidth,
-        behavior: 'smooth',
-      });
-    }
+    const step = stepRef.current || el.clientWidth;
+    el.scrollTo({
+      left: colIdx * step,
+      behavior: 'smooth',
+    });
   }, []);
 
   const handleManualScrollToColumn = (colIdx: number) => {
