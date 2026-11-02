@@ -14,7 +14,9 @@ const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sec
 
   useEffect(() => {
     // Disable body scroll globally so only this container scrolls
-    document.body.style.overflow = 'hidden';
+    if (document.body.style.overflow !== 'hidden') {
+      document.body.style.overflow = 'hidden';
+    }
     
     return () => {
       document.body.style.overflow = '';

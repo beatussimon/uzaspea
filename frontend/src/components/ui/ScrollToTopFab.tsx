@@ -34,7 +34,9 @@ export const ScrollToTopFab: React.FC = () => {
     };
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    handleScroll();
+    if (typeof window !== 'undefined' && (window.pageYOffset || window.scrollY || 0) > 300) {
+      handleScroll();
+    }
 
     return () => {
       document.removeEventListener('scroll', handleScroll, { capture: true });

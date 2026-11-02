@@ -35,7 +35,8 @@ const Navbar = () => {
   const lastScrollY = useRef(0);
   const currentOffset = useRef(0);
   const navbarRef = useRef<HTMLElement>(null);
-  const navHeightRef = useRef(80);
+  const getNavHeight = () => (typeof window !== 'undefined' && window.innerWidth >= 768 ? 80 : 56);
+  const navHeightRef = useRef(getNavHeight());
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -69,19 +70,18 @@ const Navbar = () => {
     if (navbarRef.current) {
       navbarRef.current.style.transform = 'translateY(0px)';
     }
-    window.scrollTo(0, 0);
+    if ((window.pageYOffset || window.scrollY || 0) > 0) {
+      window.scrollTo(0, 0);
+    }
   }, [location.pathname]);
 
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Measure navbar height on mount & window resize (never inside scroll loop to prevent forced reflow)
+  // Update navbar height metric on window resize (zero DOM reads on mount)
   useEffect(() => {
     const updateMetrics = () => {
-      if (navbarRef.current) {
-        navHeightRef.current = navbarRef.current.offsetHeight || 80;
-      }
+      navHeightRef.current = getNavHeight();
     };
-    updateMetrics();
     window.addEventListener('resize', updateMetrics, { passive: true });
     return () => window.removeEventListener('resize', updateMetrics);
   }, []);
@@ -155,7 +155,9 @@ const Navbar = () => {
     };
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    handleScroll(); // Initial run
+    if (typeof window !== 'undefined' && (window.pageYOffset || window.scrollY || 0) > 0) {
+      handleScroll();
+    }
     return () => {
       document.removeEventListener('scroll', handleScroll, { capture: true } as any);
       if (hideTimeout.current) clearTimeout(hideTimeout.current);

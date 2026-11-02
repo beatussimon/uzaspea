@@ -68,7 +68,7 @@ export function useStatusBar() {
       };
 
       // Set initial color immediately based on current scroll position
-      handleScroll();
+      updateMetaTag(startColor, currentColorRef);
 
       document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
       return () => document.removeEventListener('scroll', handleScroll, { capture: true } as any);
