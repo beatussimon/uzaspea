@@ -43,7 +43,7 @@ class SeoRenderView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        raw_path = request.query_params.get('path', '/').strip()
+        raw_path = (request.query_params.get('path') or request.query_params.get('uri') or '/').strip()
         # Clean path
         path = raw_path.split('?')[0] if '?' in raw_path else raw_path
         query_string = raw_path.split('?')[1] if '?' in raw_path else ''
