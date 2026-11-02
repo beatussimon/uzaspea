@@ -19,4 +19,4 @@ RUN mkdir -p /app/staticfiles /app/media /app/private_media /app/vault_storage/_
     && chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "uzachuo.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "3", "--ws", "websockets", "--timeout-keep-alive", "65", "--limit-max-requests", "2000", "--limit-max-requests-jitter", "200"]
+CMD ["uvicorn", "uzachuo.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "3", "--ws", "websockets", "--timeout-keep-alive", "65", "--limit-max-requests", "2000"]

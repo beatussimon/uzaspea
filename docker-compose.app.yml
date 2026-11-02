@@ -71,7 +71,7 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-keep-alive 65 --limit-max-requests 2000 --limit-max-requests-jitter 200 --timeout-graceful-shutdown 30"
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-keep-alive 65 --limit-max-requests 2000 --timeout-graceful-shutdown 30"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health/live/ || exit 1"]
       interval: 15s
