@@ -22,6 +22,9 @@ MIRROR_DIR="/tmp/uzaspea_mirror_backup_$(date +%Y%m%d_%H%M%S).git"
 git clone --mirror /home/bea/uzaspea "${MIRROR_DIR}"
 echo "Mirror backup saved at: ${MIRROR_DIR}"
 
+# Remove previous filter-repo marker if present to avoid interactive prompt
+rm -rf .git/filter-repo
+
 # Run git filter-repo
 python3 -m git_filter_repo \
   --path backend/db.sqlite3 \
