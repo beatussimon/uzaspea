@@ -89,14 +89,17 @@ const Navbar = () => {
   // Smooth scroll listener with direct 1:1 hardware-accelerated movement
   useEffect(() => {
     let ticking = false;
+    let snapContainerCache: HTMLElement | null = null;
+    const isHome = location.pathname === '/';
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const isHome = location.pathname === '/';
-          const snapContainer = isHome ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
-          const currentY = snapContainer 
-            ? snapContainer.scrollTop 
+          if (isHome && !snapContainerCache) {
+            snapContainerCache = document.querySelector('.snap-container') as HTMLElement | null;
+          }
+          const currentY = snapContainerCache 
+            ? snapContainerCache.scrollTop 
             : Math.max(0, window.pageYOffset || window.scrollY || 0);
           const delta = currentY - lastScrollY.current;
           const nav = navbarRef.current;
@@ -127,8 +130,7 @@ const Navbar = () => {
                 if (hideTimeout.current) clearTimeout(hideTimeout.current);
                 hideTimeout.current = setTimeout(() => {
                   if (navbarRef.current) {
-                    const snapCheck = location.pathname === '/' ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
-                    const yCheck = snapCheck ? snapCheck.scrollTop : (window.pageYOffset || window.scrollY || 0);
+                    const yCheck = snapContainerCache ? snapContainerCache.scrollTop : (window.pageYOffset || window.scrollY || 0);
                     if (yCheck > 120) {
                       const maxHideTimeout = navHeightRef.current || 80;
                       currentOffset.current = maxHideTimeout;
@@ -155,9 +157,6 @@ const Navbar = () => {
     };
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    if (typeof window !== 'undefined' && (window.pageYOffset || window.scrollY || 0) > 0) {
-      handleScroll();
-    }
     return () => {
       document.removeEventListener('scroll', handleScroll, { capture: true } as any);
       if (hideTimeout.current) clearTimeout(hideTimeout.current);

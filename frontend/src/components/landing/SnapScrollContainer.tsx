@@ -47,7 +47,7 @@ const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sec
     return () => {
       observer.current?.disconnect();
     };
-  }, [children]);
+  }, [sections]);
 
   const handleDotClick = (id: string) => {
     const el = document.getElementById(id);

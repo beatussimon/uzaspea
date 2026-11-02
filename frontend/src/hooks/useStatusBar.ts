@@ -48,12 +48,15 @@ export function useStatusBar() {
       }
 
       let ticking = false;
+      let snapContainerCache: HTMLElement | null = null;
       const handleScroll = () => {
         if (!ticking) {
           window.requestAnimationFrame(() => {
-            const snapContainer = document.querySelector('.snap-container') as HTMLElement | null;
-            const currentY = snapContainer 
-              ? snapContainer.scrollTop 
+            if (!snapContainerCache) {
+              snapContainerCache = document.querySelector('.snap-container') as HTMLElement | null;
+            }
+            const currentY = snapContainerCache 
+              ? snapContainerCache.scrollTop 
               : Math.max(0, window.pageYOffset || window.scrollY || 0);
             
             // Dynamically interpolate color between 0 and 120px scroll
@@ -80,6 +83,10 @@ export function useStatusBar() {
   }, [location.pathname, isDark, location.state]);
 }
 
+let cachedMetaLight: HTMLMetaElement | null = null;
+let cachedMetaDark: HTMLMetaElement | null = null;
+let cachedMetaFallback: HTMLMetaElement | null = null;
+
 function updateMetaTag(color: string, currentColorRef?: React.MutableRefObject<string>) {
   if (currentColorRef && currentColorRef.current === color) {
     return;
@@ -89,28 +96,34 @@ function updateMetaTag(color: string, currentColorRef?: React.MutableRefObject<s
   }
 
   // Update light theme meta tag
-  let metaLight = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: light)"]') as HTMLMetaElement;
-  if (!metaLight) {
-    metaLight = document.createElement('meta');
-    metaLight.name = 'theme-color';
-    metaLight.media = '(prefers-color-scheme: light)';
-    document.head.appendChild(metaLight);
+  if (!cachedMetaLight || !cachedMetaLight.isConnected) {
+    cachedMetaLight = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: light)"]') as HTMLMetaElement;
+    if (!cachedMetaLight) {
+      cachedMetaLight = document.createElement('meta');
+      cachedMetaLight.name = 'theme-color';
+      cachedMetaLight.media = '(prefers-color-scheme: light)';
+      document.head.appendChild(cachedMetaLight);
+    }
   }
-  metaLight.content = color;
+  cachedMetaLight.content = color;
 
   // Update dark theme meta tag
-  let metaDark = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: dark)"]') as HTMLMetaElement;
-  if (!metaDark) {
-    metaDark = document.createElement('meta');
-    metaDark.name = 'theme-color';
-    metaDark.media = '(prefers-color-scheme: dark)';
-    document.head.appendChild(metaDark);
+  if (!cachedMetaDark || !cachedMetaDark.isConnected) {
+    cachedMetaDark = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: dark)"]') as HTMLMetaElement;
+    if (!cachedMetaDark) {
+      cachedMetaDark = document.createElement('meta');
+      cachedMetaDark.name = 'theme-color';
+      cachedMetaDark.media = '(prefers-color-scheme: dark)';
+      document.head.appendChild(cachedMetaDark);
+    }
   }
-  metaDark.content = color;
+  cachedMetaDark.content = color;
   
   // Also update any theme-color tag without media query (legacy fallback)
-  let metaFallback = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement;
-  if (metaFallback) {
-      metaFallback.content = color;
+  if (!cachedMetaFallback || !cachedMetaFallback.isConnected) {
+    cachedMetaFallback = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement;
+  }
+  if (cachedMetaFallback) {
+    cachedMetaFallback.content = color;
   }
 }

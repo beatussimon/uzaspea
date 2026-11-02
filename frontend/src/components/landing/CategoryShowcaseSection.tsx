@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -57,23 +57,9 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
       .catch(() => setLoading(false));
   }, [categories.length]);
 
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05, delayChildren: 0.05 }
-    }
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, scale: 0.8, y: 15 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      y: 0,
-      transition: { type: 'spring', stiffness: 400, damping: 25 }
-    }
-  };
+  const displayCategories = React.useMemo(() => {
+    return categories.slice(0, 24);
+  }, [categories]);
 
   return (
     <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-start">
@@ -81,23 +67,23 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
         {isActive && (
           <motion.div 
             className="relative z-10 w-full h-full pt-16 md:pt-20 pb-20 md:pb-24 flex flex-col items-center justify-start max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 overflow-hidden"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
           >
             {/* Scrollable Container containing Header + Categories together */}
             <div className="w-full flex-1 flex flex-col items-center overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 px-2">
               <div className="w-full max-w-4xl mx-auto my-0 md:my-auto flex flex-col items-center pt-2 pb-24 md:pb-16">
                 {/* Header - scrolls together with categories */}
-                <motion.div variants={itemVariants} className="mb-4 sm:mb-6 shrink-0 flex flex-col items-center justify-center text-center w-full">
+                <div className="mb-4 sm:mb-6 shrink-0 flex flex-col items-center justify-center text-center w-full">
                   <h2 className="text-2xl md:text-3xl font-black text-white leading-none drop-shadow-md">
                     {t('shop_by_category', 'Shop by category')}
                   </h2>
                   <p className="text-xs md:text-sm font-medium text-gray-300 mt-1">
                     {t('find_exactly_what_youre_looking_for', "Find exactly what you're looking for")}
                   </p>
-                </motion.div>
+                </div>
 
                 {/* Circular Category Showcase - Centered responsive flex wrap */}
                 <div className="w-full flex flex-wrap justify-center items-start gap-5 sm:gap-7 md:gap-9">
@@ -109,10 +95,9 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                       </div>
                     ))
                   ) : (
-                    categories.map((cat) => (
-                      <motion.div 
+                    displayCategories.map((cat) => (
+                      <div 
                         key={cat.id} 
-                        variants={itemVariants} 
                         className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2 group text-center"
                       >
                         <Link 
@@ -139,7 +124,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                             {cat.total_products.toLocaleString()} {cat.total_products === 1 ? t('item', 'item') : t('items_count', 'items')}
                           </span>
                         )}
-                      </motion.div>
+                      </div>
                     ))
                   )}
                 </div>
@@ -148,7 +133,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             
             {/* Scroll indicator for the redirect section */}
             <div className="absolute bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex justify-center w-full z-20 pointer-events-none pt-4 pb-2">
-              <motion.div variants={itemVariants} className="flex flex-col items-center justify-center opacity-80 pointer-events-auto">
+              <div className="flex flex-col items-center justify-center opacity-80 pointer-events-auto">
                 <span className="text-[11px] tracking-wider text-gray-400 font-medium mb-0.5 drop-shadow">
                   {t('scroll_for_products', 'Scroll for products')}
                 </span>
@@ -160,7 +145,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                 >
                   <ChevronDown className="h-7 w-7 md:h-8 md:w-8 text-gray-300 hover:text-white transition-colors drop-shadow-md" />
                 </div>
-              </motion.div>
+              </div>
             </div>
           </motion.div>
         )}

@@ -14,13 +14,16 @@ export const ScrollToTopFab: React.FC = () => {
   // Scroll visibility handler
   useEffect(() => {
     let ticking = false;
+    let snapContainerCache: HTMLElement | null = null;
+    const isHome = location.pathname === '/';
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const isHome = location.pathname === '/';
-          const snapContainer = isHome ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
-          const currentY = snapContainer ? snapContainer.scrollTop : (window.scrollY || window.pageYOffset || 0);
+          if (isHome && !snapContainerCache) {
+            snapContainerCache = document.querySelector('.snap-container') as HTMLElement | null;
+          }
+          const currentY = snapContainerCache ? snapContainerCache.scrollTop : (window.scrollY || window.pageYOffset || 0);
           
           const nextVisible = currentY > 300;
           if (isVisibleRef.current !== nextVisible) {
@@ -34,9 +37,6 @@ export const ScrollToTopFab: React.FC = () => {
     };
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    if (typeof window !== 'undefined' && (window.pageYOffset || window.scrollY || 0) > 300) {
-      handleScroll();
-    }
 
     return () => {
       document.removeEventListener('scroll', handleScroll, { capture: true });

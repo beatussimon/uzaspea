@@ -59,11 +59,13 @@ const MobileBottomNav = () => {
 
   const isHomepage = location.pathname === '/';
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastVisibilityRef = useRef<boolean | null>(null);
 
   const NAV_TRANSITION = 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)';
 
   const notifyNavVisibility = (visible: boolean) => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && lastVisibilityRef.current !== visible) {
+      lastVisibilityRef.current = visible;
       document.documentElement.style.setProperty('--mobile-nav-bottom-offset', visible ? '80px' : '16px');
       window.dispatchEvent(new CustomEvent('mobileNavVisibilityChange', { detail: { visible } }));
     }
@@ -91,13 +93,17 @@ const MobileBottomNav = () => {
 
   useEffect(() => {
     let ticking = false;
+    let snapContainerCache: HTMLElement | null = null;
+
     const handleScroll = () => {
       if (isMenuOpen) return;
       
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const snapContainer = isHomepage ? (document.querySelector('.snap-container') as HTMLElement | null) : null;
-          const currentY = snapContainer ? snapContainer.scrollTop : (window.scrollY || window.pageYOffset || 0);
+          if (isHomepage && !snapContainerCache) {
+            snapContainerCache = document.querySelector('.snap-container') as HTMLElement | null;
+          }
+          const currentY = snapContainerCache ? snapContainerCache.scrollTop : (window.scrollY || window.pageYOffset || 0);
             
           const delta = currentY - lastScrollY.current;
           const maxHide = 100;

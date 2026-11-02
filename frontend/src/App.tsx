@@ -12,8 +12,8 @@ import { ChatToastContainer } from './components/ChatToast';
 import { useStatusBar } from './hooks/useStatusBar';
 import { initGlobalHorizontalScroll } from './hooks/useHorizontalScroll';
 import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
-import { SearchProvider } from './context/SearchContext';
-import GlobalSearchModal from './components/GlobalSearchModal';
+import { SearchProvider, useSearch } from './context/SearchContext';
+const GlobalSearchModal = lazy(() => import('./components/GlobalSearchModal'));
 import { LocationProvider } from './context/LocationContext';
 import { FloatingPromptDock } from './components/layout/FloatingPromptDock';
 import NetworkStatusBanner from './components/common/NetworkStatusBanner';
@@ -169,6 +169,7 @@ function AppLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
   const isMessagesPage = location.pathname.startsWith('/messages');
+  const { isSearchOpen } = useSearch();
   
   useStatusBar();
 
@@ -209,7 +210,11 @@ function AppLayout() {
       <MobileBottomNav />
       <ScrollToTopFab />
       <GlobalTermsModal />
-      <GlobalSearchModal />
+      {isSearchOpen && (
+        <Suspense fallback={null}>
+          <GlobalSearchModal />
+        </Suspense>
+      )}
 
       <Toaster
         position="top-right"

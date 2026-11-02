@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useVelocity, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation, Trans } from 'react-i18next';
 import api from '../api';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -23,14 +23,6 @@ const LandingPage = () => {
   const siteSettings = useSiteSettings();
   
   const [stats, setStats] = useState<any>(null);
-
-  // Framer motion values for the drag-to-wiggle effect
-  const constraintsRef = useRef<HTMLDivElement>(null);
-  const dragX = useMotionValue(0);
-  const dragVelocity = useVelocity(dragX);
-  const smoothVelocity = useSpring(dragVelocity, { damping: 50, stiffness: 400 });
-  const rotateForm = useTransform(smoothVelocity, [-1000, 0, 1000], [-1, 0, 1]);
-  const skewForm = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
 
   const lightHero = siteSettings?.home_light_bg_image || '/kariakoo_daytime.webp?v=3';
   const darkHero = siteSettings?.home_dark_bg_image || '/kariakoo_nightscape.webp?v=3';
@@ -55,38 +47,52 @@ const LandingPage = () => {
       })
       .catch(() => {});
 
-    // Pre-warm the cache for the products list page so navigation is instant
-    const productsParams = { page: '1', page_size: '12' };
-    const productsCacheKey = `products:${JSON.stringify(productsParams)}`;
-    
-    const sponsParams = { ...productsParams, public: 'true' };
-    const sponsCacheKey = `sponsored:${JSON.stringify(sponsParams)}`;
+    // Defer pre-warming cache for products list until browser is idle (zero main-thread blocking on load)
+    const runPrewarm = () => {
+      const productsParams = { page: '1', page_size: '12' };
+      const productsCacheKey = `products:${JSON.stringify(productsParams)}`;
+      
+      const sponsParams = { ...productsParams, public: 'true' };
+      const sponsCacheKey = `sponsored:${JSON.stringify(sponsParams)}`;
 
-    if (!apiCache.get(productsCacheKey)) {
-      api.get('/api/products/', { params: productsParams })
-        .then(res => {
-          apiCache.set(productsCacheKey, res.data);
-        })
-        .catch(() => {});
-    }
+      if (!apiCache.get(productsCacheKey)) {
+        api.get('/api/products/', { params: productsParams })
+          .then(res => {
+            apiCache.set(productsCacheKey, res.data);
+          })
+          .catch(() => {});
+      }
 
-    if (!apiCache.get(sponsCacheKey)) {
-      api.get('/api/sponsored/', { params: sponsParams })
-        .then(res => {
-          apiCache.set(sponsCacheKey, res.data);
-        })
-        .catch(() => {});
-    }
+      if (!apiCache.get(sponsCacheKey)) {
+        api.get('/api/sponsored/', { params: sponsParams })
+          .then(res => {
+            apiCache.set(sponsCacheKey, res.data);
+          })
+          .catch(() => {});
+      }
 
-    const discGender = localStorage.getItem('preferred_gender') || 'female';
-    const discCacheKey = `discovery:feed:${discGender}`;
-    if (!apiCache.get(discCacheKey)) {
-      api.get('/api/products/discovery/', { params: { gender: discGender } })
-        .then(res => {
-          apiCache.set(discCacheKey, res.data);
-        })
-        .catch(() => {});
-    }
+      const discGender = localStorage.getItem('preferred_gender') || 'female';
+      const discCacheKey = `discovery:feed:${discGender}`;
+      if (!apiCache.get(discCacheKey)) {
+        api.get('/api/products/discovery/', { params: { gender: discGender } })
+          .then(res => {
+            apiCache.set(discCacheKey, res.data);
+          })
+          .catch(() => {});
+      }
+    };
+
+    const idleId = typeof requestIdleCallback !== 'undefined'
+      ? requestIdleCallback(runPrewarm, { timeout: 3000 })
+      : setTimeout(runPrewarm, 1500);
+
+    return () => {
+      if (typeof cancelIdleCallback !== 'undefined' && typeof idleId === 'number') {
+        cancelIdleCallback(idleId);
+      } else {
+        clearTimeout(idleId as any);
+      }
+    };
   }, []);
 
   const [showCategories] = useState(() => {
@@ -204,7 +210,7 @@ const LandingPage = () => {
       <SnapScrollContainer sections={sections} onScroll={handleScroll}>
         {/* 1. HERO SECTION */}
         <div className="relative w-full h-full flex flex-col justify-center overflow-hidden group">
-          <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
+          <div className="absolute inset-0 z-0 overflow-hidden flex pointer-events-none">
           </div>
 
           <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 mx-auto text-center pointer-events-none pt-20">
@@ -221,8 +227,7 @@ const LandingPage = () => {
             <VerifiedBadge tier="business" isVerified={true} className="w-7 h-7 md:w-9 md:h-9" />
           </div>
 
-          <motion.div 
-            style={{ rotate: rotateForm, skewX: skewForm }}
+          <div 
             className="bg-white/95 dark:bg-black/90 p-2 rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto backdrop-blur-md pointer-events-auto origin-center"
           >
             <div 
@@ -243,7 +248,7 @@ const LandingPage = () => {
                 <Search className="h-6 w-6" />
               </button>
             </div>
-          </motion.div>
+          </div>
 
           {stats && (
             <motion.div 
