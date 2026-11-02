@@ -10,7 +10,7 @@ from rest_framework import viewsets, permissions, status, decorators, serializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
 from django.db.models import Q, Sum, Count, Avg, F
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -40,13 +40,15 @@ from .serializers import (
     BrandSerializer, ReferenceProductSerializer, PasswordResetRequestStaffSerializer,
     ReservedUsernameSerializer, StoreLocationSerializer, StoreLocationBriefSerializer,
     LocationStockSerializer, LocationStockBatchUpdateSerializer, RegisterSessionSerializer,
-    StockTransferSerializer, StockTransferItemSerializer
+    StockTransferSerializer, StockTransferItemSerializer, compute_invoice_signature
 )
 
+from uzachuo.authentication import GracefulJWTAuthentication
 from uzachuo.permissions import (
-    IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission,
-    IsSuperUser, IsActiveBusinessOwner, get_user_location_scope
+    IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, IsPOSOperatorOrSeller,
+    has_staff_permission, IsSuperUser, IsActiveBusinessOwner, get_user_location_scope
 )
+from uzachuo.net_utils import get_client_ip, validate_webpush_endpoint
 from django.db.models import Prefetch
 from django.db import transaction
 
@@ -57,6 +59,9 @@ class RegisterRateThrottle(AnonRateThrottle):
 
 class LoginRateThrottle(AnonRateThrottle):
     scope = 'login'
+
+class WsTicketRateThrottle(UserRateThrottle):
+    scope = 'ws_ticket'
 
 class OrderCreateThrottle(UserRateThrottle):
     scope = 'order_create'
@@ -180,6 +185,26 @@ def geocode_search(request):
     except requests.RequestException:
         return Response([], status=200)
 
+def clear_product_cache(product_or_id, slug=None, public_id=None):
+    from django.core.cache import cache
+    pid = getattr(product_or_id, 'id', product_or_id)
+    slug = slug or getattr(product_or_id, 'slug', None)
+    public_id = public_id or getattr(product_or_id, 'public_id', None)
+    
+    keys = [
+        f"product:detail:{pid}",
+        f"product:detail:lookup:{pid}",
+        f"product:buying_price:{pid}",
+    ]
+    if slug:
+        keys.append(f"product:detail:lookup:{slug}")
+    if public_id:
+        keys.append(f"product:detail:lookup:{public_id}")
+        if slug:
+            keys.append(f"product:detail:lookup:{slug}-{public_id}")
+    cache.delete_many(keys)
+
+
 @method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments', 'variants')
@@ -200,15 +225,37 @@ class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
         is_personal = (
+            request.user.is_authenticated or
             request.query_params.get('mine') == 'true' or
             request.query_params.get('saved') == 'true' or
             request.query_params.get('following') or
-            request.query_params.get('is_draft')
+            request.query_params.get('is_draft') or
+            request.query_params.get('ref') or
+            request.query_params.get('aff') or
+            request.query_params.get('all') == 'true' or
+            request.query_params.get('moderation') == 'true' or
+            request.query_params.get('pos_only') or
+            request.query_params.get('include_unlisted')
         )
+        cache_key = None
+        if not is_personal and request.method == 'GET':
+            from django.core.cache import cache
+            from urllib.parse import urlencode
+            sorted_params = urlencode(sorted(request.query_params.items()))
+            cache_key = f"catalog:feed:{sorted_params}"
+            cached_feed = cache.get(cache_key)
+            if cached_feed is not None:
+                response = Response(cached_feed)
+                response['Cache-Control'] = 'public, max-age=30, stale-while-revalidate=60'
+                return response
+
+        response = super().list(request, *args, **kwargs)
         if not is_personal and response.status_code == 200:
             response['Cache-Control'] = 'public, max-age=30, stale-while-revalidate=60'
+            if cache_key:
+                from django.core.cache import cache
+                cache.set(cache_key, response.data, timeout=45)
         return response
 
     def get_object(self):
@@ -472,10 +519,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
             'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
             'is_draft', 'pos_only', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
-            'region', 'location_mode', 'exclude', 'ref', 'aff'
+            'region', 'location_mode', 'exclude', 'ref', 'aff', 'product_type', 'is_service', 'format_type'
         }
+        import re
+        spec_key_regex = re.compile(r'^[a-zA-Z0-9_]{1,64}$')
         for key, value in self.request.query_params.items():
-            if key not in reserved_params and value and not key.startswith('_'):
+            if key not in reserved_params and value and not key.startswith('_') and spec_key_regex.match(key):
                 queryset = queryset.filter(
                     Q(**{f"structured_specs__{key}__iexact": value}) | 
                     Q(**{f"specifications__{key}__iexact": value}) |
@@ -794,7 +843,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         user = self.request.user
         seller = user
         from marketplace.models import TeamMember
-        team_memberships = TeamMember.objects.filter(user=user)
+        team_memberships = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True)
         if team_memberships.exists():
             requested_seller_id = self.request.data.get('seller')
             if requested_seller_id:
@@ -865,9 +914,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
 
     def perform_update(self, serializer):
-        from django.core.cache import cache
         product = serializer.save()
-        cache.delete(f"product:detail:{product.id}")
+        clear_product_cache(product)
         images = self.request.FILES.getlist('uploaded_images')
         if images:
             # Optionally clear existing images if it's a full replacement, 
@@ -876,8 +924,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 ProductImage.objects.create(product=product, image=img)
 
     def perform_destroy(self, instance):
-        from django.core.cache import cache
-        cache.delete(f"product:detail:{instance.id}")
+        clear_product_cache(instance)
         super().perform_destroy(instance)
 
     def _get_similar_products(self, product, request, limit=12):
@@ -891,30 +938,75 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         from django.core.cache import cache
+        from django.http import Http404
         from .recs.serializers import serialize_cards
         from .serializers import user_can_view_cost
-        instance = self.get_object()
-        cache_key = f"product:detail:{instance.id}"
-        cached_data = cache.get(cache_key)
+        from marketplace.models import Like
+
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+
+        cached_data = None
+        if lookup_val:
+            lookup_str = str(lookup_val).strip()
+            cached_data = cache.get(f"product:detail:lookup:{lookup_str}")
+            if not cached_data and lookup_str.isdigit():
+                cached_data = cache.get(f"product:detail:{lookup_str}")
 
         if cached_data is not None:
             data = dict(cached_data)
-        else:
-            serializer = self.get_serializer(instance)
-            data = dict(serializer.data)
-            data.pop('buying_price', None)  # cost price must never enter the shared cache
-            # Similar items are not personalised -> safe in this shared cache.
-            # 'You Might Also Like' is personal -> client fetches /api/recs/products/<id>/ymal/.
-            try:
-                similar_items, has_more, slots = self._get_similar_products(instance, request, limit=12)
-                data['similar_products'] = serialize_cards(similar_items, request, slots=slots, personal=False)
-                data['has_more_similar'] = has_more
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
-                data['similar_products'] = []
-                data['has_more_similar'] = False
-            cache.set(cache_key, data, timeout=180)
+            # POS-only security gate
+            if data.get('pos_only', False):
+                user = request.user
+                is_owner_or_staff = user.is_authenticated and (user.id == data.get('seller') or user.is_staff or user.is_superuser)
+                if not is_owner_or_staff:
+                    raise Http404("No product matches the given query.")
+
+            # Fast viewer-specific overlays without querying product/variant trees
+            if request.user.is_authenticated:
+                data['is_liked'] = Like.objects.filter(product_id=data['id'], user=request.user).exists()
+                if user_can_view_cost(request.user, data.get('seller')):
+                    cached_buying = cache.get(f"product:buying_price:{data['id']}")
+                    if cached_buying is not None:
+                        data['buying_price'] = cached_buying
+            else:
+                data['is_liked'] = False
+
+            response = Response(data)
+            response['Cache-Control'] = ('private, max-age=60' if request.user.is_authenticated
+                                         else 'public, max-age=60, stale-while-revalidate=300')
+            return response
+
+        # Cache miss: fetch object via normal resolution
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = dict(serializer.data)
+        data.pop('buying_price', None)  # cost price must never enter the shared cache
+        
+        # Similar items are not personalised -> safe in this shared cache.
+        try:
+            similar_items, has_more, slots = self._get_similar_products(instance, request, limit=12)
+            data['similar_products'] = serialize_cards(similar_items, request, slots=slots, personal=False)
+            data['has_more_similar'] = has_more
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
+            data['similar_products'] = []
+            data['has_more_similar'] = False
+
+        # Store cache under ID and lookup keys
+        timeout = 180
+        cache.set(f"product:detail:{instance.id}", data, timeout=timeout)
+        if instance.slug:
+            cache.set(f"product:detail:lookup:{instance.slug}", data, timeout=timeout)
+        if instance.public_id:
+            cache.set(f"product:detail:lookup:{instance.public_id}", data, timeout=timeout)
+            if instance.slug:
+                cache.set(f"product:detail:lookup:{instance.slug}-{instance.public_id}", data, timeout=timeout)
+        if lookup_val:
+            cache.set(f"product:detail:lookup:{lookup_val}", data, timeout=timeout)
+        if instance.buying_price is not None:
+            cache.set(f"product:buying_price:{instance.id}", str(instance.buying_price), timeout=timeout)
 
         # Viewer-specific overlays (never cached)
         if user_can_view_cost(request.user, instance.seller_id):
@@ -1027,7 +1119,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             liked = False
         else:
             liked = True
-        cache.delete(f"product:detail:{product.id}")
+        clear_product_cache(product)
         return Response({'liked': liked, 'like_count': product.likes.count()})
 
     @decorators.action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
@@ -1569,6 +1661,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'store_profile': store_profile,
             'rec_reach': rec_reach_data,
             'business_mode': active_mode,
+            'pos_settings': getattr(user_profile, 'pos_settings', {}) or {},
             'total_services': total_services_count,
             'total_physical_products': total_physical_count,
             'membership_stats': {
@@ -1698,6 +1791,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
+    permission_classes = [permissions.AllowAny]
     pagination_class = None
 
     def get_queryset(self):
@@ -2052,8 +2146,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response({'detail': 'Direct deletion of orders is prohibited to maintain audit trails and transaction integrity.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_permissions(self):
-        if self.action == 'pos_checkout':
-            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        if self.action in ['pos_checkout', 'pos_create_invoice', 'pos_mark_paid', 'pos_cancel_invoice', 'pos_verify_pass', 'pos_service_passes']:
+            from uzachuo.permissions import IsPOSOperatorOrSeller
+            return [permissions.IsAuthenticated(), IsPOSOperatorOrSeller()]
         return super().get_permissions()
 
     def get_throttles(self):
@@ -2084,9 +2179,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             else:
                 from uzachuo.permissions import get_effective_sellers
                 sellers = get_effective_sellers(user, required_permission='manage_orders')
+                from django.db.models import Exists, OuterRef
+                seller_items_exists = Exists(
+                    OrderItem.objects.filter(order=OuterRef('pk'), product__seller_id__in=sellers)
+                )
                 qs = Order.objects.filter(
-                    Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
-                ).distinct()
+                    Q(user=user) | seller_items_exists
+                )
         else:
             # List action:
             role = self.request.query_params.get('role')
@@ -2096,7 +2195,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             if role == 'seller' or order_type == 'incoming':
                 from uzachuo.permissions import get_effective_sellers
                 sellers = get_effective_sellers(user, required_permission='manage_orders')
-                qs = Order.objects.filter(orderitem_set__product__seller_id__in=sellers).distinct()
+                from django.db.models import Exists, OuterRef
+                seller_items_exists = Exists(
+                    OrderItem.objects.filter(order=OuterRef('pk'), product__seller_id__in=sellers)
+                )
+                qs = Order.objects.filter(seller_items_exists)
             elif (user.is_staff or user.is_superuser) and (all_param or role == 'all' or order_type == 'all'):
                 qs = Order.objects.all()
             else:
@@ -2114,27 +2217,25 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         # Location Scoping & Filtering for incoming seller orders
         if (role == 'seller' or order_type == 'incoming'):
-            loc_param = self.request.query_params.get('location_id')
-            if loc_param and loc_param != 'all':
-                try:
-                    qs = qs.filter(fulfillment_location_id=int(loc_param))
-                except (ValueError, TypeError):
-                    pass
-            elif not user.is_superuser:
+            if not user.is_superuser:
                 from marketplace.models import TeamMember
                 tm = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True).first()
                 if tm and not tm.all_locations_access:
                     from uzachuo.permissions import get_user_location_scope
                     allowed_ids, _ = get_user_location_scope(user)
                     qs = qs.filter(fulfillment_location_id__in=allowed_ids)
+            loc_param = self.request.query_params.get('location_id')
+            if loc_param and loc_param != 'all':
+                try:
+                    qs = qs.filter(fulfillment_location_id=int(loc_param))
+                except (ValueError, TypeError):
+                    pass
             
         return qs.select_related(
             'user', 'user__profile', 'promo_code', 'fulfillment_location'
         ).prefetch_related(
             'orderitem_set__product__category__parent',
             'orderitem_set__product__seller__profile',
-            'orderitem_set__product__seller__seller_applications',
-            'orderitem_set__product__seller__site_visits',
             'orderitem_set__product__images',
             'orderitem_set__variant',
             'timeline_events',
@@ -2266,7 +2367,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE',
             'PROCESSING', 'SHIPPED', 'DELIVERED', 'READY_FOR_PICKUP', 'COMPLETED', 'DISPUTED'
         }
-        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED', 'READY_FOR_TRANSIT', 'ASSIGNED_TRANSPORT', 'PAID_PRODUCT'}
+        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
+
+        # Explicit Self-Dealing Ban: buyer cannot approve payment or advance fulfillment on their own order
+        if is_buyer and not request.user.is_superuser:
+            if new_state in ('PAID', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED', 'CONFIRMED', 'RECEIVED_AT_WAREHOUSE', 'IN_TRANSIT'):
+                return Response({'detail': 'ERR_SELF_DEALING: You cannot approve payments or advance fulfillment states for your own order.'}, status=403)
 
         # Allow warehouse role staff to transition to warehouse states
         from warehouses.models import WarehouseStaffAssignment
@@ -2277,12 +2383,21 @@ class OrderViewSet(viewsets.ModelViewSet):
             or WarehouseStaffAssignment.objects.filter(user=request.user).exists()
         )
 
-        # Allow seller to verify or reject payment for orders containing their products
-        is_seller_payment_action = is_seller and (
-            (new_state == 'PAID' and order.status == 'PENDING_VERIFICATION') or
-            (new_state in ['AWAITING_PAYMENT', 'AWAITING_DELIVERY_PAYMENT'] and order.status in ['PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION']) or
-            (new_state in ['READY_FOR_PICKUP', 'ASSIGNED_TRANSPORT'] and order.status == 'PENDING_DELIVERY_VERIFICATION')
+        # Warehouse staff without general staff orders permission cannot advance PENDING_VERIFICATION -> PAID
+        is_general_staff = request.user.is_superuser or has_staff_permission(request.user, 'can_manage_orders') or request.user.is_staff
+
+        # Sellers can verify/reject payment for orders containing their goods
+        is_seller_payment_action = (
+            is_seller
+            and (order.user_id != request.user.id or request.user.is_superuser)
+            and (
+                (new_state == 'PAID' and order.status == 'PENDING_VERIFICATION') or
+                (new_state == 'AWAITING_PAYMENT' and order.status == 'PENDING_VERIFICATION')
+            )
         )
+
+        if new_state == 'PAID' and not (is_general_staff or is_seller_payment_action):
+            return Response({'detail': 'ERR_STAFF_ONLY: Only staff or authorized direct sellers can mark an order as PAID.'}, status=403)
         
         if new_state in STAFF_ONLY_STATES and not (is_warehouse_staff or is_seller_payment_action):
             # HIGH-1: DIRECT_DELIVERY orders — seller manages last-mile, so allow them to mark as DELIVERED
@@ -2443,7 +2558,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
-    @decorators.action(detail=False, methods=['post'], url_path='pos-checkout', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=False, methods=['post'], url_path='pos-checkout', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     @transaction.atomic
     def pos_checkout(self, request):
         """Create a POS (Point of Sale) order for walk-in customers."""
@@ -2463,7 +2578,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             req_loc_id = request.data.get('location_id') or request.data.get('fulfillment_location_id')
             allowed_loc_ids, active_loc = get_user_location_scope(user, req_loc_id)
             if not active_loc and req_loc_id:
-                active_loc = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
+                active_loc = StoreLocation.objects.filter(id=req_loc_id, owner_id__in=sellers, is_active=True).first()
 
             total_amount = 0
             order_items = []
@@ -2493,7 +2608,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
                 # Fallback location resolution to seller main store if still None
                 if not active_loc:
-                    active_loc = StoreLocation.objects.filter(owner=product.seller, is_main=True).first() or StoreLocation.objects.filter(owner=product.seller).first()
+                    active_loc = StoreLocation.objects.filter(owner_id__in=sellers, is_main=True).first() or StoreLocation.objects.filter(owner_id__in=sellers).first()
                 
                 # Check location-specific stock if active_loc is known
                 loc_stock = None
@@ -2522,7 +2637,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if product.requires_quote:
                     if 'price' in item_data:
                         try:
-                            price = float(item_data['price'])
+                            price = Decimal(str(item_data['price']))
+                            if price < Decimal('0.01'):
+                                return Response({'error': f'Price for quote item {product.name} must be at least 0.01.'}, status=status.HTTP_400_BAD_REQUEST)
                         except (ValueError, TypeError):
                             return Response({'error': 'Invalid custom price provided.'}, status=status.HTTP_400_BAD_REQUEST)
                     else:
@@ -2531,12 +2648,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # Calculate optional add-on modifiers total
                 selected_addons = item_data.get('addons') or item_data.get('selected_addons') or []
                 addons_total = Decimal('0.00')
+                valid_addons = []
                 if isinstance(selected_addons, list):
                     for add in selected_addons:
+                        if not isinstance(add, dict):
+                            continue
                         try:
-                            addons_total += Decimal(str(add.get('price', 0))) * int(add.get('quantity', 1))
+                            add_price = Decimal(str(add.get('price', 0)))
+                            add_qty = int(add.get('quantity', 1))
                         except (ValueError, TypeError):
-                            pass
+                            continue
+                        if add_price < Decimal('0.00') or add_qty < 1:
+                            continue
+                        addons_total += add_price * add_qty
+                        valid_addons.append({
+                            'name': str(add.get('name') or '')[:100],
+                            'price': float(add_price),
+                            'quantity': add_qty
+                        })
+                selected_addons = valid_addons
 
                 item_final_price = Decimal(str(price)) + addons_total
 
@@ -2596,6 +2726,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                         discount_amount = Decimal('0.00')
                 except (ValueError, TypeError):
                     discount_amount = Decimal('0.00')
+
+            catalog_subtotal = sum(Decimal(str(it['price'])) * Decimal(str(it['quantity'])) for it in order_items)
+            if discount_amount > catalog_subtotal:
+                discount_amount = catalog_subtotal
 
             delivery_info = {
                 'is_pos': True,
@@ -2710,18 +2844,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                     from .models import ReferralConversion
                     seller_target = promo_obj.seller or user
                     try:
-                        ReferralConversion.objects.create(
-                            order=order,
-                            promo_code=promo_obj,
-                            seller=seller_target,
-                            affiliate_user=promo_obj.affiliate_user,
-                            affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
-                            order_subtotal=qualifying_subtotal,
-                            commission_earned=comm_earned,
-                            status='SETTLED'
-                        )
+                        with transaction.atomic():
+                            ReferralConversion.objects.create(
+                                order=order,
+                                promo_code=promo_obj,
+                                seller=seller_target,
+                                customer=order.user,
+                                affiliate_user=promo_obj.affiliate_user,
+                                affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
+                                order_subtotal=qualifying_subtotal,
+                                commission_earned=comm_earned,
+                                status='APPROVED'
+                            )
                     except Exception as e:
-                        print(f"Error creating ReferralConversion for POS: {e}")
+                        import logging
+                        logging.getLogger(__name__).warning("Error creating ReferralConversion for POS: %s", e)
             
             # Phase 2: Platform Economics - Log 3% commission for POS
             from billing.models import CommissionLedgerEntry
@@ -2767,7 +2904,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': f'POS checkout error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @decorators.action(detail=False, methods=['post'], url_path='pos-create-invoice', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=False, methods=['post'], url_path='pos-create-invoice', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     @transaction.atomic
     def pos_create_invoice(self, request):
         """Create an in-store POS proforma/tax invoice without immediately deducting stock."""
@@ -2790,7 +2927,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             req_loc_id = request.data.get('location_id') or request.data.get('fulfillment_location_id')
             allowed_loc_ids, active_loc = get_user_location_scope(user, req_loc_id)
             if not active_loc and req_loc_id:
-                active_loc = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
+                active_loc = StoreLocation.objects.filter(id=req_loc_id, owner_id__in=sellers, is_active=True).first()
 
             # Parse validity period into due_date
             now = timezone.now()
@@ -2831,7 +2968,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
                 # Fallback location resolution to seller main store if still None
                 if not active_loc:
-                    active_loc = StoreLocation.objects.filter(owner=product.seller, is_main=True).first() or StoreLocation.objects.filter(owner=product.seller).first()
+                    active_loc = StoreLocation.objects.filter(owner_id__in=sellers, is_main=True).first() or StoreLocation.objects.filter(owner_id__in=sellers).first()
                 
                 # Check location-specific stock if active_loc is known
                 loc_stock = None
@@ -2860,7 +2997,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if product.requires_quote:
                     if 'price' in item_data:
                         try:
-                            price = float(item_data['price'])
+                            price = Decimal(str(item_data['price']))
+                            if price < Decimal('0.01'):
+                                return Response({'error': f'Price for quote item {product.name} must be at least 0.01.'}, status=status.HTTP_400_BAD_REQUEST)
                         except (ValueError, TypeError):
                             return Response({'error': 'Invalid custom price provided.'}, status=status.HTTP_400_BAD_REQUEST)
                     else:
@@ -2869,12 +3008,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # Calculate optional add-on modifiers total
                 selected_addons = item_data.get('addons') or item_data.get('selected_addons') or []
                 addons_total = Decimal('0.00')
+                valid_addons = []
                 if isinstance(selected_addons, list):
                     for add in selected_addons:
+                        if not isinstance(add, dict):
+                            continue
                         try:
-                            addons_total += Decimal(str(add.get('price', 0))) * int(add.get('quantity', 1))
+                            add_price = Decimal(str(add.get('price', 0)))
+                            add_qty = int(add.get('quantity', 1))
                         except (ValueError, TypeError):
-                            pass
+                            continue
+                        if add_price < Decimal('0.00') or add_qty < 1:
+                            continue
+                        addons_total += add_price * add_qty
+                        valid_addons.append({
+                            'name': str(add.get('name') or '')[:100],
+                            'price': float(add_price),
+                            'quantity': add_qty
+                        })
+                selected_addons = valid_addons
 
                 item_final_price = Decimal(str(price)) + addons_total
 
@@ -2932,6 +3084,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                         discount_amount = Decimal('0.00')
                 except (ValueError, TypeError):
                     discount_amount = Decimal('0.00')
+
+            catalog_subtotal = sum(Decimal(str(it['price'])) * Decimal(str(it['quantity'])) for it in order_items)
+            if discount_amount > catalog_subtotal:
+                discount_amount = catalog_subtotal
 
             delivery_info = {
                 'is_pos': True,
@@ -3000,13 +3156,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': f'POS invoice creation error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @decorators.action(detail=True, methods=['post'], url_path='pos-mark-paid', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=True, methods=['post'], url_path='pos-mark-paid', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     @transaction.atomic
     def pos_mark_paid(self, request, pk=None):
         """Mark an unpaid in-store POS invoice as paid, atomically check & deduct inventory, and record completed sale."""
         try:
             user = request.user
-            order = self.get_object()
+            order = Order.objects.select_for_update().get(pk=self.get_object().pk)
             
             from uzachuo.permissions import get_effective_sellers
             sellers = get_effective_sellers(user)
@@ -3027,38 +3183,62 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             # 1. Atomically check and deduct stock
             for item in order.orderitem_set.select_related('product', 'variant').all():
-                loc_stock = None
-                if active_loc:
-                    loc_stock = LocationStock.objects.select_for_update().filter(
-                        location=active_loc, product=item.product, variant=item.variant
-                    ).first()
-                    
-                if loc_stock:
-                    if loc_stock.quantity < item.quantity:
-                        return Response({
-                            'error': f'Insufficient stock at {active_loc.name} for {item.product.name}. Required: {item.quantity}, Available: {loc_stock.quantity}.'
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item.quantity)))
-                    loc_stock.save(update_fields=['quantity'])
-                else:
-                    prod = Product.objects.select_for_update().get(pk=item.product.pk)
-                    var = ProductVariant.objects.select_for_update().get(pk=item.variant.pk) if item.variant else None
-                    
-                    available = var.stock if var else prod.stock
-                    if available < item.quantity:
-                        return Response({
-                            'error': f'Insufficient stock for {prod.name}. Required: {item.quantity}, Available: {available}.'
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                is_service = getattr(item.product, 'is_service', False)
+                is_unlimited = item.variant and getattr(item.variant, 'is_unlimited_stock', False)
+
+                if not is_service and not is_unlimited:
+                    loc_stock = None
+                    if active_loc:
+                        loc_stock = LocationStock.objects.select_for_update().filter(
+                            location=active_loc, product=item.product, variant=item.variant
+                        ).first()
                         
-                    if var:
-                        var.stock = max(0, var.stock - item.quantity)
-                        if var.stock <= 0:
-                            var.is_available = False
-                        var.save(update_fields=['stock', 'is_available'])
-                    prod.stock = max(0, prod.stock - item.quantity)
-                    if prod.stock <= 0:
-                        prod.is_available = False
-                    prod.save(update_fields=['stock', 'is_available'])
+                    if loc_stock:
+                        if loc_stock.quantity < item.quantity:
+                            return Response({
+                                'error': f'Insufficient stock at {active_loc.name} for {item.product.name}. Required: {item.quantity}, Available: {loc_stock.quantity}.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        loc_stock.quantity = max(Decimal('0.00'), loc_stock.quantity - Decimal(str(item.quantity)))
+                        loc_stock.save(update_fields=['quantity'])
+                    else:
+                        prod = Product.objects.select_for_update().get(pk=item.product.pk)
+                        var = ProductVariant.objects.select_for_update().get(pk=item.variant.pk) if item.variant else None
+                        
+                        available = var.stock if var else prod.stock
+                        if available < item.quantity:
+                            return Response({
+                                'error': f'Insufficient stock for {prod.name}. Required: {item.quantity}, Available: {available}.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                            
+                        if var:
+                            var.stock = max(0, var.stock - item.quantity)
+                            if var.stock <= 0:
+                                var.is_available = False
+                            var.save(update_fields=['stock', 'is_available'])
+                        prod.stock = max(0, prod.stock - item.quantity)
+                        if prod.stock <= 0:
+                            prod.is_available = False
+                        prod.save(update_fields=['stock', 'is_available'])
+
+                # Check if item grants a validity pass
+                val_days = getattr(item.variant, 'validity_days', None) or getattr(item.product, 'validity_days', None)
+                if val_days and int(val_days) > 0:
+                    from datetime import timedelta
+                    from django.utils import timezone
+                    from marketplace.models import CustomerServicePass
+                    expires_at = timezone.now() + timedelta(days=int(val_days))
+                    CustomerServicePass.objects.create(
+                        seller=item.product.seller,
+                        customer_name=di.get('customer_name') or 'Valued Member',
+                        customer_phone=di.get('customer_phone', ''),
+                        product=item.product,
+                        variant=item.variant,
+                        order=order,
+                        start_date=timezone.now(),
+                        expires_at=expires_at,
+                        status='ACTIVE',
+                        notes=f"Issued via POS Mark Paid #{order.id}"
+                    )
                     
             # 2. Payment & settlement details
             payment_method = request.data.get('payment_method', 'CASH')
@@ -3102,18 +3282,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                     from .models import ReferralConversion
                     seller_target = promo_obj.seller or user
                     try:
-                        ReferralConversion.objects.create(
-                            order=order,
-                            promo_code=promo_obj,
-                            seller=seller_target,
-                            affiliate_user=promo_obj.affiliate_user,
-                            affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
-                            order_subtotal=order.total_amount,
-                            commission_earned=comm_earned,
-                            status='SETTLED'
-                        )
+                        with transaction.atomic():
+                            ReferralConversion.objects.create(
+                                order=order,
+                                promo_code=promo_obj,
+                                seller=seller_target,
+                                customer=order.user,
+                                affiliate_user=promo_obj.affiliate_user,
+                                affiliate_name=promo_obj.affiliate_name or (promo_obj.affiliate_user.username if promo_obj.affiliate_user else ''),
+                                order_subtotal=order.total_amount,
+                                commission_earned=comm_earned,
+                                status='APPROVED'
+                            )
                     except Exception as e:
-                        print(f"Error creating ReferralConversion for POS: {e}")
+                        import logging
+                        logging.getLogger(__name__).warning("Error creating ReferralConversion for POS: %s", e)
                         
             # Phase 2: Platform Economics - 3% commission
             from billing.models import CommissionLedgerEntry
@@ -3158,7 +3341,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': f'Error marking invoice as paid: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @decorators.action(detail=True, methods=['post'], url_path='pos-cancel-invoice', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=True, methods=['post'], url_path='pos-cancel-invoice', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     @transaction.atomic
     def pos_cancel_invoice(self, request, pk=None):
         """Cancel an unpaid in-store POS invoice."""
@@ -3317,17 +3500,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         if shipping_fee is not None:
             order.shipping_fee = Decimal(str(shipping_fee))
                 
-        # Optional: pos immediate completion
-        complete_pos = request.data.get('complete_pos', False)
-        
-        order.status = 'COMPLETED' if complete_pos else 'INVOICE_GENERATED'
-        if complete_pos:
-            di = order.delivery_info or {}
-            di['is_pos'] = True
-            order.delivery_info = di
+        # Invoices always transition to INVOICE_GENERATED; inventory deduction and payment must go through pos_mark_paid
+        order.status = 'INVOICE_GENERATED'
         
         order.negotiation_data = neg_data
-        order.save(update_fields=['status', 'shipping_fee', 'delivery_info', 'negotiation_data'])
+        order.save(update_fields=['status', 'shipping_fee', 'negotiation_data'])
         order.update_total()
         
         notes = 'Seller accepted buyer\'s counter-offer.' if accept_counter else ('Final invoice generated by seller.' if neg_data.get('resolved') else 'Invoice generated by seller.')
@@ -3637,9 +3814,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         data = [format_order(o) for o in orders]
         return Response(data)
 
-    @decorators.action(detail=False, methods=['get', 'post'], url_path='pos-verify-pass', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=False, methods=['get', 'post'], url_path='pos-verify-pass', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     def pos_verify_pass(self, request):
-        """Verify and check in a member's service pass via QR code or phone number."""
+        """Verify and check in a member's service pass via QR code or phone number. GET is read-only preview; POST records check-in."""
         from marketplace.models import CustomerServicePass
         from django.utils import timezone
         
@@ -3659,12 +3836,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         from uzachuo.permissions import get_effective_sellers
         sellers = get_effective_sellers(request.user)
 
-        # Match either exact pass code (case-insensitive) or phone number for current seller
+        # Match exact pass code or phone number (requiring >= 4 chars for phone matching to prevent broad matching)
+        query_filter = models.Q(pass_code__iexact=query)
+        if len(query) >= 4:
+            query_filter |= models.Q(customer_phone__icontains=query)
+
         service_pass = CustomerServicePass.objects.filter(
             seller_id__in=sellers
-        ).filter(
-            models.Q(pass_code__iexact=query) | models.Q(customer_phone__icontains=query)
-        ).select_related('product', 'variant').order_by('-created_at').first()
+        ).filter(query_filter).select_related('product', 'variant').order_by('-created_at').first()
 
         if not service_pass:
             return Response({'valid': False, 'not_found': True, 'message': 'No membership pass found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -3673,10 +3852,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         is_active = service_pass.status == 'ACTIVE' and now <= service_pass.expires_at
 
         if is_active:
-            service_pass.check_in_count = models.F('check_in_count') + 1
-            service_pass.last_checked_in = now
-            service_pass.save(update_fields=['check_in_count', 'last_checked_in'])
-            service_pass.refresh_from_db()
+            if request.method.upper() == 'POST':
+                service_pass.check_in_count = models.F('check_in_count') + 1
+                service_pass.last_checked_in = now
+                service_pass.save(update_fields=['check_in_count', 'last_checked_in'])
+                service_pass.refresh_from_db()
 
             days_remaining = max(0, (service_pass.expires_at - now).days)
             return Response({
@@ -3712,7 +3892,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'message': f"Membership expired {max(1, days_ago)} day(s) ago."
             })
 
-    @decorators.action(detail=False, methods=['get'], url_path='pos-service-passes', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    @decorators.action(detail=False, methods=['get'], url_path='pos-service-passes', permission_classes=[permissions.IsAuthenticated, IsPOSOperatorOrSeller])
     def pos_service_passes(self, request):
         """List and filter active, expiring, and expired service passes for the seller."""
         from marketplace.models import CustomerServicePass
@@ -3906,19 +4086,32 @@ class PaymentViewSet(viewsets.ModelViewSet):
         from .services import OrderStateMachine
         from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
+
+        # Ban self-dealing: users cannot verify payments for their own orders
+        if payment.order and payment.order.user_id == request.user.id and not request.user.is_superuser:
+            return Response({'error': 'Self-dealing is prohibited: you cannot verify payments for your own order.'}, status=403)
         
         is_staff = request.user.is_staff or request.user.is_superuser
         sellers = get_effective_sellers(request.user, required_permission='manage_payments')
-        is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
+        
+        # Sellers can verify product payments on single-seller orders
+        is_seller_or_team = False
+        if payment.order and sellers:
+            item_seller_ids = set(payment.order.orderitem_set.values_list('product__seller_id', flat=True))
+            if len(item_seller_ids) == 1 and item_seller_ids.issubset(set(sellers)):
+                if payment.order.status == 'PENDING_VERIFICATION':
+                    is_seller_or_team = True
 
+        # Warehouse staff can ONLY verify delivery fees on assigned warehouses
         from warehouses.models import WarehouseStaffAssignment
         is_wh_staff = False
         if payment.order and WarehouseStaffAssignment.objects.filter(user=request.user).exists():
             di = payment.order.delivery_info or {}
             codes = [di.get('current_warehouse_code'), di.get('warehouse_code'), di.get('destination_warehouse_code')]
             codes = [c for c in codes if c]
-            if not codes or WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
-                is_wh_staff = True
+            if codes and WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
+                if payment.order.status == 'PENDING_DELIVERY_VERIFICATION':
+                    is_wh_staff = True
 
         if not (is_staff or is_seller_or_team or is_wh_staff):
             return Response({'error': 'You do not have permission to verify this payment.'}, status=403)
@@ -3965,10 +4158,20 @@ class PaymentViewSet(viewsets.ModelViewSet):
         from .services import OrderStateMachine
         from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
+
+        # Ban self-dealing: users cannot reject payments for their own orders
+        if payment.order and payment.order.user_id == request.user.id and not request.user.is_superuser:
+            return Response({'error': 'Self-dealing is prohibited: you cannot reject payments for your own order.'}, status=403)
         
         is_staff = request.user.is_staff or request.user.is_superuser
         sellers = get_effective_sellers(request.user, required_permission='manage_payments')
-        is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
+        
+        is_seller_or_team = False
+        if payment.order and sellers:
+            item_seller_ids = set(payment.order.orderitem_set.values_list('product__seller_id', flat=True))
+            if len(item_seller_ids) == 1 and item_seller_ids.issubset(set(sellers)):
+                if payment.order.fulfillment_type in ('DIRECT_DELIVERY', 'SELLER_PICKUP'):
+                    is_seller_or_team = True
 
         from warehouses.models import WarehouseStaffAssignment
         is_wh_staff = False
@@ -3976,8 +4179,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
             di = payment.order.delivery_info or {}
             codes = [di.get('current_warehouse_code'), di.get('warehouse_code'), di.get('destination_warehouse_code')]
             codes = [c for c in codes if c]
-            if not codes or WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
-                is_wh_staff = True
+            if codes and WarehouseStaffAssignment.objects.filter(user=request.user, warehouse__code__in=codes).exists():
+                if payment.order.status == 'PENDING_DELIVERY_VERIFICATION':
+                    is_wh_staff = True
 
         if not (is_staff or is_seller_or_team or is_wh_staff):
             return Response({'error': 'You do not have permission to reject this payment.'}, status=403)
@@ -4314,37 +4518,178 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['assigned_location_ids'] = allowed_loc_ids
         token['active_location_id'] = active_loc.id if active_loc else None
         token['is_multi_location'] = len(allowed_loc_ids) > 1
+        token['iat_ms'] = int(timezone.now().timestamp() * 1000)
 
         return token
 
+from django.conf import settings as django_settings
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
+from uzachuo.auth_cookies import (
+    clear_auth_cookies,
+    enforce_cookie_csrf_defense,
+    get_auth_cache,
+    issue_ws_ticket,
+    revoke_all_user_tokens,
+    set_auth_cookies,
+)
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    refresh = drf_serializers.CharField(required=False, allow_blank=True)
+
     def validate(self, attrs):
-        data = super().validate(attrs)
-        refresh = self.token_class(attrs['refresh'])
-        user_id = refresh.payload.get('user_id')
-        
-        if user_id:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            try:
-                user = User.objects.get(id=user_id)
-                # Generate a brand new access token with up-to-date claims
-                new_token = CustomTokenObtainPairSerializer.get_token(user)
-                data['access'] = str(new_token.access_token)
-            except User.DoesNotExist:
-                pass
-                
-        return data
+        raw_refresh = (attrs.get('refresh') or '').strip()
+        if not raw_refresh:
+            raise InvalidToken('No refresh token provided.')
+
+        incoming = self.token_class(raw_refresh)
+        user_id = incoming.payload.get('user_id')
+        if not user_id:
+            raise InvalidToken('Invalid refresh token payload.')
+
+        from django.contrib.auth import get_user_model
+        UserModel = get_user_model()
+        user = UserModel.objects.filter(id=user_id).first()
+        if not user or not user.is_active:
+            raise AuthenticationFailed('Account disabled.', code='user_banned')
+
+        if django_settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS', True):
+            if django_settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION', True):
+                try:
+                    incoming.blacklist()
+                except AttributeError:
+                    pass
+            new_refresh = CustomTokenObtainPairSerializer.get_token(user)
+            return {
+                'access': str(new_refresh.access_token),
+                'refresh': str(new_refresh),
+            }
+
+        new_access = CustomTokenObtainPairSerializer.get_token(user).access_token
+        return {
+            'access': str(new_access),
+            'refresh': raw_refresh,
+        }
+
 
 class CustomTokenRefreshView(TokenRefreshView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
     serializer_class = CustomTokenRefreshSerializer
 
+    def post(self, request, *args, **kwargs):
+        cookie_refresh = request.COOKIES.get(django_settings.AUTH_REFRESH_COOKIE_NAME)
+        body_refresh = request.data.get('refresh') if isinstance(request.data, dict) else None
+        if cookie_refresh:
+            enforce_cookie_csrf_defense(request)
+        raw_refresh = cookie_refresh or body_refresh
+        if not raw_refresh:
+            resp = Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            clear_auth_cookies(resp)
+            return resp
+
+        serializer = self.get_serializer(data={'refresh': raw_refresh})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except (TokenError, InvalidToken, AuthenticationFailed) as exc:
+            detail = getattr(exc, 'detail', 'Invalid or expired session.')
+            resp = Response({'detail': detail}, status=status.HTTP_401_UNAUTHORIZED)
+            clear_auth_cookies(resp)
+            return resp
+
+        validated = dict(serializer.validated_data)
+        rotated_refresh = validated.pop('refresh', None)
+        response = Response(validated, status=status.HTTP_200_OK)
+        if rotated_refresh:
+            set_auth_cookies(response, rotated_refresh)
+        return response
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginRateThrottle]  # FIX D-07
+
+    MAX_FAILED_ATTEMPTS = 5
+    LOCKOUT_SECONDS = 600
+
+    def post(self, request, *args, **kwargs):
+        raw_username = str(request.data.get('username') or '').strip().lower()
+        client_ip = get_client_ip(request)
+        auth_cache = get_auth_cache()
+        user_fail_key = f"login_fail:user:{raw_username}" if raw_username else None
+        ip_fail_key = f"login_fail:ip:{client_ip}"
+
+        user_fails = int(auth_cache.get(user_fail_key) or 0) if user_fail_key else 0
+        ip_fails = int(auth_cache.get(ip_fail_key) or 0)
+        if user_fails >= self.MAX_FAILED_ATTEMPTS or ip_fails >= (self.MAX_FAILED_ATTEMPTS * 3):
+            resp = Response(
+                {'detail': 'Too many failed login attempts. Please wait 10 minutes before trying again.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            resp['Retry-After'] = str(self.LOCKOUT_SECONDS)
+            return resp
+
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except AuthenticationFailed as exc:
+            if user_fail_key:
+                auth_cache.set(user_fail_key, user_fails + 1, timeout=self.LOCKOUT_SECONDS)
+            auth_cache.set(ip_fail_key, ip_fails + 1, timeout=self.LOCKOUT_SECONDS)
+            raise exc
+        except TokenError as exc:
+            if user_fail_key:
+                auth_cache.set(user_fail_key, user_fails + 1, timeout=self.LOCKOUT_SECONDS)
+            auth_cache.set(ip_fail_key, ip_fails + 1, timeout=self.LOCKOUT_SECONDS)
+            raise InvalidToken(exc.args[0])
+
+        if user_fail_key:
+            auth_cache.delete(user_fail_key)
+        auth_cache.delete(ip_fail_key)
+
+        user = serializer.user
+        User.objects.filter(pk=user.pk).update(last_login=timezone.now())
+
+        payload = dict(serializer.validated_data)
+        refresh_str = payload.pop('refresh', None)
+        response = Response(payload, status=status.HTTP_200_OK)
+        if refresh_str:
+            set_auth_cookies(response, refresh_str)
+        return response
+
+
+class LogoutView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        cookie_refresh = request.COOKIES.get(django_settings.AUTH_REFRESH_COOKIE_NAME)
+        if cookie_refresh:
+            enforce_cookie_csrf_defense(request)
+        raw_refresh = cookie_refresh or (request.data.get('refresh') if isinstance(request.data, dict) else None)
+        if raw_refresh:
+            try:
+                token = RefreshToken(raw_refresh)
+                token.blacklist()
+            except Exception:
+                pass
+        resp = Response({'status': 'logged_out'}, status=status.HTTP_200_OK)
+        clear_auth_cookies(resp)
+        return resp
+
+
+class WebSocketTicketView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [WsTicketRateThrottle]
+
+    def post(self, request):
+        ticket = issue_ws_ticket(request.user.id)
+        return Response({'ticket': ticket, 'expires_in': 30}, status=status.HTTP_200_OK)
 
 class AcceptTermsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -4392,7 +4737,7 @@ class RequestPasswordChangeView(APIView):
         pending_hash = make_password(new)
         token = secrets.token_urlsafe(48)
 
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+        ip = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
 
         PasswordResetRequest.objects.create(
@@ -4485,19 +4830,7 @@ class ForgotPasswordRequestView(APIView):
 
         ident_hash = hashlib.sha256(norm_identifier.encode('utf-8')).hexdigest()[:32]
 
-        # Secure IP address extraction: prefer Cloudflare CF-Connecting-IP,
-        # fallback to X-Real-IP, rightmost entry from X-Forwarded-For, or REMOTE_ADDR
-        client_ip = (
-            request.META.get('HTTP_CF_CONNECTING_IP') or
-            request.META.get('HTTP_X_REAL_IP')
-        )
-        if not client_ip:
-            xff = request.META.get('HTTP_X_FORWARDED_FOR')
-            if xff:
-                ips = [ip.strip() for ip in xff.split(',') if ip.strip()]
-                client_ip = ips[-1] if ips else None
-        if not client_ip:
-            client_ip = request.META.get('REMOTE_ADDR') or '127.0.0.1'
+        client_ip = get_client_ip(request)
         ip_hash = hashlib.sha256(client_ip.encode('utf-8')).hexdigest()[:16]
 
         email_cache_key = f"pwd_reset_rate:ident:{ident_hash}"
@@ -4702,10 +5035,14 @@ class ConfirmPasswordResetView(APIView):
             status__in=['pending', 'dispatched']
         ).exclude(id=req_obj.id).update(status='superseded')
 
-        return Response({
+        revoke_all_user_tokens(user)
+
+        resp = Response({
             'status': 'success',
             'message': 'Password has been successfully updated. You can now log in with your new password.'
         })
+        clear_auth_cookies(resp)
+        return resp
 
 
 class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
@@ -4789,7 +5126,7 @@ class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
                 action='action_performed',
                 description=f'Dispatched password reset email to {email} for @{instance.user.username}',
                 target_user=instance.user,
-                ip_address=request.META.get('REMOTE_ADDR')
+                ip_address=get_client_ip(request)
             )
         except Exception:
             pass
@@ -4995,9 +5332,9 @@ class RegisterView(APIView):
                 end_date=timezone.now() + timedelta(days=customer_tier.duration)
             )
         
+        User.objects.filter(pk=user.pk).update(last_login=timezone.now())
         refresh = CustomTokenObtainPairSerializer.get_token(user)
         data = {
-            'refresh': str(refresh),
             'access': str(refresh.access_token),
             'user_id': user.id,
             'username': user.username,
@@ -5012,7 +5349,9 @@ class RegisterView(APIView):
             'inspector_level': None,
             'has_staff_permissions': False
         }
-        return Response(data, status=status.HTTP_201_CREATED)
+        response = Response(data, status=status.HTTP_201_CREATED)
+        set_auth_cookies(response, str(refresh))
+        return response
 
 from .models import SponsoredListing
 from .serializers import SponsoredListingSerializer
@@ -5382,16 +5721,35 @@ class ConversationViewSet(viewsets.ModelViewSet):
         ).select_related(
             'buyer', 'buyer__profile', 'seller', 'seller__profile', 'product'
         ).prefetch_related(
-            'product__images',
-            Prefetch('messages', queryset=Message.objects.select_related('sender').order_by('-created_at'), to_attr='prefetched_messages')
+            'product__images'
         ).annotate(
             annotated_unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user), distinct=True)
         ).order_by('-updated_at')
 
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
+        from django.db.models import Max
         queryset = self.filter_queryset(self.get_queryset())
         convs = list(queryset)
+
+        # Efficiently attach ONLY the single latest message per conversation
+        conv_ids = [c.id for c in convs]
+        if conv_ids:
+            last_msg_ids = list(
+                Message.objects.filter(conversation_id__in=conv_ids)
+                .values('conversation_id')
+                .annotate(max_id=Max('id'))
+                .values_list('max_id', flat=True)
+            )
+            messages_by_conv = {
+                m.conversation_id: [m]
+                for m in Message.objects.filter(id__in=last_msg_ids).select_related('sender')
+            }
+            for c in convs:
+                c.prefetched_messages = messages_by_conv.get(c.id, [])
+        else:
+            for c in convs:
+                c.prefetched_messages = []
 
         # Bulk fetch user presence to eliminate sequential Redis queries
         user_ids = set()
@@ -5794,7 +6152,7 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         if product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
             raise exceptions.PermissionDenied('You do not own this product.')
         serializer.save()
-        cache.delete(f"product:detail:{product.id}")
+        clear_product_cache(product)
 
     def perform_update(self, serializer):
         from django.core.cache import cache
@@ -5807,17 +6165,18 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
             raise exceptions.PermissionDenied('Cannot reassign variant to a product you do not own.')
         variant = serializer.save()
         if variant.product_id:
-            cache.delete(f"product:detail:{variant.product_id}")
+            clear_product_cache(variant.product_id, slug=getattr(variant.product, 'slug', None), public_id=getattr(variant.product, 'public_id', None))
 
     def perform_destroy(self, instance):
-        from django.core.cache import cache
         from rest_framework import exceptions
         if instance.product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
             raise exceptions.PermissionDenied('You do not own this product.')
         pid = instance.product_id
+        slug = getattr(instance.product, 'slug', None) if instance.product else None
+        pub = getattr(instance.product, 'public_id', None) if instance.product else None
         super().perform_destroy(instance)
         if pid:
-            cache.delete(f"product:detail:{pid}")
+            clear_product_cache(pid, slug=slug, public_id=pub)
 
 from datetime import timedelta
 from django.utils import timezone
@@ -5887,7 +6246,7 @@ class TrendingAnalyticsView(APIView):
             .values('cnt')[:1]
         )
         base_trending = (
-            Product.objects.filter(is_available=True, is_draft=False)
+            Product.objects.filter(is_available=True, is_draft=False, pos_only=False)
             .select_related('category', 'category__parent', 'seller', 'seller__profile')
             .prefetch_related('images', 'variants', 'price_tiers')
             .annotate(
@@ -6678,6 +7037,7 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         new_password = serializer.validated_data['new_password']
         member.user.set_password(new_password)
         member.user.save()
+        revoke_all_user_tokens(member.user)
 
         from .models import TeamMemberAuditLog
         TeamMemberAuditLog.objects.create(
@@ -6698,6 +7058,8 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         
         member.is_active = not member.is_active
         member.save(update_fields=['is_active'])
+        if not member.is_active:
+            revoke_all_user_tokens(member.user)
 
         action_name = 'reactivated' if member.is_active else 'suspended'
         from .models import TeamMemberAuditLog
@@ -6876,6 +7238,10 @@ class PushSubscriptionView(APIView):
 
         if not endpoint or not p256dh or not auth:
             return Response({'error': 'Invalid subscription data'}, status=400)
+
+        is_valid, err_msg = validate_webpush_endpoint(endpoint)
+        if not is_valid:
+            return Response({'error': err_msg or 'Invalid webpush endpoint.'}, status=400)
 
         try:
             sub, created = PushSubscription.objects.update_or_create(
@@ -7939,7 +8305,15 @@ class RegisterSessionViewSet(viewsets.ModelViewSet):
         """Returns the currently active open session for the requested branch or user."""
         location_id = request.query_params.get('location_id')
         allowed_ids, active_loc = get_user_location_scope(request.user, location_id)
-        target_loc_id = location_id or (active_loc.id if active_loc else None)
+        if location_id is not None and location_id != '':
+            try:
+                target_loc_id = int(location_id)
+            except (TypeError, ValueError):
+                return Response({'error': 'Invalid location_id.'}, status=400)
+            if not request.user.is_superuser and target_loc_id not in allowed_ids:
+                return Response({'error': 'You do not have permission for this register location.'}, status=403)
+        else:
+            target_loc_id = active_loc.id if active_loc else None
         if not target_loc_id:
             return Response({'active_session': None})
 
@@ -7951,12 +8325,23 @@ class RegisterSessionViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='open-shift')
     def open_shift(self, request):
         location_id = request.data.get('location_id')
-        opening_float = Decimal(str(request.data.get('opening_float', 0)))
+        try:
+            opening_float = Decimal(str(request.data.get('opening_float', 0)))
+        except Exception:
+            return Response({'error': 'Invalid opening_float.'}, status=400)
+        if opening_float < 0:
+            return Response({'error': 'Opening float cannot be negative.'}, status=400)
         notes = request.data.get('notes', '')
 
         allowed_ids, active_loc = get_user_location_scope(request.user, location_id)
-        target_loc_id = location_id or (active_loc.id if active_loc else None)
-        if not target_loc_id or int(target_loc_id) not in allowed_ids:
+        if location_id is not None and location_id != '':
+            try:
+                target_loc_id = int(location_id)
+            except (TypeError, ValueError):
+                return Response({'error': 'Invalid location_id.'}, status=400)
+        else:
+            target_loc_id = active_loc.id if active_loc else None
+        if not target_loc_id or (not request.user.is_superuser and target_loc_id not in allowed_ids):
             return Response({'error': 'You do not have permission for this register location.'}, status=403)
 
         loc = StoreLocation.objects.get(id=target_loc_id)
@@ -8132,18 +8517,77 @@ class StockTransferViewSet(viewsets.ModelViewSet):
 # PUBLIC INVOICE VERIFICATION VIEW
 # ──────────────────────────────────────────────
 
+def _mask_buyer_name(name_str):
+    if not name_str:
+        return '***'
+    parts = str(name_str).strip().split()
+    if not parts:
+        return '***'
+    masked = []
+    for p in parts:
+        if len(p) <= 2:
+            masked.append(p[0] + '*' if p else '*')
+        else:
+            masked.append(p[0] + '*' * (len(p) - 2) + p[-1])
+    return ' '.join(masked)
+
+def _mask_transaction_id(tx_str):
+    if not tx_str:
+        return None
+    s = str(tx_str).strip()
+    if len(s) <= 4:
+        return '****'
+    return '****' + s[-4:]
+
+def _serve_vault_file(rel_vault_path, content_type, disposition='inline', filename=None):
+    from django.conf import settings
+    from urllib.parse import quote
+    from pathlib import Path
+
+    vault_root = Path(getattr(settings, 'SECURE_DIGITAL_ROOT', settings.BASE_DIR / 'vault_storage')).resolve()
+    p = Path(rel_vault_path)
+    if p.is_absolute():
+        try:
+            rel_path = p.resolve().relative_to(vault_root)
+        except ValueError:
+            rel_path = p.name
+    else:
+        rel_path = p
+
+    quoted_rel_path = quote(str(rel_path).replace('\\', '/'))
+    fn_header = f'; filename="{filename}"' if filename else ''
+    full_path = vault_root / rel_path
+
+    if getattr(settings, 'DEBUG', False):
+        if not full_path.exists():
+            return HttpResponse(json.dumps({'error': 'Vault file not found on disk.'}), status=404, content_type='application/json')
+        resp = FileResponse(open(full_path, 'rb'), content_type=content_type)
+        resp['Content-Disposition'] = f'{disposition}{fn_header}'
+        resp['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+        return resp
+    else:
+        resp = HttpResponse(status=200, content_type=content_type)
+        resp['X-Accel-Redirect'] = f'/_protected_vault/{quoted_rel_path}'
+        resp['Content-Disposition'] = f'{disposition}{fn_header}'
+        resp['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+        return resp
+
+
 class PublicInvoiceVerifyView(APIView):
     """
     Publicly accessible, tamper-proof endpoint to verify marketplace invoices.
     Anyone scanning an invoice QR code (or opening /verify/invoice/:id) can verify
     authenticity against the live database without logging in.
     """
-    authentication_classes = []
+    authentication_classes = [GracefulJWTAuthentication]
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'invoice_verify'
 
     def get(self, request, order_id):
         from django.conf import settings
         import hashlib
+        import hmac
         try:
             order = Order.objects.select_related('user', 'promo_code').prefetch_related(
                 'orderitem_set__product__seller__profile',
@@ -8158,14 +8602,41 @@ class PublicInvoiceVerifyView(APIView):
                 'detail': f'Invoice #{order_id} could not be verified on SokoniMax servers. This record does not exist or has been removed.'
             }, status=status.HTTP_404_NOT_FOUND)
 
+        if order.status in ('CART', 'CHECKOUT'):
+            return Response({
+                'is_authentic': False,
+                'detail': 'Order is still in cart or checkout and does not have an invoice.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
         # Cryptographic anti-tamper signature
-        raw_sig = f"invoice:{order.id}:{order.order_date.isoformat() if order.order_date else ''}:{settings.SECRET_KEY[:16]}"
-        expected_sig = hashlib.sha256(raw_sig.encode()).hexdigest()[:16]
+        created_ts = int(order.order_date.timestamp()) if order.order_date else 0
+        expected_sig_v2 = compute_invoice_signature(order.id, created_ts)
+        raw_sig_v1 = f"invoice:{order.id}:{order.order_date.isoformat() if order.order_date else ''}:{settings.SECRET_KEY[:16]}"
+        expected_sig_v1 = hashlib.sha256(raw_sig_v1.encode()).hexdigest()[:16]
+
+        is_auth_user = False
+        if request.user and request.user.is_authenticated:
+            if request.user.is_staff or request.user.is_superuser:
+                is_auth_user = True
+            elif order.user_id == request.user.id:
+                is_auth_user = True
+            else:
+                from uzachuo.permissions import get_effective_sellers
+                sellers = get_effective_sellers(request.user)
+                if any(item.product.seller_id in sellers for item in order.orderitem_set.all()):
+                    is_auth_user = True
 
         provided_sig = request.query_params.get('sig', '').strip()
-        sig_valid = None
+        sig_valid = False
         if provided_sig:
-            sig_valid = (provided_sig == expected_sig)
+            sig_valid = hmac.compare_digest(provided_sig, expected_sig_v2) or hmac.compare_digest(provided_sig, expected_sig_v1)
+
+        if not is_auth_user and not sig_valid:
+            return Response({
+                'is_authentic': False,
+                'sig_valid': False,
+                'error': 'Invalid or missing invoice verification signature.'
+            }, status=status.HTTP_403_FORBIDDEN)
 
         # Gather seller info
         first_item = order.orderitem_set.first()
@@ -8214,6 +8685,13 @@ class PublicInvoiceVerifyView(APIView):
             'is_verified': payment.status == 'VERIFIED' if payment else False,
         }
 
+        # Mask buyer/payment info for unauthenticated visitors
+        if not is_auth_user:
+            buyer_name = _mask_buyer_name(buyer_name)
+            buyer_username = _mask_buyer_name(buyer_username)
+            if payment_info.get('transaction_id'):
+                payment_info['transaction_id'] = _mask_transaction_id(payment_info['transaction_id'])
+
         # Status human label
         status_display_map = {
             'CART': 'In Cart',
@@ -8258,7 +8736,7 @@ class PublicInvoiceVerifyView(APIView):
             },
             'items': items,
             'payment': payment_info,
-            'verification_token': expected_sig,
+            'verification_token': expected_sig_v2 if is_auth_user else None,
             'sig_valid': sig_valid,
             'server_timestamp': timezone.now().isoformat(),
         }
@@ -8273,6 +8751,7 @@ from .digital_services import (
     generate_access_token,
     validate_access_token,
     apply_pdf_watermark,
+    get_or_create_watermarked_pdf,
     ChunkedRangeFileStreamer,
     issue_offline_lease
 )
@@ -8289,6 +8768,8 @@ class DigitalLibraryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     serializer_class = DigitalAccessLicenseSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'digital_token'
 
     def get_queryset(self):
         user = self.request.user
@@ -8339,15 +8820,21 @@ class DigitalLibraryViewSet(viewsets.ReadOnlyModelViewSet):
         if token_type not in ('READ', 'STREAM', 'DOWNLOAD', 'OFFLINE'):
             return Response({'error': f'Invalid token type: {token_type}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if token_type == 'DOWNLOAD' and not license_obj.can_download():
-            return Response(
-                {
-                    'error': f'Download limit reached ({license_obj.download_count}/{license_obj.digital_asset.max_downloads_per_license}). You can still read or stream online.'
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if token_type == 'DOWNLOAD':
+            if license_obj.digital_asset.delivery_mode == 'STREAM_ONLY':
+                return Response(
+                    {'error': 'This digital asset is stream-only and cannot be downloaded.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            if not license_obj.can_download():
+                return Response(
+                    {
+                        'error': f'Download limit reached ({license_obj.download_count}/{license_obj.digital_asset.max_downloads_per_license}). You can still read or stream online.'
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        client_ip = request.META.get('REMOTE_ADDR')
+        client_ip = get_client_ip(request)
         token_obj = generate_access_token(
             license_obj=license_obj,
             token_type=token_type,
@@ -8396,7 +8883,7 @@ class DigitalAssetViewSet(viewsets.ModelViewSet):
     """
     serializer_class = DigitalAssetSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
 
     def get_queryset(self):
         user = self.request.user
@@ -8450,15 +8937,18 @@ class DigitalAssetViewSet(viewsets.ModelViewSet):
 class DigitalStreamView(APIView):
     """
     Protected streaming view for audio, video, and PDF reader.
-    Validates short-lived tokens and serves chunked content or watermarked PDF buffers.
+    Validates short-lived tokens and serves content via _serve_vault_file (X-Accel-Redirect in prod).
     No direct access to vault files is possible.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, token):
-        token_obj, license_obj, err = validate_access_token(token, client_ip=request.META.get('REMOTE_ADDR'))
+        token_obj, license_obj, err = validate_access_token(token, client_ip=get_client_ip(request))
         if err or not license_obj:
             return HttpResponse(json.dumps({'error': err or 'Unauthorized'}), status=403, content_type='application/json')
+
+        if token_obj.token_type not in ('READ', 'STREAM'):
+            return HttpResponse(json.dumps({'error': f'Invalid token type {token_obj.token_type} for streaming.'}), status=403, content_type='application/json')
 
         asset = license_obj.digital_asset
         if not asset.file:
@@ -8477,45 +8967,38 @@ class DigitalStreamView(APIView):
 
         if asset.file_type == 'PDF' or file_path.lower().endswith('.pdf'):
             if asset.watermark_enabled:
-                watermarked_pdf = apply_pdf_watermark(file_path, license_obj)
-                response = HttpResponse(watermarked_pdf, content_type='application/pdf')
+                from .digital_services import get_or_create_watermarked_pdf
+                rel_pdf = get_or_create_watermarked_pdf(file_path, license_obj)
+                return _serve_vault_file(rel_pdf, 'application/pdf', disposition='inline', filename='document.pdf')
             else:
-                with open(file_path, 'rb') as f:
-                    response = HttpResponse(f.read(), content_type='application/pdf')
-            response['Content-Disposition'] = 'inline; filename="document.pdf"'
-            response['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
-            return response
+                return _serve_vault_file(file_path, 'application/pdf', disposition='inline', filename='document.pdf')
 
         content_type = 'audio/mpeg'
         if file_path.lower().endswith('.mp3'): content_type = 'audio/mpeg'
         elif file_path.lower().endswith('.m4b') or file_path.lower().endswith('.m4a'): content_type = 'audio/mp4'
         elif file_path.lower().endswith('.mp4'): content_type = 'video/mp4'
 
-        streamer = ChunkedRangeFileStreamer(file_path, request)
-        return streamer.get_response(content_type=content_type)
+        return _serve_vault_file(file_path, content_type, disposition='inline', filename=os.path.basename(file_path))
 
 
 class DigitalDownloadView(APIView):
     """
     Protected download endpoint. Enforces license download quota,
-    increments usage counter, applies watermarks, and delivers attachment.
+    increments usage counter atomically, applies watermarks, and delivers attachment via _serve_vault_file.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, token):
         token_obj, license_obj, err = validate_access_token(
-            token, expected_type='DOWNLOAD', client_ip=request.META.get('REMOTE_ADDR')
+            token, expected_type='DOWNLOAD', client_ip=get_client_ip(request)
         )
         if err or not license_obj:
             return HttpResponse(json.dumps({'error': err or 'Unauthorized'}), status=403, content_type='application/json')
 
-        if not license_obj.can_download():
-            return HttpResponse(
-                json.dumps({'error': f'Download limit reached ({license_obj.download_count}/{license_obj.digital_asset.max_downloads_per_license}).'}),
-                status=403, content_type='application/json'
-            )
-
         asset = license_obj.digital_asset
+        if asset.delivery_mode == 'STREAM_ONLY':
+            return HttpResponse(json.dumps({'error': 'This digital asset is stream-only and cannot be downloaded.'}), status=403, content_type='application/json')
+
         if not asset.file:
             return HttpResponse(json.dumps({'error': 'Master file not found in vault.'}), status=404, content_type='application/json')
 
@@ -8527,30 +9010,46 @@ class DigitalDownloadView(APIView):
         if not os.path.exists(file_path):
             return HttpResponse(json.dumps({'error': 'Vault file missing on disk.'}), status=404, content_type='application/json')
 
-        license_obj.download_count += 1
-        license_obj.last_accessed_at = timezone.now()
-        license_obj.save(update_fields=['download_count', 'last_accessed_at'])
+        with transaction.atomic():
+            lic = DigitalAccessLicense.objects.select_for_update().get(pk=license_obj.pk)
+            tok = DigitalAccessToken.objects.select_for_update().get(pk=token_obj.pk)
+            if tok.is_used:
+                return HttpResponse(json.dumps({'error': 'Token has already been used.'}), status=403, content_type='application/json')
+            if not lic.can_download():
+                return HttpResponse(
+                    json.dumps({'error': f'Download limit reached ({lic.download_count}/{lic.digital_asset.max_downloads_per_license}).'}),
+                    status=403, content_type='application/json'
+                )
 
-        token_obj.is_used = True
-        token_obj.save(update_fields=['is_used'])
+            lic.download_count = F('download_count') + 1
+            lic.last_accessed_at = timezone.now()
+            lic.save(update_fields=['download_count', 'last_accessed_at'])
 
+            tok.is_used = True
+            tok.save(update_fields=['is_used'])
+
+        from django.utils.text import slugify
         raw_filename = os.path.basename(file_path)
-        safe_filename = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', raw_filename)
+        ext = os.path.splitext(raw_filename)[1] or ''
+        safe_filename = f"{slugify(asset.title or 'digital-asset')}{ext}"
 
         if asset.file_type == 'PDF' or file_path.lower().endswith('.pdf'):
             if asset.watermark_enabled:
-                watermarked_pdf = apply_pdf_watermark(file_path, license_obj)
-                response = HttpResponse(watermarked_pdf, content_type='application/pdf')
+                from .digital_services import get_or_create_watermarked_pdf
+                rel_pdf = get_or_create_watermarked_pdf(file_path, license_obj)
+                return _serve_vault_file(rel_pdf, 'application/pdf', disposition='attachment', filename=safe_filename)
             else:
-                with open(file_path, 'rb') as f:
-                    response = HttpResponse(f.read(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
-            response['Content-Length'] = len(response.content)
-            return response
+                return _serve_vault_file(file_path, 'application/pdf', disposition='attachment', filename=safe_filename)
 
-        response = FileResponse(open(file_path, 'rb'))
-        response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
-        return response
+        content_type = 'application/octet-stream'
+        if file_path.lower().endswith('.mp3'): content_type = 'audio/mpeg'
+        elif file_path.lower().endswith('.m4b') or file_path.lower().endswith('.m4a'): content_type = 'audio/mp4'
+        elif file_path.lower().endswith('.mp4'): content_type = 'video/mp4'
+        elif file_path.lower().endswith('.zip'): content_type = 'application/zip'
+        elif file_path.lower().endswith('.epub'): content_type = 'application/epub+zip'
+
+        return _serve_vault_file(file_path, content_type, disposition='attachment', filename=safe_filename)
+
 
 
 

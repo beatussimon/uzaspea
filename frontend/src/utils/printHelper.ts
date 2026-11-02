@@ -1,3 +1,5 @@
+import { escapeHtml } from './urlSafety';
+
 export interface PrintElementOptions {
   pageTitle?: string;
   pageStyle?: string;
@@ -51,7 +53,7 @@ export const printElement = async (
     <html lang="en" class="light">
       <head>
         <meta charset="utf-8" />
-        <title>${pageTitle}</title>
+        <title>${escapeHtml(pageTitle)}</title>
         ${styles}
         <style>
           ${pageStyle}
@@ -95,7 +97,7 @@ export const printElement = async (
           }
         </style>
       </head>
-      <body class="${bodyClass}">
+      <body class="${escapeHtml(bodyClass)}">
         <div class="print-content-wrapper">
           ${element.innerHTML}
         </div>

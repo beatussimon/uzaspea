@@ -1,10 +1,11 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth, useUserRoles } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { GeofenceGate } from './components/GeofenceGate';
 import { DialogProvider } from './components/ui/Dialogs';
 import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
@@ -39,40 +40,46 @@ import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
-import TeamsPage from './pages/TeamsPage';
-import CheckoutPage from './pages/CheckoutPage';
-import OrdersPage from './pages/OrdersPage';
-import { DigitalLibraryPage } from './pages/DigitalLibraryPage';
-import MessagesPage from './pages/MessagesPage';
-import DashboardLayout from './pages/dashboard/DashboardLayout';
-import StaffAdminLayout from './pages/staff/StaffAdminLayout';
-import StaffDashboardLayout from './pages/staff/StaffDashboardLayout';
-import InspectionLayout from './pages/inspections/InspectionLayout';
-import InspectorLayout from './pages/inspections/InspectorLayout';
-import SellerUpgradePage from './pages/SellerUpgradePage';
-import ShipmentTrackingPage from './pages/ShipmentTrackingPage';
-import HelpCenterPage from './pages/dashboard/HelpCenterPage';
-import BlogPlaceholderPage from './pages/BlogPlaceholderPage';
-import PublicVerifyPage from './pages/inspections/PublicVerifyPage';
-import PublicInvoiceVerifyPage from './pages/invoices/PublicInvoiceVerifyPage';
-import TermsAndConditionsPage from './pages/legal/TermsAndConditionsPage';
-import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
-import SellerContractPage from './pages/legal/SellerContractPage';
-import TeamsDashboardLayout from './pages/teams/TeamsDashboardLayout';
-import SettingsPage from './pages/dashboard/SettingsPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
+
+// Lazy load non-critical and dashboard views to minimize initial bundle size
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const TeamsPage = lazy(() => import('./pages/TeamsPage'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const DigitalLibraryPage = lazy(() => import('./pages/DigitalLibraryPage').then(m => ({ default: m.DigitalLibraryPage })));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const DashboardLayout = lazy(() => import('./pages/dashboard/DashboardLayout'));
+const StaffAdminLayout = lazy(() => import('./pages/staff/StaffAdminLayout'));
+const StaffDashboardLayout = lazy(() => import('./pages/staff/StaffDashboardLayout'));
+const InspectionLayout = lazy(() => import('./pages/inspections/InspectionLayout'));
+const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout'));
+const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
+const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
+const HelpCenterPage = lazy(() => import('./pages/dashboard/HelpCenterPage'));
+const BlogPlaceholderPage = lazy(() => import('./pages/BlogPlaceholderPage'));
+const PublicVerifyPage = lazy(() => import('./pages/inspections/PublicVerifyPage'));
+const PublicInvoiceVerifyPage = lazy(() => import('./pages/invoices/PublicInvoiceVerifyPage'));
+const TermsAndConditionsPage = lazy(() => import('./pages/legal/TermsAndConditionsPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
+const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
+const TeamsDashboardLayout = lazy(() => import('./pages/teams/TeamsDashboardLayout'));
+const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 import GlobalTermsModal from './components/GlobalTermsModal';
 import DesktopChatDock from './components/chat/DesktopChatDock';
 
 // ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
 const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false, requireSeller = false }: any) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const roles = useUserRoles();
   const location = useLocation();
   
+  if (loading) {
+    return null;
+  }
+
   if (!isAuthenticated) {
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
@@ -223,21 +230,23 @@ function AppLayout() {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <LocationProvider>
-          <BrowserRouter unstable_useTransitions={false}>
-            <SearchProvider>
-              <MessageProvider>
-                <CartProvider>
-                  <DialogProvider>
-                    <AppLayout />
-                  </DialogProvider>
-                </CartProvider>
-              </MessageProvider>
-            </SearchProvider>
-          </BrowserRouter>
-        </LocationProvider>
-      </AuthProvider>
+      <GeofenceGate>
+        <AuthProvider>
+          <LocationProvider>
+            <BrowserRouter unstable_useTransitions={false}>
+              <SearchProvider>
+                <MessageProvider>
+                  <CartProvider>
+                    <DialogProvider>
+                      <AppLayout />
+                    </DialogProvider>
+                  </CartProvider>
+                </MessageProvider>
+              </SearchProvider>
+            </BrowserRouter>
+          </LocationProvider>
+        </AuthProvider>
+      </GeofenceGate>
     </ThemeProvider>
   );
 }

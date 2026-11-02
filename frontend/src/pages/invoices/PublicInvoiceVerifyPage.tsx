@@ -129,13 +129,26 @@ export const PublicInvoiceVerifyPage: React.FC = () => {
           </Link>
           {!loading && data && data.is_authentic && (
             <div className="flex items-center gap-2 shrink-0">
-              <span className="w-5 h-5 rounded-full bg-[#198754] text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Check size={12} strokeWidth={3} className="text-white" />
-              </span>
-              <span className="text-2xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200 shrink-0 whitespace-nowrap">
-                <span>{t('verified_server_record', 'Verified Server Record')}</span>
-                <span className="hidden sm:inline">&nbsp;• {t('no_tampering_detected', 'No Tampering Detected')}</span>
-              </span>
+              {data.sig_valid === false ? (
+                <>
+                  <span className="w-5 h-5 rounded-full bg-[#dc2626] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <ShieldAlert size={12} strokeWidth={3} className="text-white" />
+                  </span>
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-red-600 dark:text-red-400 shrink-0 whitespace-nowrap">
+                    <span>{t('signature_mismatch', 'Signature Mismatch — Tampering Warning')}</span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="w-5 h-5 rounded-full bg-[#198754] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Check size={12} strokeWidth={3} className="text-white" />
+                  </span>
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200 shrink-0 whitespace-nowrap">
+                    <span>{t('verified_server_record', 'Verified Server Record')}</span>
+                    <span className="hidden sm:inline">&nbsp;• {t('no_tampering_detected', 'No Tampering Detected')}</span>
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>

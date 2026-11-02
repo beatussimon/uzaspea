@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Calendar, ChevronDown, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -13,6 +14,7 @@ import { BillingSkeleton } from '../../components/Skeleton';
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
+  const { refreshUser } = useAuth();
 const { showConfirm } = useDialog();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
@@ -271,7 +273,7 @@ const { showConfirm } = useDialog();
     try {
       await api.post('/api/subscriptions/cancel/');
       toast.success("Subscription cancelled successfully.");
-      localStorage.setItem('tier', 'customer');
+      await refreshUser();
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || err.response?.data?.error || "Failed to cancel subscription.");

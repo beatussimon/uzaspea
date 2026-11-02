@@ -1,6 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
+import { safeJsonLdString } from '../utils/urlSafety';
 
 interface SEOProps {
   title?: string;
@@ -97,12 +98,12 @@ const SEO: React.FC<SEOProps> = ({
         Array.isArray(schema) ? (
           schema.map((s, idx) => (
             <script key={idx} type="application/ld+json">
-              {JSON.stringify(s)}
+              {safeJsonLdString(s)}
             </script>
           ))
         ) : (
           <script type="application/ld+json">
-            {JSON.stringify(schema)}
+            {safeJsonLdString(schema)}
           </script>
         )
       )}

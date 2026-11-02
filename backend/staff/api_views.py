@@ -32,11 +32,11 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
 
 def log_audit(user, action, description, target_user=None, task=None, request=None):
     """Helper to create audit log entries."""
+    from uzachuo.net_utils import get_client_ip
     ip_address = None
     user_agent = ''
     if request:
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+        ip_address = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
 
     AuditLog.objects.create(
@@ -1220,6 +1220,7 @@ class CanManageUsers(permissions.BasePermission):
 class UserManagementViewSet(viewsets.ModelViewSet):
     serializer_class = UserManagementSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageUsers]
+    http_method_names = ['get', 'post', 'patch', 'put', 'head', 'options']
 
     def get_queryset(self):
         queryset = User.objects.select_related('profile', 'inspector_profile').prefetch_related('staff_permissions').all()
@@ -1253,6 +1254,9 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         
         user.is_active = not user.is_active
         user.save()
+        if not user.is_active:
+            from uzachuo.auth_cookies import revoke_all_user_tokens
+            revoke_all_user_tokens(user)
         
         action = 'user_banned' if not user.is_active else 'user_unbanned'
         log_audit(request.user, action, f"Toggled active status of {user.username} to {user.is_active}", target_user=user, request=request)
@@ -1353,6 +1357,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         return Response({
             'status': 'success',
             'permission': permission,
+            'active': enable,
             'is_active': enable,
             'permissions': active_perms
         })
@@ -1464,8 +1469,9 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
-        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_conduct_site_visits') or self.request.user.is_staff):
-            raise serializers.ValidationError({'detail': 'You do not have permission to conduct store site visits.'})
+        from rest_framework.exceptions import PermissionDenied
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_conduct_site_visits')):
+            raise PermissionDenied('You do not have permission to conduct store site visits.')
 
         user_id = self.request.data.get('user_id') or self.request.data.get('user')
         username = self.request.data.get('username')

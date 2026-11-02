@@ -1,0 +1,77 @@
+{% extends "admin/change_form.html" %}
+
+{% block pretitle %}
+<div style="background: #111827; border: 1px solid #374151; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; color: #f9fafb;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 600;">Live Connection Diagnostic</span>
+            <div style="font-size: 16px; font-weight: 700; color: #f59e0b; margin-top: 2px;">
+                Your IP: <span style="font-family: monospace; color: #fff;">{{ live_detected_ip }}</span>
+                &nbsp;|&nbsp;
+                Detected Country: <span style="color: #10b981;">{{ live_detected_country|default:"Unknown" }} — {{ live_detected_country_name }}</span>
+                <span style="font-size: 12px; color: #9ca3af; font-weight: 400;">({{ live_source }})</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" onclick="applyPreset(['TZ'])" style="background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 12px;">
+                🇹🇿 Tanzania Only
+            </button>
+            <button type="button" onclick="applyPreset(['TZ', 'KE', 'UG', 'RW', 'BI', 'CD', 'SS', 'SO'])" style="background: #059669; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 12px;">
+                🌍 East Africa (EAC)
+            </button>
+            <button type="button" onclick="applyPreset(['TZ', 'KE', 'UG', 'RW', 'BI', 'CD', 'SS', 'SO', 'ZM', 'MW', 'MZ', 'ZW', 'BW', 'NA', 'ZA', 'AO', 'LS', 'SZ', 'MG', 'MU', 'SC', 'KM'])" style="background: #d97706; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 12px;">
+                🌍 EAC + SADC
+            </button>
+            <button type="button" onclick="toggleAllCountries(true)" style="background: #4b5563; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-weight: 600; cursor: pointer; font-size: 12px;">
+                Select All
+            </button>
+            <button type="button" onclick="toggleAllCountries(false)" style="background: #374151; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-weight: 600; cursor: pointer; font-size: 12px;">
+                Clear All
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.geofence-country-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 8px 16px !important;
+    padding: 12px !important;
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+.geofence-country-grid li {
+    list-style: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #e5e7eb !important;
+    font-size: 13px !important;
+}
+.geofence-country-grid label {
+    cursor: pointer !important;
+    user-select: none !important;
+}
+</style>
+
+<script>
+function applyPreset(allowedList) {
+    const set = new Set(allowedList.map(c => c.toUpperCase()));
+    const inputs = document.querySelectorAll('input[name="allowed_countries"]');
+    inputs.forEach(inp => {
+        inp.checked = set.has(inp.value.toUpperCase());
+    });
+}
+function toggleAllCountries(check) {
+    const inputs = document.querySelectorAll('input[name="allowed_countries"]');
+    inputs.forEach(inp => {
+        inp.checked = check;
+    });
+}
+</script>
+{{ block.super }}
+{% endblock %}

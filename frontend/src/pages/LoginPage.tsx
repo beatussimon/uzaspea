@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import axios from 'axios';
-import { API_BASE_URL } from '../api';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import api from '../api';
 import toast from 'react-hot-toast';
 import { AlertTriangle, User, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +10,8 @@ import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
   React.useEffect(() => {
     document.title = 'Sign In | SokoniMax';
@@ -20,9 +20,8 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const isAuthenticated = !!localStorage.getItem('access_token');
 
-  const [isBanned, setIsBanned] = useState(localStorage.getItem('account_banned') === 'true');
+  const [isBanned, setIsBanned] = useState(false);
   const isFormValid = Boolean(username.trim() && password);
 
   if (isAuthenticated) return <Navigate to="/" />;
@@ -31,17 +30,17 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/token/`, { username, password });
+      const res = await api.post('/api/auth/token/', { username, password });
       
-      // Prevent state leakage between accounts
+      // Prevent state leakage between accounts while preserving UI preferences
       const theme = localStorage.getItem('theme');
+      const lang = localStorage.getItem('uzaspea_language');
+      const i18nLng = localStorage.getItem('i18nextLng');
       localStorage.clear();
       if (theme) localStorage.setItem('theme', theme);
+      if (lang) localStorage.setItem('uzaspea_language', lang);
+      if (i18nLng) localStorage.setItem('i18nextLng', i18nLng);
 
-      // Call AuthContext login to decode full JWT payload, initialize state, and store all keys
-      login({ access: res.data.access, refresh: res.data.refresh }, res.data);
-      setIsBanned(false);
-      
       // Process pending cart item if user had tried to add to cart before login
       try {
         const pending = sessionStorage.getItem('pendingCartItem');
@@ -49,7 +48,7 @@ const LoginPage: React.FC = () => {
           const { product, quantity } = JSON.parse(pending);
           const userCartKey = `sokonimax_cart_${res.data.user_id}`;
           const existingCartStr = localStorage.getItem(userCartKey);
-          let userCart = existingCartStr ? JSON.parse(existingCartStr) : [];
+          const userCart = existingCartStr ? JSON.parse(existingCartStr) : [];
           if (!product.seller_username || product.seller_username.toLowerCase() !== res.data.username?.toLowerCase()) {
             const existingItem = userCart.find((i: any) => i.productId === product.id);
             const firstImage = product.images?.[0]?.image || product.image || '';
@@ -77,9 +76,13 @@ const LoginPage: React.FC = () => {
           }
           sessionStorage.removeItem('pendingCartItem');
         }
-      } catch (e) {
+      } catch {
         sessionStorage.removeItem('pendingCartItem');
       }
+
+      // Initialize in-memory auth state
+      login({ access: res.data.access }, res.data);
+      setIsBanned(false);
 
       toast.success(t('login_success', 'Login successful!'));
       const urlParams = new URLSearchParams(window.location.search);
@@ -104,23 +107,22 @@ const LoginPage: React.FC = () => {
         defaultRedirect = '/';
       }
 
-      let redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || defaultRedirect;
+      const rawNext = nextParam || sessionStorage.getItem('loginRedirect') || defaultRedirect;
       sessionStorage.removeItem('loginRedirect');
+      // Only allow safe internal paths (no protocol-relative or external redirects)
+      let redirectTo = rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\') ? rawNext : defaultRedirect;
 
-      // If the user is an active subscriber, prevent accidental redirection to billing
       if (isSubActive && redirectTo === '/dashboard/billing') {
         redirectTo = '/dashboard';
       }
-      // If pure customer was trying to go to a seller path, route to home
       if (!isSubActive && !isExpired && !isSeller && !res.data.is_staff && !res.data.is_superuser && redirectTo.startsWith('/dashboard')) {
         redirectTo = '/';
       }
 
-      window.location.href = redirectTo;
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       if (err.response?.data?.code === 'user_banned') {
           setIsBanned(true);
-          localStorage.setItem('account_banned', 'true');
       } else {
           toast.error(err.response?.data?.detail || t('login_error', 'Invalid username or password'));
       }

@@ -39,12 +39,13 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').sp
 # Traefik is the gatekeeper — it validates the Host header before requests reach Django
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+NUM_TRUSTED_PROXIES = int(os.environ.get('NUM_TRUSTED_PROXIES', '2'))
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://pasifiq.store').rstrip('/')
 
 ALLOWED_HOSTS.append('testserver')
 
 
 INSTALLED_APPS = [
-    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,8 +53,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django.contrib.postgres',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'marketplace',
@@ -74,35 +77,52 @@ REST_FRAMEWORK = {
         'uzachuo.authentication.GracefulJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     'DEFAULT_PAGINATION_CLASS': 'uzachuo.pagination.CustomPageNumberPagination',
     'PAGE_SIZE': 16,
     'PAGE_SIZE_QUERY_PARAM': 'page_size',
     'MAX_PAGE_SIZE': 100,
+    'NUM_PROXIES': NUM_TRUSTED_PROXIES,
     # FIX D-07: rate limiting
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '1000/minute',
-        'user': '5000/minute',
-        'register': '50/hour',
+        'anon': '300/minute',
+        'user': '1200/minute',
+        'register': '10/hour',
+        'login': '10/minute',
+        'password_reset': '10/hour',
+        'forgot_password': '5/hour',
+        'ws_ticket': '60/minute',
+        'delivery_quote': '30/minute',
+        'ticket': '20/hour',
+        'verify_superuser': '60/minute',
+        'order_create': '30/minute',
+        'order_create_anon': '10/minute',
         'rec_events': '120/minute',
-        'login': '100/hour',
-        'ticket': '100/hour',
-        'verify_superuser': '300/minute',
-        'order_create': '100/minute',
-        'order_create_anon': '30/minute',
+        'invoice_verify': '15/minute',
+        'digital_token': '30/minute',
     },
 }
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'UPDATE_LAST_LOGIN': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
 }
+
+AUTH_REFRESH_COOKIE_NAME = 'sm_refresh'
+AUTH_REFRESH_COOKIE_PATH = '/api/auth/'
+AUTH_HINT_COOKIE_NAME = 'sm_logged_in'
+AUTH_COOKIE_SECURE = not DEBUG
+AUTH_COOKIE_SAMESITE = 'Lax'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -113,6 +133,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'uzachuo.geofence.GeofenceMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'uzachuo.middleware.ActiveUserMiddleware',
@@ -158,31 +179,54 @@ if not _in_docker:
     # Use localhost but preserve the password from the environment
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0').replace('@redis:', '@127.0.0.1:')
 
+def _redis_db_url(url: str, db_index: int) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, f"/{db_index}", parts.query, parts.fragment))
+
 if _in_test:
-    # Tests: no-op cache so throttling doesn't block unit tests
+    # Tests: no-op default cache so throttling doesn't block existing unit tests,
+    # while 'auth' uses LocMemCache so WS tickets, lockouts, and token revocation work in tests.
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
-        }
+        },
+        "auth": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "uzaspea-auth-test",
+        },
     }
 elif not _in_docker:
-    # Local dev outside Docker: use in-process memory cache — no Redis needed
+    # Local dev outside Docker: use isolated in-process memory caches — no Redis needed
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        }
+            "LOCATION": "uzaspea-default-dev",
+        },
+        "auth": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "uzaspea-auth-dev",
+        },
     }
 else:
-    # Docker / production: use Redis
+    # Docker / production: isolated Redis logical databases (/0 catalog/general, /1 auth/sessions/tickets, /2 channels, /3 celery)
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": REDIS_URL,
+            "LOCATION": _redis_db_url(REDIS_URL, 0),
             "OPTIONS": {
                 "socket_connect_timeout": 3,
                 "socket_timeout": 3,
             },
-        }
+        },
+        "auth": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_db_url(REDIS_URL, 1),
+            "OPTIONS": {
+                "socket_connect_timeout": 3,
+                "socket_timeout": 3,
+            },
+        },
     }
 
 if _in_test or not _in_docker:
@@ -195,13 +239,13 @@ else:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [REDIS_URL]},
+            "CONFIG": {"hosts": [_redis_db_url(REDIS_URL, 2)]},
         },
     }
 
-# Also configure Celery to use same Redis
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+# Also configure Celery to use Redis DB 3
+CELERY_BROKER_URL = _redis_db_url(REDIS_URL, 3)
+CELERY_RESULT_BACKEND = _redis_db_url(REDIS_URL, 3)
 CELERY_TASK_PUBLISH_RETRY = False
 if 'test' in sys.argv:
     CELERY_TASK_ALWAYS_EAGER = True
@@ -270,9 +314,25 @@ STORAGES = {
 MEDIA_URL = '/media/'  # URL prefix for media files.  MUST start and end with a slash.
 MEDIA_ROOT = BASE_DIR / 'media'  # Absolute path to the media directory
 
+# Private / Protected Media (KYC, payment proofs, dispute & inspection evidence)
+PRIVATE_MEDIA_URL = '/secure-media/'
+PRIVATE_MEDIA_ROOT = BASE_DIR / 'private_media'
+PRIVATE_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+
 # Secure Digital Vault (Non-public, private storage for digital books/audio/files)
 SECURE_DIGITAL_ROOT = BASE_DIR / 'vault_storage'
-SECURE_DIGITAL_ROOT.mkdir(parents=True, exist_ok=True)
+(SECURE_DIGITAL_ROOT / '_watermarked').mkdir(parents=True, exist_ok=True)
+
+# Local Offline GeoIP Database Directory (.mmdb)
+GEOIP_DIR = BASE_DIR / 'geoip'
+GEOIP_DIR.mkdir(parents=True, exist_ok=True)
+GEOIP_MMDB_PATH = GEOIP_DIR / 'country.mmdb'
+
+# Upload & Pillow Decompression-Bomb Limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+from PIL import Image as _PILImage
+_PILImage.MAX_IMAGE_PIXELS = 25_000_000
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -298,7 +358,7 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@kiboss.co.tz'
 
 # Session settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+SESSION_CACHE_ALIAS = 'auth'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'True'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True

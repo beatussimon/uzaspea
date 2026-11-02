@@ -75,6 +75,33 @@ def perform_expiration_checks():
             pass
     results['expired_sponsored_listings'] = list_count
 
+    # 5. Clean up expired DigitalAccessTokens and cached watermarked files
+    try:
+        from marketplace.models import DigitalAccessToken
+        import os, time
+        from django.conf import settings
+        token_timeout = now - timedelta(days=1)
+        pruned_tokens = DigitalAccessToken.objects.filter(expires_at__lt=token_timeout).delete()[0]
+        results['pruned_digital_tokens'] = pruned_tokens
+
+        vault_root = getattr(settings, 'SECURE_DIGITAL_ROOT', None)
+        pruned_files = 0
+        if vault_root and os.path.isdir(vault_root):
+            watermarked_dir = os.path.join(vault_root, '_watermarked')
+            if os.path.isdir(watermarked_dir):
+                cutoff_time = time.time() - 86400  # 24 hours
+                for fname in os.listdir(watermarked_dir):
+                    fpath = os.path.join(watermarked_dir, fname)
+                    try:
+                        if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff_time:
+                            os.remove(fpath)
+                            pruned_files += 1
+                    except Exception:
+                        pass
+        results['pruned_watermarked_files'] = pruned_files
+    except Exception:
+        pass
+
     return results
 
 @shared_task
@@ -94,7 +121,7 @@ def check_saved_searches():
     from django.db.models import Q
 
     for ss in SavedSearch.objects.filter(notify_on_match=True).iterator(chunk_size=100):
-        qs = Product.objects.filter(is_available=True, created_at__gt=ss.last_checked)
+        qs = Product.objects.filter(is_available=True, pos_only=False, created_at__gt=ss.last_checked)
         if ss.query:
             qs = qs.filter(name__icontains=ss.query)
         if ss.category_id:
@@ -162,8 +189,11 @@ def send_webpush_notification_task(self, user_id, title, message, url=''):
             'message': message,
             'url': url
         })
+        from uzachuo.net_utils import validate_webpush_endpoint
         vapid_claims = {"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
         for sub in subscriptions:
+            if not validate_webpush_endpoint(sub.endpoint):
+                continue
             try:
                 webpush(
                     subscription_info={

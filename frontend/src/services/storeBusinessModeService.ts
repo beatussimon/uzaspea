@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../api';
+import api, { getAccessToken, decodeJwtPayload } from '../api';
 
 export type StoreBusinessMode = 'retail' | 'gym' | 'salon' | 'restaurant' | 'service' | 'hybrid';
 
@@ -222,7 +222,8 @@ export const saveStoreBusinessMode = async (
     }
 
     // Persist to user profile backend
-    const targetUser = username || (typeof localStorage !== 'undefined' ? localStorage.getItem('username') : null);
+    const activeJwt = getAccessToken();
+    const targetUser = username || (activeJwt ? decodeJwtPayload(activeJwt)?.username : null);
     if (targetUser) {
       const payload: any = { business_mode: mode };
       if (expiryWindowDays !== undefined) {

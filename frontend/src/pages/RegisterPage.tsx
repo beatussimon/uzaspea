@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import axios from 'axios';
-import { API_BASE_URL } from '../api';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import api from '../api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, Loader2, User, Lock, Mail } from 'lucide-react';
@@ -9,9 +8,12 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FloatingInput, FloatingSelect } from '../components/ui/FloatingInput';
 import { AuthLanguageSelector } from '../components/layout/LanguageSelector';
+import { useAuth } from '../context/AuthContext';
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     username: '',
@@ -30,8 +32,6 @@ const RegisterPage: React.FC = () => {
     available: boolean | null;
     message: string | null;
   }>({ checking: false, available: null, message: null });
-
-  const isAuthenticated = !!localStorage.getItem('access_token');
 
   // Debounced real-time username availability & reservation check
   useEffect(() => {
@@ -53,7 +53,7 @@ const RegisterPage: React.FC = () => {
     const timer = setTimeout(async () => {
       setUsernameStatus(prev => ({ ...prev, checking: true }));
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/auth/check-username/`, {
+        const res = await api.get('/api/auth/check-username/', {
           params: { username: raw.toLowerCase() }
         });
         setUsernameStatus({
@@ -124,31 +124,31 @@ const RegisterPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/register/`, formData);
+      const res = await api.post('/api/auth/register/', formData);
       
-      // Prevent state leakage between accounts
+      // Prevent state leakage between accounts while preserving UI preferences
       const theme = localStorage.getItem('theme');
+      const lang = localStorage.getItem('uzaspea_language');
+      const i18nLng = localStorage.getItem('i18nextLng');
       const savedCart = localStorage.getItem('sokonimax_cart');
       localStorage.clear();
       if (theme) localStorage.setItem('theme', theme);
-      if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
-      
-      localStorage.setItem('access_token', res.data.access);
-      localStorage.setItem('refresh_token', res.data.refresh);
-      localStorage.setItem('user_id', res.data.user_id);
-      localStorage.setItem('username', res.data.username || formData.username);
+      if (lang) localStorage.setItem('uzaspea_language', lang);
+      if (i18nLng) localStorage.setItem('i18nextLng', i18nLng);
+      if (savedCart) {
+        localStorage.setItem(
+          res.data.user_id ? `sokonimax_cart_${res.data.user_id}` : 'sokonimax_cart',
+          savedCart
+        );
+      }
       if (res.data.gender || formData.gender) {
         localStorage.setItem('preferred_gender', res.data.gender || formData.gender);
       }
-      localStorage.setItem('is_verified', String(res.data.is_verified || false));
-      localStorage.setItem('tier', res.data.tier || 'free');
-      localStorage.setItem('is_staff', String(res.data.is_staff || false));
-      localStorage.setItem('is_superuser', String(res.data.is_superuser || false));
-      localStorage.setItem('is_inspector', 'false');
-      localStorage.setItem('inspector_level', '');
+
+      login({ access: res.data.access }, res.data);
       
       toast.success(t('registration_success', 'Registration successful!'));
-      window.location.href = '/';
+      navigate('/', { replace: true });
     } catch (err: any) {
       const msgs = err.response?.data?.detail;
       const msgStr = Array.isArray(msgs) ? msgs.join(', ') : msgs;

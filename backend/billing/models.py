@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from uzachuo.private_media import PrivateMediaStorage, validate_private_document
 
 class CommissionLedgerEntry(models.Model):
     class EntryType(models.TextChoices):
@@ -64,7 +65,7 @@ class CommissionPayment(models.Model):
     invoice = models.ForeignKey(MonthlyInvoice, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_id = models.CharField(max_length=255)
-    receipt_screenshot = models.ImageField(upload_to='commission_receipts/', blank=True, null=True)
+    receipt_screenshot = models.ImageField(upload_to='commission_receipts/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_document])
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     rejection_reason = models.TextField(blank=True)
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='submitted_payments')

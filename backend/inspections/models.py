@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from marketplace.utils import convert_and_save_image
+from uzachuo.private_media import PrivateMediaStorage, validate_private_document, validate_private_image
 
 
 # ─────────────────────────────────────────────
@@ -330,7 +331,7 @@ class InspectionPayment(models.Model):
     )
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    proof_image = models.ImageField(upload_to='inspection_payment_proofs/', blank=True, null=True)
+    proof_image = models.ImageField(upload_to='inspection_payment_proofs/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
     transaction_reference = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     confirmed_by = models.ForeignKey(
@@ -381,11 +382,11 @@ class InspectionCheckIn(models.Model):
     request = models.OneToOneField(
         InspectionRequest, on_delete=models.CASCADE, related_name='checkin'
     )
-    checkin_photo = models.ImageField(upload_to='inspection_checkins/')
+    checkin_photo = models.ImageField(upload_to='inspection_checkins/', storage=PrivateMediaStorage(), validators=[validate_private_image])
     checkin_lat = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkin_lng = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkin_at = models.DateTimeField(auto_now_add=True)
-    checkout_photo = models.ImageField(upload_to='inspection_checkouts/', blank=True, null=True)
+    checkout_photo = models.ImageField(upload_to='inspection_checkouts/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
     checkout_lat = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkout_lng = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkout_at = models.DateTimeField(null=True, blank=True)
@@ -409,7 +410,7 @@ class InspectionEvidence(models.Model):
         ChecklistItem, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='evidence'
     )
-    image = models.FileField(upload_to='inspection_evidence/')
+    image = models.FileField(upload_to='inspection_evidence/', storage=PrivateMediaStorage(), validators=[validate_private_document])
     captured_at = models.DateTimeField(auto_now_add=True)
     latitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     longitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)

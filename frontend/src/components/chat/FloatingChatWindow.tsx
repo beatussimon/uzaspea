@@ -21,7 +21,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userId = Number(user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0'));
+  const userId = Number(user?.user_id || (user as any)?.id || 0);
 
   const {
     conversations,

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShoppingCart, ChevronDown, ChevronUp, MapPin, Check, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useUserLocation } from '../context/LocationContext';
 import api from '../api';
 import axios from 'axios';
@@ -88,6 +89,7 @@ export const CheckoutPage: React.FC = () => {
   const orderIdParam = searchParams.get('orderId');
 
   const { items, clearCartByMerchant } = useCart();
+  const { user: authUser } = useAuth();
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
   const [showMobileSummary, setShowMobileSummary] = useState(false);
 
@@ -187,7 +189,7 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [merchant]);
 
-  const currentUsername = localStorage.getItem('username') || undefined;
+  const currentUsername = authUser?.username || undefined;
   const { location: userLoc, ensureLocation } = useUserLocation();
 
   // Address & Country States
@@ -279,7 +281,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Load saved address or user profile prefill
   useEffect(() => {
-    const username = localStorage.getItem('username') || undefined;
+    const username = authUser?.username || undefined;
     const addrs = getSavedAddresses(username);
     setSavedAddresses(addrs);
 
@@ -377,7 +379,7 @@ export const CheckoutPage: React.FC = () => {
       toast.error(t('fill_address', 'Please provide a delivery location.'));
       return;
     }
-    const username = localStorage.getItem('username') || undefined;
+    const username = authUser?.username || undefined;
     const updated = saveAddress({
       id: selectedSavedAddressId || undefined,
       fullName: form.fullName,
@@ -398,7 +400,7 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleDeleteSavedAddress = (id: string) => {
-    const username = localStorage.getItem('username') || undefined;
+    const username = authUser?.username || undefined;
     const remaining = deleteAddress(id, username);
     setSavedAddresses(remaining);
     if (remaining.length > 0) {
@@ -985,7 +987,7 @@ export const CheckoutPage: React.FC = () => {
 
     if (isAllDigital) {
       if (!form.deliveryAddress) form.deliveryAddress = 'Digital Delivery Vault';
-      if (!form.fullName) form.fullName = localStorage.getItem('username') || 'Digital Customer';
+      if (!form.fullName) form.fullName = authUser?.username || 'Digital Customer';
       if (!cleanDigits) cleanDigits = '700000000';
     }
 
@@ -1045,7 +1047,7 @@ export const CheckoutPage: React.FC = () => {
 
     // Persist address to saved list if requested or editing
     if (shouldSaveAddress && form.fullName && finalPhone && (shippingMethod === 'PICKUP' || form.deliveryAddress)) {
-      const username = localStorage.getItem('username') || undefined;
+      const username = authUser?.username || undefined;
       const saved = saveAddress({
         id: isEditingAddress && selectedSavedAddressId ? selectedSavedAddressId : undefined,
         fullName: form.fullName,

@@ -494,7 +494,7 @@ const ProductDetailPage: React.FC = () => {
   const { addToCart, cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user: authUser } = useAuth();
   const { openSearch } = useSearch();
   const { openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount, sendMessage, conversations, messages, fetchMessages } = useMessages();
   const cachedProd = slug ? getCachedProduct(slug) : null;
@@ -1427,7 +1427,7 @@ const ProductDetailPage: React.FC = () => {
     || (product as any)?.image 
     || '';
 
-  const currentUsername = localStorage.getItem('username');
+  const currentUsername = authUser?.username || '';
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
   const effectivePrice = activeTier ? parseInt(activeTier.unit_price) : baseUnitPrice;
@@ -2678,7 +2678,7 @@ const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
               
-              {product.seller_username !== localStorage.getItem('username') && (
+              {product.seller_username !== currentUsername && (
                 <div className="flex flex-col gap-2 mt-1 w-full min-w-0">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                     {t('send_seller_message', 'Send Seller a Message')}

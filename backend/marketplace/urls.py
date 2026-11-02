@@ -4,7 +4,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .api_views import (
     ProductViewSet, CategoryViewSet, ReviewViewSet,
     CommentViewSet, OrderViewSet, PaymentViewSet,
-    CustomTokenObtainPairView, CustomTokenRefreshView, RegisterView, AcceptTermsView,
+    CustomTokenObtainPairView, CustomTokenRefreshView, LogoutView, WebSocketTicketView,
+    RegisterView, AcceptTermsView,
     SponsoredListingViewSet, UserProfileViewSet,
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
     RequestPasswordChangeView, ForgotPasswordRequestView, VerifyResetTokenView, ConfirmPasswordResetView,
@@ -93,6 +94,8 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/logout/', LogoutView.as_view(), name='auth_logout'),
+    path('api/auth/ws-ticket/', WebSocketTicketView.as_view(), name='auth_ws_ticket'),
     path('api/auth/check-username/', CheckUsernameView.as_view(), name='check_username'),
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/accept-terms/', AcceptTermsView.as_view(), name='accept_terms'),
@@ -115,4 +118,5 @@ urlpatterns = [
     path('api/push/subscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-subscribe'),
     path('api/push/unsubscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-unsubscribe'),
     path('api/push/vapid-key/', __import__('marketplace.api_views').api_views.PushVapidKeyView.as_view(), name='push-vapid-key'),
+    path('api/geofence/status/', __import__('uzachuo.geofence').geofence.GeofenceStatusView.as_view(), name='geofence-status'),
 ]

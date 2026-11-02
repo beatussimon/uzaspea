@@ -1,5 +1,6 @@
 import { InspectionRequest, fmtDate, fmtMoney } from '../types/inspection';
 import { API_BASE_URL } from '../api';
+import { escapeHtml } from './urlSafety';
 import i18n from '../i18n';
 
 export const printInspectionReport = (request: InspectionRequest) => {
@@ -382,8 +383,8 @@ export const printInspectionReport = (request: InspectionRequest) => {
                 <div class="brand-subtitle">Official Physical Verification & Quality Assurance Report</div>
               </td>
               <td class="report-id-box">
-                <div class="report-id-tag">${request.inspection_id}</div>
-                <div class="report-date">Issued: ${fmtDate(report?.approved_at || request.created_at)}</div>
+                <div class="report-id-tag">${escapeHtml(request.inspection_id)}</div>
+                <div class="report-date">Issued: ${escapeHtml(fmtDate(report?.approved_at || request.created_at))}</div>
               </td>
             </tr>
           </table>
@@ -392,39 +393,39 @@ export const printInspectionReport = (request: InspectionRequest) => {
           <div class="info-grid">
             <div class="info-col">
               <div class="info-heading">Item Under Inspection</div>
-              <div class="info-val-primary">${request.item_name}</div>
-              <div class="info-val-secondary">${request.category_path || request.category_name || 'General Category'}</div>
-              ${request.product_snapshot ? `<div class="marketplace-tag">Marketplace Item: ${request.product_snapshot.name} (${fmtMoney(request.product_snapshot.price)})</div>` : ''}
-              ${request.item_age_years ? `<div class="info-val-secondary">Age: ${request.item_age_years} years</div>` : ''}
-              <div class="info-val-secondary">Location: ${request.item_address || 'N/A'}</div>
+              <div class="info-val-primary">${escapeHtml(request.item_name)}</div>
+              <div class="info-val-secondary">${escapeHtml(request.category_path || request.category_name || 'General Category')}</div>
+              ${request.product_snapshot ? `<div class="marketplace-tag">Marketplace Item: ${escapeHtml(request.product_snapshot.name)} (${escapeHtml(fmtMoney(request.product_snapshot.price))})</div>` : ''}
+              ${request.item_age_years ? `<div class="info-val-secondary">Age: ${escapeHtml(String(request.item_age_years))} years</div>` : ''}
+              <div class="info-val-secondary">Location: ${escapeHtml(request.item_address || 'N/A')}</div>
             </div>
 
             <div class="info-col">
               <div class="info-heading">Client & Order Details</div>
-              <div class="info-val-primary">Client: @${request.client_username || 'Client'}</div>
-              <div class="info-val-secondary">Scope: <strong>${request.scope.toUpperCase()}</strong></div>
-              <div class="info-val-secondary">Turnaround: <strong>${request.turnaround.toUpperCase()}</strong></div>
-              ${bill ? `<div class="info-val-secondary">Inspection Fee: ${fmtMoney(bill.total_amount, bill.currency)}</div>` : ''}
+              <div class="info-val-primary">Client: @${escapeHtml(request.client_username || 'Client')}</div>
+              <div class="info-val-secondary">Scope: <strong>${escapeHtml(request.scope.toUpperCase())}</strong></div>
+              <div class="info-val-secondary">Turnaround: <strong>${escapeHtml(request.turnaround.toUpperCase())}</strong></div>
+              ${bill ? `<div class="info-val-secondary">Inspection Fee: ${escapeHtml(fmtMoney(bill.total_amount, bill.currency))}</div>` : ''}
             </div>
 
             <div class="info-col">
               <div class="info-heading">Inspector & QA Details</div>
-              <div class="info-val-primary">${assignment?.inspector_name || 'Certified Inspector'}</div>
-              <div class="info-val-secondary">Inspector Level: <span style="text-transform: capitalize;">${assignment?.inspector_level || 'Specialist'}</span></div>
-              <div class="info-val-secondary">Approved By: @${report?.approved_by_username || 'qa_team'}</div>
-              <div class="info-val-secondary">Status: <strong>${request.status.replace('_', ' ').toUpperCase()}</strong></div>
+              <div class="info-val-primary">${escapeHtml(assignment?.inspector_name || 'Certified Inspector')}</div>
+              <div class="info-val-secondary">Inspector Level: <span style="text-transform: capitalize;">${escapeHtml(assignment?.inspector_level || 'Specialist')}</span></div>
+              <div class="info-val-secondary">Approved By: @${escapeHtml(report?.approved_by_username || 'qa_team')}</div>
+              <div class="info-val-secondary">Status: <strong>${escapeHtml(request.status.replace('_', ' ').toUpperCase())}</strong></div>
             </div>
           </div>
 
           <!-- Compact Verdict Banner -->
           <div class="verdict-banner">
             <div class="grade-col">
-              <div class="grade-letter">${grade}</div>
-              <div class="grade-score">${score}</div>
+              <div class="grade-letter">${escapeHtml(grade)}</div>
+              <div class="grade-score">${escapeHtml(score)}</div>
             </div>
             <div class="verdict-details-col">
-              <div class="verdict-title">${verdict} • QUALITY GRADE ${grade}</div>
-              <div class="verdict-summary">${report?.summary || 'The item has undergone thorough inspection across physical and functional checkpoints.'}</div>
+              <div class="verdict-title">${escapeHtml(verdict)} • QUALITY GRADE ${escapeHtml(grade)}</div>
+              <div class="verdict-summary">${escapeHtml(report?.summary || 'The item has undergone thorough inspection across physical and functional checkpoints.')}</div>
             </div>
           </div>
 
@@ -461,21 +462,21 @@ export const printInspectionReport = (request: InspectionRequest) => {
               ` : responses.map(r => `
                 <tr>
                   <td>
-                    <strong style="${r.flagged ? 'color: #dc2626;' : 'color: #111;'}">${r.item_label}</strong>
-                    <div style="font-size: 9px; color: #6b7280; text-transform: capitalize;">${r.section || 'General'}</div>
+                    <strong style="${r.flagged ? 'color: #dc2626;' : 'color: #111;'}">${escapeHtml(r.item_label)}</strong>
+                    <div style="font-size: 9px; color: #6b7280; text-transform: capitalize;">${escapeHtml(r.section || 'General')}</div>
                   </td>
                   <td>
-                    <span class="badge-severity">${r.severity}</span>
+                    <span class="badge-severity">${escapeHtml(r.severity)}</span>
                   </td>
                   <td>
                     ${r.flagged ? `
-                      <span class="badge-fail">✕ ${r.response_value || 'FAIL'}</span>
+                      <span class="badge-fail">✕ ${escapeHtml(r.response_value || 'FAIL')}</span>
                     ` : `
-                      <span class="badge-pass"><span style="color: #059669;">✓</span> ${r.response_value || 'PASS'}</span>
+                      <span class="badge-pass"><span style="color: #059669;">✓</span> ${escapeHtml(r.response_value || 'PASS')}</span>
                     `}
                   </td>
                   <td>
-                    ${r.notes || '<span style="color:#9ca3af;">Satisfactory — No issues observed</span>'}
+                    ${r.notes ? escapeHtml(r.notes) : '<span style="color:#9ca3af;">Satisfactory — No issues observed</span>'}
                   </td>
                 </tr>
               `).join('')}
@@ -488,8 +489,8 @@ export const printInspectionReport = (request: InspectionRequest) => {
             <div class="photo-grid">
               ${request.evidence.slice(0, 8).map((ev) => `
                 <div class="photo-card">
-                  <img src="${getImageUrl(ev.image)}" alt="${ev.caption || 'Evidence'}" class="photo-img" />
-                  <div class="photo-caption">${ev.item_label || ev.caption || 'Evidence'}</div>
+                  <img src="${getImageUrl(ev.image)}" alt="${escapeHtml(ev.caption || 'Evidence')}" class="photo-img" />
+                  <div class="photo-caption">${escapeHtml(ev.item_label || ev.caption || 'Evidence')}</div>
                 </div>
               `).join('')}
             </div>
@@ -506,8 +507,8 @@ export const printInspectionReport = (request: InspectionRequest) => {
                 Scan this QR code with any phone camera to view and verify this official certificate online.
               </div>
               <div class="verify-sub" style="font-size: 8.5px; color: #6b7280; margin-top: 2px;">
-                Direct URL: <strong>${verifyUrl}</strong>
-                ${checkin?.checkin_at ? ` • On-Site Verified: ${fmtDate(checkin.checkin_at)}` : ''}
+                Direct URL: <strong>${escapeHtml(verifyUrl)}</strong>
+                ${checkin?.checkin_at ? ` • On-Site Verified: ${escapeHtml(fmtDate(checkin.checkin_at))}` : ''}
               </div>
             </div>
           </div>
@@ -519,7 +520,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
               <div>This document certifies that the item was physically examined by a SokoniMax-certified inspector.</div>
             </div>
             <div class="footer-right">
-              <div>Signed by: <strong>@${report?.approved_by_username || 'qa_team'}</strong></div>
+              <div>Signed by: <strong>@${escapeHtml(report?.approved_by_username || 'qa_team')}</strong></div>
               <div style="font-size: 8.5px; color: #6b7280;">SokoniMax QA Authority</div>
             </div>
           </div>

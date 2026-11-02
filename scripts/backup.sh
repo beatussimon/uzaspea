@@ -1,19 +1,32 @@
-#!/bin/bash
-set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="$PROJECT_DIR/backups"
-mkdir -p "$BACKUP_DIR"
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
 
-if [ -f "$PROJECT_DIR/backend/.env" ]; then
-    source "$PROJECT_DIR/backend/.env"
-fi
+BACKUP_DIR="${BACKUP_DIR:-/home/ubuntu/backups}"
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+mkdir -p "${BACKUP_DIR}"
 
+DB_CONTAINER="${DB_CONTAINER:-uzaspea-postgres}"
 DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-uzaspea}"
+OUT_FILE="${BACKUP_DIR}/db_${TIMESTAMP}.sql.gz"
 
-echo "[$DATE] Starting backup from $PROJECT_DIR..."
-docker exec uzaspea-postgres pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
-find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
-echo "[$DATE] Backup complete: db_$DATE.sql.gz ($(du -sh "$BACKUP_DIR/db_$DATE.sql.gz" | cut -f1))"
+echo "[backup] Dumping ${DB_NAME} from ${DB_CONTAINER}..."
+docker exec "${DB_CONTAINER}" pg_dump -U "${DB_USER}" -d "${DB_NAME}" --no-owner --no-acl | gzip -9 > "${OUT_FILE}"
+
+FILE_SIZE="$(stat -c%s "${OUT_FILE}")"
+if [ "${FILE_SIZE}" -lt 512 ] || ! gzip -t "${OUT_FILE}"; then
+  echo "[backup] ERROR: Backup ${OUT_FILE} failed integrity check (${FILE_SIZE} bytes)!" >&2
+  rm -f "${OUT_FILE}"
+  exit 1
+fi
+ln -sf "${OUT_FILE}" "${BACKUP_DIR}/latest.sql.gz"
+echo "[backup] Verified ${OUT_FILE} (${FILE_SIZE} bytes)."
+
+if [ -n "${OFFNODE_TARGET:-}" ] && [ -n "${OFFNODE_KEY:-}" ]; then
+  scp -o StrictHostKeyChecking=no -i "${OFFNODE_KEY}" "${OUT_FILE}" "${OFFNODE_TARGET}/"
+  echo "[backup] Replicated backup to off-node target ${OFFNODE_TARGET}."
+fi
+
+find "${BACKUP_DIR}" -name "db_*.sql.gz" -type f -mtime +"${RETENTION_DAYS}" -delete

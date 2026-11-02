@@ -17,6 +17,8 @@ import { TableSkeleton, POSProductGridSkeleton } from '../../components/Skeleton
 import { getVariantDimensions, isColorValue } from '../../utils/variantUtils';
 import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 import { saveStoreBusinessMode } from '../../services/storeBusinessModeService';
+import { POSGranularSettingsModal } from '../../components/pos/POSGranularSettingsModal';
+import { usePOSSettings, type POSGranularSettings } from '../../services/posSettingsService';
 
 export interface ProductModifier {
   name: string;
@@ -101,7 +103,7 @@ interface POSModeSettingsModalProps {
   onSave: (config: POSModuleConfig) => void;
 }
 
-const POSModeSettingsModal: React.FC<POSModeSettingsModalProps> = ({
+export const POSModeSettingsModal: React.FC<POSModeSettingsModalProps> = ({
   isOpen,
   onClose,
   config,
@@ -2033,8 +2035,17 @@ const DashboardPOS: React.FC = () => {
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [selectedProductForOptions, setSelectedProductForOptions] = useState<Product | null>(null);
 
-  // POS Mode & Feature Configurations (Shop / Gym / Restaurant / Salon)
-  const [posConfig, setPosConfig] = useState<POSModuleConfig>(() => getStoredPOSConfig(user?.username));
+  // POS Granular Enterprise Settings (Shop / Gym / Restaurant / Salon / Peripherals / Shifts)
+  const { settings: granularSettings, updateSettings: updateGranularSettings } = usePOSSettings();
+  const posConfig: POSModuleConfig = useMemo(() => ({
+    preset: granularSettings.preset,
+    enableDiningModes: granularSettings.enableDiningModes,
+    enableMemberships: granularSettings.enableMemberships,
+    enableInvoices: granularSettings.enableInvoices,
+    enableAttendants: granularSettings.enableAttendants,
+    enableDropOffClaim: granularSettings.enableDropOffClaim,
+  }), [granularSettings]);
+
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isRecordsDropdownOpen, setIsRecordsDropdownOpen] = useState(false);
   const [recordsDropdownPos, setRecordsDropdownPos] = useState<{ top: number; right: number } | null>(null);
@@ -2073,12 +2084,8 @@ const DashboardPOS: React.FC = () => {
     };
   }, [isRecordsDropdownOpen]);
 
-  const handleUpdateConfig = (newConfig: POSModuleConfig) => {
-    setPosConfig(newConfig);
-    try {
-      localStorage.setItem('pos_module_config_v2', JSON.stringify(newConfig));
-      localStorage.setItem('pos_module_config', JSON.stringify(newConfig));
-    } catch {}
+  const handleUpdateConfig = async (newConfig: POSModuleConfig | POSGranularSettings) => {
+    await updateGranularSettings(newConfig as any);
     toast.success('POS mode updated', { icon: '⚙️' });
 
     if (activeTab === 'invoices' && !newConfig.enableInvoices) {
@@ -2399,7 +2406,7 @@ const DashboardPOS: React.FC = () => {
       setAppliedPromo(null);
       return;
     }
-    const currentUser = localStorage.getItem('username') || user?.username;
+    const currentUser = user?.username;
     const itemsPayload = cart.map(item => ({
       product_id: item.product_id,
       price: item.price,
@@ -2431,7 +2438,7 @@ const DashboardPOS: React.FC = () => {
     }
     setValidatingPromo(true);
     try {
-      const currentUser = localStorage.getItem('username') || user?.username;
+      const currentUser = user?.username;
       const itemsPayload = cart.map(item => ({
         product_id: item.product_id,
         price: item.price,
@@ -3548,7 +3555,7 @@ const DashboardPOS: React.FC = () => {
                       <div className="w-16 h-16 bg-gray-200" />
                     )}
                   </div>
-                  <p className="text-[9px] mt-2 text-gray-500">{t('receipt_thank_you', 'Thank you for shopping with us.')}</p>
+                  <p className="text-[9px] mt-2 text-gray-500">{granularSettings.receiptFooter || t('receipt_thank_you', 'Thank you for shopping with us.')}</p>
                   <p className="text-[9px] text-gray-500">{window.location.host}/{user?.username || ''}</p>
                 </div>
 
@@ -3563,6 +3570,16 @@ const DashboardPOS: React.FC = () => {
               >
                 <Printer size={14} /> {t('print_receipt', 'Print Receipt')}
               </button>
+              {granularSettings.enableWhatsAppReceipt && (
+                <a
+                  href={`https://wa.me/${((receiptData?.customer_phone || receiptData?.delivery_info?.customer_phone || '').replace(/[^0-9]/g, ''))}?text=${encodeURIComponent(`Receipt from ${user?.username || 'Store'} for Order #${receiptData?.id}: TSh ${Math.round(parseFloat(receiptData?.total_amount || 0)).toLocaleString()}/=. Asante kwa kununua nasi!`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border-0 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Send size={13} /> {t('whatsapp_receipt', 'WhatsApp')}
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -3960,11 +3977,11 @@ const DashboardPOS: React.FC = () => {
         t={t}
       />
 
-      {/* POS Mode & Feature Settings Modal */}
-      <POSModeSettingsModal
+      {/* POS Granular Mode & Feature Settings Modal */}
+      <POSGranularSettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        config={posConfig}
+        settings={granularSettings}
         onSave={handleUpdateConfig}
       />
 

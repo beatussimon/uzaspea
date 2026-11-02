@@ -65,13 +65,9 @@ def log_audit(user, action, description, target_user=None, task=None, request=No
 
 
 def get_client_ip(request):
-    """Extract client IP address from request."""
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
+    """Extract client IP address from request using trusted proxy config."""
+    from uzachuo.net_utils import get_client_ip as _get_trusted_client_ip
+    return _get_trusted_client_ip(request)
 
 
 # ============ Admin Views ============

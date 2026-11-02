@@ -24,22 +24,21 @@ def generate_public_id(length=12):
     return ''.join(secrets.choice(BASE62_ALPHABET) for _ in range(length))
 
 
+from uzachuo.private_media import (
+    PrivateMediaStorage,
+    validate_private_document,
+    validate_private_image,
+    verify_magic_bytes,
+)
+
+
 def validate_image(image):
-    """FIX D-06: validate image size and format."""
-    max_size_mb = 5
-    if image.size > max_size_mb * 1024 * 1024:
-        raise ValidationError(f'Image must be under {max_size_mb}MB. Yours is {image.size // (1024*1024)}MB.')
-    valid_types = ['image/jpeg', 'image/png', 'image/webp']
-    if hasattr(image, 'content_type') and image.content_type not in valid_types:
-        raise ValidationError('Only JPEG, PNG, and WebP images are allowed.')
+    """FIX D-06: validate image size, format, and magic bytes."""
+    verify_magic_bytes(image, allow_pdf=False, max_mb=5)
+
 
 def validate_document(file):
-    valid_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
-    max_size_mb = 10
-    if file.size > max_size_mb * 1024 * 1024:
-        raise ValidationError(f'File must be under {max_size_mb}MB.')
-    if hasattr(file, 'content_type') and file.content_type not in valid_types:
-        raise ValidationError('Only PDF, JPEG, PNG, and WebP files are accepted.')
+    verify_magic_bytes(file, allow_pdf=True, max_mb=10)
 
 from .utils import convert_and_save_image
 
@@ -129,7 +128,7 @@ class PaymentConfirmation(models.Model):
     tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     reference = models.CharField(max_length=100)
-    proof = models.ImageField(upload_to='payment_proofs/', blank=True, null=True, validators=[validate_image])
+    proof = models.ImageField(upload_to='payment_proofs/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -940,7 +939,7 @@ class Payment(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments', null=True, blank=True)
     verification_authority = models.CharField(max_length=10, choices=AUTHORITY_CHOICES, default='STORE')
     payment_method = models.CharField(max_length=50, default='OFFLINE')
-    proof_image = models.ImageField(upload_to='payment_proofs/', blank=True, null=True)
+    proof_image = models.ImageField(upload_to='payment_proofs/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING_VERIFICATION')
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -1030,6 +1029,11 @@ class UserProfile(models.Model):
     pass_expiry_window_days = models.PositiveIntegerField(
         default=7,
         help_text="Customizable window in days for upcoming membership pass expiration alerts"
+    )
+    pos_settings = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Granular register, checkout, hardware, stock and security preferences"
     )
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
@@ -1216,7 +1220,7 @@ class SponsoredListing(models.Model):
     duration_days = models.PositiveIntegerField(default=7, help_text="Duration of the promotion in days")
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Cost of the promotion")
     transaction_reference = models.CharField(max_length=100, blank=True, null=True, help_text="Transaction reference code")
-    payment_proof = models.ImageField(upload_to='promotion_proofs/', blank=True, null=True, help_text="Screenshot proof of payment")
+    payment_proof = models.ImageField(upload_to='promotion_proofs/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image], help_text="Screenshot proof of payment")
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -1309,41 +1313,46 @@ class Notification(models.Model):
 
 
 def push_notification(user, notification_type, title, message, link=''):
-    """FIX B-11: Helper to create a notification and broadcast via WebSocket and Web Push."""
+    """FIX B-11: Helper to create a notification and broadcast via WebSocket and Web Push (deferred to transaction commit)."""
     n = Notification.objects.create(
         user=user, notification_type=notification_type,
         title=title, message=message, link=link
     )
-    from channels.layers import get_channel_layer
-    from asgiref.sync import async_to_sync
-    import json
-    from django.conf import settings
-    channel_layer = get_channel_layer()
     
-    payload = {
-        'type': 'notification.push', 'notification': {
-            'id': n.id, 'type': notification_type,
-            'title': title, 'message': message, 'link': link,
-        }
-    }
-    
-    try:
-        async_to_sync(channel_layer.group_send)(
-            f'notifications_{user.id}',
-            payload
-        )
-    except Exception as e:
-        logger.warning(f'WS notification broadcast failed for user {user.id}: {e}')  # FIX MED-05
+    def _dispatch_broadcasts():
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        import json
+        from django.conf import settings
+        channel_layer = get_channel_layer()
         
-    # Also trigger Web Push asynchronously via Celery for offline delivery
-    try:
-        from marketplace.tasks import send_webpush_notification_task
-        send_webpush_notification_task.apply_async(
-            args=[user.id, title, message, link],
-            retry=False
-        )
-    except Exception as e:
-        logger.warning(f'Could not dispatch web push background task: {e}')
+        payload = {
+            'type': 'notification.push', 'notification': {
+                'id': n.id, 'type': notification_type,
+                'title': title, 'message': message, 'link': link,
+            }
+        }
+        
+        try:
+            async_to_sync(channel_layer.group_send)(
+                f'notifications_{user.id}',
+                payload
+            )
+        except Exception as e:
+            logger.warning(f'WS notification broadcast failed for user {user.id}: {e}')  # FIX MED-05
+            
+        # Also trigger Web Push asynchronously via Celery for offline delivery
+        try:
+            from marketplace.tasks import send_webpush_notification_task
+            send_webpush_notification_task.apply_async(
+                args=[user.id, title, message, link],
+                retry=False
+            )
+        except Exception as e:
+            logger.warning(f'Could not dispatch web push background task: {e}')
+
+    from django.db import transaction
+    transaction.on_commit(_dispatch_broadcasts)
 
     return n
 
@@ -1423,7 +1432,7 @@ class Dispute(models.Model):
     opened_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='opened_disputes')
     reason = models.TextField()
     evidence_description = models.TextField(blank=True)
-    evidence_image = models.ImageField(upload_to='dispute_evidence/', blank=True, null=True, validators=[validate_image])
+    evidence_image = models.ImageField(upload_to='dispute_evidence/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_disputes')
     resolution_notes = models.TextField(blank=True)
@@ -1729,6 +1738,85 @@ class SiteSettings(models.Model):
         return 'Site Settings'
 
 
+# ─── Geofencing & Country Access Control ─────────────────────────
+class GeofenceSettings(models.Model):
+    ENFORCEMENT_CHOICES = [
+        ('STRICT_BLOCK', 'Strict Geofence — Block all app & API access outside allowed countries'),
+        ('READ_ONLY_OUTSIDE', 'Browse Globally, Transact Locally — Allow read-only catalog viewing abroad, block signup/login/checkout/mutations'),
+    ]
+
+    is_enabled = models.BooleanField(
+        default=False,
+        help_text="Master switch. When enabled, visitors outside Allowed Countries are restricted immediately (<1s via Redis)."
+    )
+    enforcement_mode = models.CharField(
+        max_length=24,
+        choices=ENFORCEMENT_CHOICES,
+        default='STRICT_BLOCK',
+    )
+    allowed_countries = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of ISO 3166-1 alpha-2 country codes allowed to use SokoniMax (e.g. ['TZ'] or ['TZ', 'KE', 'UG'])."
+    )
+    block_tor_anonymous_proxies = models.BooleanField(
+        default=True,
+        help_text="Block Cloudflare Tor exit nodes (country code T1)."
+    )
+    allow_unknown_country_fallback = models.BooleanField(
+        default=True,
+        help_text="Fail-open safety: if neither Cloudflare CF-IPCountry nor local country.mmdb can identify an IP, allow access instead of false-blocking."
+    )
+    allow_staff_anywhere = models.BooleanField(
+        default=True,
+        help_text="Allow authenticated SokoniMax staff (is_staff) to work from any country (Superusers are ALWAYS allowed)."
+    )
+    allow_seo_and_social_previews = models.BooleanField(
+        default=True,
+        help_text="Allow search engine indexing & WhatsApp/Telegram link previews on /robots.txt, /sitemap.xml, and /api/seo/render/ from outside countries."
+    )
+    whitelisted_ips = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional newline- or comma-separated IPs or CIDRs (e.g. 197.186.10.5 or 102.222.0.0/16) that always bypass geofencing."
+    )
+    block_title = models.CharField(
+        max_length=120,
+        default="SokoniMax is not yet available in your country",
+    )
+    block_message = models.TextField(
+        default="SokoniMax currently serves selected countries in East Africa. If you are travelling or using a VPN, please connect from a supported region and try again.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Geofence & Country Access"
+        verbose_name_plural = "Geofence & Country Access"
+
+    def __str__(self):
+        status_lbl = "ACTIVE" if self.is_enabled else "DISABLED"
+        codes = ", ".join(self.allowed_countries or ["TZ"])
+        return f"Geofence ({status_lbl} — Allowed: {codes})"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        if not self.allowed_countries:
+            self.allowed_countries = ["TZ"]
+        else:
+            self.allowed_countries = sorted({str(c).strip().upper() for c in self.allowed_countries if str(c).strip()})
+        super().save(*args, **kwargs)
+        from django.core.cache import cache
+        cache.delete("geofence:config:v1")
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={"allowed_countries": ["TZ"], "is_enabled": False})
+        return obj
+
+
 # ─── Reserved Usernames (System, Brands, Staff, High-Value) ─────
 class ReservedUsername(models.Model):
     CATEGORY_CHOICES = [
@@ -1821,8 +1909,8 @@ class SellerApplication(models.Model):
         help_text="Tanzania Revenue Authority TIN number")
     business_address = models.TextField(blank=True)
     business_region = models.CharField(max_length=100, blank=True)
-    id_document = models.FileField(upload_to='seller_applications/id/', validators=[validate_document])
-    business_document = models.FileField(upload_to='seller_applications/business/', blank=True, null=True, validators=[validate_document])
+    id_document = models.FileField(upload_to='seller_applications/id/', storage=PrivateMediaStorage(), validators=[validate_private_document])
+    business_document = models.FileField(upload_to='seller_applications/business/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_document])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_seller_applications')
     rejection_reason = models.TextField(blank=True, null=True)
@@ -1896,9 +1984,9 @@ class SellerSiteVisit(models.Model):
     district = models.CharField(max_length=100, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    storefront_image = models.ImageField(upload_to='site_visits/storefront/', blank=True, null=True, validators=[validate_image])
-    interior_image = models.ImageField(upload_to='site_visits/interior/', blank=True, null=True, validators=[validate_image])
-    document_image = models.FileField(upload_to='site_visits/documents/', blank=True, null=True, validators=[validate_document])
+    storefront_image = models.ImageField(upload_to='site_visits/storefront/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
+    interior_image = models.ImageField(upload_to='site_visits/interior/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_image])
+    document_image = models.FileField(upload_to='site_visits/documents/', storage=PrivateMediaStorage(), blank=True, null=True, validators=[validate_private_document])
     staff_notes = models.TextField(blank=True, help_text="Notes and observations from inspecting staff")
     visited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='conducted_site_visits')
     visited_at = models.DateTimeField(default=timezone.now)
@@ -1951,16 +2039,47 @@ def handle_seller_site_visit_status_change(sender, instance, **kwargs):
 
 
 
-# --- Cache Invalidation Signals ---
+# --- Cache Invalidation Signals & Versioning ---
 from django.core.cache import cache
+
+CATALOG_CACHE_VERSION_KEY = "catalog:cache_version"
+
+def get_catalog_cache_version() -> int:
+    try:
+        ver = cache.get(CATALOG_CACHE_VERSION_KEY)
+        if ver is None:
+            ver = 1
+            cache.set(CATALOG_CACHE_VERSION_KEY, ver, timeout=86400 * 30)
+        return int(ver)
+    except Exception:
+        return 1
+
+def bump_catalog_cache_version() -> int:
+    try:
+        try:
+            return cache.incr(CATALOG_CACHE_VERSION_KEY)
+        except (ValueError, Exception):
+            ver = int(cache.get(CATALOG_CACHE_VERSION_KEY) or 1) + 1
+            cache.set(CATALOG_CACHE_VERSION_KEY, ver, timeout=86400 * 30)
+            return ver
+    except Exception:
+        return 1
 
 @receiver(post_save, sender=Product)
 @receiver(post_delete, sender=Product)
 def invalidate_product_cache(sender, instance, **kwargs):
-    # Targeted view cache invalidation; leaves sessions intact
+    bump_catalog_cache_version()
+    # Targeted key invalidations
+    try:
+        cache.delete(f"product:{instance.slug}")
+        if instance.public_id:
+            cache.delete(f"product:{instance.public_id}")
+        cache.delete(f"product:detail:{instance.id}")
+        cache.delete(f"recs:v2:{instance.id}")
+    except Exception:
+        pass
     if hasattr(cache, 'delete_pattern'):
         try:
-            cache.delete_pattern("*views.decorators.cache*")
             cache.delete_pattern(f"*product:{instance.slug}*")
             if instance.public_id:
                 cache.delete_pattern(f"*product:*{instance.public_id}*")
@@ -1968,23 +2087,25 @@ def invalidate_product_cache(sender, instance, **kwargs):
             cache.delete_pattern(f"*recs:*:{instance.id}:*")
             cache.delete_pattern("recs:v2:*")
         except Exception:
-            cache.clear()
-    else:
-        cache.clear()
+            pass
 
 @receiver(post_save, sender=Category)
 @receiver(post_delete, sender=Category)
 def invalidate_category_cache(sender, instance, **kwargs):
+    bump_catalog_cache_version()
+    try:
+        if instance.slug:
+            cache.delete(f"category:{instance.slug}")
+            cache.delete(f"category:tree:{instance.slug}")
+    except Exception:
+        pass
     if hasattr(cache, 'delete_pattern'):
         try:
-            cache.delete_pattern("*views.decorators.cache*")
             if instance.slug:
                 cache.delete_pattern(f"*recs:*:*:{instance.slug}:*")
             cache.delete_pattern("recs:v2:*")
         except Exception:
-            cache.clear()
-    else:
-        cache.clear()
+            pass
 
 
 # =============================================================================

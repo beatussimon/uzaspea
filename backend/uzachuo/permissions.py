@@ -1,10 +1,24 @@
 from rest_framework import permissions
 from django.db import models
+from django.utils import timezone
 from staff.models import StaffPermission
+
+
+def _active_sub_q():
+    return models.Q(end_date__isnull=True) | models.Q(end_date__gt=timezone.now())
+
+
+def _safe_int(val):
+    if val is None or val == '':
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
+
 
 def has_staff_permission(user, permission_codename):
     """Check if a user has a specific staff permission."""
-    from django.utils import timezone
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:
@@ -18,10 +32,12 @@ def has_staff_permission(user, permission_codename):
         models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
     ).exists()
 
+
 class IsSuperUser(permissions.BasePermission):
     """Only superusers can access."""
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+
 
 class IsStaffMember(permissions.BasePermission):
     """Active platform staff members or superusers."""
@@ -37,6 +53,7 @@ class IsStaffMember(permissions.BasePermission):
             pass
         return False
 
+
 class IsWarehouseStaff(permissions.BasePermission):
     """Active staff, superusers, or users assigned to a warehouse."""
     def has_permission(self, request, view):
@@ -49,9 +66,10 @@ class IsWarehouseStaff(permissions.BasePermission):
                 return True
         except AttributeError:
             pass
-            
+
         from warehouses.models import WarehouseStaffAssignment
         return WarehouseStaffAssignment.objects.filter(user=request.user).exists()
+
 
 class CanManageUsers(permissions.BasePermission):
     """Allows superusers or staff with can_manage_users permission."""
@@ -59,43 +77,66 @@ class CanManageUsers(permissions.BasePermission):
         user = request.user
         return bool(user and user.is_authenticated and (user.is_superuser or has_staff_permission(user, 'can_manage_users')))
 
+
 class HasInspectionManagerPermission(permissions.BasePermission):
     """Allows access to superusers or staff with can_manage_inspections."""
     def has_permission(self, request, view):
         user = request.user
         return bool(user and user.is_authenticated and (user.is_superuser or has_staff_permission(user, 'can_manage_inspections')))
 
+
 class IsAssignedInspectorOrStaff(permissions.BasePermission):
     """
-    Allows access to superusers, managers (can_manage_inspections), 
+    Allows access to superusers, managers (can_manage_inspections),
     or the inspector currently assigned to the request.
     """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         user = request.user
+        if not user or not user.is_authenticated:
+            return False
         if user.is_superuser:
             return True
-        
+
         # Check if user is staff with management perm
         if has_staff_permission(user, 'can_manage_inspections'):
             return True
-            
+
         # Check if user is the assigned inspector
-        # This assumes the object has an assignment or a 'request' field leading to an assignment
-        from inspections.models import InspectionRequest, InspectionAssignment
-        
+        from inspections.models import InspectionRequest
+
         inspection_request = None
         if isinstance(obj, InspectionRequest):
             inspection_request = obj
         elif hasattr(obj, 'request'):
             inspection_request = obj.request
-            
+
         if inspection_request:
             return inspection_request.assignments.filter(
-                inspector__user=user, 
+                inspector__user=user,
                 is_active=True
             ).exists()
-            
+
         return False
+
+
+def _user_is_active_business_owner(owner) -> bool:
+    if not owner:
+        return False
+    if owner.is_superuser:
+        return True
+    if owner.subscriptions.filter(_active_sub_q(), is_active=True, tier__tier_level='business').exists():
+        return True
+    if getattr(getattr(owner, 'profile', None), 'tier', None) == 'business':
+        # Only honor profile.tier == 'business' when there is no expired subscription overriding it,
+        # or if owner has an active business subscription
+        has_any_sub = owner.subscriptions.filter(tier__tier_level='business').exists()
+        if not has_any_sub:
+            return True
+    return False
+
 
 def get_effective_sellers(user, required_permission=None, include_self=True):
     """
@@ -108,24 +149,17 @@ def get_effective_sellers(user, required_permission=None, include_self=True):
     if not user or not user.is_authenticated:
         return []
     from marketplace.models import TeamMember
-    from django.db.models import Q
 
-    # Query active, accepted team memberships where the owner has active business subscription or tier
     qs = TeamMember.objects.filter(
-        user=user, 
-        invitation_status='accepted', 
+        user=user,
+        invitation_status='accepted',
         is_active=True
     ).select_related('owner', 'owner__profile')
 
     valid_owners = []
     for tm in qs:
         owner = tm.owner
-        is_owner_business = (
-            getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
-            owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
-            owner.is_superuser
-        )
-        if not is_owner_business:
+        if not _user_is_active_business_owner(owner):
             continue
         if required_permission:
             if isinstance(tm.permissions, dict):
@@ -138,7 +172,6 @@ def get_effective_sellers(user, required_permission=None, include_self=True):
             valid_owners.append(tm.owner_id)
 
     if include_self:
-        # If user is a worker without independent seller status, we still include user.id if not strictly team-scoped
         return [user.id] + valid_owners
     return valid_owners
 
@@ -155,12 +188,16 @@ def check_team_permission(user, owner_id, permission_name):
         return True
     from marketplace.models import TeamMember
     try:
-        member = TeamMember.objects.get(
-            owner_id=owner_id, 
-            user=user, 
-            invitation_status='accepted', 
+        member = TeamMember.objects.select_related('owner', 'owner__profile').get(
+            owner_id=owner_id,
+            user=user,
+            invitation_status='accepted',
             is_active=True
         )
+        if not _user_is_active_business_owner(member.owner):
+            return False
+        if not isinstance(member.permissions, dict):
+            return False
         if permission_name in ('access_pos', 'pos_access'):
             return bool(member.permissions.get('access_pos') or member.permissions.get('pos_access'))
         return bool(member.permissions.get(permission_name, False))
@@ -176,12 +213,7 @@ class IsActiveBusinessOwner(permissions.BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-        if user.is_superuser:
-            return True
-        profile = getattr(user, 'profile', None)
-        if profile and profile.tier == 'business':
-            return True
-        return user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+        return _user_is_active_business_owner(user)
 
 
 class HasTeamPermission:
@@ -191,6 +223,7 @@ class HasTeamPermission:
 
     def __call__(self):
         perm_name = self.permission_name
+
         class _DynamicPermission(permissions.BasePermission):
             def has_permission(self, request, view):
                 user = request.user
@@ -198,20 +231,29 @@ class HasTeamPermission:
                     return False
                 if user.is_superuser or user.is_staff:
                     return True
-                # Owner themselves
-                profile = getattr(user, 'profile', None)
-                if profile and profile.tier in ['seller_lite', 'seller_pro', 'business']:
+                if user.subscriptions.filter(
+                    _active_sub_q(),
+                    is_active=True,
+                    tier__tier_level__in=['seller_lite', 'seller_pro', 'business'],
+                ).exists():
                     return True
-                if user.subscriptions.filter(is_active=True, tier__tier_level__in=['seller_lite', 'seller_pro', 'business']).exists():
-                    return True
-                # Team member check
                 from marketplace.models import TeamMember
-                return TeamMember.objects.filter(
+                qs = TeamMember.objects.filter(
                     user=user,
                     invitation_status='accepted',
                     is_active=True,
-                    permissions__contains={perm_name: True}
-                ).exists()
+                ).select_related('owner', 'owner__profile')
+                for tm in qs:
+                    if not _user_is_active_business_owner(tm.owner):
+                        continue
+                    perms = tm.permissions if isinstance(tm.permissions, dict) else {}
+                    if perm_name in ('access_pos', 'pos_access'):
+                        if perms.get('access_pos') or perms.get('pos_access'):
+                            return True
+                    elif perms.get(perm_name):
+                        return True
+                return False
+
         return _DynamicPermission
 
 
@@ -221,8 +263,13 @@ class IsOwnerOrStaff(permissions.BasePermission):
     Assumes object has a 'user' or 'seller' or 'client' attribute.
     Also supports active team members representing the owner.
     """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         user = request.user
+        if not user or not user.is_authenticated:
+            return False
         is_staff_active = False
         try:
             is_staff_active = user.is_staff and user.staff_profile.is_active
@@ -231,111 +278,121 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
         if user.is_superuser or is_staff_active:
             return True
-            
+
         owner = getattr(obj, 'user', getattr(obj, 'seller', getattr(obj, 'client', None)))
         if not owner and hasattr(obj, 'product'):
             owner = getattr(obj.product, 'seller', None)
         if owner == user:
             return True
 
-        if owner:
-            # Check team memberships
+        if owner and _user_is_active_business_owner(owner):
             from marketplace.models import TeamMember
-            # If the object is a Product
             if hasattr(obj, 'seller') and hasattr(obj, 'price'):
                 return TeamMember.objects.filter(owner=owner, user=user, invitation_status='accepted', is_active=True, permissions__manage_products=True).exists()
-            # If the object is an Order
             elif hasattr(obj, 'status') and hasattr(obj, 'total_amount'):
                 return TeamMember.objects.filter(owner=owner, user=user, invitation_status='accepted', is_active=True, permissions__manage_orders=True).exists()
-            # General fallback check: is the user an active accepted team member
             return TeamMember.objects.filter(owner=owner, user=user, invitation_status='accepted', is_active=True).exists()
 
         return False
 
 
 class IsSellerOrAbove(permissions.BasePermission):
-    """Requires an active Seller Pro or Business tier subscription or being an active team member with manage_products permission."""
+    """Requires an active Seller Lite/Pro/Business tier subscription or being an active team member with manage_products permission."""
     message = 'Your seller subscription has expired. Please renew your subscription to perform this action.'
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        # Only superusers are exempt from seller subscription requirements
         if request.user.is_superuser:
             return True
-        from django.utils import timezone
-        # Either the user has active subscription themselves:
         has_sub = request.user.subscriptions.filter(
+            _active_sub_q(),
             is_active=True,
             tier__tier_level__in=['seller_lite', 'seller_pro', 'business'],
-            end_date__gte=timezone.now()
         ).exists()
         if has_sub:
             return True
-        # Or the user is an active team member of a Business owner with manage_products permission:
         from marketplace.models import TeamMember
         return TeamMember.objects.filter(
+            models.Q(owner__subscriptions__end_date__isnull=True) | models.Q(owner__subscriptions__end_date__gt=timezone.now()),
             user=request.user,
             invitation_status='accepted',
             is_active=True,
             owner__subscriptions__is_active=True,
             owner__subscriptions__tier__tier_level='business',
-            owner__subscriptions__end_date__gte=timezone.now(),
-            permissions__manage_products=True
+            permissions__manage_products=True,
         ).exists()
+
+
+class IsPOSOperatorOrSeller(permissions.BasePermission):
+    """
+    Allows active sellers (Seller Lite / Seller Pro / Business) OR active accepted
+    TeamMembers of an active Business owner granted `access_pos` / `pos_access`.
+    """
+    message = 'You do not have active POS operator or seller permissions.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if IsSellerOrAbove().has_permission(request, view):
+            return True
+        from marketplace.models import TeamMember
+        memberships = TeamMember.objects.filter(
+            user=request.user,
+            invitation_status='accepted',
+            is_active=True,
+        ).select_related('owner', 'owner__profile')
+        for tm in memberships:
+            if not _user_is_active_business_owner(tm.owner):
+                continue
+            perms = tm.permissions if isinstance(tm.permissions, dict) else {}
+            if perms.get('access_pos') or perms.get('pos_access'):
+                return True
+        return False
 
 
 def get_user_location_scope(user, requested_location_id=None):
     """
     Returns (allowed_location_ids, active_location) for the given user.
-    - Superusers: can access any location.
-    - Business Owners: can access all their own active locations.
-    - Team Members:
-        * If all_locations_access=True: all of the owner's active locations.
-        * If specific assigned_locations: only those assigned IDs.
+    Safely parses `requested_location_id` so malformed query/body values never raise ValueError (500).
     """
     if not user or not user.is_authenticated:
         return ([], None)
 
     from marketplace.models import StoreLocation, TeamMember
+    req_loc_id = _safe_int(requested_location_id)
 
     if user.is_superuser:
         all_ids = list(StoreLocation.objects.filter(is_active=True).values_list('id', flat=True))
         active = None
-        if requested_location_id:
-            active = StoreLocation.objects.filter(id=requested_location_id, is_active=True).first()
+        if req_loc_id is not None:
+            active = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
         if not active and all_ids:
             active = StoreLocation.objects.filter(id=all_ids[0]).first()
         return (all_ids, active)
 
-    # Check if user is a store owner
     owned_locs = list(StoreLocation.objects.filter(owner=user, is_active=True).values_list('id', flat=True))
     if owned_locs:
         active = None
-        if requested_location_id and int(requested_location_id) in owned_locs:
-            active = StoreLocation.objects.filter(owner=user, id=requested_location_id, is_active=True).first()
+        if req_loc_id is not None and req_loc_id in owned_locs:
+            active = StoreLocation.objects.filter(owner=user, id=req_loc_id, is_active=True).first()
         if not active:
-            active = StoreLocation.objects.filter(owner=user, is_main=True, is_active=True).first() or StoreLocation.objects.filter(owner=user, id=owned_locs[0]).first()
+            active = (
+                StoreLocation.objects.filter(owner=user, is_main=True, is_active=True).first()
+                or StoreLocation.objects.filter(owner=user, id=owned_locs[0]).first()
+            )
         return (owned_locs, active)
 
-    # Check active team memberships
     memberships = TeamMember.objects.filter(
         user=user, invitation_status='accepted', is_active=True
-    ).prefetch_related('assigned_locations')
+    ).select_related('owner', 'owner__profile').prefetch_related('assigned_locations')
 
     allowed_ids = set()
     for tm in memberships:
-        owner = tm.owner
-        is_owner_business = (
-            getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
-            owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
-            owner.is_superuser
-        )
-        if not is_owner_business:
+        if not _user_is_active_business_owner(tm.owner):
             continue
-
         if tm.all_locations_access:
-            owner_locs = StoreLocation.objects.filter(owner=owner, is_active=True).values_list('id', flat=True)
+            owner_locs = StoreLocation.objects.filter(owner=tm.owner, is_active=True).values_list('id', flat=True)
             allowed_ids.update(owner_locs)
         else:
             assigned = tm.assigned_locations.filter(is_active=True).values_list('id', flat=True)
@@ -343,12 +400,12 @@ def get_user_location_scope(user, requested_location_id=None):
 
     allowed_list = list(allowed_ids)
     active = None
-    if requested_location_id and int(requested_location_id) in allowed_list:
-        active = StoreLocation.objects.filter(id=requested_location_id, is_active=True).first()
+    if req_loc_id is not None and req_loc_id in allowed_list:
+        active = StoreLocation.objects.filter(id=req_loc_id, is_active=True).first()
     elif allowed_list:
-        active = StoreLocation.objects.filter(id__in=allowed_list, is_main=True, is_active=True).first() or StoreLocation.objects.filter(id=allowed_list[0]).first()
+        active = (
+            StoreLocation.objects.filter(id__in=allowed_list, is_main=True, is_active=True).first()
+            or StoreLocation.objects.filter(id=allowed_list[0]).first()
+        )
 
     return (allowed_list, active)
-
-
-

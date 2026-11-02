@@ -81,7 +81,7 @@ class BillingViewSet(viewsets.GenericViewSet):
                 from marketplace.models import push_notification
                 User = get_user_model()
                 
-                inv_label = invoice.invoice_number or f"#{invoice.id}"
+                inv_label = invoice.invoice_number or f"INV-{invoice.id:05d}"
                 amount_fmt = f"{int(invoice.total_amount_due or invoice.total_commission or 0):,}"
 
                 push_notification(

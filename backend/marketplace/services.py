@@ -5,9 +5,9 @@ from .models import Order, OrderItem, TrackingEvent
 
 class OrderStateMachine:
     VALID_TRANSITIONS = {
-        'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'PAID_PRODUCT', 'CANCELLED'],
+        'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'CANCELLED'],
         'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
-        'CHECKOUT': ['PAID_PRODUCT', 'AWAITING_PAYMENT', 'CANCELLED'],
+        'CHECKOUT': ['AWAITING_PAYMENT', 'CANCELLED'],
         'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'PREPARING', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'PAID', 'EXPIRED', 'CANCELLED'],  # FIX L-15: direct payment support
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
@@ -163,9 +163,13 @@ class OrderStateMachine:
                 if locked_order.promo_code_id:
                     PromoCode.objects.filter(pk=locked_order.promo_code_id, use_count__gt=0).update(use_count=_F('use_count') - 1)
 
-                items = locked_order.orderitem_set.select_for_update().all()
+                items = locked_order.orderitem_set.select_related('product', 'variant').select_for_update().all()
                 for item in items:
+                    if item.product and (item.product.is_service or item.product.product_type == 'DIGITAL'):
+                        continue
                     if item.variant_id:
+                        if item.variant and getattr(item.variant, 'is_unlimited_stock', False):
+                            continue
                         _ProductVariant.objects.filter(pk=item.variant_id).update(
                             stock=_F('stock') + item.quantity,
                             is_available=True
@@ -403,6 +407,8 @@ class OrderStateMachine:
         Provisions or activates DigitalAccessLicense records for all digital items/variants in the order.
         Idempotent and safe to run multiple times.
         """
+        if not order or not getattr(order, 'user_id', None):
+            return []
         from .models import DigitalAccessLicense, DigitalAsset
         created_licenses = []
         for item in order.orderitem_set.select_related('product', 'variant').all():

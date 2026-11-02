@@ -71,9 +71,11 @@ def ingest(payload, user=None):
     region = payload.get('region') if isinstance(payload.get('region'), str) else ''
     region = region.strip()[:64]
     variant = str(payload.get('variant') or 'control').strip()[:16]
+    if variant not in config.VARIANTS:
+        variant = 'control'
 
     all_ids = set(views) | {p for _, p in clicks}
-    valid = set(Product.objects.filter(id__in=all_ids).values_list('id', flat=True)) if all_ids else set()
+    valid = set(Product.objects.filter(id__in=all_ids, is_available=True, is_draft=False).values_list('id', flat=True)) if all_ids else set()
     views = [v for v in views if v in valid]
     clicks = [(s, p) for s, p in clicks if p in valid]
 
@@ -101,11 +103,12 @@ def ingest(payload, user=None):
     if isinstance(raw_cart, dict):
         for s, count in raw_cart.items():
             if s in config.SURFACES and isinstance(count, int) and count > 0:
-                cart_adds[s] = count
+                cart_adds[s] = min(20, count)
     elif isinstance(raw_cart, list):
-        for c in raw_cart:
+        for c in raw_cart[:20]:
             if isinstance(c, dict) and c.get('s') in config.SURFACES:
-                cart_adds[c['s']] += 1
+                if cart_adds[c['s']] < 20:
+                    cart_adds[c['s']] += 1
 
     conv_surfaces = set(surface_clicks) | set(cart_adds)
     conv_rows = [(date_param, s, variant, surface_clicks.get(s, 0), cart_adds.get(s, 0), 0, 0.0)

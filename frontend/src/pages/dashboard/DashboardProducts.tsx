@@ -774,7 +774,7 @@ const DashboardProducts: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
-  const currentUser = localStorage.getItem('username');
+  const currentUser = user?.username || '';
 
   const fetchProducts = useCallback((p: number, reset = false) => {
     if (reset) {
@@ -1718,31 +1718,22 @@ const DashboardProducts: React.FC = () => {
             
             compressedFiles.forEach((file) => fd.append('uploaded_images', file));
 
-            const token = localStorage.getItem('access_token');
             const url = editingId ? `/api/products/${editingId}/` : '/api/products/';
             const method = editingId ? 'PUT' : 'POST';
 
-            const result: any = await new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open(method, url);
-              if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-              xhr.upload.onprogress = (ev) => {
-                if (ev.lengthComputable) {
+            const res = await api({
+              method,
+              url,
+              data: fd,
+              onUploadProgress: (ev) => {
+                if (ev.total) {
                   const pct = Math.round((ev.loaded / ev.total) * 100);
                   setUploadProgress(pct);
                   setUploadStatus(pct < 50 ? 'Uploading photos...' : pct < 90 ? 'Almost there...' : 'Processing...');
                 }
-              };
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
-                } else {
-                  try { reject(JSON.parse(xhr.responseText)); } catch { reject({ detail: 'Upload failed' }); }
-                }
-              };
-              xhr.onerror = () => reject({ detail: 'Network error' });
-              xhr.send(fd);
+              },
             });
+            const result: any = res.data || {};
 
             setUploadProgress(100);
             setUploadStatus('Done!');

@@ -132,6 +132,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'is_active', 'is_staff', 'is_superuser',
             'tier', 'is_verified', 'is_inspector', 'inspector_level', 'permissions'
         ]
+        read_only_fields = ['is_staff', 'is_superuser']
 
     def get_is_inspector(self, obj):
         return hasattr(obj, 'inspector_profile')

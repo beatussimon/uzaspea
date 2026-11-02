@@ -1,5 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import api, { setLogoutCallback, decodeJwtPayload } from '../api';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import api, {
+  setLogoutCallback,
+  decodeJwtPayload,
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+  hasSessionHintCookie,
+  refreshAccessToken,
+} from '../api';
+import { apiCache } from '../utils/apiCache';
+import { invalidateProductCache } from '../utils/productCache';
+import { clearRecQueues } from '../utils/recTracking';
+import { clearOfflineVault } from '../utils/offlineVault';
 
 export interface StoreLocationBrief {
   id: number;
@@ -13,7 +25,7 @@ export interface StoreLocationBrief {
   phone?: string;
 }
 
-interface User {
+export interface User {
   user_id: number;
   username: string;
   first_name?: string;
@@ -47,11 +59,15 @@ interface User {
   is_multi_location?: boolean;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
+  loading: boolean;
   user: User | null;
-  login: (tokens: { access: string; refresh: string }, userData: any) => void;
-  logout: () => void;
+  isSeller: boolean;
+  isSellerLite: boolean;
+  login: (tokens: { access: string; refresh?: string }, userData?: any) => void;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   acceptTerms: () => void;
   activeLocation: StoreLocationBrief | null;
   setActiveLocation: (loc: StoreLocationBrief | null) => void;
@@ -61,70 +77,131 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const getStoredUser = (): User | null => {
-  const token = localStorage.getItem('access_token');
-  if (!token) return null;
+const LEGACY_PII_KEYS = [
+  'access_token',
+  'refresh_token',
+  'token',
+  'sokonimax_vault_dev_key',
+  'user_id',
+  'username',
+  'first_name',
+  'last_name',
+  'is_verified',
+  'tier',
+  'is_staff',
+  'is_superuser',
+  'is_inspector',
+  'has_staff_permissions',
+  'inspector_level',
+  'is_team_member',
+  'team_owner_id',
+  'team_owner_username',
+  'business_name',
+  'team_role_preset',
+  'team_role_label',
+  'team_permissions',
+  'terms_accepted',
+  'is_seller',
+  'subscription_active',
+  'subscription_expired',
+  'last_tier',
+  'last_tier_name',
+  'profile_picture',
+  'assigned_locations',
+  'active_location',
+  'is_multi_location',
+  'account_banned',
+];
+
+const PRESERVED_LOGOUT_KEYS = [
+  'theme',
+  'uzaspea_language',
+  'i18nextLng',
+  'viewMode',
+  'pwaInstalled',
+  'pwaPromptDismissed',
+];
+
+const ACTIVE_LOCATION_SESSION_KEY = 'sm_active_location';
+
+function purgeLegacyAuthStorage(): void {
+  try {
+    for (const k of LEGACY_PII_KEYS) {
+      localStorage.removeItem(k);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function buildUserFromToken(token: string, fallbackData?: any): User | null {
   const payload = decodeJwtPayload(token);
-  if (!payload) return null;
+  const src = payload || fallbackData;
+  if (!src) return null;
 
-  const subActive = payload.subscription_active !== undefined
-    ? (payload.subscription_active === true || payload.subscription_active === 'true')
-    : (localStorage.getItem('subscription_active') === 'true');
-
+  const subActive = src.subscription_active === true || src.subscription_active === 'true';
   const subExpired = subActive
     ? false
-    : (payload.subscription_expired !== undefined
-        ? (payload.subscription_expired === true || payload.subscription_expired === 'true')
-        : (localStorage.getItem('subscription_expired') === 'true'));
+    : (src.subscription_expired === true || src.subscription_expired === 'true');
 
-  const effectiveTier = (subActive && (payload.last_tier || localStorage.getItem('last_tier')))
-    ? (payload.last_tier || localStorage.getItem('last_tier'))
-    : (payload.tier || localStorage.getItem('tier') || 'free');
+  const rawTier = src.tier || fallbackData?.tier || 'free';
+  const lastTier = src.last_tier || fallbackData?.last_tier || null;
+  const effectiveTier = subActive && lastTier ? lastTier : rawTier;
+
+  let parsedTeamPerms: Record<string, boolean> = {};
+  const rawPerms = src.team_permissions ?? fallbackData?.team_permissions;
+  if (typeof rawPerms === 'string') {
+    try {
+      parsedTeamPerms = JSON.parse(rawPerms);
+    } catch {
+      parsedTeamPerms = {};
+    }
+  } else if (rawPerms && typeof rawPerms === 'object') {
+    parsedTeamPerms = rawPerms;
+  }
 
   return {
-    user_id: Number(payload.user_id),
-    username: payload.username || '',
-    first_name: payload.first_name || localStorage.getItem('first_name') || '',
-    last_name: payload.last_name || localStorage.getItem('last_name') || '',
-    is_verified: payload.is_verified === true || payload.is_verified === 'true',
+    user_id: Number(src.user_id ?? fallbackData?.user_id ?? 0),
+    username: src.username || fallbackData?.username || '',
+    first_name: src.first_name || fallbackData?.first_name || '',
+    last_name: src.last_name || fallbackData?.last_name || '',
+    is_verified: src.is_verified === true || src.is_verified === 'true',
     tier: effectiveTier,
-    is_staff: payload.is_staff === true || payload.is_staff === 'true',
-    is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
-    is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
-    has_staff_permissions: payload.has_staff_permissions === true || payload.has_staff_permissions === 'true',
-    inspector_level: payload.inspector_level || '',
+    is_staff: src.is_staff === true || src.is_staff === 'true',
+    is_superuser: src.is_superuser === true || src.is_superuser === 'true',
+    is_inspector: src.is_inspector === true || src.is_inspector === 'true',
+    has_staff_permissions: src.has_staff_permissions === true || src.has_staff_permissions === 'true',
+    inspector_level: src.inspector_level || fallbackData?.inspector_level || '',
     subscription_active: subActive,
     subscription_expired: subExpired,
-    subscription_end_date: payload.subscription_end_date,
-    is_seller: payload.is_seller === true || payload.is_seller === 'true' || localStorage.getItem('is_seller') === 'true',
-    last_tier: payload.last_tier || localStorage.getItem('last_tier') || null,
-    last_tier_name: payload.last_tier_name || localStorage.getItem('last_tier_name') || null,
-    is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
-    team_owner_id: payload.team_owner_id || (localStorage.getItem('team_owner_id') ? Number(localStorage.getItem('team_owner_id')) : null),
-    team_owner_username: payload.team_owner_username || localStorage.getItem('team_owner_username') || null,
-    business_name: payload.business_name || localStorage.getItem('business_name') || null,
-    team_role_preset: payload.team_role_preset || localStorage.getItem('team_role_preset') || null,
-    team_role_label: payload.team_role_label || localStorage.getItem('team_role_label') || null,
-    is_team_suspended: payload.is_team_suspended === true || payload.is_team_suspended === 'true',
-    is_owner_subscription_active: payload.is_owner_subscription_active === true || payload.is_owner_subscription_active === 'true',
-    team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
-    terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
-    profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
-    assigned_locations: (() => {
-      try {
-        const stored = localStorage.getItem('assigned_locations');
-        return stored ? JSON.parse(stored) : (payload.assigned_locations || []);
-      } catch { return []; }
-    })(),
-    active_location: (() => {
-      try {
-        const stored = localStorage.getItem('active_location');
-        return stored ? JSON.parse(stored) : (payload.active_location || null);
-      } catch { return null; }
-    })(),
-    is_multi_location: payload.is_multi_location === true || localStorage.getItem('is_multi_location') === 'true',
+    subscription_end_date: src.subscription_end_date ?? fallbackData?.subscription_end_date ?? null,
+    is_seller:
+      src.is_seller === true ||
+      src.is_seller === 'true' ||
+      ['seller_lite', 'seller_pro', 'business'].includes(effectiveTier),
+    last_tier: lastTier,
+    last_tier_name: src.last_tier_name || fallbackData?.last_tier_name || null,
+    is_team_member: src.is_team_member === true || src.is_team_member === 'true',
+    team_owner_id: src.team_owner_id ? Number(src.team_owner_id) : null,
+    team_owner_username: src.team_owner_username || null,
+    business_name: src.business_name || fallbackData?.business_name || null,
+    team_role_preset: src.team_role_preset || null,
+    team_role_label: src.team_role_label || null,
+    is_team_suspended: src.is_team_suspended === true || src.is_team_suspended === 'true',
+    is_owner_subscription_active:
+      src.is_owner_subscription_active === true || src.is_owner_subscription_active === 'true',
+    team_permissions: parsedTeamPerms,
+    terms_accepted: src.terms_accepted === true || src.terms_accepted === 'true',
+    profile_picture: src.profile_picture || fallbackData?.profile_picture || null,
+    assigned_locations: Array.isArray(src.assigned_locations)
+      ? src.assigned_locations
+      : Array.isArray(fallbackData?.assigned_locations)
+        ? fallbackData.assigned_locations
+        : [],
+    active_location: src.active_location || fallbackData?.active_location || null,
+    is_multi_location: Boolean(src.is_multi_location || fallbackData?.is_multi_location),
   };
-};
+}
 
 export interface UserRoleState {
   isSuperuser: boolean;
@@ -166,37 +243,35 @@ export const getUserRoleState = (user: User | null): UserRoleState => {
   const isInspector = user.is_inspector === true;
   const isTeamMember = user.is_team_member === true || user.tier === 'worker';
 
-  // Subscriptions & Seller status:
-  // hasActiveSubscription is strictly true only if subscription_active is true AND subscription_expired is NOT true.
   const hasActiveSubscription = user.subscription_active === true && user.subscription_expired !== true;
 
   const isSellerLite = user.tier === 'seller_lite' || (hasActiveSubscription && user.last_tier === 'seller_lite');
   const isSellerPro = user.tier === 'seller_pro' || (hasActiveSubscription && user.last_tier === 'seller_pro');
   const isBusiness = user.tier === 'business' || (hasActiveSubscription && user.last_tier === 'business');
 
-  // Valid seller tiers are seller_lite, seller_pro and business
-  const hasValidSellerTier = user.last_tier === 'seller_lite' || user.last_tier === 'seller_pro' || user.last_tier === 'business' || isSellerLite || isSellerPro || isBusiness;
+  const hasValidSellerTier =
+    user.last_tier === 'seller_lite' ||
+    user.last_tier === 'seller_pro' ||
+    user.last_tier === 'business' ||
+    isSellerLite ||
+    isSellerPro ||
+    isBusiness;
 
-  // isSellerAccount: only users who have seller flag, active/past seller tier, or expired seller subscription
-  // A customer tier or basic user is NEVER a seller account
-  const isSellerAccount = (user.is_seller === true && user.tier !== 'customer') || isSellerLite || isSellerPro || isBusiness || (user.subscription_expired === true && hasValidSellerTier);
+  const isSellerAccount =
+    (user.is_seller === true && user.tier !== 'customer') ||
+    isSellerLite ||
+    isSellerPro ||
+    isBusiness ||
+    (user.subscription_expired === true && hasValidSellerTier);
 
-  // Active seller: has seller account AND valid active subscription (superuser is exempt)
   const isActiveSeller = isSuperuser || (isSellerAccount && hasActiveSubscription);
-
-  // Expired seller: has had a seller account, but does NOT have an active subscription (and is not superuser)
   const isExpiredSeller = !isSuperuser && isSellerAccount && !hasActiveSubscription;
 
-  // Pure customer: has NEVER been a seller, not an expired seller, not staff/inspector/worker
-  const isPureCustomer = !isSellerAccount && !isExpiredSeller && !isStaff && !isSuperuser && !isInspector && !isTeamMember;
+  const isPureCustomer =
+    !isSellerAccount && !isExpiredSeller && !isStaff && !isSuperuser && !isInspector && !isTeamMember;
 
-  // Seller dashboard access:
-  // Superusers always have access.
-  // Active sellers have access (if not expired).
-  // Workers have access IF their business owner's subscription is active.
-  // Expired sellers have ZERO access (canAccessSellerDashboard = false).
-  // Pure customers have ZERO access (canAccessSellerDashboard = false).
-  const canAccessSellerDashboard = isSuperuser || 
+  const canAccessSellerDashboard =
+    isSuperuser ||
     (isActiveSeller && !isExpiredSeller) ||
     (isTeamMember && user.is_owner_subscription_active === true);
 
@@ -218,27 +293,239 @@ export const getUserRoleState = (user: User | null): UserRoleState => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(getStoredUser);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    () => !!localStorage.getItem('access_token')
-  );
+  const [user, setUser] = useState<User | null>(() => {
+    const existingToken = getAccessToken();
+    return existingToken ? buildUserFromToken(existingToken) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(getAccessToken()));
+  const [loading, setLoading] = useState<boolean>(() => !getAccessToken() && hasSessionHintCookie());
+
   const [activeLocation, setActiveLocationState] = useState<StoreLocationBrief | null>(() => {
     try {
-      const stored = localStorage.getItem('active_location');
-      return stored ? JSON.parse(stored) : (getStoredUser()?.active_location || null);
+      const stored = sessionStorage.getItem(ACTIVE_LOCATION_SESSION_KEY);
+      return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
     }
   });
 
-  const setActiveLocation = (loc: StoreLocationBrief | null) => {
+  const logoutInFlightRef = useRef(false);
+
+  const setActiveLocation = useCallback((loc: StoreLocationBrief | null) => {
     setActiveLocationState(loc);
-    if (loc) {
-      localStorage.setItem('active_location', JSON.stringify(loc));
-    } else {
-      localStorage.removeItem('active_location');
+    try {
+      if (loc) {
+        sessionStorage.setItem(ACTIVE_LOCATION_SESSION_KEY, JSON.stringify(loc));
+      } else {
+        sessionStorage.removeItem(ACTIVE_LOCATION_SESSION_KEY);
+      }
+    } catch {
+      // ignore storage errors
     }
-  };
+  }, []);
+
+  const syncSubscriptionState = useCallback(async () => {
+    try {
+      const res = await api.get('/api/subscriptions/me/');
+      if (res.data && res.data.status !== 'none' && res.data.is_seller === true) {
+        const isExpired = res.data.is_expired === true;
+        const isActive = res.data.is_active === true && !isExpired;
+        const lastTier = res.data.tier?.tier_level || res.data.last_tier || null;
+        const lastTierName = res.data.tier?.name || res.data.last_tier_name || null;
+
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                tier:
+                  isActive && lastTier
+                    ? lastTier
+                    : ['seller_lite', 'seller_pro', 'business'].includes(prev.tier)
+                      ? isActive
+                        ? prev.tier
+                        : 'customer'
+                      : prev.tier,
+                subscription_expired: isExpired,
+                subscription_active: isActive,
+                is_seller: true,
+                last_tier: lastTier,
+                last_tier_name: lastTierName,
+              }
+            : null
+        );
+      } else {
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                subscription_expired: false,
+                subscription_active: false,
+                is_seller: false,
+                last_tier: null,
+                last_tier_name: null,
+              }
+            : null
+        );
+      }
+    } catch {
+      // ignore background sync failures
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const newAccess = await refreshAccessToken();
+    if (!newAccess) {
+      setUser(null);
+      setIsAuthenticated(false);
+      return;
+    }
+    const parsedUser = buildUserFromToken(newAccess);
+    setUser(parsedUser);
+    setIsAuthenticated(Boolean(parsedUser));
+    if (parsedUser?.active_location && !activeLocation) {
+      setActiveLocation(parsedUser.active_location);
+    }
+    await syncSubscriptionState();
+  }, [activeLocation, setActiveLocation, syncSubscriptionState]);
+
+  const logout = useCallback(async () => {
+    if (logoutInFlightRef.current) return;
+    logoutInFlightRef.current = true;
+
+    try {
+      // 1. Best-effort WebPush unsubscribe (bounded to 1.5s so logout never hangs)
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        await Promise.race([
+          navigator.serviceWorker
+            .getRegistration()
+            .then((reg) => reg?.pushManager?.getSubscription())
+            .then((sub) => (sub ? sub.unsubscribe() : false))
+            .catch(() => false),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
+      }
+
+      // 2. Server-side refresh token blacklist & HttpOnly cookie deletion
+      if (getAccessToken() || hasSessionHintCookie()) {
+        await api.post('/api/auth/logout/').catch(() => {});
+      }
+
+      // 3. Clear in-memory JWT, API/product caches, rec queues, offline vault & sessionStorage
+      clearAccessToken();
+      apiCache.clear();
+      invalidateProductCache();
+      clearRecQueues();
+      await clearOfflineVault().catch(() => {});
+      try {
+        sessionStorage.clear();
+      } catch {
+        // ignore
+      }
+
+      // 4. Preserve ONLY non-PII UI preferences in localStorage
+      try {
+        const preserved: Record<string, string> = {};
+        for (const key of PRESERVED_LOGOUT_KEYS) {
+          const val = localStorage.getItem(key);
+          if (val !== null) {
+            preserved[key] = val;
+          }
+        }
+        localStorage.clear();
+        for (const [key, val] of Object.entries(preserved)) {
+          localStorage.setItem(key, val);
+        }
+      } catch {
+        // ignore
+      }
+
+      setActiveLocationState(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      logoutInFlightRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    purgeLegacyAuthStorage();
+    setLogoutCallback(() => {
+      void logout();
+    });
+  }, [logout]);
+
+  // Silent bootstrap on mount ONLY when sm_logged_in=1 hint cookie exists (0 auth requests for cold anon visitors)
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      const existing = getAccessToken();
+      if (existing) {
+        const parsed = buildUserFromToken(existing);
+        if (!cancelled) {
+          setUser(parsed);
+          setIsAuthenticated(Boolean(parsed));
+          setLoading(false);
+        }
+        if (parsed) {
+          void syncSubscriptionState();
+        }
+        return;
+      }
+
+      if (!hasSessionHintCookie()) {
+        if (!cancelled) {
+          setUser(null);
+          setIsAuthenticated(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const refreshed = await refreshAccessToken();
+      if (cancelled) return;
+
+      if (refreshed) {
+        const parsed = buildUserFromToken(refreshed);
+        setUser(parsed);
+        setIsAuthenticated(Boolean(parsed));
+        if (parsed?.active_location) {
+          setActiveLocationState((prev) => prev || parsed.active_location || null);
+        }
+        setLoading(false);
+        void syncSubscriptionState();
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [syncSubscriptionState]);
+
+  const login = useCallback(
+    (tokens: { access: string; refresh?: string }, userData?: any) => {
+      purgeLegacyAuthStorage();
+      setAccessToken(tokens.access);
+      const parsed = buildUserFromToken(tokens.access, userData);
+      setUser(parsed);
+      setIsAuthenticated(Boolean(parsed));
+      setLoading(false);
+      if (parsed?.active_location) {
+        setActiveLocation(parsed.active_location);
+      }
+      void syncSubscriptionState();
+    },
+    [setActiveLocation, syncSubscriptionState]
+  );
+
+  const acceptTerms = useCallback(() => {
+    setUser((prev) => (prev ? { ...prev, terms_accepted: true } : null));
+  }, []);
 
   const assignedLocations = useMemo(() => {
     return user?.assigned_locations || [];
@@ -248,177 +535,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (user?.is_multi_location || assignedLocations.length > 1) ?? false;
   }, [user, assignedLocations]);
 
-  useEffect(() => {
-    setLogoutCallback(logout);
-  }, []);
+  const roleState = useMemo(() => getUserRoleState(user), [user]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const storedUser = getStoredUser();
-      if (storedUser) {
-        setUser(storedUser);
-        // Refresh live subscription status from backend
-        api.get('/api/subscriptions/me/').then((res) => {
-          if (res.data && res.data.status !== 'none' && res.data.is_seller === true) {
-            const isExpired = res.data.is_expired === true;
-            const isActive = res.data.is_active === true && !isExpired;
-            const isSeller = true;
-            const lastTier = res.data.tier?.tier_level || res.data.last_tier || null;
-            const lastTierName = res.data.tier?.name || res.data.last_tier_name || null;
-
-            localStorage.setItem('subscription_expired', String(isExpired));
-            localStorage.setItem('subscription_active', String(isActive));
-            localStorage.setItem('is_seller', String(isSeller));
-            if (lastTier && ['seller_lite', 'seller_pro', 'business'].includes(lastTier)) {
-              localStorage.setItem('last_tier', lastTier);
-              if (isActive) localStorage.setItem('tier', lastTier);
-            }
-            if (lastTierName) localStorage.setItem('last_tier_name', lastTierName);
-
-            setUser(prev => prev ? {
-              ...prev,
-              tier: (isActive && lastTier) ? lastTier : (['seller_lite', 'seller_pro', 'business'].includes(prev.tier) ? (isActive ? prev.tier : 'customer') : prev.tier),
-              subscription_expired: isExpired,
-              subscription_active: isActive,
-              is_seller: isSeller,
-              last_tier: lastTier,
-              last_tier_name: lastTierName,
-            } : null);
-          } else {
-            // Subscription is none, non-seller, or customer
-            localStorage.setItem('subscription_expired', 'false');
-            localStorage.setItem('subscription_active', 'false');
-            localStorage.setItem('is_seller', 'false');
-            localStorage.removeItem('last_tier');
-            localStorage.removeItem('last_tier_name');
-            setUser(prev => prev ? {
-              ...prev,
-              subscription_expired: false,
-              subscription_active: false,
-              is_seller: false,
-              last_tier: null,
-              last_tier_name: null,
-            } : null);
-          }
-        }).catch(() => {});
-      } else {
-        logout();
-      }
-    } else {
-      setUser(null);
-    }
-  }, [isAuthenticated]);
-
-  const login = (tokens: { access: string; refresh: string }, userData: any) => {
-    localStorage.setItem('access_token', tokens.access);
-    localStorage.setItem('refresh_token', tokens.refresh);
-    
-    const payload = decodeJwtPayload(tokens.access);
-    if (payload) {
-      const isSubActive = payload.subscription_active === true || payload.subscription_active === 'true';
-      const isSubExpired = !isSubActive && (payload.subscription_expired === true || payload.subscription_expired === 'true');
-      const effectiveTier = (isSubActive && payload.last_tier) ? payload.last_tier : (payload.tier || 'free');
-
-      localStorage.setItem('user_id', String(payload.user_id));
-      localStorage.setItem('username', payload.username || '');
-      localStorage.setItem('first_name', payload.first_name || '');
-      localStorage.setItem('last_name', payload.last_name || '');
-      localStorage.setItem('is_verified', String(payload.is_verified || false));
-      localStorage.setItem('tier', effectiveTier);
-      localStorage.setItem('is_staff', String(payload.is_staff || false));
-      localStorage.setItem('is_superuser', String(payload.is_superuser || false));
-      localStorage.setItem('is_inspector', String(payload.is_inspector || false));
-      localStorage.setItem('has_staff_permissions', String(payload.has_staff_permissions || false));
-      localStorage.setItem('inspector_level', payload.inspector_level || '');
-      localStorage.setItem('is_team_member', String(payload.is_team_member || false));
-      if (payload.team_owner_id) localStorage.setItem('team_owner_id', String(payload.team_owner_id));
-      if (payload.team_owner_username) localStorage.setItem('team_owner_username', payload.team_owner_username);
-      if (payload.business_name) localStorage.setItem('business_name', payload.business_name);
-      if (payload.team_role_preset) localStorage.setItem('team_role_preset', payload.team_role_preset);
-      if (payload.team_role_label) localStorage.setItem('team_role_label', payload.team_role_label);
-      localStorage.setItem('team_permissions', JSON.stringify(payload.team_permissions || {}));
-      localStorage.setItem('terms_accepted', String(payload.terms_accepted || false));
-      if (payload.is_seller !== undefined) localStorage.setItem('is_seller', String(payload.is_seller));
-      localStorage.setItem('subscription_active', String(isSubActive));
-      localStorage.setItem('subscription_expired', String(isSubExpired));
-      if (payload.last_tier) localStorage.setItem('last_tier', payload.last_tier);
-      if (payload.last_tier_name) localStorage.setItem('last_tier_name', payload.last_tier_name);
-      if (payload.profile_picture) localStorage.setItem('profile_picture', payload.profile_picture);
-      if (payload.assigned_locations) localStorage.setItem('assigned_locations', JSON.stringify(payload.assigned_locations));
-      if (payload.active_location) {
-        localStorage.setItem('active_location', JSON.stringify(payload.active_location));
-        setActiveLocationState(payload.active_location);
-      }
-      if (payload.is_multi_location !== undefined) localStorage.setItem('is_multi_location', String(payload.is_multi_location));
-    } else {
-      localStorage.setItem('user_id', String(userData.user_id));
-      localStorage.setItem('username', userData.username);
-      localStorage.setItem('first_name', userData.first_name || '');
-      localStorage.setItem('last_name', userData.last_name || '');
-      localStorage.setItem('is_verified', String(userData.is_verified || false));
-      localStorage.setItem('tier', userData.tier || 'free');
-      localStorage.setItem('is_staff', String(userData.is_staff || false));
-      localStorage.setItem('is_superuser', String(userData.is_superuser || false));
-      localStorage.setItem('is_inspector', String(userData.is_inspector || false));
-      localStorage.setItem('has_staff_permissions', String(userData.has_staff_permissions || false));
-      localStorage.setItem('inspector_level', userData.inspector_level || '');
-      localStorage.setItem('is_team_member', String(userData.is_team_member || false));
-      if (userData.team_owner_id) localStorage.setItem('team_owner_id', String(userData.team_owner_id));
-      if (userData.team_owner_username) localStorage.setItem('team_owner_username', userData.team_owner_username);
-      if (userData.business_name) localStorage.setItem('business_name', userData.business_name);
-      if (userData.team_role_preset) localStorage.setItem('team_role_preset', userData.team_role_preset);
-      if (userData.team_role_label) localStorage.setItem('team_role_label', userData.team_role_label);
-      localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
-      localStorage.setItem('terms_accepted', String(userData.terms_accepted || false));
-      if (userData.profile_picture) localStorage.setItem('profile_picture', userData.profile_picture);
-      if (userData.assigned_locations) localStorage.setItem('assigned_locations', JSON.stringify(userData.assigned_locations));
-      if (userData.active_location) {
-        localStorage.setItem('active_location', JSON.stringify(userData.active_location));
-        setActiveLocationState(userData.active_location);
-      }
-      if (userData.is_multi_location !== undefined) localStorage.setItem('is_multi_location', String(userData.is_multi_location));
-    }
-    
-    setUser(getStoredUser());
-    setIsAuthenticated(true);
-  };
-
-  const logout = () => {
-    const theme = localStorage.getItem('theme');
-    const savedCart = localStorage.getItem('sokonimax_cart');
-    const lang = localStorage.getItem('uzaspea_language');
-    localStorage.clear();
-    if (theme) localStorage.setItem('theme', theme);
-    if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
-    if (lang) localStorage.setItem('uzaspea_language', lang);
-    setActiveLocationState(null);
-    setIsAuthenticated(false);
-  };
-
-  const acceptTerms = () => {
-    if (user) {
-      setUser({ ...user, terms_accepted: true });
-      localStorage.setItem('terms_accepted', 'true');
-    }
-  };
-
-  const contextValue = useMemo(() => ({
-    isAuthenticated,
-    user,
-    login,
-    logout,
-    acceptTerms,
-    activeLocation,
-    setActiveLocation,
-    assignedLocations,
-    isMultiLocation
-  }), [isAuthenticated, user, activeLocation, assignedLocations, isMultiLocation]);
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      isAuthenticated,
+      loading,
+      user,
+      isSeller: ['seller_lite', 'seller_pro', 'business'].includes(user?.tier || '') || roleState.isSellerAccount,
+      isSellerLite: user?.tier === 'seller_lite' || roleState.isSellerLite,
+      login,
+      logout,
+      refreshUser,
+      acceptTerms,
+      activeLocation,
+      setActiveLocation,
+      assignedLocations,
+      isMultiLocation,
+    }),
+    [
+      isAuthenticated,
+      loading,
+      user,
+      roleState,
+      login,
+      logout,
+      refreshUser,
+      acceptTerms,
+      activeLocation,
+      setActiveLocation,
+      assignedLocations,
+      isMultiLocation,
+    ]
   );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
@@ -433,4 +584,3 @@ export const useUserRoles = (): UserRoleState => {
   const { user } = useAuth();
   return useMemo(() => getUserRoleState(user), [user]);
 };
-

@@ -38,7 +38,7 @@ class ProductSitemap(Sitemap):
             is_draft=False, 
             pos_only=False,
             stock__gt=0
-        ).select_related('category', 'seller', 'brand').prefetch_related('images').order_by('-updated_at')
+        ).only('id', 'slug', 'name', 'public_id', 'updated_at').order_by('-updated_at')
 
     def lastmod(self, obj):
         return obj.updated_at
@@ -63,10 +63,11 @@ class SellerSitemap(Sitemap):
     protocol = 'https'
 
     def items(self):
-        # Active sellers who have published listings
+        # Active sellers who have published public online listings
         return User.objects.filter(
             products__is_available=True,
-            products__is_draft=False
+            products__is_draft=False,
+            products__pos_only=False
         ).distinct().order_by('username')
 
     def location(self, item):

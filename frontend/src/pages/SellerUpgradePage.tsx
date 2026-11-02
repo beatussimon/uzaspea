@@ -14,7 +14,7 @@ import { FormSkeleton } from '../components/Skeleton';
 import { useUserLocation } from '../context/LocationContext';
 
 const SellerUpgradePage: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshUser } = useAuth();
   const roles = useUserRoles();
   
   // Wizard Step: 1 = Plan, 2 = Business Details, 3 = Payment Info, 4 = Review/Wait Screen
@@ -524,12 +524,10 @@ const SellerUpgradePage: React.FC = () => {
               </div>
               <button
                 onClick={async () => {
-                  const refresh = localStorage.getItem('refresh_token');
-                  if (refresh) {
-                    try {
-                      const res = await api.post('/api/auth/token/refresh/', { refresh });
-                      localStorage.setItem('access_token', res.data.access);
-                    } catch (e) {}
+                  try {
+                    await refreshUser();
+                  } catch {
+                    // ignore
                   }
                   window.location.href = '/dashboard';
                 }}

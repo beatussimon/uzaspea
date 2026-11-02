@@ -1,30 +1,45 @@
 /**
- * SokoniMax Offline Digital Vault
- * Encrypted IndexedDB vault backed by Web Cryptography API (AES-GCM-256).
- * Enables buyers to securely read PDFs and listen to audiobooks offline with a 30-day lease heartbeat.
+ * SokoniMax Offline Digital Vault (Hardened v2)
+ * Encrypted IndexedDB vault backed by Web Cryptography API (AES-GCM-256)
+ * using a non-extractable CryptoKey stored directly inside IndexedDB.
  */
 
 const DB_NAME = 'SokoniMaxDigitalVault';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_ASSETS = 'encrypted_assets';
 const STORE_LEASES = 'offline_leases';
 const STORE_PLAYBACK = 'playback_state';
+const STORE_KEYS = 'vault_keys';
+const DEVICE_KEY_ID = 'device_aes_gcm_v2';
 
-// Initialize IndexedDB
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+      const db = (event.target as IDBDatabase | IDBOpenDBRequest) instanceof IDBDatabase
+        ? (event.target as unknown as IDBDatabase)
+        : (event.target as IDBOpenDBRequest).result;
+
       if (!db.objectStoreNames.contains(STORE_ASSETS)) {
         db.createObjectStore(STORE_ASSETS, { keyPath: 'licenseKey' });
+      } else if (event.oldVersion > 0 && event.oldVersion < 2) {
+        // v1 assets were encrypted with a deprecated localStorage key; clear cleanly on upgrade
+        request.transaction?.objectStore(STORE_ASSETS).clear();
       }
+
       if (!db.objectStoreNames.contains(STORE_LEASES)) {
         db.createObjectStore(STORE_LEASES, { keyPath: 'licenseKey' });
+      } else if (event.oldVersion > 0 && event.oldVersion < 2) {
+        request.transaction?.objectStore(STORE_LEASES).clear();
       }
+
       if (!db.objectStoreNames.contains(STORE_PLAYBACK)) {
         db.createObjectStore(STORE_PLAYBACK, { keyPath: 'assetId' });
+      }
+
+      if (!db.objectStoreNames.contains(STORE_KEYS)) {
+        db.createObjectStore(STORE_KEYS, { keyPath: 'id' });
       }
     };
 
@@ -33,36 +48,62 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-// Derive or retrieve persistent device AES-GCM key
-async function getDeviceKey(): Promise<CryptoKey> {
-  const KEY_STORAGE_KEY = 'sokonimax_vault_dev_key';
-  let rawKeyHex = localStorage.getItem(KEY_STORAGE_KEY);
+async function getDeviceKey(db?: IDBDatabase): Promise<CryptoKey> {
+  const database = db || (await openDB());
 
-  if (!rawKeyHex) {
-    const randomKey = crypto.getRandomValues(new Uint8Array(32));
-    rawKeyHex = Array.from(randomKey).map(b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem(KEY_STORAGE_KEY, rawKeyHex);
+  const existing: CryptoKey | null = await new Promise((resolve) => {
+    try {
+      const tx = database.transaction(STORE_KEYS, 'readonly');
+      const req = tx.objectStore(STORE_KEYS).get(DEVICE_KEY_ID);
+      req.onsuccess = () => resolve(req.result?.key || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+
+  if (existing) {
+    return existing;
   }
 
-  const rawBytes = new Uint8Array(
-    rawKeyHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
-  );
-
-  return crypto.subtle.importKey(
-    'raw',
-    rawBytes,
-    { name: 'AES-GCM' },
+  // Generate a non-extractable 256-bit AES-GCM CryptoKey
+  const generatedKey = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = database.transaction(STORE_KEYS, 'readwrite');
+    tx.objectStore(STORE_KEYS).put({
+      id: DEVICE_KEY_ID,
+      key: generatedKey,
+      createdAt: new Date().toISOString(),
+    });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+
+  return generatedKey;
 }
 
 export interface OfflineLease {
   licenseKey: string;
-  expiresAt: string; // ISO string
+  expiresAt: string;
   leasePayload: any;
   leaseSignature: string;
   savedAt: string;
+}
+
+export interface OfflineAssetExtraMeta {
+  productId?: number;
+  productName?: string;
+  productSlug?: string;
+  coverImage?: string;
+  sellerStoreName?: string;
+  pageCount?: number;
+  durationSeconds?: number;
+  deliveryMode?: string;
 }
 
 export interface StoredOfflineAsset {
@@ -71,9 +112,21 @@ export interface StoredOfflineAsset {
   title: string;
   fileType: string;
   contentType: string;
-  iv: number[]; // initialization vector for AES-GCM
+  iv: number[];
   encryptedBlob: ArrayBuffer;
   savedAt: string;
+  meta?: OfflineAssetExtraMeta;
+}
+
+export interface OfflineAssetSummary {
+  licenseKey: string;
+  assetId: number;
+  title: string;
+  fileType: string;
+  contentType: string;
+  expiresAt: string;
+  savedAt: string;
+  meta?: OfflineAssetExtraMeta;
 }
 
 /**
@@ -86,12 +139,12 @@ export async function saveAssetForOffline(
   fileType: string,
   contentType: string,
   fileBlob: Blob,
-  leaseInfo: any
+  leaseInfo: any,
+  meta?: OfflineAssetExtraMeta
 ): Promise<void> {
   const db = await openDB();
-  const key = await getDeviceKey();
+  const key = await getDeviceKey(db);
 
-  // Encrypt file bytes with AES-GCM
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const fileArrayBuffer = await fileBlob.arrayBuffer();
 
@@ -101,6 +154,8 @@ export async function saveAssetForOffline(
     fileArrayBuffer
   );
 
+  const nowIso = new Date().toISOString();
+
   const assetRecord: StoredOfflineAsset = {
     licenseKey,
     assetId,
@@ -109,7 +164,8 @@ export async function saveAssetForOffline(
     contentType,
     iv: Array.from(iv),
     encryptedBlob: encryptedBuffer,
-    savedAt: new Date().toISOString()
+    savedAt: nowIso,
+    meta,
   };
 
   const leaseRecord: OfflineLease = {
@@ -117,7 +173,7 @@ export async function saveAssetForOffline(
     expiresAt: leaseInfo.expires_at,
     leasePayload: leaseInfo.lease_payload,
     leaseSignature: leaseInfo.lease_signature,
-    savedAt: new Date().toISOString()
+    savedAt: nowIso,
   };
 
   return new Promise((resolve, reject) => {
@@ -131,16 +187,24 @@ export async function saveAssetForOffline(
 }
 
 /**
- * Checks whether an asset is already saved offline.
+ * Checks whether an asset is saved offline and its lease has not expired.
  */
 export async function isAssetSavedOffline(licenseKey: string): Promise<boolean> {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
-      const tx = db.transaction(STORE_ASSETS, 'readonly');
-      const req = tx.objectStore(STORE_ASSETS).get(licenseKey);
-      req.onsuccess = () => resolve(Boolean(req.result));
-      req.onerror = () => resolve(false);
+      const tx = db.transaction([STORE_ASSETS, STORE_LEASES], 'readonly');
+      const assetReq = tx.objectStore(STORE_ASSETS).get(licenseKey);
+      const leaseReq = tx.objectStore(STORE_LEASES).get(licenseKey);
+      tx.oncomplete = () => {
+        if (!assetReq.result || !leaseReq.result) {
+          resolve(false);
+          return;
+        }
+        const exp = new Date(leaseReq.result.expiresAt).getTime();
+        resolve(Number.isFinite(exp) && Date.now() <= exp);
+      };
+      tx.onerror = () => resolve(false);
     });
   } catch {
     return false;
@@ -148,12 +212,65 @@ export async function isAssetSavedOffline(licenseKey: string): Promise<boolean> 
 }
 
 /**
+ * Lists metadata for all non-expired assets saved in the offline vault so
+ * DigitalLibraryPage can display and open books/audiobooks while offline.
+ */
+export async function listOfflineAssets(): Promise<OfflineAssetSummary[]> {
+  try {
+    const db = await openDB();
+    const { assets, leases } = await new Promise<{
+      assets: StoredOfflineAsset[];
+      leases: OfflineLease[];
+    }>((resolve) => {
+      const tx = db.transaction([STORE_ASSETS, STORE_LEASES], 'readonly');
+      const assetsReq = tx.objectStore(STORE_ASSETS).getAll();
+      const leasesReq = tx.objectStore(STORE_LEASES).getAll();
+      tx.oncomplete = () =>
+        resolve({
+          assets: (assetsReq.result as StoredOfflineAsset[]) || [],
+          leases: (leasesReq.result as OfflineLease[]) || [],
+        });
+      tx.onerror = () => resolve({ assets: [], leases: [] });
+    });
+
+    const leaseMap = new Map<string, OfflineLease>();
+    const now = Date.now();
+    for (const lease of leases) {
+      const exp = new Date(lease.expiresAt).getTime();
+      if (Number.isFinite(exp) && now <= exp) {
+        leaseMap.set(lease.licenseKey, lease);
+      }
+    }
+
+    const summaries: OfflineAssetSummary[] = [];
+    for (const asset of assets) {
+      const validLease = leaseMap.get(asset.licenseKey);
+      if (!validLease) continue;
+      summaries.push({
+        licenseKey: asset.licenseKey,
+        assetId: asset.assetId,
+        title: asset.title,
+        fileType: asset.fileType,
+        contentType: asset.contentType,
+        expiresAt: validLease.expiresAt,
+        savedAt: asset.savedAt,
+        meta: asset.meta,
+      });
+    }
+    return summaries;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Retrieves and decrypts the offline file blob if the 30-day lease is still valid.
  */
-export async function getDecryptedOfflineAsset(licenseKey: string): Promise<{ blob: Blob; fileType: string; isLeaseValid: boolean } | null> {
+export async function getDecryptedOfflineAsset(
+  licenseKey: string
+): Promise<{ blob: Blob; fileType: string; isLeaseValid: boolean } | null> {
   const db = await openDB();
 
-  // Retrieve lease
   const lease: OfflineLease | null = await new Promise((resolve) => {
     const tx = db.transaction(STORE_LEASES, 'readonly');
     const req = tx.objectStore(STORE_LEASES).get(licenseKey);
@@ -165,13 +282,11 @@ export async function getDecryptedOfflineAsset(licenseKey: string): Promise<{ bl
     return null;
   }
 
-  // Check lease expiration
   const expiryDate = new Date(lease.expiresAt);
   if (Date.now() > expiryDate.getTime()) {
-    return null; // Lease expired, requires online heartbeat refresh
+    return null;
   }
 
-  // Retrieve encrypted asset
   const assetRecord: StoredOfflineAsset | null = await new Promise((resolve) => {
     const tx = db.transaction(STORE_ASSETS, 'readonly');
     const req = tx.objectStore(STORE_ASSETS).get(licenseKey);
@@ -183,8 +298,7 @@ export async function getDecryptedOfflineAsset(licenseKey: string): Promise<{ bl
     return null;
   }
 
-  // Decrypt using WebCrypto AES-GCM
-  const key = await getDeviceKey();
+  const key = await getDeviceKey(db);
   const iv = new Uint8Array(assetRecord.iv);
 
   try {
@@ -198,7 +312,7 @@ export async function getDecryptedOfflineAsset(licenseKey: string): Promise<{ bl
     return {
       blob: decryptedBlob,
       fileType: assetRecord.fileType,
-      isLeaseValid: true
+      isLeaseValid: true,
     };
   } catch (err) {
     console.error('Failed to decrypt vault asset:', err);
@@ -207,7 +321,7 @@ export async function getDecryptedOfflineAsset(licenseKey: string): Promise<{ bl
 }
 
 /**
- * Removes an asset from the offline vault.
+ * Removes a single asset from the offline vault.
  */
 export async function removeOfflineAsset(licenseKey: string): Promise<void> {
   const db = await openDB();
@@ -221,15 +335,39 @@ export async function removeOfflineAsset(licenseKey: string): Promise<void> {
 }
 
 /**
- * Saves audiobook playback position (seconds).
+ * Wipes all encrypted assets, leases, playback states, and device keys on logout.
+ */
+export async function clearOfflineVault(): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction([STORE_ASSETS, STORE_LEASES, STORE_PLAYBACK, STORE_KEYS], 'readwrite');
+      tx.objectStore(STORE_ASSETS).clear();
+      tx.objectStore(STORE_LEASES).clear();
+      tx.objectStore(STORE_PLAYBACK).clear();
+      tx.objectStore(STORE_KEYS).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    // Ignore IndexedDB unavailability (e.g. private browsing restrictions)
+  }
+}
+
+/**
+ * Saves audiobook playback position (seconds) in IndexedDB.
  */
 export async function savePlaybackPosition(assetId: number, seconds: number): Promise<void> {
   try {
     const db = await openDB();
-    const tx = db.transaction(STORE_PLAYBACK, 'readwrite');
-    tx.objectStore(STORE_PLAYBACK).put({ assetId, seconds, updated_at: Date.now() });
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE_PLAYBACK, 'readwrite');
+      tx.objectStore(STORE_PLAYBACK).put({ assetId, seconds, updated_at: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
   } catch {
-    localStorage.setItem(`playback_pos_${assetId}`, String(seconds));
+    // ignore
   }
 }
 
@@ -246,14 +384,12 @@ export async function getPlaybackPosition(assetId: number): Promise<number> {
         if (req.result && typeof req.result.seconds === 'number') {
           resolve(req.result.seconds);
         } else {
-          const fallback = localStorage.getItem(`playback_pos_${assetId}`);
-          resolve(fallback ? parseFloat(fallback) : 0);
+          resolve(0);
         }
       };
       req.onerror = () => resolve(0);
     });
   } catch {
-    const fallback = localStorage.getItem(`playback_pos_${assetId}`);
-    return fallback ? parseFloat(fallback) : 0;
+    return 0;
   }
 }

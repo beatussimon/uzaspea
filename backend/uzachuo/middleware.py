@@ -31,8 +31,11 @@ class ActiveUserMiddleware:
                     pass
 
         if user_id:
-            cache_key = f'user:seen:{user_id}'
-            # Store timestamp; expiration is handled by cache timeout
-            cache.set(cache_key, timezone.now().isoformat(), timeout=60)
+            throttle_key = f'user:seen:throttled:{user_id}'
+            # Throttle Redis updates to once every 45s per user to prevent write spikes
+            if not cache.get(throttle_key):
+                cache_key = f'user:seen:{user_id}'
+                cache.set(cache_key, timezone.now().isoformat(), timeout=60)
+                cache.set(throttle_key, 1, timeout=45)
 
         return response

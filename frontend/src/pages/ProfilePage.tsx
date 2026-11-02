@@ -252,7 +252,7 @@ const ProfilePage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Authenticated context
-  const currentUser = user?.username || localStorage.getItem('username');
+  const currentUser = user?.username || '';
   const isOwner = Boolean(username && currentUser && currentUser.toLowerCase() === username.toLowerCase());
   const isSellerLite = Boolean(
     (profile?.tier || '').toLowerCase() === 'seller_lite' ||

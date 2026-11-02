@@ -302,6 +302,8 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
             current = current.parent
 
         if not template:
+            if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections') or hasattr(request.user, 'inspector_profile')):
+                return Response({'detail': 'No checklist template available for this category.'}, status=404)
             # Dynamically create fallback default template
             template, _ = ChecklistTemplate.objects.get_or_create(
                 category=category,
@@ -1072,6 +1074,16 @@ class InspectionEvidenceViewSet(viewsets.ModelViewSet):
             Q(request__assignments__inspector__user=user, request__assignments__is_active=True) |
             Q(request__client=user)
         )
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        req = serializer.validated_data.get('request')
+        if not (user.is_superuser or has_staff_permission(user, 'can_manage_inspections')):
+            is_assigned = req.assignments.filter(inspector__user=user, is_active=True).exists()
+            if not is_assigned and req.client_id != user.id:
+                raise permissions.exceptions.PermissionDenied("You are not authorized to upload evidence to this inspection request.")
+        serializer.save(uploaded_by=user)
+
 
 
 # ──────────────────────────────────────────────

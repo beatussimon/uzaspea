@@ -8,10 +8,10 @@ x-backend-common: &backend-common
     - REDIS_URL=${REDIS_URL}
 
 services:
-  # ─── Traefik Reverse Proxy ──────────────────────────────────────
   traefik:
     image: traefik:v2.11
     container_name: uzaspea-traefik
+    restart: unless-stopped
     command:
       - "--api.insecure=false"
       - "--api.dashboard=true"
@@ -30,7 +30,13 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--accesslog=true"
       - "--accesslog.format=json"
-      - "--accesslog.fields.headers.defaultmode=keep"
+      - "--accesslog.fields.headers.defaultmode=drop"
+      - "--accesslog.fields.headers.names.User-Agent=keep"
+      - "--accesslog.fields.headers.names.CF-Connecting-IP=keep"
+      - "--accesslog.fields.headers.names.CF-IPCountry=keep"
+      - "--accesslog.fields.headers.names.Authorization=redact"
+      - "--accesslog.fields.headers.names.Cookie=redact"
+      - "--accesslog.fields.headers.names.Set-Cookie=redact"
     ports:
       - "80:80"
       - "443:443"
@@ -51,7 +57,6 @@ services:
         limits:
           memory: 80M
 
-  # ─── Backend: Uvicorn ──────────────────────────────────────────
   backend:
     <<: *backend-common
     container_name: uzaspea-backend
@@ -59,14 +64,24 @@ services:
     restart: unless-stopped
     volumes:
       - ./persistent_data/media:/app/media
+      - ./persistent_data/private_media:/app/private_media
+      - ./persistent_data/vault_storage:/app/vault_storage
+      - ./persistent_data/geoip:/app/geoip
       - ./persistent_data/static:/app/staticfiles
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-graceful-shutdown 30"
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-keep-alive 65 --limit-max-requests 2000 --limit-max-requests-jitter 200 --timeout-graceful-shutdown 30"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health/live/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`pasifiq.store`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`) || PathPrefix(`/sitemap`) || PathPrefix(`/robots.txt`))"
+      - "traefik.http.routers.backend.priority=10"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
@@ -77,7 +92,6 @@ services:
         limits:
           memory: 600M
 
-  # ─── Frontend: Nginx SPA ───────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -89,6 +103,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./persistent_data/media:/app/media:ro
+      - ./persistent_data/private_media:/app/private_media:ro
+      - ./persistent_data/vault_storage:/app/vault_storage:ro
     depends_on:
       - backend
     labels:
@@ -98,6 +114,11 @@ services:
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.routers.digital-vault.rule=Host(`pasifiq.store`) && (PathPrefix(`/api/digital/stream/`) || PathPrefix(`/api/digital/download/`) || PathPrefix(`/secure-media/`))"
+      - "traefik.http.routers.digital-vault.entrypoints=websecure"
+      - "traefik.http.routers.digital-vault.tls=true"
+      - "traefik.http.routers.digital-vault.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.digital-vault.priority=20"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]

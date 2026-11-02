@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { fetchWsTicket } from '../api';
 
 const getWsBase = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -17,10 +18,7 @@ export interface TrackingUpdate {
 }
 
 /**
- * Hook for real-time order tracking via WebSocket.
- * @param path - e.g. 'seller' or an order ID like '42'
- * @param onUpdate - callback when status update received
- * @param enabled - optionally disable the connection
+ * Hook for real-time order tracking via WebSocket using single-use 30s ticket.
  */
 export function useOrderTracking(
   path: string | number | null,
@@ -29,23 +27,26 @@ export function useOrderTracking(
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const unmountedRef = useRef(false);
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
-  const retryCount = useRef(0);  // FIX L-20: track retry attempts
-  const MAX_RETRIES = 8;         // FIX L-20: limit retries
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 8;
 
-  const connect = useCallback(() => {
-    if (!path || !enabled) return;
+  const connect = useCallback(async () => {
+    if (!path || !enabled || unmountedRef.current) return;
 
-    const token = localStorage.getItem('access_token') || '';
-    const url = `${WS_BASE}/ws/tracking/${path}/?token=${token}`;
+    const ticket = await fetchWsTicket();
+    if (!ticket || unmountedRef.current || !enabled) return;
+
+    const url = `${WS_BASE}/ws/tracking/${path}/?ticket=${encodeURIComponent(ticket)}`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      retryCount.current = 0;  // FIX L-20: reset on success
+      retryCount.current = 0;
     };
 
     ws.onmessage = (event) => {
@@ -57,11 +58,17 @@ export function useOrderTracking(
       }
     };
 
-    ws.onclose = () => {
-      if (enabled && retryCount.current < MAX_RETRIES) {
-        const delay = Math.min(1000 * Math.pow(2, retryCount.current), 30000);  // FIX L-20: backoff
+    ws.onclose = (event) => {
+      // Do not retry on normal close or geofence/auth rejection (4451 / 4001 / 4003)
+      if (event.code === 1000 || event.code === 4451 || event.code === 4001 || event.code === 4003) {
+        return;
+      }
+      if (!unmountedRef.current && enabled && retryCount.current < MAX_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount.current), 30000);
         retryCount.current += 1;
-        reconnectTimeout.current = setTimeout(() => connect(), delay);
+        reconnectTimeout.current = setTimeout(() => {
+          void connect();
+        }, delay);
       }
     };
 
@@ -71,13 +78,14 @@ export function useOrderTracking(
   }, [path, enabled]);
 
   useEffect(() => {
-    connect();
+    unmountedRef.current = false;
+    void connect();
     return () => {
+      unmountedRef.current = true;
       clearTimeout(reconnectTimeout.current);
       if (wsRef.current) {
-        // Only close if it's not already closing or closed
         if (wsRef.current.readyState < 2) {
-          wsRef.current.close();
+          wsRef.current.close(1000);
         }
         wsRef.current = null;
       }

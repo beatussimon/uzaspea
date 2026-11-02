@@ -56,6 +56,9 @@ def validate_access_token(token_str, expected_type=None, client_ip=None):
     if token_obj.is_expired():
         return None, None, "Access token has expired. Please refresh your session."
 
+    if token_obj.is_used:
+        return None, None, "Token already used"
+
     if expected_type and token_obj.token_type != expected_type:
         return None, None, f"Token type mismatch (expected {expected_type}, got {token_obj.token_type})"
 
@@ -66,26 +69,124 @@ def validate_access_token(token_str, expected_type=None, client_ip=None):
     return token_obj, license_obj, None
 
 
-def apply_pdf_watermark(source_file_path_or_buffer, license_obj):
+def get_or_create_watermarked_pdf(source_file_path: str, license_obj) -> str:
     """
-    Injects visible forensic identity stamp and invisible steganographic metadata into a PDF file.
-    Visible watermark:
-      - Clean running footer on all pages:
-        "Licensed to {name} ({email}) • Order #{order_id} • Lic: {lic_key}"
-      - Diagonal subtle anti-leak watermark across center of every page (semi-transparent)
-    Steganographic metadata:
-      - /SokoniMaxLicense dictionary containing signed cryptographic verification hash
+    Creates or reuses a disk-cached watermarked PDF in SECURE_DIGITAL_ROOT / '_watermarked'.
+    Uses template page caching so only 1 watermark Canvas is built per unique page dimension.
+    Returns the relative path under SECURE_DIGITAL_ROOT (e.g. '_watermarked/lic_123_abc.pdf')
+    for zero-RAM serving via X-Accel-Redirect.
     """
     try:
         from reportlab.pdfgen import canvas
         from reportlab.lib.colors import Color
         from pypdf import PdfReader, PdfWriter
-    except ImportError:
-        # Fallback if libraries are missing in some environment: return raw file
-        if isinstance(source_file_path_or_buffer, str):
-            with open(source_file_path_or_buffer, 'rb') as f:
-                return f.read()
-        return source_file_path_or_buffer.read()
+    except ImportError as exc:
+        raise RuntimeError(f"Missing PDF watermarking dependencies (pypdf/reportlab): {exc}") from exc
+
+    vault_root = getattr(settings, 'SECURE_DIGITAL_ROOT', '/tmp')
+    cache_dir = os.path.join(vault_root, '_watermarked')
+    os.makedirs(cache_dir, exist_ok=True)
+
+    asset = license_obj.digital_asset
+    checksum_tag = (asset.sha256_checksum or "v1")[:12]
+    rel_path = f"_watermarked/lic_{license_obj.id}_{checksum_tag}.pdf"
+    full_target_path = os.path.join(vault_root, rel_path)
+
+    if os.path.exists(full_target_path) and os.path.getsize(full_target_path) > 0:
+        return rel_path
+
+    file_size = os.path.getsize(source_file_path) if os.path.exists(source_file_path) else 0
+    if file_size > 35 * 1024 * 1024:
+        return os.path.relpath(source_file_path, vault_root).replace('\\', '/')
+
+    input_reader = PdfReader(source_file_path)
+    num_pages = len(input_reader.pages)
+    if num_pages == 0:
+        return os.path.relpath(source_file_path, vault_root).replace('\\', '/')
+
+    buyer = license_obj.user
+    buyer_name = f"{buyer.first_name} {buyer.last_name}".strip() if buyer else "Valued Customer"
+    buyer_email = (buyer.email if buyer else "") or (buyer.username if buyer else "Customer")
+    order_id = license_obj.order_id
+    lic_key = license_obj.license_key
+
+    footer_text = f"Licensed exclusively to {buyer_name} ({buyer_email}) • SokoniMax Order #{order_id} • {lic_key}"
+    diagonal_text = f"Verified Buyer: {buyer_email} • {lic_key}"
+
+    writer = PdfWriter()
+    watermark_cache = {}
+
+    for idx, page in enumerate(input_reader.pages):
+        page_box = page.mediabox
+        page_width = float(page_box.width)
+        page_height = float(page_box.height)
+        dim_key = (int(round(page_width)), int(round(page_height)))
+
+        if dim_key not in watermark_cache:
+            wm_buffer = io.BytesIO()
+            c = canvas.Canvas(wm_buffer, pagesize=(page_width, page_height))
+
+            # 1. Subtle diagonal watermark across center
+            c.saveState()
+            c.translate(page_width / 2.0, page_height / 2.0)
+            c.rotate(45)
+            c.setFont("Helvetica-Bold", 14)
+            c.setFillColor(Color(0.2, 0.2, 0.2, alpha=0.07))
+            c.drawCentredString(0, 0, diagonal_text)
+            c.restoreState()
+
+            # 2. Running footer at bottom
+            c.saveState()
+            c.setFont("Helvetica", 7.5)
+            c.setFillColor(Color(0.25, 0.25, 0.25, alpha=0.55))
+            c.drawString(24, 16, footer_text)
+            c.restoreState()
+
+            c.save()
+            wm_buffer.seek(0)
+            wm_reader = PdfReader(wm_buffer)
+            watermark_cache[dim_key] = wm_reader.pages[0]
+
+        page.merge_page(watermark_cache[dim_key])
+        writer.add_page(page)
+
+    metadata_payload = {
+        'license_key': lic_key,
+        'buyer_id': buyer.id if buyer else None,
+        'order_id': order_id,
+        'buyer_email': buyer_email,
+        'stamped_at': timezone.now().isoformat(),
+        'vault_signature': hmac.new(
+            settings.SECRET_KEY.encode('utf-8'),
+            f"{lic_key}:{order_id}:{buyer.id if buyer else 0}".encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+    }
+    writer.add_metadata({
+        '/SokoniMaxDigitalLicense': json.dumps(metadata_payload),
+        '/Producer': 'SokoniMax Protected Digital Vault',
+    })
+
+    tmp_target_path = f"{full_target_path}.tmp"
+    with open(tmp_target_path, 'wb') as f_out:
+        writer.write(f_out)
+    os.replace(tmp_target_path, full_target_path)
+
+    return rel_path
+
+
+def apply_pdf_watermark(source_file_path_or_buffer, license_obj):
+    """
+    Injects visible forensic identity stamp and invisible steganographic metadata into a PDF file.
+    Fail-closed if required PDF libraries are missing.
+    """
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.colors import Color
+        from pypdf import PdfReader, PdfWriter
+    except ImportError as exc:
+        raise RuntimeError(f"Missing PDF watermarking dependencies (pypdf/reportlab): {exc}") from exc
+
 
     # Read input PDF
     if isinstance(source_file_path_or_buffer, str):

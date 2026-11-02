@@ -49,7 +49,7 @@ def generate_monthly_invoices():
 
     seller_ids = set(seller_aggregates.keys())
 
-    sub_sellers = Subscription.objects.exclude(tier__isnull=True).values_list('user_id', flat=True)
+    sub_sellers = Subscription.objects.filter(is_active=True).exclude(tier__isnull=True).values_list('user_id', flat=True)
     seller_ids.update(sub_sellers)
 
     app_sellers = SellerApplication.objects.filter(status='approved').values_list('user_id', flat=True)
@@ -75,7 +75,7 @@ def generate_monthly_invoices():
 
         # Determine subscription tier fee
         sub_fee = Decimal('0.00')
-        latest_sub = Subscription.objects.filter(user=seller).select_related('tier').order_by('-start_date').first()
+        latest_sub = Subscription.objects.filter(user=seller, is_active=True).select_related('tier').order_by('-start_date').first()
         if latest_sub and latest_sub.tier and latest_sub.tier.price:
             sub_fee = Decimal(str(latest_sub.tier.price))
         else:

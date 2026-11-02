@@ -254,8 +254,8 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Configure brand identity, "For You" rotating circle image, and homepage background images for Light (white) and Dark (black) modes.'
         }),
         ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
-        ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url']}),
-        ('Business Rules', {'fields': ['commission_rate', 'pos_commission_rate', 'driver_payout_percentage']}),
+        ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url', 'rumble_url', 'kick_url']}),
+        ('Business Rules', {'fields': ['commission_rate', 'pos_commission_rate', 'driver_payout_percentage', 'use_product_stats_for_listings']}),
     ]
     def has_add_permission(self, request):
         return not SiteSettings.objects.exists()  # Only one row allowed
@@ -581,5 +581,145 @@ class ProductRecsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+from django import forms
+import ipaddress
+import re
+from uzachuo.geofence import COUNTRY_CHOICES
+from .models import (
+    GeofenceSettings, DigitalAsset, DigitalAccessLicense, CustomerServicePass,
+    StoreLocation, PromoCode, Brand
+)
+
+
+class GeofenceSettingsForm(forms.ModelForm):
+    allowed_countries = forms.MultipleChoiceField(
+        choices=COUNTRY_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'geofence-country-grid'}),
+        required=False,
+        help_text="Select all countries whose users may access SokoniMax. Use the quick-preset buttons above to auto-select regions."
+    )
+
+    class Meta:
+        model = GeofenceSettings
+        fields = '__all__'
+
+    def clean_whitelisted_ips(self):
+        data = self.cleaned_data.get('whitelisted_ips', '')
+        if data:
+            for line in re.split(r'[\r\n,]+', data):
+                line = line.strip()
+                if line:
+                    try:
+                        ipaddress.ip_network(line, strict=False)
+                    except ValueError:
+                        raise forms.ValidationError(f"Invalid IP address or CIDR network: '{line}'")
+        return data
+
+
+@admin.register(GeofenceSettings)
+class GeofenceSettingsAdmin(admin.ModelAdmin):
+    form = GeofenceSettingsForm
+    change_form_template = 'admin/marketplace/geofencesettings/change_form.html'
+
+    fieldsets = (
+        ("Master Control", {
+            "fields": ("is_enabled", "enforcement_mode"),
+            "description": "Master switch and enforcement behavior. Changes propagate across all VPS nodes and Redis instantly."
+        }),
+        ("Allowed Countries (Multi-Select)", {
+            "fields": ("allowed_countries",),
+            "description": "Select the countries whose citizens and residents are authorized to use SokoniMax. Visitors from outside these regions will see the geofence page."
+        }),
+        ("Security & Edge Safeguards", {
+            "fields": (
+                "block_tor_anonymous_proxies",
+                "allow_unknown_country_fallback",
+                "allow_staff_anywhere",
+                "allow_seo_and_social_previews",
+                "whitelisted_ips"
+            ),
+            "description": "Fail-open safeguards, search engine indexing allowlist, and administrator IP exemptions."
+        }),
+        ("Visitor Facing Messages", {
+            "fields": ("block_title", "block_message"),
+            "description": "Custom messages shown on the restricted access splash screen for blocked visitors."
+        }),
+    )
+
+    def changelist_view(self, request, extra_context=None):
+        obj = GeofenceSettings.load()
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        return redirect(reverse('admin:marketplace_geofencesettings_change', args=[obj.id]))
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        from uzachuo.net_utils import get_client_ip
+        from uzachuo.geofence import resolve_country_code, COUNTRY_NAMES
+        client_ip = get_client_ip(request)
+        cf_header = request.META.get('HTTP_CF_IPCOUNTRY', '').strip()
+        detected_country, source = resolve_country_code(client_ip, cf_header)
+        detected_country_name = COUNTRY_NAMES.get(detected_country, detected_country or "Unknown")
+        extra_context['live_detected_ip'] = client_ip
+        extra_context['live_detected_country'] = detected_country
+        extra_context['live_detected_country_name'] = detected_country_name
+        extra_context['live_source'] = source
+        return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
+
+    def has_add_permission(self, request):
+        return not GeofenceSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DigitalAsset)
+class DigitalAssetAdmin(admin.ModelAdmin):
+    list_display = ('title', 'product', 'variant', 'file_type', 'delivery_mode', 'file_size_bytes', 'watermark_enabled', 'created_at')
+    list_filter = ('file_type', 'delivery_mode', 'watermark_enabled')
+    search_fields = ('title', 'product__name', 'sha256_checksum')
+    raw_id_fields = ('product', 'variant')
+
+
+@admin.register(DigitalAccessLicense)
+class DigitalAccessLicenseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'digital_asset', 'order', 'status', 'download_count', 'last_accessed_at', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('user__username', 'digital_asset__title', 'license_key')
+    raw_id_fields = ('user', 'digital_asset', 'order', 'order_item')
+
+
+@admin.register(CustomerServicePass)
+class CustomerServicePassAdmin(admin.ModelAdmin):
+    list_display = ('customer_name', 'customer_phone', 'pass_code', 'seller', 'product', 'status', 'check_in_count', 'expires_at')
+    list_filter = ('status', 'start_date', 'expires_at')
+    search_fields = ('customer_name', 'customer_phone', 'pass_code', 'seller__username', 'product__name')
+    raw_id_fields = ('seller', 'product', 'variant', 'order')
+
+
+@admin.register(StoreLocation)
+class StoreLocationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'owner', 'city', 'is_main', 'is_active', 'phone', 'created_at')
+    list_filter = ('is_main', 'is_active', 'city')
+    search_fields = ('name', 'owner__username', 'address_line', 'phone')
+    raw_id_fields = ('owner',)
+
+
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'seller', 'discount_type', 'value', 'applicable_scope', 'is_active', 'use_count', 'created_at')
+    list_filter = ('discount_type', 'applicable_scope', 'is_active')
+    search_fields = ('code', 'seller__username', 'affiliate_name')
+    raw_id_fields = ('seller', 'affiliate_user', 'product')
+
+
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'is_active', 'is_verified', 'created_at')
+    list_filter = ('is_active', 'is_verified')
+    search_fields = ('name', 'slug')
+
 
 

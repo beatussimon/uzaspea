@@ -4,10 +4,11 @@ import {
   Maximize2, Minimize2, ShieldAlert, Loader2 
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
-// Set up worker
+// Set up worker locally without unpinned third-party CDN
 try {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 } catch (e) {
   console.warn('PDF Worker setup warning:', e);
 }

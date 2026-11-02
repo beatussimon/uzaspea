@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -2817,6 +2818,7 @@ export const SupportTicketsManager: React.FC = () => {
 const StaffDashboardLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -2832,7 +2834,7 @@ const StaffDashboardLayout: React.FC = () => {
       .then((res) => setData(res.data))
       .catch((err) => {
         if (err.response?.status === 403) {
-          const isInspector = localStorage.getItem('is_inspector') === 'true';
+          const isInspector = authUser?.is_inspector === true;
           if (isInspector) {
             navigate('/inspector/jobs', { replace: true });
             return;
@@ -2841,7 +2843,7 @@ const StaffDashboardLayout: React.FC = () => {
         toast.error('Failed to load staff dashboard summary');
       })
       .finally(() => setLoading(false));
-  }, [navigate]);
+  }, [navigate, authUser?.is_inspector]);
 
   const isSuper = !!data?.user?.is_superuser;
   const perms = data?.user?.permissions || [];

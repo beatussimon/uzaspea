@@ -4,6 +4,8 @@ import { Bell, Check, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api';
 import { timeAgo } from '../../utils/timeAgo';
+import { useAuth } from '../../context/AuthContext';
+import { safeRedirectPath, safeExternalUrl } from '../../utils/urlSafety';
 
 interface NotificationBellProps {
   className?: string;
@@ -15,7 +17,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const isAuthenticated = !!localStorage.getItem('access_token');
+  const { isAuthenticated } = useAuth();
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -210,9 +212,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
     if (!dest) return;
 
     if (dest.startsWith('http://') || dest.startsWith('https://')) {
-      window.location.href = dest;
+      const safe = safeExternalUrl(dest);
+      if (safe) {
+        window.location.href = safe;
+      }
     } else {
-      navigate(dest);
+      navigate(safeRedirectPath(dest, '/'));
     }
   };
 

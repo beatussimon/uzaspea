@@ -88,3 +88,16 @@ backend/logs/
 backend/scripts/scratch/
 backend/vault_storage/*
 !backend/vault_storage/.gitkeep
+
+# Security, Digital Vault, GeoIP & Operational Artifacts (Audit Hardening)
+backups/
+backend/private_media/
+backend/geoip/
+*.mmdb
+*.key
+prod_logs.txt
+build_log.txt
+docker_info.txt
+push_script.sh
+!scripts/performance_benchmark.py
+

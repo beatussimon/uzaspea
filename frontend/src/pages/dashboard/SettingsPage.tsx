@@ -9,7 +9,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import SocialLinks from '../../components/SocialLinks';
-import { useUserRoles } from '../../context/AuthContext';
+import { useAuth, useUserRoles } from '../../context/AuthContext';
 import { SUPPORTED_COUNTRIES, getDefaultCountry, setDefaultCountry } from '../../services/addressService';
 import { 
     saveStoreBusinessMode, 
@@ -23,10 +23,11 @@ const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { user: authUser } = useAuth();
     const roles = useUserRoles();
     const isCustomer = roles.isPureCustomer;
     const isDashboard = location.pathname.startsWith('/dashboard');
-    const username = localStorage.getItem('username') || '';
+    const username = authUser?.username || '';
 
     const initialTab = searchParams.get('tab') || 'profile';
     const [activeTab, setActiveTab] = useState<string>(initialTab);

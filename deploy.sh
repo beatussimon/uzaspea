@@ -1,93 +1,104 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 APP_INSTANCE="3.6.193.212"
+APP_PRIVATE_IP="172.26.36.142"
 DATA_INSTANCE="13.235.198.184"
-APP_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1.pem"
-DATA_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1-sokonimax.pem"
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=6"
+DATA_PRIVATE_IP="172.26.1.218"
+APP_SSH_KEY="$HOME/.ssh/LightsailDefaultKey-ap-south-1.pem"
+DATA_SSH_KEY="$HOME/.ssh/LightsailDefaultKey-ap-south-1-sokonimax.pem"
 
 echo "Building frontend locally to avoid App Node OOM..."
 cd frontend
 npm run build
 cd ..
 
-echo "Pushing latest code to GitHub..."
-./push_script.sh
+echo "Pushing latest committed code to GitHub (non-force)..."
+(
+  eval "$(ssh-agent -s)" >/dev/null
+  trap 'ssh-agent -k >/dev/null 2>&1 || true' EXIT
+  if [ -x "$HOME/.ssh/.git_askpass" ]; then
+    export SSH_ASKPASS="$HOME/.ssh/.git_askpass"
+    export SSH_ASKPASS_REQUIRE=force
+    export DISPLAY=:0
+    setsid ssh-add "$HOME/.ssh/id_ed25519" </dev/null
+  fi
+  git push origin master
+)
 
 echo "=========================================="
 echo " Deploying to Data Node ($DATA_INSTANCE)  "
 echo "=========================================="
-ssh $SSH_OPTS -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
-  set -e
-  APP_INSTANCE="${APP_INSTANCE}"
-  echo "=> Entering deployment directory..."
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i "$DATA_SSH_KEY" "ubuntu@$DATA_INSTANCE" << EOF
+  set -euo pipefail
   cd ~/uzaspea
-  
+  sudo mkdir -p ~/uzaspea/persistent_data/celerybeat ~/uzaspea/persistent_data/media ~/uzaspea/persistent_data/private_media ~/uzaspea/persistent_data/vault_storage
+  sudo chown -R 10001:10001 ~/uzaspea/persistent_data/celerybeat ~/uzaspea/persistent_data/media ~/uzaspea/persistent_data/private_media ~/uzaspea/persistent_data/vault_storage
+
+  echo "=> Pre-deploy PostgreSQL backup..."
+  /home/ubuntu/uzaspea/scripts/backup.sh || true
+
   echo "=> Fetching latest code and resetting to origin/master..."
   git fetch origin master
   git reset --hard origin/master
   git clean -fd
-  
-  echo "=> Building Celery container..."
+  chmod 700 ~/uzaspea/scripts/backup.sh
+
+  echo "=> Building & restarting Data Node containers..."
   docker compose -f docker-compose.data.yml build celery-worker
-  
-  echo "=> Restarting Data Node containers (Postgres, Redis, Celery)..."
   docker compose -f docker-compose.data.yml up -d --remove-orphans
 
-  echo "=> Securing database ports (DOCKER-USER chain)..."
+  echo "=> Locking IPv4 + IPv6 DOCKER-USER firewall to Private VPC ($APP_PRIVATE_IP)..."
   sudo iptables -N DOCKER-USER 2>/dev/null || true
-  sudo iptables -C DOCKER-USER -j RETURN 2>/dev/null || sudo iptables -A DOCKER-USER -j RETURN
   sudo iptables -F DOCKER-USER
-  # Allow internal docker and private VPC networks
-  sudo iptables -A DOCKER-USER -i docker0 -j RETURN
+  sudo iptables -A DOCKER-USER -i lo -j RETURN
+  sudo iptables -A DOCKER-USER -p tcp --dport 22 -j RETURN
+  sudo iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
   sudo iptables -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
-  sudo iptables -A DOCKER-USER -s 10.0.0.0/8 -j RETURN
-  sudo iptables -A DOCKER-USER -s 127.0.0.1 -j RETURN
-  # Allow App Node public IP
-  sudo iptables -A DOCKER-USER -s $APP_INSTANCE -j RETURN
-  # Drop all other external traffic to 5432 and 6379
+  sudo iptables -A DOCKER-USER -s 127.0.0.1/32 -j RETURN
+  sudo iptables -A DOCKER-USER -p tcp -m multiport --dports 5432,6379 -s ${APP_PRIVATE_IP}/32 -j RETURN
   sudo iptables -A DOCKER-USER -p tcp -m multiport --dports 5432,6379 -j DROP
   sudo iptables -A DOCKER-USER -j RETURN
 
-  echo "=> Cleaning up old Docker images..."
+  sudo ip6tables -N DOCKER-USER 2>/dev/null || true
+  sudo ip6tables -F DOCKER-USER
+  sudo ip6tables -A DOCKER-USER -i lo -j RETURN
+  sudo ip6tables -A DOCKER-USER -p tcp --dport 22 -j RETURN
+  sudo ip6tables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+  sudo ip6tables -A DOCKER-USER -p tcp -m multiport --dports 5432,6379 -j DROP
+  sudo ip6tables -A DOCKER-USER -j RETURN
+
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    sudo netfilter-persistent save
+  fi
   docker image prune -f
 EOF
 
 echo "=========================================="
 echo " Deploying to App Node ($APP_INSTANCE)    "
 echo "=========================================="
-ssh $SSH_OPTS -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
-  set -e
-  echo "=> Entering deployment directory..."
+ssh -o StrictHostKeyChecking=no -i "$APP_SSH_KEY" "ubuntu@$APP_INSTANCE" << 'EOF'
+  set -euo pipefail
   cd ~/uzaspea
-  
-  echo "=> Fetching latest code and resetting to origin/master..."
+  sudo mkdir -p ~/uzaspea/persistent_data/media ~/uzaspea/persistent_data/private_media ~/uzaspea/persistent_data/vault_storage ~/uzaspea/persistent_data/vault_storage/_watermarked ~/uzaspea/persistent_data/geoip ~/uzaspea/persistent_data/static
+  sudo chown -R 10001:10001 ~/uzaspea/persistent_data/media ~/uzaspea/persistent_data/private_media ~/uzaspea/persistent_data/vault_storage ~/uzaspea/persistent_data/geoip ~/uzaspea/persistent_data/static
   git fetch origin master
   git reset --hard origin/master
   git clean -fd
 EOF
 
 echo "=> Syncing compiled frontend to App Node..."
-rsync -avz --delete -e "ssh $SSH_OPTS -i $APP_SSH_KEY" frontend/dist/ ubuntu@$APP_INSTANCE:~/uzaspea/frontend/dist/
+rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY" frontend/dist/ "ubuntu@$APP_INSTANCE:~/uzaspea/frontend/dist/"
 
-ssh $SSH_OPTS -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
-  set -e
+ssh -o StrictHostKeyChecking=no -i "$APP_SSH_KEY" "ubuntu@$APP_INSTANCE" << 'EOF'
+  set -euo pipefail
   cd ~/uzaspea
-  
-  echo "=> Building backend container..."
+  chmod 600 ~/uzaspea/traefik_acme.json ~/uzaspea/.env ~/uzaspea/backend/.env 2>/dev/null || true
   docker compose -f docker-compose.app.yml build backend
-  
-  echo "=> Building frontend container (fast copy of synced dist)..."
   docker compose -f docker-compose.app.yml build frontend
-  
-  echo "=> Restarting App Node containers (Traefik, Backend, Frontend)..."
   docker compose -f docker-compose.app.yml up -d --remove-orphans
-  
-  echo "=> Cleaning up old Docker images..."
   docker image prune -f
-
-  echo -e "\n=> Deployment successfully completed on server."
+  echo "=> Deployment successfully completed on App Node."
 EOF
 
-echo -e "\nDeployment process finished locally!"
+echo "Deployment process finished!"

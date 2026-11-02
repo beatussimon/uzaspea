@@ -57,6 +57,9 @@ services:
     restart: unless-stopped       # FIX HIGH-01
     volumes:
       - ./persistent_data/media:/app/media
+      - ./persistent_data/private_media:/app/private_media
+      - ./persistent_data/vault_storage:/app/vault_storage
+      - ./persistent_data/geoip:/app/geoip
       - ./persistent_data/static:/app/staticfiles
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -160,7 +163,7 @@ services:
     container_name: uzaspea-redis
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 32mb --maxmemory-policy volatile-lru --save ""
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - ./persistent_data/redis:/data
     healthcheck:

@@ -1,41 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import api, { API_BASE_URL, decodeJwtPayload } from '../api';
+import api, { fetchWsTicket } from '../api';
 import { useAuth } from './AuthContext';
-import axios from 'axios';
 import toast from 'react-hot-toast';
-
-const getValidToken = async (): Promise<string | null> => {
-  const token = localStorage.getItem('access_token');
-  if (!token) return null;
-
-  try {
-    const payload = decodeJwtPayload(token);
-    if (payload && payload.exp) {
-      // If token expires in less than 30 seconds, refresh it
-      const isExpired = payload.exp * 1000 - Date.now() < 30000;
-      if (isExpired) {
-        const refresh = localStorage.getItem('refresh_token');
-        if (refresh) {
-          try {
-            const res = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, { refresh });
-            const newToken = res.data.access;
-            localStorage.setItem('access_token', newToken);
-            if (res.data.refresh) {
-              localStorage.setItem('refresh_token', res.data.refresh);
-            }
-            return newToken;
-          } catch (err) {
-            console.error('WebSocket token refresh failed:', err);
-            return null; // Stop WS from trying to connect with an expired token
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error checking token for WebSocket:', err);
-  }
-  return token;
-};
 
 
 export interface Message {
@@ -460,16 +426,9 @@ const subscribeToWebPush = async () => {
     loadingOlderRef.current = loadingOlder;
   }, [loadingOlder]);
 
-  // Connect WebSocket
+  // Connect WebSocket using single-use 30s opaque ticket
   const connectWS = useCallback(async () => {
     if (!isAuthenticated) return;
-    const token = await getValidToken();
-    if (!token) return;
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
 
     // Do not tear down if already OPEN or CONNECTING
     if (wsRef.current) {
@@ -483,9 +442,17 @@ const subscribeToWebPush = async () => {
       } catch (e) {}
     }
 
+    const ticket = await fetchWsTicket();
+    if (!ticket || !isAuthenticated) return;
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = window.location.host;
-    const wsUrl = `${protocol}://${host}/ws/chat/?token=${token}`;
+    const wsUrl = `${protocol}://${host}/ws/chat/?ticket=${encodeURIComponent(ticket)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -496,7 +463,7 @@ const subscribeToWebPush = async () => {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        const currentUserId = Number(userRef.current?.user_id || (userRef.current as any)?.id || localStorage.getItem('user_id') || '0');
+        const currentUserId = Number(userRef.current?.user_id || (userRef.current as any)?.id || 0);
 
         if (data.type === 'typing') {
           const convId = Number(data.conversation_id);
@@ -664,8 +631,8 @@ const subscribeToWebPush = async () => {
     };
 
     ws.onclose = (e) => {
-      // Avoid reconnect loop if logged out or normal closure
-      if (isAuthenticated && e.code !== 1000) {
+      // Avoid reconnect loop if logged out, normal closure, or geofence/auth rejection
+      if (isAuthenticated && e.code !== 1000 && e.code !== 4451 && e.code !== 4001 && e.code !== 4003) {
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connectWS();
         }, 5000);

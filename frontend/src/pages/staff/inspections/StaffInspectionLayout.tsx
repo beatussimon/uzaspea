@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import inspectionApi from '../../../api/inspectionApi';
+import { useUserRoles } from '../../../context/AuthContext';
 import {
   InspectionRequest, InspectionPayment, FraudFlag,
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS,
@@ -1285,8 +1286,9 @@ const InspectorPerformance: React.FC = () => {
 
 const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
   const location = useLocation();
+  const roles = useUserRoles();
 
-  const isSuper = localStorage.getItem('is_superuser') === 'true';
+  const isSuper = roles.isSuperuser || Boolean(user?.is_superuser);
   const hasManagePerm = isSuper || user?.permissions?.includes('can_manage_inspections');
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {

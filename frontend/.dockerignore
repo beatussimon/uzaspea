@@ -1,11 +1,5 @@
 node_modules
+.git
 .env
 .env.*
-!.env.example
-.git
-.vscode
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-*.swp
-.DS_Store
+*.log

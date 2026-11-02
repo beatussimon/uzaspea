@@ -4,6 +4,7 @@
  * Payload = product ids viewed, rec impressions per surface, rec clicks, A/B variant, cart adds.
  */
 import { getSavedVehicleId, getRecRegion } from './recentViews';
+import { getAccessToken } from '../api';
 
 export type RecSurface = 'similar' | 'ymal' | 'foryou' | 'cat_shelf' | 'cart' | 'empty_search' | 'order';
 export type RecVariant = 'control' | 'variant_b';
@@ -168,9 +169,12 @@ export function flushRecEvents(): void {
   impressions = {};
   clicks = [];
   cartAdds = [];
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  };
   try {
-    const token = localStorage.getItem('access_token');
+    const token = getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   } catch {
     // ignore
@@ -183,11 +187,23 @@ export function flushRecEvents(): void {
       body,
       headers,
       keepalive: true,
-      credentials: 'same-origin',
+      credentials: 'include',
     }).catch(() => undefined);
   } catch {
     // ignore
   }
+}
+
+export function clearRecQueues(): void {
+  if (timer !== null) {
+    window.clearTimeout(timer);
+    timer = null;
+  }
+  views = [];
+  impressions = {};
+  clicks = [];
+  cartAdds = [];
+  lastView = null;
 }
 
 function schedule(): void {

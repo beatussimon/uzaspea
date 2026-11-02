@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { 
   BookOpen, Headphones, Key, Download, HardDriveDownload, 
   Search, Check, WifiOff, Loader2 
 } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import { PDFReaderModal } from '../components/PDFReaderModal';
 import { AudiobookPlayer, AudiobookTrack } from '../components/AudiobookPlayer';
 import { 
   saveAssetForOffline, 
   getDecryptedOfflineAsset, 
   isAssetSavedOffline, 
-  removeOfflineAsset 
+  removeOfflineAsset,
+  listOfflineAssets
 } from '../utils/offlineVault';
 import { toast } from 'react-hot-toast';
+
+const PDFReaderModal = lazy(() => import('../components/PDFReaderModal').then(m => ({ default: m.PDFReaderModal })));
 
 interface DigitalLicense {
   id: number;
@@ -93,9 +95,37 @@ export const DigitalLibraryPage: React.FC = () => {
       setOfflineStatusMap(statusMap);
     } catch (err: any) {
       console.warn('Could not load library from server:', err);
-      // If offline or network error, toast user
-      if (!navigator.onLine) {
+      // If offline or network error, toast user and attempt offline fallback
+      const offlineItems = await listOfflineAssets();
+      if (offlineItems.length > 0) {
         toast('Operating in offline mode. Viewing cached vault assets.', { icon: '📡' });
+        setLicenses((prev) => {
+          if (prev.length > 0) return prev;
+          return offlineItems.map((item, idx) => ({
+            id: -(idx + 1),
+            license_key: item.licenseKey,
+            status: 'ACTIVE',
+            download_count: 0,
+            max_downloads: 0,
+            can_download: false,
+            created_at: item.savedAt || new Date().toISOString(),
+            order_id: 0,
+            product_id: 0,
+            product_name: item.title || `Offline Vault Item #${idx + 1}`,
+            product_slug: '',
+            format_type: item.fileType === 'AUDIO' ? 'AUDIOBOOK' : 'DOCUMENT',
+            asset_title: item.title || `Vault Document (${item.licenseKey.slice(0, 8)}...)`,
+            file_type: item.fileType || 'PDF',
+            delivery_mode: 'STREAM_ONLY',
+          }));
+        });
+        const statusMap: Record<string, boolean> = {};
+        for (const item of offlineItems) {
+          statusMap[item.licenseKey] = true;
+        }
+        setOfflineStatusMap(statusMap);
+      } else if (!navigator.onLine) {
+        toast('Operating in offline mode. No cached assets available.', { icon: '📡' });
       }
     } finally {
       setLoading(false);
@@ -547,14 +577,16 @@ export const DigitalLibraryPage: React.FC = () => {
 
       {/* In-App Canvas PDF Reader Modal */}
       {readerData && (
-        <PDFReaderModal
-          title={readerData.title}
-          pdfUrl={readerData.pdfUrl}
-          pdfBlob={readerData.pdfBlob}
-          buyerEmail={(user as any)?.email || user?.username}
-          licenseKey={readerData.licenseKey}
-          onClose={() => setReaderData(null)}
-        />
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={32} /></div>}>
+          <PDFReaderModal
+            title={readerData.title}
+            pdfUrl={readerData.pdfUrl}
+            pdfBlob={readerData.pdfBlob}
+            buyerEmail={(user as any)?.email || user?.username}
+            licenseKey={readerData.licenseKey}
+            onClose={() => setReaderData(null)}
+          />
+        </Suspense>
       )}
 
       {/* Docked Audiobook Player Bar */}

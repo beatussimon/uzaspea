@@ -1,3 +1,4 @@
+import hashlib
 import html
 import json
 import logging
@@ -17,6 +18,11 @@ SITE_URL = getattr(settings, 'SITE_URL', 'https://pasifiq.store').rstrip('/')
 SITE_NAME = 'SokoniMax'
 DEFAULT_DESCRIPTION = 'SokoniMax - Buy and sell car parts, vehicles, electronics, and goods in Tanzania. Verified sellers, secure payments, and fast delivery.'
 DEFAULT_IMAGE = f"{SITE_URL}/logo.png"
+
+
+def safe_json_ld(obj) -> str:
+    """Safely serialize JSON-LD escaping HTML closing tags to prevent script escape XSS."""
+    return json.dumps(obj).replace('</', r'\u003c/')
 
 
 def format_tzs(amount):
@@ -42,8 +48,9 @@ class SeoRenderView(APIView):
         path = raw_path.split('?')[0] if '?' in raw_path else raw_path
         query_string = raw_path.split('?')[1] if '?' in raw_path else ''
         
-        # Check Redis cache
-        cache_key = f"seo_render:{raw_path[:150]}"
+        # Check Redis cache with deterministic SHA256 key
+        path_hash = hashlib.sha256(raw_path.encode('utf-8')).hexdigest()[:32]
+        cache_key = f"seo_render:{path_hash}"
         cached_html = cache.get(cache_key)
         if cached_html:
             return HttpResponse(cached_html, content_type="text/html; charset=utf-8")
@@ -259,10 +266,10 @@ class SeoRenderView(APIView):
         <meta name="twitter:image" content="{escape(image_url)}" />
 
         <script type="application/ld+json">
-        {json.dumps(schema)}
+        {safe_json_ld(schema)}
         </script>
         <script type="application/ld+json">
-        {json.dumps(breadcrumb_schema)}
+        {safe_json_ld(breadcrumb_schema)}
         </script>
         """
 
@@ -396,8 +403,8 @@ class SeoRenderView(APIView):
         <meta property="og:url" content="{escape(canonical)}" />
         <meta property="og:image" content="{DEFAULT_IMAGE}" />
         <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">{json.dumps(website_schema)}</script>
-        <script type="application/ld+json">{json.dumps(org_schema)}</script>
+        <script type="application/ld+json">{safe_json_ld(website_schema)}</script>
+        <script type="application/ld+json">{safe_json_ld(org_schema)}</script>
         """
 
         return self.render_full_html(title, desc, canonical, extra_head, body_content)
@@ -466,7 +473,8 @@ class SeoRenderView(APIView):
         </main>
         """
         extra_head = '<meta name="robots" content="noindex, follow" />'
-        return self.render_full_html(title, desc, canonical, extra_head, body_content)
+        full_html = self.render_full_html(title, desc, canonical, extra_head, body_content)
+        return HttpResponse(full_html, status=404, content_type="text/html; charset=utf-8")
 
     def render_fallback_shell(self, title, description, canonical_url):
         return self.render_full_html(title, description, canonical_url, "", "")

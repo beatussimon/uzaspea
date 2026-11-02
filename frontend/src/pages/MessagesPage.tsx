@@ -187,7 +187,7 @@ const MessagesPage: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const userId = user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0');
+  const userId = user?.user_id || (user as any)?.id || 0;
 
   const {
     conversations,

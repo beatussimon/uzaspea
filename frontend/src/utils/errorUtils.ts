@@ -4,7 +4,7 @@
  * connectivity, timeouts, or backend server errors rather than user actions.
  */
 
-export type ApiErrorType = 'offline' | 'timeout' | 'server' | 'notFound' | 'client' | 'unknown';
+export type ApiErrorType = 'offline' | 'timeout' | 'server' | 'notFound' | 'client' | 'geoblocked' | 'unknown';
 
 export interface ClassifiedError {
   type: ApiErrorType;
@@ -111,6 +111,21 @@ export function classifyApiError(error: any): ClassifiedError {
       descKey: 'product_not_found',
       defaultTitle: 'Not Found',
       defaultDesc: 'The requested product or resource could not be found.',
+      rawMessage: error?.message,
+    };
+  }
+
+  // 5.5. Geoblocked / Territory Restriction (451)
+  if (statusCode === 451) {
+    return {
+      type: 'geoblocked',
+      isNetworkOrServer: false,
+      canRetry: false,
+      statusCode: 451,
+      titleKey: 'geoblocked_title',
+      descKey: 'geoblocked_desc',
+      defaultTitle: 'Territory Restriction',
+      defaultDesc: error?.response?.data?.message || 'Access to this service is restricted in your current country or territory.',
       rawMessage: error?.message,
     };
   }

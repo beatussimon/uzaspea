@@ -1,7 +1,20 @@
+import hashlib
+import hmac
 from rest_framework import serializers
+from django.conf import settings
 from django.db.models import F
 from django.db import transaction
 from decimal import Decimal, ROUND_HALF_UP
+
+
+def compute_invoice_signature(order_id: int, created_ts: int) -> str:
+    """Cryptographic tamper-proof invoice verification signature."""
+    return hmac.new(
+        settings.SECRET_KEY.encode('utf-8'),
+        f"invoice:v2:{order_id}:{created_ts}".encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()[:20]
+
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
@@ -224,11 +237,22 @@ class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
         if '/media/' in rel_path:
             rel_path = rel_path.split('/media/', 1)[1]
         rel_path = rel_path.lstrip('/')
+        if not rel_path or '..' in rel_path:
+            return
+        # Restrict strictly to images already attached to the same product
+        if not instance.product.images.filter(image=rel_path).exists():
+            return
         if default_storage.exists(rel_path):
             try:
                 with default_storage.open(rel_path, 'rb') as f:
                     filename = os.path.basename(rel_path)
-                    instance.image.save(filename, ContentFile(f.read()), save=True)
+                    chunks = []
+                    while True:
+                        chunk = f.read(65536)
+                        if not chunk:
+                            break
+                        chunks.append(chunk)
+                    instance.image.save(filename, ContentFile(b''.join(chunks)), save=True)
             except Exception:
                 pass
 
@@ -957,14 +981,27 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
         prefetched_events = getattr(obj, '_prefetched_objects_cache', {}).get('inspection_events')
         if prefetched_events is not None and len(prefetched_events) > 0:
             return False
+        if prefetched_events is None and hasattr(obj, 'inspection_events') and obj.inspection_events.exists():
+            return False
         prefetched_inspections = getattr(obj, '_prefetched_objects_cache', {}).get('inspections')
         if prefetched_inspections is not None:
             return any(i.status == 'published' for i in prefetched_inspections)
+        if hasattr(obj, 'inspections'):
+            return any(i.status == 'published' for i in obj.inspections.all())
         return False
 
     def get_inspection_verdict(self, obj):
         if hasattr(obj, 'annotated_inspection_verdict'):
             return obj.annotated_inspection_verdict
+        prefetched_inspections = getattr(obj, '_prefetched_objects_cache', {}).get('inspections')
+        if prefetched_inspections is not None:
+            for i in prefetched_inspections:
+                if i.status == 'published':
+                    return getattr(i, 'report', None) and i.report.verdict
+        elif hasattr(obj, 'inspections'):
+            for i in obj.inspections.all():
+                if i.status == 'published':
+                    return getattr(i, 'report', None) and i.report.verdict
         return None
 
     def get_has_post_inspection_changes(self, obj):
@@ -973,6 +1010,8 @@ class ProductListSerializer(CostPriceVisibilityMixin, serializers.ModelSerialize
         prefetched_events = getattr(obj, '_prefetched_objects_cache', {}).get('inspection_events')
         if prefetched_events is not None:
             return len(prefetched_events) > 0
+        if hasattr(obj, 'inspection_events'):
+            return obj.inspection_events.exists()
         return False
 
 
@@ -1634,10 +1673,22 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_verification_token(self, obj):
         try:
-            import hashlib
-            from django.conf import settings
-            raw = f"invoice:{obj.id}:{obj.order_date.isoformat() if obj.order_date else ''}:{settings.SECRET_KEY[:16]}"
-            return hashlib.sha256(raw.encode()).hexdigest()[:16]
+            request = self.context.get('request') if hasattr(self, 'context') and isinstance(self.context, dict) else None
+            if not request or not hasattr(request, 'user') or request.user.is_anonymous:
+                return ''
+            user = request.user
+            if not (user.is_staff or user.is_superuser or obj.user_id == user.id):
+                sellers = self.context.get('effective_sellers')
+                if sellers is None:
+                    from uzachuo.permissions import get_effective_sellers
+                    sellers = get_effective_sellers(user, required_permission='manage_orders') or get_effective_sellers(user, required_permission='manage_products') or [user.id]
+                    if isinstance(self.context, dict):
+                        self.context['effective_sellers'] = sellers
+                order_seller_ids = {item.product.seller_id for item in obj.orderitem_set.all() if item.product and item.product.seller_id}
+                if not (set(sellers) & order_seller_ids):
+                    return ''
+            created_ts = int(obj.order_date.timestamp()) if obj.order_date else 0
+            return compute_invoice_signature(obj.id, created_ts)
         except Exception:
             return ''
 
@@ -1661,6 +1712,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 profile = getattr(seller, 'profile', None)
                 store_name = resolve_seller_store_name(seller, self.context)
                 contacts.append({
+                    'seller_id': seller.id,
                     'username': seller.username,
                     'phone': profile.phone_number if profile else '',
                     'full_name': f"{seller.first_name} {seller.last_name}".strip(),
@@ -1746,6 +1798,12 @@ class OrderSerializer(serializers.ModelSerializer):
                 all_items = list(instance.orderitem_set.all())
                 filtered_items = [item for item in all_items if item.product and item.product.seller_id in sellers]
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
+                # Multi-seller order privacy: scope contacts and payment records
+                if 'seller_contacts' in ret and isinstance(ret['seller_contacts'], list):
+                    ret['seller_contacts'] = [c for c in ret['seller_contacts'] if c.get('seller_id') in sellers]
+                if 'payments' in ret and isinstance(ret['payments'], list):
+                    is_direct = instance.delivery_method in ('DIRECT_DELIVERY', 'SELLER_PICKUP') or instance.fulfillment_type in ('DIRECT_DELIVERY', 'SELLER_PICKUP')
+                    ret['payments'] = [p for p in ret['payments'] if p.get('verification_authority') == 'SELLER' or is_direct]
         return ret
 
     def _get_seller_items(self, request, obj):
@@ -1889,7 +1947,14 @@ class OrderSerializer(serializers.ModelSerializer):
             order = Order.objects.create(**validated_data)
             
             total = 0
-            for item_data in items_data:
+            # Sort items deterministically by variant/product PK to eliminate concurrency deadlocks
+            sorted_items_data = sorted(
+                items_data,
+                key=lambda it: (
+                    it['variant'].pk if it.get('variant') else it['product'].pk
+                )
+            )
+            for item_data in sorted_items_data:
                 product = item_data['product']
                 qty = item_data['quantity']
                 variant = item_data.get('variant')
@@ -1957,10 +2022,10 @@ class OrderSerializer(serializers.ModelSerializer):
 
                 if variant:
                     ProductVariant.objects.filter(pk=variant.pk).update(stock=F('stock') - qty)
-                    ProductVariant.objects.filter(pk=variant.pk, stock=0).update(is_available=False)
+                    ProductVariant.objects.filter(pk=variant.pk, stock__lte=0).update(is_available=False)
                 else:
                     Product.objects.filter(pk=product.pk).update(stock=F('stock') - qty)
-                    Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
+                    Product.objects.filter(pk=product.pk, stock__lte=0).update(is_available=False)
             
             # Apply promo code if provided
             promo_obj = None
@@ -2110,6 +2175,10 @@ class WarehouseOrderItemSerializer(serializers.ModelSerializer):
 class WarehouseOrderSerializer(OrderSerializer):
     items = WarehouseOrderItemSerializer(source='orderitem_set', many=True, read_only=True)
 
+    def get_verification_token(self, obj):
+        return None
+
+
 class StoreImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreImage
@@ -2137,7 +2206,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
                   'website', 'bio', 'tier', 'gender', 'gender_locked', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'preferred_language', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
-                  'show_product_requests', 'business_mode', 'pass_expiry_window_days']
+                  'show_product_requests', 'business_mode', 'pass_expiry_window_days', 'pos_settings']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude', 'gender_locked']  # FIX: S-07 — only staff/admin should set these
 
     def validate_gender(self, value):
@@ -2697,6 +2766,16 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_by_owner', 'created_at']
 
+    def validate_assigned_locations(self, locations):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and not (request.user.is_staff or request.user.is_superuser):
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(request.user, required_permission='manage_team') or [request.user.id]
+            for loc in locations:
+                if loc.owner_id not in sellers:
+                    raise serializers.ValidationError(f"Location '{loc.name}' does not belong to your store.")
+        return locations
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         perms = data.get('permissions')
@@ -3121,6 +3200,20 @@ class LocationStockSerializer(serializers.ModelSerializer):
                 return all_imgs[0].image.url
         return None
 
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and not (request.user.is_staff or request.user.is_superuser):
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(request.user, required_permission='manage_inventory') or [request.user.id]
+            loc = attrs.get('location') or getattr(self.instance, 'location', None)
+            prod = attrs.get('product') or getattr(self.instance, 'product', None)
+            if loc and loc.owner_id not in sellers:
+                raise serializers.ValidationError({"location": "You do not own this store location."})
+            if prod and prod.seller_id not in sellers:
+                raise serializers.ValidationError({"product": "You do not own this product."})
+        return attrs
+
+
 
 class LocationStockBatchUpdateSerializer(serializers.Serializer):
     items = serializers.ListField(
@@ -3189,22 +3282,64 @@ class StockTransferSerializer(serializers.ModelSerializer):
             'received_by', 'received_at', 'created_at', 'updated_at'
         ]
 
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and not (request.user.is_staff or request.user.is_superuser):
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(request.user, required_permission='manage_inventory') or [request.user.id]
+            src = attrs.get('source_location') or getattr(self.instance, 'source_location', None)
+            dst = attrs.get('destination_location') or getattr(self.instance, 'destination_location', None)
+            if src and src.owner_id not in sellers:
+                raise serializers.ValidationError({"source_location": "You do not own the source location."})
+            if dst and dst.owner_id not in sellers:
+                raise serializers.ValidationError({"destination_location": "You do not own the destination location."})
+        return attrs
+
 
 class DigitalAssetSerializer(serializers.ModelSerializer):
     variant_name = serializers.CharField(source='variant.name', read_only=True, allow_null=True)
     has_master_file = serializers.SerializerMethodField()
     sample_preview_url = serializers.SerializerMethodField()
+    file = serializers.FileField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = DigitalAsset
         fields = [
             'id', 'product', 'variant', 'variant_name', 'title', 'file_type',
-            'has_master_file', 'sample_preview_file', 'sample_preview_url',
+            'file', 'has_master_file', 'sample_preview_file', 'sample_preview_url',
             'file_size_bytes', 'page_count', 'duration_seconds',
             'delivery_mode', 'max_downloads_per_license', 'watermark_enabled',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'file_size_bytes', 'has_master_file', 'sample_preview_url']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+
+        product = attrs.get('product') or getattr(self.instance, 'product', None)
+        variant = attrs.get('variant') or getattr(self.instance, 'variant', None)
+        file_type = attrs.get('file_type') or getattr(self.instance, 'file_type', 'PDF')
+
+        if user and not (user.is_staff or user.is_superuser):
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user, required_permission='manage_products') or [user.id]
+            if product and product.seller_id not in sellers:
+                raise serializers.ValidationError({"product": "You do not have permission to attach digital assets to this product."})
+
+        if variant and product and variant.product_id != product.id:
+            raise serializers.ValidationError({"variant": "The selected variant does not belong to this product."})
+
+        from uzachuo.private_media import validate_digital_master_file
+        master_file = attrs.get('file')
+        if master_file:
+            validate_digital_master_file(master_file, file_type=file_type, max_mb=50)
+
+        sample_file = attrs.get('sample_preview_file')
+        if sample_file:
+            validate_digital_master_file(sample_file, file_type=file_type, max_mb=10)
+
+        return attrs
 
     def get_has_master_file(self, obj):
         return bool(obj.file)

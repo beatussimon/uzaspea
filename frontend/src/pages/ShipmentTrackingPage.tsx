@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { API_BASE_URL } from '../api';
+import api, { API_BASE_URL, fetchWsTicket } from '../api';
 import toast from 'react-hot-toast';
 import { MapPin, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -176,42 +176,47 @@ export const ShipmentTrackingPage: React.FC = () => {
     return () => { isCurrent = false; };
   }, [latestPing?.lat, latestPing?.lng]);
 
-  // Connect WebSocket for real-time tracking
+  // Connect WebSocket for real-time tracking using single-use 30s ticket
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
 
-    const token = localStorage.getItem('access_token') || '';
-    const wsUrl = `${WS_BASE}/ws/shipment/tracking/${id}/?token=${token}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    void (async () => {
+      const ticket = await fetchWsTicket();
+      if (!ticket || cancelled) return;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'location_ping') {
-          const newPing: Ping = {
-            lat: data.lat,
-            lng: data.lng,
-            recorded_at: data.recorded_at,
-            source: data.source
-          };
-          setLatestPing(newPing);
-          // Check staleness immediately
-          const differenceMinutes = (new Date().getTime() - new Date(newPing.recorded_at).getTime()) / (1000 * 60);
-          setStale(differenceMinutes > 5);
+      const wsUrl = `${WS_BASE}/ws/shipment/tracking/${id}/?ticket=${encodeURIComponent(ticket)}`;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'location_ping') {
+            const newPing: Ping = {
+              lat: data.lat,
+              lng: data.lng,
+              recorded_at: data.recorded_at,
+              source: data.source
+            };
+            setLatestPing(newPing);
+            const differenceMinutes = (new Date().getTime() - new Date(newPing.recorded_at).getTime()) / (1000 * 60);
+            setStale(differenceMinutes > 5);
+          }
+        } catch (err) {
+          console.error("Error parsing WS message:", err);
         }
-      } catch (err) {
-        console.error("Error parsing WS message:", err);
-      }
-    };
+      };
 
-    ws.onclose = () => {
-      // WebSocket disconnected
-    };
+      ws.onclose = () => {
+        // WebSocket disconnected
+      };
+    })();
 
     return () => {
+      cancelled = true;
       if (wsRef.current && wsRef.current.readyState < 2) {
-        wsRef.current.close();
+        wsRef.current.close(1000);
       }
     };
   }, [id]);
@@ -220,17 +225,12 @@ export const ShipmentTrackingPage: React.FC = () => {
   useEffect(() => {
     const fetchShipmentData = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const config = {
-          headers: { Authorization: `Bearer ${token}` }
-        };
-
-        const res = await axios.get(`${API_BASE_URL}/api/logistics/shipments/${id}/`, config);
+        const res = await api.get(`/api/logistics/shipments/${id}/`);
         setShipment(res.data);
 
         // Fetch latest location ping (if any) from backend
         try {
-          const pingRes = await axios.get(`${API_BASE_URL}/api/logistics/shipments/${id}/latest-ping/`, config);
+          const pingRes = await api.get(`/api/logistics/shipments/${id}/latest-ping/`);
           if (pingRes.data && pingRes.data.lat && pingRes.data.lng) {
             setLatestPing({
               lat: parseFloat(pingRes.data.lat),
@@ -262,11 +262,7 @@ export const ShipmentTrackingPage: React.FC = () => {
     
     setConfirming(true);
     try {
-      const token = localStorage.getItem('access_token');
-      await axios.post(`${API_BASE_URL}/api/logistics/shipments/${id}/confirm_delivery/`, 
-        { code: deliveryCode },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/api/logistics/shipments/${id}/confirm_delivery/`, { code: deliveryCode });
       toast.success("Delivery confirmed successfully!");
       setShipment(prev => prev ? { ...prev, status: 'delivered' } : prev);
       setDeliveryCode('');

@@ -19,6 +19,22 @@ def user_can_access_warehouse(user, warehouse):
         return True  # Logistics managers are cross-warehouse by design
     return WarehouseStaffAssignment.objects.filter(user=user, warehouse=warehouse).exists()
 
+
+def order_belongs_to_warehouse(order, warehouse):
+    """Returns True if the order's delivery routing references this warehouse's code."""
+    if not order or not warehouse:
+        return False
+    d_info = order.delivery_info if isinstance(order.delivery_info, dict) else {}
+    valid_codes = {
+        d_info.get('warehouse_code'),
+        d_info.get('current_warehouse_code'),
+        d_info.get('destination_warehouse_code'),
+    }
+    valid_codes.discard(None)
+    valid_codes.discard('')
+    return warehouse.code in valid_codes
+
+
 class IsSuperUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_superuser)
@@ -104,37 +120,41 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         
         try:
-            order = Order.objects.get(id=order_id)
-            if order.status not in ['RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT']:
-                return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE or AWAITING_DELIVERY_PAYMENT to set fee.'}, status=400)
-            
+            from django.db import transaction
             from decimal import Decimal
-            fee_dec = Decimal(str(fee or 0))
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(id=order_id)
+                if not order_belongs_to_warehouse(order, current_warehouse):
+                    return Response({'error': 'Order does not belong to this warehouse.'}, status=403)
+                if order.status not in ['RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT']:
+                    return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE or AWAITING_DELIVERY_PAYMENT to set fee.'}, status=400)
+                
+                fee_dec = Decimal(str(fee or 0))
+                if fee_dec < Decimal('0.00'):
+                    return Response({'error': 'Delivery fee cannot be negative.'}, status=400)
 
-            if dest_code:
-                from warehouses.models import Warehouse as _Warehouse, WarehouseTransfer
-                from .models import HistoricalRoutePricing
-                from django.db import transaction
+                if dest_code:
+                    from warehouses.models import Warehouse as _Warehouse, WarehouseTransfer
+                    from .models import HistoricalRoutePricing
 
-                import json
-                di_raw = order.delivery_info
-                if isinstance(di_raw, str):
-                    try:
-                        di_raw = json.loads(di_raw)
-                    except json.JSONDecodeError:
+                    import json
+                    di_raw = order.delivery_info
+                    if isinstance(di_raw, str):
+                        try:
+                            di_raw = json.loads(di_raw)
+                        except json.JSONDecodeError:
+                            di_raw = {}
+                    if not di_raw or not isinstance(di_raw, dict):
                         di_raw = {}
-                if not di_raw or not isinstance(di_raw, dict):
-                    di_raw = {}
-                new_di = dict(di_raw)
-                new_di['destination_warehouse_code'] = dest_code
-                order.delivery_info = new_di
-                order.shipping_fee = fee_dec
-                order.save(update_fields=['shipping_fee', 'delivery_info'])
+                    new_di = dict(di_raw)
+                    new_di['destination_warehouse_code'] = dest_code
+                    order.delivery_info = new_di
+                    order.shipping_fee = fee_dec
+                    order.save(update_fields=['shipping_fee', 'delivery_info'])
 
-                # Update historical route pricing (rolling average) for future staff guidance.
-                try:
-                    dest_wh_obj = _Warehouse.objects.get(code=dest_code)
-                    with transaction.atomic():
+                    # Update historical route pricing (rolling average) for future staff guidance.
+                    try:
+                        dest_wh_obj = _Warehouse.objects.get(code=dest_code)
                         hrp, created = HistoricalRoutePricing.objects.select_for_update().get_or_create(
                             origin_warehouse=current_warehouse,
                             destination_warehouse=dest_wh_obj,
@@ -146,23 +166,23 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                             hrp.average_cost = new_avg
                             hrp.data_points = n + 1
                             hrp.save(update_fields=['average_cost', 'data_points'])
-                except _Warehouse.DoesNotExist:
-                    pass
-
-                if dest_code != current_warehouse.code:
-                    try:
-                        dest_warehouse = _Warehouse.objects.get(code=dest_code)
-                        WarehouseTransfer.objects.get_or_create(
-                            order=order,
-                            source_warehouse=current_warehouse,
-                            destination_warehouse=dest_warehouse,
-                            defaults={'status': 'pending'}
-                        )
                     except _Warehouse.DoesNotExist:
                         pass
-            else:
-                order.shipping_fee = fee_dec
-                order.save(update_fields=['shipping_fee'])
+
+                    if dest_code != current_warehouse.code:
+                        try:
+                            dest_warehouse = _Warehouse.objects.get(code=dest_code)
+                            WarehouseTransfer.objects.get_or_create(
+                                order=order,
+                                source_warehouse=current_warehouse,
+                                destination_warehouse=dest_warehouse,
+                                defaults={'status': 'pending'}
+                            )
+                        except _Warehouse.DoesNotExist:
+                            pass
+                else:
+                    order.shipping_fee = fee_dec
+                    order.save(update_fields=['shipping_fee'])
             
             # Transition based on fee amount and destination
             if fee_dec > Decimal('0.00'):
@@ -242,87 +262,91 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'order_id is required.'}, status=400)
 
         try:
-            order = Order.objects.get(id=order_id)
+            from django.db import transaction
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(id=order_id)
+                if not order_belongs_to_warehouse(order, warehouse):
+                    return Response({'error': 'Order does not belong to this warehouse.'}, status=403)
+
+                if order.status != 'PENDING_DELIVERY_VERIFICATION':
+                    return Response({'error': f'Order status is {order.status}, not pending delivery verification.'}, status=400)
+
+                pending_payment = order.payments.select_for_update().filter(status='PENDING_VERIFICATION').order_by('-id').first()
+                if not pending_payment:
+                    return Response({'error': 'No pending delivery payment found to verify.'}, status=400)
+
+                if action_type == 'approve':
+                    pending_payment.status = 'VERIFIED'
+                    pending_payment.save(update_fields=['status'])
+
+                    dest_code = (order.delivery_info or {}).get('destination_warehouse_code')
+                    curr_code = (order.delivery_info or {}).get('current_warehouse_code') or (order.delivery_info or {}).get('warehouse_code') or warehouse.code
+                    is_local_pickup = (order.fulfillment_type == 'WAREHOUSE_PICKUP' or order.shipping_method == 'PICKUP') and (not dest_code or dest_code == curr_code)
+
+                    if is_local_pickup:
+                        from logistics.utils import order_has_vehicles
+                        next_st = 'READY_FOR_VEHICLE_HANDOVER' if order_has_vehicles(order) else 'READY_FOR_PICKUP'
+                    else:
+                        next_st = 'ASSIGNED_TRANSPORT'
+
+                    OrderStateMachine.transition_order(
+                        order, next_st,
+                        notes=f'Delivery payment verified by {request.user.username} at hub {warehouse.code}.'
+                    )
+
+                    if dest_code and dest_code != curr_code:
+                        try:
+                            from warehouses.models import WarehouseTransfer, Warehouse as _Warehouse
+                            dest_wh = _Warehouse.objects.get(code=dest_code)
+                            WarehouseTransfer.objects.get_or_create(
+                                order=order,
+                                source_warehouse=warehouse,
+                                destination_warehouse=dest_wh,
+                                defaults={'status': 'pending'}
+                            )
+                        except Exception:
+                            pass
+
+                    return Response({
+                        'status': 'success',
+                        'order_status': order.status,
+                        'payment_status': pending_payment.status,
+                        'message': f'Delivery payment approved. Order moved to {next_st}.'
+                    })
+
+                elif action_type == 'reject':
+                    pending_payment.status = 'REJECTED'
+                    pending_payment.save(update_fields=['status'])
+
+                    rej_reason = reason.strip() or 'Payment details or proof receipt could not be verified.'
+                    OrderStateMachine.transition_order(
+                        order, 'AWAITING_DELIVERY_PAYMENT',
+                        notes=f'Delivery payment rejected by {request.user.username} at hub {warehouse.code}. Reason: {rej_reason}'
+                    )
+
+                    try:
+                        from marketplace.models import Notification
+                        Notification.objects.create(
+                            user=order.user,
+                            title="Delivery Fee Payment Rejected",
+                            message=f"Your delivery payment for Order #{order.id} was rejected: {rej_reason}. Please re-submit valid payment proof.",
+                            notification_type='ORDER_STATUS'
+                        )
+                    except Exception:
+                        pass
+
+                    return Response({
+                        'status': 'success',
+                        'order_status': order.status,
+                        'payment_status': pending_payment.status,
+                        'message': f'Delivery payment rejected. Buyer notified to re-submit.'
+                    })
+                else:
+                    return Response({'error': f'Invalid action {action_type}. Use approve or reject.'}, status=400)
         except Order.DoesNotExist:
             return Response({'error': 'Order not found.'}, status=404)
-
-        if order.status not in ['PENDING_DELIVERY_VERIFICATION', 'AWAITING_DELIVERY_PAYMENT']:
-            return Response({'error': f'Order status is {order.status}, not pending delivery verification.'}, status=400)
-
-        pending_payment = order.payments.filter(status='PENDING_VERIFICATION').order_by('-id').first()
-        if not pending_payment:
-            pending_payment = order.payments.order_by('-id').first()
-
-        if action_type == 'approve':
-            if pending_payment:
-                pending_payment.status = 'VERIFIED'
-                pending_payment.save(update_fields=['status'])
-
-            dest_code = (order.delivery_info or {}).get('destination_warehouse_code')
-            curr_code = (order.delivery_info or {}).get('current_warehouse_code') or (order.delivery_info or {}).get('warehouse_code') or warehouse.code
-            is_local_pickup = (order.fulfillment_type == 'WAREHOUSE_PICKUP' or order.shipping_method == 'PICKUP') and (not dest_code or dest_code == curr_code)
-
-            if is_local_pickup:
-                from logistics.utils import order_has_vehicles
-                next_st = 'READY_FOR_VEHICLE_HANDOVER' if order_has_vehicles(order) else 'READY_FOR_PICKUP'
-            else:
-                next_st = 'ASSIGNED_TRANSPORT'
-
-            OrderStateMachine.transition_order(
-                order, next_st,
-                notes=f'Delivery payment verified by {request.user.username} at hub {warehouse.code}.'
-            )
-
-            if dest_code and dest_code != curr_code:
-                try:
-                    from warehouses.models import WarehouseTransfer, Warehouse as _Warehouse
-                    dest_wh = _Warehouse.objects.get(code=dest_code)
-                    WarehouseTransfer.objects.get_or_create(
-                        order=order,
-                        source_warehouse=warehouse,
-                        destination_warehouse=dest_wh,
-                        defaults={'status': 'pending'}
-                    )
-                except Exception:
-                    pass
-
-            return Response({
-                'status': 'success',
-                'order_status': order.status,
-                'payment_status': pending_payment.status if pending_payment else 'VERIFIED',
-                'message': f'Delivery payment approved. Order moved to {next_st}.'
-            })
-
-        elif action_type == 'reject':
-            if pending_payment:
-                pending_payment.status = 'REJECTED'
-                pending_payment.save(update_fields=['status'])
-
-            rej_reason = reason.strip() or 'Payment details or proof receipt could not be verified.'
-            OrderStateMachine.transition_order(
-                order, 'AWAITING_DELIVERY_PAYMENT',
-                notes=f'Delivery payment rejected by {request.user.username} at hub {warehouse.code}. Reason: {rej_reason}'
-            )
-
-            try:
-                from marketplace.models import Notification
-                Notification.objects.create(
-                    user=order.user,
-                    title="Delivery Fee Payment Rejected",
-                    message=f"Your delivery payment for Order #{order.id} was rejected: {rej_reason}. Please re-submit valid payment proof.",
-                    notification_type='ORDER_STATUS'
-                )
-            except Exception:
-                pass
-
-            return Response({
-                'status': 'success',
-                'order_status': order.status,
-                'payment_status': pending_payment.status if pending_payment else 'REJECTED',
-                'message': f'Delivery payment rejected. Buyer notified to re-submit.'
-            })
-        else:
-            return Response({'error': f'Invalid action {action_type}. Use approve or reject.'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
 
     @action(detail=True, methods=['get'], url_path='outbound-queue')
     def outbound_queue(self, request, pk=None):
@@ -371,9 +395,13 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'You do not have permission to perform this action.'}, status=403)
         order_id = request.data.get('order_id')
         try:
-            order = Order.objects.get(id=order_id)
-            if order.status not in ['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT', 'RECEIVED_AT_WAREHOUSE']:
-                return Response({'error': f'Order status {order.status} cannot be dispatched.'}, status=400)
+            from django.db import transaction
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(id=order_id)
+                if not order_belongs_to_warehouse(order, warehouse):
+                    return Response({'error': 'Order does not belong to this warehouse.'}, status=403)
+                if order.status not in ['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT', 'RECEIVED_AT_WAREHOUSE']:
+                    return Response({'error': f'Order status {order.status} cannot be dispatched.'}, status=400)
             
             carrier_type = request.data.get('carrier_type', 'driver')
             driver_id = request.data.get('driver_id')
@@ -610,6 +638,19 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         if not order:
             return Response({'error': f'Order matching "{order_param}" not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_logistics')):
+            user_wh_codes = set(WarehouseStaffAssignment.objects.filter(user=request.user).values_list('warehouse__code', flat=True))
+            d_info = order.delivery_info if isinstance(order.delivery_info, dict) else {}
+            order_wh_codes = {
+                d_info.get('warehouse_code'),
+                d_info.get('current_warehouse_code'),
+                d_info.get('destination_warehouse_code'),
+            }
+            order_wh_codes.discard(None)
+            order_wh_codes.discard('')
+            if not (user_wh_codes & order_wh_codes):
+                return Response({'error': 'Order does not belong to any warehouse assigned to you.'}, status=403)
+
         # Get primary product name/image (name masked for logistics security)
         product_name = "SokoniMax Secured Package"
         product_image = None
@@ -670,6 +711,12 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = WarehouseTransfer.objects.select_related('source_warehouse', 'destination_warehouse', 'order', 'transfer_by').all()
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_logistics')):
+            assigned_wh_ids = WarehouseStaffAssignment.objects.filter(user=self.request.user).values_list('warehouse_id', flat=True)
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(source_warehouse_id__in=assigned_wh_ids) | Q(destination_warehouse_id__in=assigned_wh_ids)
+            )
         warehouse_id = self.request.query_params.get('warehouse')
         if warehouse_id:
             from django.db.models import Q
@@ -843,6 +890,26 @@ class PickupVerifyView(APIView):
             
             if pickup_code.is_used:
                 return Response({'error': 'This code has already been used'}, status=status.HTTP_400_BAD_REQUEST)
+
+            has_central_pickup_perm = (
+                request.user.is_superuser
+                or has_staff_permission(request.user, 'can_manage_logistics')
+                or has_staff_permission(request.user, 'can_manage_warehouse_intake')
+            )
+            if not has_central_pickup_perm:
+                user_wh_codes = set(WarehouseStaffAssignment.objects.filter(user=request.user).values_list('warehouse__code', flat=True))
+                d_info = pickup_code.order.delivery_info if isinstance(pickup_code.order.delivery_info, dict) else {}
+                order_wh_codes = {
+                    d_info.get('warehouse_code'),
+                    d_info.get('current_warehouse_code'),
+                    d_info.get('destination_warehouse_code'),
+                }
+                order_wh_codes.discard(None)
+                order_wh_codes.discard('')
+                if order_wh_codes and not (user_wh_codes & order_wh_codes):
+                    return Response({'error': 'Order does not belong to your assigned warehouse.'}, status=403)
+                elif not order_wh_codes and not user_wh_codes:
+                    return Response({'error': 'You are not assigned to any warehouse.'}, status=403)
             
             # Reset fail count on success
             cache.delete(user_key)

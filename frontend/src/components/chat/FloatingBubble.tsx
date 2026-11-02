@@ -11,7 +11,7 @@ interface FloatingBubbleProps {
 
 export const FloatingBubble: React.FC<FloatingBubbleProps> = ({ conv, onDismiss }) => {
   const { user } = useAuth();
-  const userId = Number(user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0'));
+  const userId = Number(user?.user_id || (user as any)?.id || 0);
   const { openChatWindow, closeChatWindow, typingStatus } = useMessages();
 
   const isBuyer = Number(conv.buyer) === userId;

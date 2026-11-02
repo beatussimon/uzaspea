@@ -9,7 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import inspectionApi from '../../api/inspectionApi';
-import api, { API_BASE_URL } from '../../api';
+import api, { API_BASE_URL, fetchWsTicket } from '../../api';
 import './InspectionLayout.css';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -1489,38 +1489,42 @@ const RequestDetail: React.FC = () => {
   useEffect(() => {
     load();
 
-    // 1. WebSocket Live Stream via Redis
+    // 1. WebSocket Live Stream via Redis (single-use 30s ticket)
     let ws: WebSocket | null = null;
-    const token = localStorage.getItem('token');
+    let cancelled = false;
     const numericId = Number(id);
 
-    if (token && !isNaN(numericId)) {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = window.location.host;
-      const wsUrl = `${wsProtocol}//${wsHost}/ws/notifications/?token=${token}`;
-      try {
-        ws = new WebSocket(wsUrl);
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data?.notification || data?.type === 'notification.push') {
-              const notif = data.notification || data;
-              if (
-                notif.request_id === numericId ||
-                notif.link?.includes(String(numericId)) ||
-                (request && notif.inspection_id === request.inspection_id)
-              ) {
-                toast.success(notif.message || notif.title || t('inspection_status_updated', 'Inspection status updated!'));
-                load();
+    if (!isNaN(numericId)) {
+      void (async () => {
+        const ticket = await fetchWsTicket();
+        if (!ticket || cancelled) return;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/notifications/?ticket=${encodeURIComponent(ticket)}`;
+        try {
+          ws = new WebSocket(wsUrl);
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data?.notification || data?.type === 'notification.push') {
+                const notif = data.notification || data;
+                if (
+                  notif.request_id === numericId ||
+                  notif.link?.includes(String(numericId)) ||
+                  (request && notif.inspection_id === request.inspection_id)
+                ) {
+                  toast.success(notif.message || notif.title || t('inspection_status_updated', 'Inspection status updated!'));
+                  load();
+                }
               }
+            } catch (e) {
+              console.error('WS notification parse error', e);
             }
-          } catch (e) {
-            console.error('WS notification parse error', e);
-          }
-        };
-      } catch (e) {
-        console.warn('WebSocket connection error:', e);
-      }
+          };
+        } catch (e) {
+          console.warn('WebSocket connection error:', e);
+        }
+      })();
     }
 
     // 2. Adaptive Backup Poller (polls every 5s while in active pending state)
@@ -1547,7 +1551,8 @@ const RequestDetail: React.FC = () => {
     window.addEventListener('focus', onFocus);
 
     return () => {
-      if (ws) ws.close();
+      cancelled = true;
+      if (ws) ws.close(1000);
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
     };

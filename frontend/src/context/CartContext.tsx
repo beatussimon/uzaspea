@@ -44,14 +44,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   const getStorageKey = useCallback(() => {
-    const userId = user?.user_id || localStorage.getItem('user_id');
+    const userId = user?.user_id;
     return userId ? `sokonimax_cart_${userId}` : 'sokonimax_cart';
   }, [user]);
 
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
-      const userId = localStorage.getItem('user_id');
-      const key = userId ? `sokonimax_cart_${userId}` : 'sokonimax_cart';
+      const key = user?.user_id ? `sokonimax_cart_${user.user_id}` : 'sokonimax_cart';
       const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : [];
     } catch {
@@ -79,7 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const addToCart = useCallback((product: any, quantity = 1) => {
-    if (!isAuthenticated && !localStorage.getItem('access_token')) {
+    if (!isAuthenticated) {
       const returnUrl = window.location.pathname + window.location.search;
       sessionStorage.setItem('loginRedirect', returnUrl);
       sessionStorage.setItem('pendingCartItem', JSON.stringify({ product, quantity }));
@@ -89,7 +88,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     setItems((prev) => {
-      const currentUsername = user?.username || localStorage.getItem('username');
+      const currentUsername = user?.username;
       if (currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase()) {
         toast.error(t('cannot_add_own_product', "You cannot add your own product to the cart"));
         return prev;
