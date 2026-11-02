@@ -82,15 +82,19 @@ export const DiscoveryFeed: React.FC = () => {
     api.get('/api/products/discovery/', { params })
       .then((res) => {
         apiCache.set(cacheKey, res.data);
-        try {
-          localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify({ key: cacheKey, data: res.data }));
-        } catch {
-          // storage quota
-        }
         const list: SectionData[] = Array.isArray(res.data?.sections) ? res.data.sections : [];
         setSections(list);
         const total = list.reduce((acc, s) => acc + (s.products?.length || 0), 0);
         if (total > 0) trackRecImpression('foryou', total);
+
+        // Defer storage write to idle time so it does not block React reconciliation
+        setTimeout(() => {
+          try {
+            localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify({ key: cacheKey, data: res.data }));
+          } catch {
+            // storage quota
+          }
+        }, 300);
       })
       .catch((err) => {
         setFeedError(classifyApiError(err));
@@ -131,7 +135,7 @@ export const DiscoveryFeed: React.FC = () => {
           />
         ))
       ) : (
-        sections.map((section) => (
+        sections.map((section, idx) => (
           <DiscoveryShelf
             key={section.id}
             id={section.id}
@@ -144,6 +148,7 @@ export const DiscoveryFeed: React.FC = () => {
             gender={section.gender_active || (gender || 'female')}
             paginated={section.paginated === true}
             trackSource="foryou"
+            allowAutoScroll={idx === 0}
           />
         ))
       )}

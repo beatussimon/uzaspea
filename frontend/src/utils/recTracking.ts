@@ -88,46 +88,58 @@ export function getRecAttributionForProduct(productId: number): { rec_surface: s
 }
 
 /* ─── Impression Fatigue Tracking ──────────────────────────────── */
-export function incrementProductSeenCount(productId: number): number {
-  if (!Number.isInteger(productId) || productId <= 0) return 0;
+let cachedSeenCounts: Record<string, number> | null = null;
+let saveSeenTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function loadSeenCounts(): Record<string, number> {
+  if (cachedSeenCounts) return cachedSeenCounts;
   try {
     const raw = localStorage.getItem(SEEN_COUNTS_KEY);
-    let counts: Record<string, number> = raw ? JSON.parse(raw) : {};
-    if (typeof counts !== 'object' || counts === null) counts = {};
-    const key = String(productId);
-    const next = (counts[key] || 0) + 1;
-    counts[key] = next;
+    cachedSeenCounts = raw ? JSON.parse(raw) : {};
+    if (typeof cachedSeenCounts !== 'object' || cachedSeenCounts === null) cachedSeenCounts = {};
+  } catch {
+    cachedSeenCounts = {};
+  }
+  return cachedSeenCounts!;
+}
 
-    // Prune if map exceeds 200 items
-    const keys = Object.keys(counts);
+function flushSeenCounts(): void {
+  if (!cachedSeenCounts) return;
+  try {
+    const keys = Object.keys(cachedSeenCounts);
     if (keys.length > 200) {
       const trimmed: Record<string, number> = {};
-      for (const k of keys.slice(-150)) trimmed[k] = counts[k];
-      counts = trimmed;
+      for (const k of keys.slice(-150)) trimmed[k] = cachedSeenCounts[k];
+      cachedSeenCounts = trimmed;
     }
-    localStorage.setItem(SEEN_COUNTS_KEY, JSON.stringify(counts));
-    return next;
+    localStorage.setItem(SEEN_COUNTS_KEY, JSON.stringify(cachedSeenCounts));
   } catch {
-    return 1;
+    // quota
   }
 }
 
+export function incrementProductSeenCount(productId: number): number {
+  if (!Number.isInteger(productId) || productId <= 0) return 0;
+  const counts = loadSeenCounts();
+  const key = String(productId);
+  const next = (counts[key] || 0) + 1;
+  counts[key] = next;
+
+  // Batch writes with a debounce so mounting dozens of cards does ZERO synchronous disk IO
+  if (saveSeenTimeout) clearTimeout(saveSeenTimeout);
+  saveSeenTimeout = setTimeout(flushSeenCounts, 300);
+
+  return next;
+}
+
 export function getProductSeenCount(productId: number): number {
-  try {
-    const raw = localStorage.getItem(SEEN_COUNTS_KEY);
-    if (!raw) return 0;
-    const counts = JSON.parse(raw);
-    return counts?.[String(productId)] || 0;
-  } catch {
-    return 0;
-  }
+  const counts = loadSeenCounts();
+  return counts[String(productId)] || 0;
 }
 
 export function getFatiguedProductIds(threshold = 3): number[] {
   try {
-    const raw = localStorage.getItem(SEEN_COUNTS_KEY);
-    if (!raw) return [];
-    const counts = JSON.parse(raw);
+    const counts = loadSeenCounts();
     if (!counts || typeof counts !== 'object') return [];
     return Object.entries(counts)
       .filter(([, c]) => typeof c === 'number' && c >= threshold)

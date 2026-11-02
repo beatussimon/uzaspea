@@ -20,6 +20,7 @@ export interface DiscoveryShelfProps {
   gender?: 'female' | 'male';
   paginated?: boolean;
   trackSource?: string;
+  allowAutoScroll?: boolean;
 }
 
 export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
@@ -32,6 +33,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   gender = 'female',
   paginated = true,
   trackSource,
+  allowAutoScroll = false,
 }) => {
   const { t } = useTranslation();
   const sectionRef = useRef<HTMLElement>(null);
@@ -66,9 +68,15 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const hasAutoScrolledRef = useRef(false);
   const userInteractionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const AUTOSCROLL_SESSION_KEY = `uzaspea_shelf_autoscrolled_${id}`;
 
   const pauseAutoScrollTemporarily = useCallback(() => {
     hasAutoScrolledRef.current = true; // User interacted, so do not auto-scroll again
+    try {
+      sessionStorage.setItem(AUTOSCROLL_SESSION_KEY, 'true');
+    } catch {
+      // ignore
+    }
     setIsUserInteracting(true);
     if (userInteractionTimeoutRef.current) {
       clearTimeout(userInteractionTimeoutRef.current);
@@ -76,7 +84,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     userInteractionTimeoutRef.current = setTimeout(() => {
       setIsUserInteracting(false);
     }, 5000);
-  }, []);
+  }, [AUTOSCROLL_SESSION_KEY]);
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     // Only count as shelf interaction if the user is scrolling horizontally
@@ -101,8 +109,8 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   const [isPointerDown, setIsPointerDown] = useState(false);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Only primary button (left click or touch)
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // Only enable drag-to-scroll for mouse input; mobile touch is handled natively by the browser compositor
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
     const el = scrollRef.current;
     if (!el) return;
 
@@ -199,6 +207,8 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   const canScrollRightRef = useRef(false);
   const activeColIndexRef = useRef(0);
   const stepRef = useRef<number>(0);
+  const isProgrammaticScrollingRef = useRef(false);
+  const snapRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const measureStep = useCallback(() => {
     const el = scrollRef.current;
@@ -214,7 +224,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || isProgrammaticScrollingRef.current) return;
 
     const nextCanLeft = el.scrollLeft > 10;
     if (canScrollLeftRef.current !== nextCanLeft) {
@@ -248,12 +258,16 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   }, [totalColumns, hasMore, loadingMore, fetchNextPage]);
 
   useEffect(() => {
-    measureStep();
-    checkScroll();
     const el = scrollRef.current;
     if (!el) return;
 
-    let rafId: number | null = null;
+    // Defer initial layout measurements to requestAnimationFrame so they do NOT force reflows during React commit
+    let rafId: number | null = requestAnimationFrame(() => {
+      measureStep();
+      checkScroll();
+      rafId = null;
+    });
+
     const onScroll = () => {
       if (rafId === null) {
         rafId = requestAnimationFrame(() => {
@@ -272,6 +286,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     window.addEventListener('resize', onResize, { passive: true });
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
+      if (snapRestoreTimeoutRef.current) clearTimeout(snapRestoreTimeoutRef.current);
       el.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
@@ -280,12 +295,49 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   const scrollToColumn = useCallback((colIdx: number) => {
     const el = scrollRef.current;
     if (!el) return;
-    const step = stepRef.current || el.clientWidth;
+
+    // In a 2-row grid, column 0 is child 0, column 1 is child 2, column k is child k*2
+    const targetChild = el.children[colIdx * 2] as HTMLElement | undefined;
+    const firstChild = el.children[0] as HTMLElement | undefined;
+    let targetLeft = 0;
+    if (targetChild && firstChild) {
+      targetLeft = targetChild.offsetLeft - firstChild.offsetLeft;
+    } else {
+      const step = stepRef.current || el.clientWidth;
+      targetLeft = colIdx * step;
+    }
+
+    isProgrammaticScrollingRef.current = true;
+
+    // CRITICAL: Temporarily disable CSS scroll-snap so Blink/WebKit scroll-snap engine
+    // does not fight or freeze intermediate frames of the smooth scroll animation
+    el.style.scrollSnapType = 'none';
+
     el.scrollTo({
-      left: colIdx * step,
+      left: targetLeft,
       behavior: 'smooth',
     });
-  }, []);
+
+    activeColIndexRef.current = colIdx;
+    setActiveColIndex(colIdx);
+    setCanScrollLeft(colIdx > 0);
+    setCanScrollRight(colIdx < totalColumns - 1);
+
+    const restoreSnap = () => {
+      if (el) {
+        el.style.scrollSnapType = '';
+      }
+      isProgrammaticScrollingRef.current = false;
+    };
+
+    if (snapRestoreTimeoutRef.current) {
+      clearTimeout(snapRestoreTimeoutRef.current);
+    }
+    if ('onscrollend' in window) {
+      el.addEventListener('scrollend', restoreSnap, { once: true });
+    }
+    snapRestoreTimeoutRef.current = setTimeout(restoreSnap, 450);
+  }, [totalColumns]);
 
   const handleManualScrollToColumn = (colIdx: number) => {
     pauseAutoScrollTemporarily();
@@ -321,13 +373,23 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     return () => observer.disconnect();
   }, [type, totalColumns]);
 
-  // One-time auto-scroll affordance: nudge 1 product/column after 2.5s to show user the shelf is scrollable
+  // One-time auto-scroll affordance: nudge 1 product/column after 1.8s to show user the shelf is scrollable
   useEffect(() => {
+    let alreadyScrolled = hasAutoScrolledRef.current;
+    if (!alreadyScrolled) {
+      try {
+        alreadyScrolled = sessionStorage.getItem(AUTOSCROLL_SESSION_KEY) === 'true';
+      } catch {
+        // ignore
+      }
+    }
+
     if (
+      !allowAutoScroll ||
       type !== 'horizontal_shelf' ||
       totalColumns <= 1 ||
       !isIntersecting ||
-      hasAutoScrolledRef.current ||
+      alreadyScrolled ||
       isUserInteracting ||
       loading ||
       shelfProducts.length === 0 ||
@@ -339,12 +401,17 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     const timer = setTimeout(() => {
       if (document.hidden || hasAutoScrolledRef.current) return;
       hasAutoScrolledRef.current = true;
+      try {
+        sessionStorage.setItem(AUTOSCROLL_SESSION_KEY, 'true');
+      } catch {
+        // ignore
+      }
       scrollToColumn(1);
-      setCanScrollLeft(true);
     }, 1800);
 
     return () => clearTimeout(timer);
   }, [
+    allowAutoScroll,
     type,
     totalColumns,
     isIntersecting,
@@ -353,6 +420,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     shelfProducts.length,
     activeColIndex,
     scrollToColumn,
+    AUTOSCROLL_SESSION_KEY,
   ]);
 
   if (!loading && shelfProducts.length === 0) {
