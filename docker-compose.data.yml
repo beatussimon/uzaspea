@@ -60,7 +60,7 @@ services:
       - "-c"
       - "effective_cache_size=220MB"
       - "-c"
-      - "max_connections=45"
+      - "max_connections=100"
       - "-c"
       - "checkpoint_completion_target=0.9"
       - "-c"
